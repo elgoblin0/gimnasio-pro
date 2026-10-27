@@ -1,0 +1,29 @@
+"""SQL de la demo; única excepción al borrado de hechos (ADR 0003)."""
+
+from gimnasio.comun.ids import a_bytes
+
+
+def vaciar_datos(cursor):
+    """Borra en orden de dependencias, conservando migraciones_aplicadas y las claves foráneas."""
+    cursor.execute("DELETE FROM intentos_de_ingreso")
+    cursor.execute("DELETE FROM consentimientos")
+    cursor.execute("DELETE FROM asignaciones_entrenador")
+    cursor.execute("DELETE FROM usuarios")
+    cursor.execute("DELETE FROM personas")
+    cursor.execute("DELETE FROM sedes")
+
+
+def insertar_sede(cursor, sede_id, momento):
+    cursor.execute(
+        """INSERT INTO sedes (id, nombre, zona_horaria, aforo_maximo, actualizada_en)
+           VALUES (%s, %s, %s, %s, %s)""",
+        (a_bytes(sede_id), "Gimnasio Pro Demo", "America/Asuncion", 60, momento),
+    )
+
+
+def insertar_asignacion(cursor, asignacion_id, socio_id, entrenador_id, momento):
+    cursor.execute(
+        """INSERT INTO asignaciones_entrenador (id, socio_id, entrenador_id, desde, hasta)
+           VALUES (%s, %s, %s, %s, NULL)""",
+        (a_bytes(asignacion_id), a_bytes(socio_id), a_bytes(entrenador_id), momento),
+    )
