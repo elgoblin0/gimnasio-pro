@@ -122,3 +122,33 @@ def test_membresia_aforo_y_acceso_del_socio(pagina_demo, demo_aislada):
     pagina.goto(demo_aislada.url + "/recepcion.html")
     expect(pagina.get_by_text("Ingresá como recepción desde el inicio para registrar visitas.")).to_be_visible()
     expect(pagina.locator("[data-contenido]")).to_be_hidden()
+
+
+def test_foco_durante_post_no_intercala_lecturas_anteriores(pagina_demo, demo_aislada):
+    pagina = pagina_demo
+    pagina.add_init_script("""(() => {
+      const original = window.fetch;
+      window.lecturasDeVisitas = 0;
+      window.fetch = async (ruta, opciones) => {
+        if (ruta === '/api/ocupacion' || ruta === '/api/visitas?abiertas=1' || ruta === '/api/visitas/socios') {
+          window.lecturasDeVisitas++;
+        }
+        const respuesta = await original(ruta, opciones);
+        if (ruta === '/api/entradas' && opciones?.method === 'POST') {
+          window.entradaEnEspera = true;
+          await new Promise(resolver => { window.liberarEntrada = resolver; });
+        }
+        return respuesta;
+      };
+    })();""")
+    ingresar(pagina, demo_aislada)
+    lecturas = pagina.evaluate("window.lecturasDeVisitas")
+    pagina.get_by_role("button", name="Registrar entrada", exact=True).click()
+    pagina.wait_for_function("window.entradaEnEspera === true")
+    pagina.evaluate("window.dispatchEvent(new Event('focus'))")
+    pagina.get_by_role("button", name="Actualizar visitas").click()
+    assert pagina.evaluate("window.lecturasDeVisitas") == lecturas
+    pagina.evaluate("window.liberarEntrada()")
+    expect(pagina.locator("[data-ocupacion]")).to_have_text("1 de 60")
+    expect(pagina.get_by_role("button", name="Registrar salida de Lucía Benítez")).to_be_visible()
+    assert pagina.evaluate("window.lecturasDeVisitas") == lecturas + 3

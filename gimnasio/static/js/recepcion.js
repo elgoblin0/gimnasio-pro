@@ -35,7 +35,7 @@ function dibujarVisitas(visitas) {
     boton.textContent = "Registrar salida";
     boton.setAttribute("aria-label", `Registrar salida de ${visita.nombre}`);
     boton.addEventListener("click", () => {
-      if (control.actual) return;
+      if (control.actual || cargando) return;
       control.preparar("/api/salidas", { entrada_id: visita.id });
       enviar();
     });
@@ -45,7 +45,7 @@ function dibujarVisitas(visitas) {
 }
 
 async function actualizar() {
-  if (!autorizada || cargando) return;
+  if (!autorizada || cargando || control.enCurso) return;
   cargando = true;
   actualizarBotones();
   try {
@@ -94,7 +94,7 @@ async function enviar() {
 
 $("[data-entrada]").addEventListener("submit", (evento) => {
   evento.preventDefault();
-  if (control.actual || !$("#socio").value || !sedeId) return;
+  if (control.actual || cargando || !$("#socio").value || !sedeId) return;
   control.preparar("/api/entradas", { socio_id: $("#socio").value, sede_id: sedeId });
   enviar();
 });
