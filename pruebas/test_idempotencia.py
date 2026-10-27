@@ -242,3 +242,14 @@ def test_migracion_sobre_esquema_anterior_conserva_datos(bd_vacia, tmp_path):
     with conectar(bd_vacia) as conexion, conexion.cursor() as cursor:
         cursor.execute("SELECT nombre FROM sedes")
         assert cursor.fetchall() == [("Sede de prueba",)]
+
+
+def test_limite_demo_con_escritura_idempotente(escritura):
+    app, cliente, ejecuciones, *_ = escritura
+    app.config["MODO_DEMO"] = True
+    clave = str(uuid4())
+    assert enviar(cliente(), clave, b"x" * 1_000_001).status_code == 413
+    assert cantidad(app) == cantidad(app, "solicitudes_idempotentes") == 0
+    assert enviar(cliente(), clave, b"x" * 1_000_000).status_code == 201
+    assert enviar(cliente(), clave, b"x" * 1_000_000).status_code == 201
+    assert len(ejecuciones) == cantidad(app) == 1
