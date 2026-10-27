@@ -23,7 +23,7 @@ def insertar(cursor, tabla, **datos):
 @pytest.fixture
 def entrenamiento(app_con_bd, reloj_fijo):
     with app_con_bd.app_context(), transaccion() as cursor:
-        datos = SimpleNamespace(cursor=cursor, reloj=reloj_fijo, momento=reloj_fijo.ahora())
+        datos = SimpleNamespace(app=app_con_bd, cursor=cursor, reloj=reloj_fijo, momento=reloj_fijo.ahora())
         datos.socio = crear_usuario(cursor, {"nombre": "Socio", "apellido": "Ficticio", "cedula": "9900301"}, "socio")
         datos.otro_socio = crear_usuario(
             cursor, {"nombre": "Otro", "apellido": "Ficticio", "cedula": "9900302"}, "socio"
@@ -233,12 +233,16 @@ def test_fk_de_sesion_y_serie_rechazan_referencias_inexistentes(entrenamiento):
 @pytest.mark.bd
 def test_reinicio_demo_borra_correcciones_y_sesiones_antes_del_programa(entrenamiento):
     datos = entrenamiento
+    datos.app.config["MODO_DEMO"] = True
     original = serie(datos)
-    serie(datos, corrige_a=original, motivo="Corrección ficticia")
+    correccion = serie(datos, corrige_a=original, motivo="Corrección ficticia")
     demo.reiniciar()
-    for tabla in ("series_realizadas", "sesiones_realizadas", "programas_entrenamiento"):
+    assert repositorio.obtener_sesion(datos.cursor, datos.sesion) is None
+    assert repositorio.obtener_serie(datos.cursor, original) is None
+    assert repositorio.obtener_serie(datos.cursor, correccion) is None
+    for tabla, cantidad in (("series_realizadas", 1), ("sesiones_realizadas", 1), ("programas_entrenamiento", 2)):
         datos.cursor.execute(f"SELECT COUNT(*) AS cantidad FROM {tabla}")
-        assert datos.cursor.fetchone()["cantidad"] == 0
+        assert datos.cursor.fetchone()["cantidad"] == cantidad
     datos.cursor.execute("SELECT COUNT(*) AS cantidad FROM migraciones_aplicadas")
     assert datos.cursor.fetchone()["cantidad"] == 9
 

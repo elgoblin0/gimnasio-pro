@@ -289,9 +289,22 @@ def test_mysql_rechaza_medidas_fuera_de_rango(app_con_bd, programas_con_bd, relo
 
 @pytest.mark.bd
 def test_reiniciar_demo_borra_programas_antes_de_los_socios(app_con_bd, programas_con_bd):
+    app_con_bd.config["MODO_DEMO"] = True
     with app_con_bd.app_context():
         demo.reiniciar()
         with transaccion() as cursor:
-            for tabla in ("ejercicios_planificados", "sesiones_planificadas", "programas_entrenamiento", "ejercicios"):
+            for tabla, cantidad in (
+                ("ejercicios_planificados", 6),
+                ("sesiones_planificadas", 4),
+                ("programas_entrenamiento", 2),
+                ("ejercicios", 2),
+            ):
                 cursor.execute(f"SELECT COUNT(*) AS cantidad FROM {tabla}")
-                assert cursor.fetchone()["cantidad"] == 0
+                assert cursor.fetchone()["cantidad"] == cantidad
+            for tabla, ids in (
+                ("programas_entrenamiento", programas_con_bd["programas"]),
+                ("sesiones_planificadas", programas_con_bd["sesiones"]),
+            ):
+                for identificador in ids:
+                    cursor.execute(f"SELECT COUNT(*) AS cantidad FROM {tabla} WHERE id=%s", (identificador,))
+                    assert cursor.fetchone()["cantidad"] == 0
