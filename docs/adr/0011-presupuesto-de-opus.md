@@ -1,6 +1,6 @@
 # 0011. Limitar el uso de Opus con un presupuesto semanal en tokens
 
-- Estado: provisional (se calibra en cada cierre de etapa)
+- Estado: reemplazado el 2026-10-27: el despachador que aplicaba este tope se eliminó (ver `docs/protocolo-agentes.md`)
 - Fecha: 2026-10-26
 - Decide: Opus
 
