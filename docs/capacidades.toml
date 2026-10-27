@@ -65,8 +65,8 @@ id = "demo-publica"
 nombre = "Demo pública en hosting gratuito con límites de uso"
 grupo = "Demo"
 etapa = 1
-nivel = "pendiente"
-prueba = ""
+nivel = "funcional"
+prueba = "pruebas/test_demo_limites.py"
 
 [[capacidad]]
 id = "pwa-escritorio"
