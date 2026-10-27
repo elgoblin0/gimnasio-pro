@@ -33,6 +33,15 @@ Generado por `scripts/mapa_capacidades.py` desde `docs/capacidades/`. No editar 
 | Semilla ficticia de Paraguay que se reinicia | 0 | funcional | `pruebas/test_demo_semilla.py::test_dos_reinicios_dejan_los_mismos_datos` |
 | Demo pública en hosting gratuito con límites de uso | 1 | funcional | `pruebas/test_demo_limites.py` |
 
+## Entrenador
+
+| Capacidad | Etapa | Nivel | Prueba |
+|---|---|---|---|
+| Lectura del programa de entrenamiento y sus sesiones planificadas por socio y versión | 1 | pendiente | `pruebas/test_programas.py` |
+| Bandeja priorizada del entrenador | 4 | pendiente | — |
+| Equipos y alternativas | 4 | pendiente | — |
+| Programas desde plantillas | 4 | pendiente | — |
+
 ## Recepción
 
 | Capacidad | Etapa | Nivel | Prueba |
@@ -60,14 +69,6 @@ Generado por `scripts/mapa_capacidades.py` desde `docs/capacidades/`. No editar 
 | Doble progresión + RPE/RIR con ajustes automáticos y frenos | 2 | pendiente | — |
 | Récords y progreso | 2 | pendiente | — |
 | Sesión en vivo completa | 2 | pendiente | — |
-
-## Entrenador
-
-| Capacidad | Etapa | Nivel | Prueba |
-|---|---|---|---|
-| Bandeja priorizada del entrenador | 4 | pendiente | — |
-| Equipos y alternativas | 4 | pendiente | — |
-| Programas desde plantillas | 4 | pendiente | — |
 
 ## Operación
 
