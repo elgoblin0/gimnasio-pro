@@ -1,4 +1,5 @@
-Cierra #
+Closes #
+<!-- En inglés a propósito: GitHub solo cierra issues con sus palabras clave (Closes, Fixes, Resolves). -->
 
 ## Qué cambia
 <!-- 2 a 5 viñetas, en términos del glosario. -->

@@ -110,4 +110,4 @@ Codex: un intento y un reintento. Si sigue trabado, etiqueta `bloqueado` y `ejec
 - Presupuesto semanal en `scripts/despachador.toml`; el despachador lo hace cumplir.
 
 ## Al terminar
-Abrí el PR con `Cierra #N`. En "Notas para el próximo agente", contá qué quedó a medias, qué decidiste sin ADR y qué trampas encontraste. Si decidiste algo no cubierto por un ADR, escribí un ADR provisional (solo Opus) o etiquetá `necesita-criterio` (Codex).
+Abrí el PR con `Closes #N` (en inglés: GitHub solo reconoce sus palabras clave). En "Notas para el próximo agente", contá qué quedó a medias, qué decidiste sin ADR y qué trampas encontraste. Si decidiste algo no cubierto por un ADR, escribí un ADR provisional (solo Opus) o etiquetá `necesita-criterio` (Codex).

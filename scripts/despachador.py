@@ -363,7 +363,7 @@ Corré `ruff check .`, `ruff format .` y `pytest` antes de terminar.
 Si el issue es ambiguo en algo de producto, no adivines: terminá con un mensaje que empiece con
 "{marca}" y explique la duda, sin dejar cambios a medias.
 Si terminás, tu mensaje final es el cuerpo del PR en markdown, siguiendo .github/pull_request_template.md,
-empezando por "Cierra #{numero}" y con la sección "Notas para el próximo agente".
+empezando por "Closes #{numero}" y con la sección "Notas para el próximo agente".
 """
 
 
@@ -448,8 +448,8 @@ def fallar(issue, ejecutor, detalle):
 
 def publicar(issue, ejecutor, carpeta, cuerpo):
     rama = f"{PREFIJO_RAMA}{issue.numero}"
-    if f"Cierra #{issue.numero}" not in cuerpo:
-        cuerpo = f"Cierra #{issue.numero}\n\n{cuerpo}"
+    if not re.search(rf"(?i)\b(closes|fixes|resolves) #{issue.numero}\b", cuerpo):
+        cuerpo = f"Closes #{issue.numero}\n\n{cuerpo}"
     correr(["git", "add", "-A"], cwd=carpeta)
     if correr(["git", "diff", "--cached", "--quiet"], cwd=carpeta, chequear=False).returncode != 0:
         correr(["git", "commit", "-m", f"{issue.titulo} (#{issue.numero})", "-m", f"Ejecutor: {ejecutor}"], cwd=carpeta)
@@ -667,6 +667,9 @@ def _ejecutar_accion(accion):
             corregir_o_bloquear(issue, f"{motivo}\n\n{error}")
             return
         etiquetar(issue.numero, [], ["estado:revision"])
+        # Respaldo por si el PR no tenía la palabra clave de cierre.
+        if not esta_cerrado(issue.numero):
+            gh("issue", "close", str(issue.numero), "--comment", f"Fusionado en #{extra['number']}.")
         quitar_worktree(issue.numero)
     elif tipo == "pasar-a-codex":
         etiquetar(issue.numero, ["ejecutor:codex"], ["ejecutor:opus"])
