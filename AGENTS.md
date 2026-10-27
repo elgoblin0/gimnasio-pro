@@ -16,7 +16,6 @@ pytest                          # las pruebas con MySQL se saltan si no hay GIMN
 python -m gimnasio.comun.migrar # aplica migraciones/NNNN_*.sql pendientes
 node --test "gimnasio/static/**/*.test.js"  # módulos JS puros (Node 24)
 python scripts/mapa_capacidades.py --verificar
-python scripts/despachador.py --una-vuelta --simular
 ```
 Variables de base: `GIMNASIO_BD_HOST`, `GIMNASIO_BD_PUERTO`, `GIMNASIO_BD_USUARIO`, `GIMNASIO_BD_CLAVE`, `GIMNASIO_BD_NOMBRE`.
 
@@ -40,7 +39,7 @@ scripts/           despachador, mapa de capacidades, resumen del CI
 
 ## Rutas sensibles
 `gimnasio/reglas/`, `migraciones/`, `gimnasio/comun/migrar.py`, `gimnasio/permisos/`, `gimnasio/salud/`.
-Todo PR que las toque necesita revisión de Opus, aunque lo haya escrito Codex.
+Todo PR que las toque necesita revisión independiente de Codex, igual que los demás PR. El dueño autorizó este reemplazo de Opus; ver `docs/protocolo-agentes.md`.
 
 ## Definición de terminado
 1. Hace lo que pide el issue, sin agregados no pedidos.
@@ -52,7 +51,7 @@ Todo PR que las toque necesita revisión de Opus, aunque lo haya escrito Codex.
 7. Revisión cruzada aprobada.
 
 ## Protocolo
-Etiquetas, a quién va cada issue, revisión cruzada, bloqueos y sesiones de Claude: `docs/protocolo-agentes.md`. Leelo al planificar o al escribir un issue.
+Trabajo desde un chat de la app de Codex, etiquetas, revisión y bloqueos: `docs/protocolo-agentes.md`. Leelo al retomar trabajo, planificar o escribir un issue. La ejecución y las fusiones se coordinan desde ese chat, un issue a la vez.
 
 ## Lo que Codex no hace
 - Decidir producto, alcance o términos nuevos: etiqueta `necesita-criterio`, explica la duda en un comentario y se detiene.
@@ -63,4 +62,4 @@ Etiquetas, a quién va cada issue, revisión cruzada, bloqueos y sesiones de Cla
 - Desactivar pruebas, bajar umbrales del CI o usar `# noqa` sin explicación.
 
 ## Al terminar
-El PR empieza con `Closes #N` (en inglés: GitHub solo reconoce sus palabras clave). Bajo el despachador, tu mensaje final es ese cuerpo de PR. En "Notas para el próximo agente", contá qué quedó a medias, qué decidiste sin ADR y qué trampas encontraste. Si decidiste algo no cubierto por un ADR, escribí un ADR provisional (solo Opus) o etiquetá `necesita-criterio` (Codex).
+El PR empieza con `Closes #N` (en inglés: GitHub solo reconoce sus palabras clave). Al terminar, informá los PR fusionados y los pendientes. En "Notas para el próximo agente", contá qué quedó a medias, qué decidiste sin ADR y qué trampas encontraste. Si decidiste algo no cubierto por un ADR, escribí un ADR provisional (solo Opus) o etiquetá `necesita-criterio` (Codex).
