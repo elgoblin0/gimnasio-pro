@@ -15,7 +15,7 @@ from gimnasio.permisos import repositorio
 from gimnasio.permisos.matriz import ROLES, puede
 
 VENTANA_DE_INTENTOS = timedelta(minutes=15)
-MAX_FALLIDOS_POR_IDENTIFICADOR = 5
+MAX_FALLIDOS_POR_USUARIO = 5
 MAX_FALLIDOS_POR_IP = 20
 LARGO_MINIMO_DE_CLAVE = 8
 TIPOS_DE_CONSENTIMIENTO = ("datos_personales", "salud", "imagen")
@@ -55,24 +55,27 @@ def _abrir_sesion(fila):
 
 
 def iniciar_sesion(identificador, clave, ip):
-    """Valida cédula o correo y clave. Limita los fallidos por identificador y por IP en una ventana móvil."""
+    """Valida cédula o correo y clave. Limita los fallidos por usuario (con cualquiera de sus identificadores)
+    y por IP en una ventana móvil. Los ingresos simultáneos de un mismo usuario se serializan."""
     reloj = reloj_actual()
     ahora = reloj.ahora()
     normalizado = _normalizar_identificador(identificador)
     with transaccion() as cursor:
-        por_identificador, por_ip = repositorio.contar_fallidos_desde(
-            cursor, normalizado, ip, ahora - VENTANA_DE_INTENTOS
+        if "@" in normalizado:
+            fila = repositorio.buscar_para_ingreso(cursor, correo=normalizado)
+        else:
+            fila = repositorio.buscar_para_ingreso(cursor, cedula=normalizado)
+        usuario_id = fila["id"] if fila else None
+        por_cuenta, por_ip = repositorio.contar_fallidos_desde(
+            cursor, usuario_id, normalizado, ip, ahora - VENTANA_DE_INTENTOS
         )
-        bloqueado = por_identificador >= MAX_FALLIDOS_POR_IDENTIFICADOR or por_ip >= MAX_FALLIDOS_POR_IP
+        bloqueado = por_cuenta >= MAX_FALLIDOS_POR_USUARIO or por_ip >= MAX_FALLIDOS_POR_IP
         exitoso = False
-        fila = None
         if not bloqueado:
-            buscar = repositorio.buscar_por_correo if "@" in normalizado else repositorio.buscar_por_cedula
-            fila = buscar(cursor, normalizado)
             hash_guardado = fila["clave_hash"] if fila and fila["clave_hash"] else _hash_de_relleno()
             coincide = check_password_hash(hash_guardado, clave or "")
             exitoso = bool(fila and fila["clave_hash"] and fila["activo"] and coincide)
-            repositorio.insertar_intento(cursor, nuevo_id(reloj), normalizado, ip, exitoso, ahora)
+            repositorio.insertar_intento(cursor, nuevo_id(reloj), usuario_id, normalizado, ip, exitoso, ahora)
     if bloqueado:
         raise ErrorDeDominio("demasiados_intentos", "Demasiados intentos fallidos. Probá de nuevo en 15 minutos.", 429)
     if not exitoso:

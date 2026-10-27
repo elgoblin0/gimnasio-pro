@@ -19,7 +19,7 @@ Hay cuatro tipos de usuario con necesidades distintas, y los datos de salud son 
   - con `HttpOnly`, `SameSite=Lax` y `Secure` en producción (las pruebas y el e2e corren sobre `http://localhost`, donde el cliente de pruebas no envía cookies `Secure`);
   - las contraseñas se guardan con `werkzeug.security` (scrypt);
   - las rutas que cambian algo exigen el encabezado `X-Gimnasio: 1`, como defensa CSRF junto con `SameSite`;
-  - los intentos de inicio de sesión se limitan por IP y por usuario.
+  - los intentos fallidos se limitan por usuario (con cualquiera de sus identificadores: 5 en 15 minutos) y por IP (20 en 15 minutos). Los ingresos simultáneos de un mismo usuario se serializan con un bloqueo de fila.
 - "Entrar como…" existe solo con `MODO_DEMO=1` y solo para usuarios marcados `es_demo`; lo prueba el CI.
 - Los consentimientos se registran en `consentimientos(socio_id, tipo, version_texto, otorgado, registrado_por, registrado_en)`, que solo admite inserciones (ADR 0003). Otorgar y revocar agregan un registro, y vale el último por socio y tipo.
 - **Provisional:** sin consentimiento de salud no se guardan restricciones ni dolores. El socio recibe su programa sin subas automáticas, porque los frenos no tendrían datos.

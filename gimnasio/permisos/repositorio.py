@@ -8,18 +8,17 @@ COLUMNAS_USUARIO = """
 """
 
 
-def buscar_por_cedula(cursor, cedula):
-    cursor.execute(
-        f"SELECT {COLUMNAS_USUARIO} FROM usuarios u JOIN personas p ON p.id = u.persona_id WHERE p.cedula = %s",
-        (cedula,),
-    )
-    return cursor.fetchone()
+def buscar_para_ingreso(cursor, cedula=None, correo=None):
+    """Busca por cédula o correo y bloquea la fila del usuario hasta el fin de la transacción.
 
-
-def buscar_por_correo(cursor, correo):
+    Debe ser la primera lectura de la transacción: así dos ingresos simultáneos del mismo usuario se
+    serializan y el segundo ve los intentos que registró el primero (InnoDB, REPEATABLE READ).
+    """
+    columna, valor = ("p.cedula", cedula) if cedula is not None else ("p.correo", correo)
     cursor.execute(
-        f"SELECT {COLUMNAS_USUARIO} FROM usuarios u JOIN personas p ON p.id = u.persona_id WHERE p.correo = %s",
-        (correo,),
+        f"SELECT {COLUMNAS_USUARIO} FROM usuarios u JOIN personas p ON p.id = u.persona_id "
+        f"WHERE {columna} = %s FOR UPDATE",
+        (valor,),
     )
     return cursor.fetchone()
 
@@ -69,24 +68,31 @@ def insertar_usuario(cursor, usuario_id, persona_id, rol, clave_hash, es_demo, m
     )
 
 
-def insertar_intento(cursor, intento_id, identificador, ip, exitoso, momento):
+def insertar_intento(cursor, intento_id, usuario_id, identificador, ip, exitoso, momento):
     cursor.execute(
-        "INSERT INTO intentos_de_ingreso (id, identificador, ip, exitoso, ocurrido_en) VALUES (%s, %s, %s, %s, %s)",
-        (a_bytes(intento_id), identificador, ip, exitoso, momento),
+        """INSERT INTO intentos_de_ingreso (id, usuario_id, identificador, ip, exitoso, ocurrido_en)
+           VALUES (%s, %s, %s, %s, %s, %s)""",
+        (a_bytes(intento_id), usuario_id, identificador, ip, exitoso, momento),
     )
 
 
-def contar_fallidos_desde(cursor, identificador, ip, desde):
+def contar_fallidos_desde(cursor, usuario_id, identificador, ip, desde):
+    """Fallidos de la cuenta (por usuario si existe, si no por identificador) y de la IP desde `desde`."""
+    if usuario_id is not None:
+        filtro, valor = "usuario_id = %s", usuario_id
+    else:
+        filtro, valor = "usuario_id IS NULL AND identificador = %s", identificador
     cursor.execute(
-        """SELECT
-             SUM(identificador = %s) AS por_identificador,
-             SUM(ip = %s) AS por_ip
-           FROM intentos_de_ingreso
-           WHERE exitoso = FALSE AND ocurrido_en >= %s AND (identificador = %s OR ip = %s)""",
-        (identificador, ip, desde, identificador, ip),
+        "SELECT COUNT(*) AS cantidad FROM intentos_de_ingreso "
+        f"WHERE exitoso = FALSE AND ocurrido_en >= %s AND {filtro}",
+        (desde, valor),
     )
-    fila = cursor.fetchone()
-    return int(fila["por_identificador"] or 0), int(fila["por_ip"] or 0)
+    por_cuenta = cursor.fetchone()["cantidad"]
+    cursor.execute(
+        "SELECT COUNT(*) AS cantidad FROM intentos_de_ingreso WHERE exitoso = FALSE AND ocurrido_en >= %s AND ip = %s",
+        (desde, ip),
+    )
+    return int(por_cuenta), int(cursor.fetchone()["cantidad"])
 
 
 def insertar_consentimiento(cursor, consentimiento_id, socio_id, tipo, version_texto, otorgado, autor_id, momento):

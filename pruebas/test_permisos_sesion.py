@@ -1,5 +1,6 @@
 """Sesión por rol, "entrar como…", límite de intentos, CSRF y consentimientos, sobre MySQL (ADR 0006)."""
 
+import threading
 from datetime import timedelta
 
 import pytest
@@ -142,3 +143,32 @@ def test_consentimientos_solo_agregan_y_vale_el_ultimo(app_con_bd, reloj_fijo):
             assert not servicio.tiene_consentimiento(cursor, socio, "salud")
             cursor.execute("SELECT COUNT(*) AS cantidad FROM consentimientos")
             assert cursor.fetchone()["cantidad"] == 2
+
+
+def test_el_limite_es_por_usuario_aunque_alterne_cedula_y_correo(app_con_bd):
+    crear(app_con_bd, "socio", "1234567", correo="ana@demo.gimnasio.invalid")
+    cliente = app_con_bd.test_client()
+    for identificador in ("1234567", "ana@demo.gimnasio.invalid") * 2 + ("1.234.567",):
+        assert entrar(cliente, identificador, "incorrecta").status_code == 401
+    assert entrar(cliente, "ana@demo.gimnasio.invalid").status_code == 429
+    assert entrar(cliente, "1234567").status_code == 429
+
+
+def test_dos_fallos_simultaneos_no_esquivan_el_limite(app_con_bd):
+    crear(app_con_bd, "socio", "1234567")
+    for _ in range(4):
+        assert entrar(app_con_bd.test_client(), "1234567", "incorrecta").status_code == 401
+    barrera = threading.Barrier(2)
+    codigos = []
+
+    def intentar():
+        cliente = app_con_bd.test_client()
+        barrera.wait()
+        codigos.append(entrar(cliente, "1234567", "incorrecta").status_code)
+
+    hilos = [threading.Thread(target=intentar) for _ in range(2)]
+    for hilo in hilos:
+        hilo.start()
+    for hilo in hilos:
+        hilo.join(timeout=30)
+    assert sorted(codigos) == [401, 429]
