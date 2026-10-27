@@ -552,7 +552,14 @@ class Plan:
 
 
 def estado_checks(numero_pr):
-    checks = gh_json("pr", "checks", str(numero_pr), "--json", "name,bucket") if numero_pr else []
+    # Justo después de un push, gh todavía no ve checks y sale con error: eso es "pendiente", no una falla.
+    resultado = correr(
+        ["gh", "pr", "checks", str(numero_pr), "--json", "name,bucket", "--repo", CONFIG["repo"]], chequear=False
+    )
+    try:
+        checks = json.loads(resultado.stdout or "[]")
+    except json.JSONDecodeError:
+        checks = []
     cubetas = {c["bucket"] for c in checks if c["name"] != "resumen"}
     if not checks or "pending" in cubetas:
         return "pendiente"
@@ -661,7 +668,14 @@ def _ejecutar_accion(accion):
         revisar(issue, extra, ejecutor)
     elif tipo == "fusionar":
         try:
-            gh("pr", "merge", str(extra["number"]), "--squash", "--delete-branch")
+            try:
+                gh("pr", "merge", str(extra["number"]), "--squash", "--delete-branch")
+            except RuntimeError as error:
+                # Carrera con otra fusión recién hecha: no es un conflicto, se reintenta una vez.
+                if "Base branch was modified" not in str(error):
+                    raise
+                time.sleep(15)
+                gh("pr", "merge", str(extra["number"]), "--squash", "--delete-branch")
         except RuntimeError as error:
             motivo = "No se pudo fusionar (¿conflicto con main?). Integrá origin/main y resolvé los conflictos."
             corregir_o_bloquear(issue, f"{motivo}\n\n{error}")
@@ -699,7 +713,13 @@ def ciclo(argumentos):
                 "codex": CONFIG["max_codex"] - sum(e == "codex" for _, e in corriendo.values()),
                 "opus": CONFIG["max_claude"] - sum(e == "opus" for _, e in corriendo.values()),
             }
-            plan = planificar(set(corriendo), libres, argumentos.solo_codex)
+            try:
+                plan = planificar(set(corriendo), libres, argumentos.solo_codex)
+            except RuntimeError as error:
+                # Un fallo transitorio de gh no debe tirar abajo el ciclo: se reintenta en la próxima vuelta.
+                print(f"Error al planificar, se reintenta: {error}", file=sys.stderr)
+                time.sleep(CONFIG["espera_segundos"])
+                continue
             for aviso in plan.avisos:
                 print(f"Aviso: {aviso}")
             for accion in plan.acciones:
