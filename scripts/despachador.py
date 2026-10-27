@@ -692,6 +692,8 @@ def informe():
 
 
 def main():
+    sys.stdout.reconfigure(encoding="utf-8")
+    sys.stderr.reconfigure(encoding="utf-8")
     analizador = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     modo = analizador.add_mutually_exclusive_group(required=True)
     modo.add_argument("--una-vuelta", action="store_true")
