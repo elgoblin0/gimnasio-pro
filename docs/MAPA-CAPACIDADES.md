@@ -57,6 +57,7 @@ Generado por `scripts/mapa_capacidades.py` desde `docs/capacidades.toml`. No edi
 
 | Capacidad | Etapa | Nivel | Prueba |
 |---|---|---|---|
+| Consulta de membresía de acceso por vigencia, sin cupo de entradas | 1 | pendiente | `pruebas/test_socios_membresia.py` |
 | Tarjeta contextual en recepción | 3 | pendiente | — |
 | Aforo en vivo y mejores horarios | 3 | pendiente | — |
 
