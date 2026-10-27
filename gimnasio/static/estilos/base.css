@@ -1,0 +1,19 @@
+/* Base mínima. Los tokens de diseño llegan en estilos/tokens.css (ADR 0007). */
+@layer reinicio, base;
+
+@layer reinicio {
+  *, *::before, *::after { box-sizing: border-box; }
+  body { margin: 0; }
+}
+
+@layer base {
+  :root { color-scheme: light dark; }
+  body {
+    font-family: system-ui, sans-serif;
+    line-height: 1.5;
+    padding: 1rem;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation-duration: 0ms !important; transition-duration: 0ms !important; }
+  }
+}

@@ -9,16 +9,16 @@ id = "estructura-modulos"
 nombre = "Monolito modular con reglas de dependencia"
 grupo = "Fundaciones"
 etapa = 0
-nivel = "pendiente"
-prueba = ""
+nivel = "funcional"
+prueba = "pruebas/test_dependencias.py::test_el_repo_cumple_las_reglas_de_dependencia"
 
 [[capacidad]]
 id = "migraciones"
 nombre = "Migraciones versionadas sobre MySQL"
 grupo = "Fundaciones"
 etapa = 0
-nivel = "pendiente"
-prueba = ""
+nivel = "funcional"
+prueba = "pruebas/test_migrar.py::test_aplica_en_orden_y_la_segunda_pasada_no_hace_nada"
 
 [[capacidad]]
 id = "reloj"
