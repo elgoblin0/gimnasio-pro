@@ -1,4 +1,4 @@
-import { ErrorDeApi, llamarApi } from "@comun/api.js";
+import { llamarApi } from "@comun/api.js";
 
 const NOMBRES_DE_ROL = {
   socio: "Socio",
@@ -22,19 +22,10 @@ function mostrarIngreso(modoDemo) {
   $("[data-demo]").hidden = !modoDemo;
 }
 
-async function usuarioActual() {
-  try {
-    return (await llamarApi("/api/sesion")).usuario;
-  } catch (error) {
-    if (error instanceof ErrorDeApi && error.estadoHttp === 401) return null;
-    throw error;
-  }
-}
-
 async function iniciar() {
   const estado = await llamarApi("/api/estado");
   $("[data-estado]").textContent = estado.modo_demo ? "Modo demo: datos ficticios que se reinician cada día." : "";
-  const usuario = await usuarioActual();
+  const usuario = JSON.parse($("#usuario-inicial").textContent);
   if (usuario) mostrarBienvenida(usuario);
   else mostrarIngreso(estado.modo_demo);
 

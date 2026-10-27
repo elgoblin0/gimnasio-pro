@@ -25,4 +25,5 @@ pythonpath = ["."]
 addopts = "-ra --strict-markers"
 markers = [
     "bd: necesita MySQL (variables GIMNASIO_BD_*); se salta si no están",
+    "e2e: recorrido de punta a punta; necesita MySQL y Chromium",
 ]

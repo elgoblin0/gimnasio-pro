@@ -3,7 +3,7 @@
 import os
 import secrets
 
-from flask import Flask
+from flask import Flask, render_template
 
 from gimnasio.comun.bd import registrar_cierre
 from gimnasio.comun.errores import registrar_manejadores
@@ -46,6 +46,7 @@ def crear_app(config=None, reloj=None):
     registrar_manejadores(app)
     registrar_cierre(app)
 
+    from gimnasio.permisos import servicio as permisos_servicio
     from gimnasio.permisos.rutas import bp as permisos
     from gimnasio.sistema.rutas import bp as sistema
 
@@ -54,6 +55,6 @@ def crear_app(config=None, reloj=None):
 
     @app.get("/")
     def inicio():
-        return app.send_static_file("index.html")
+        return render_template("index.html", usuario=permisos_servicio.usuario_actual())
 
     return app
