@@ -29,7 +29,7 @@ Generado por `scripts/mapa_capacidades.py` desde `docs/capacidades.toml`. No edi
 
 | Capacidad | Etapa | Nivel | Prueba |
 |---|---|---|---|
-| Semilla ficticia de Paraguay que se reinicia | 0 | pendiente | — |
+| Semilla ficticia de Paraguay que se reinicia | 0 | funcional | `pruebas/test_demo_semilla.py::test_dos_reinicios_dejan_los_mismos_datos` |
 | Demo pública en hosting gratuito con límites de uso | 1 | pendiente | — |
 
 ## Experiencia
