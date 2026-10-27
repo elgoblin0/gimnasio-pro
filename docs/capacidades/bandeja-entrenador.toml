@@ -1,0 +1,6 @@
+id = "bandeja-entrenador"
+nombre = "Bandeja priorizada del entrenador"
+grupo = "Entrenador"
+etapa = 4
+nivel = "pendiente"
+prueba = ""

@@ -13,7 +13,7 @@ Closes #
 
 ## Definición de terminado
 - [ ] CI en verde (ruff, pytest, migraciones, secretos)
-- [ ] `docs/capacidades.toml` y el mapa actualizados, si cambia una capacidad
+- [ ] `docs/capacidades/<id>.toml` y el mapa actualizados, si cambia una capacidad
 - [ ] `INDICADORES.md` actualizado, si se movió código citado
 - [ ] ADR provisional o `necesita-criterio`, si se decidió algo no cubierto
 

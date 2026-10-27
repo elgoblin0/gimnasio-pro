@@ -1,0 +1,6 @@
+id = "membresia-acceso"
+nombre = "Consulta de membresía de acceso por vigencia, sin cupo de entradas"
+grupo = "Recepción"
+etapa = 1
+nivel = "pendiente"
+prueba = "pruebas/test_socios_membresia.py"
