@@ -1,6 +1,6 @@
 # Prototipos de dirección visual (descartables)
 
-Dos direcciones para el inicio del socio en el celular, con el mismo contenido para poder compararlas: saludo, chequeo del día, sesión propuesta con explicaciones, un freno de seguridad y el aforo en vivo. Abrí cada `index.html` con doble clic; se ven mejor con el navegador en vista de celular (375 px). En el chequeo, cambiá el dolor de la rodilla para ver cómo el freno aparece y desaparece.
+Dos direcciones para el inicio del socio en el celular, con el mismo contenido para poder compararlas: saludo, chequeo del día, sesión propuesta con explicaciones, un freno de seguridad y el aforo en vivo. Abrí cada `index.html` con doble clic; se ven mejor con el navegador en vista de celular (375 px). Probá el chequeo del día: con dolor de rodilla la sesión baja o sustituye lo que carga la rodilla (y avisa al entrenador); con mal sueño o poca energía no sube nada. Las dos direcciones comparten el mismo motor mínimo (`<script id="motor">`), y `pruebas/test_prototipos.py` lo verifica con Node.
 
 ## A · Pulso nocturno (`direccion-a/`)
 Fondo casi negro con un halo de luz lima y cian que respira detrás del contenido, y tarjetas de vidrio esmerilado. Tipografía condensada en mayúsculas, con números grandes y técnicos. El movimiento es enérgico: las entradas se desenfocan al aparecer y los botones responden con resorte. Transmite rendimiento, noche y concentración, como un tablero deportivo. El aforo se muestra con un anillo luminoso.

@@ -1,16 +1,34 @@
-"""Chequeos estáticos de los prototipos visuales: son descartables, pero no pueden contradecir los frenos."""
+"""Chequeos de los prototipos visuales: son descartables, pero no pueden contradecir los frenos de VISION.md."""
 
+import json
 import re
+import shutil
+import subprocess
 from pathlib import Path
 
 import pytest
 
 PROTOTIPOS = Path(__file__).resolve().parent.parent / "prototipos"
 DIRECCIONES = sorted(PROTOTIPOS.glob("direccion-*/index.html"))
+CASOS = """
+const chequeo = (sueno, energia, dolor) => ({ sueno, energia, dolor });
+console.log(JSON.stringify({
+  zonas: SESION.map((e) => e.zona),
+  dolor: SESION.map((e) => proponer(e, chequeo("bien", "normal", "rodilla"))),
+  dolorYCansancio: SESION.map((e) => proponer(e, chequeo("mal", "baja", "rodilla"))),
+  sueno: SESION.map((e) => proponer(e, chequeo("mal", "normal", null))),
+  energia: SESION.map((e) => proponer(e, chequeo("bien", "baja", null))),
+  bien: SESION.map((e) => proponer(e, chequeo("bien", "normal", null))),
+}));
+"""
 
 
 def leer(archivo):
     return archivo.read_text(encoding="utf-8")
+
+
+def motor(html):
+    return re.search(r'<script id="motor">(.*?)</script>', html, re.S).group(1)
 
 
 def tokens_semanticos(html):
@@ -18,14 +36,12 @@ def tokens_semanticos(html):
     return set(re.findall(r"(--[a-z0-9-]+)\s*:", bloque))
 
 
-def test_hay_dos_direcciones():
+def test_hay_dos_direcciones_con_el_mismo_motor_y_los_mismos_tokens():
     assert [d.parent.name for d in DIRECCIONES] == ["direccion-a", "direccion-b"]
-
-
-def test_las_direcciones_comparten_los_tokens_semanticos():
-    conjuntos = [tokens_semanticos(leer(d)) for d in DIRECCIONES]
-    assert conjuntos[0] == conjuntos[1]
-    assert {"--superficie", "--texto", "--acento", "--freno", "--foco"} <= conjuntos[0]
+    a, b = (leer(d) for d in DIRECCIONES)
+    assert motor(a) == motor(b)
+    assert tokens_semanticos(a) == tokens_semanticos(b)
+    assert {"--superficie", "--texto", "--acento", "--freno", "--foco"} <= tokens_semanticos(a)
 
 
 @pytest.mark.parametrize("archivo", DIRECCIONES, ids=lambda d: d.parent.name)
@@ -36,14 +52,31 @@ def test_sin_recursos_externos_y_con_movimiento_reducido(archivo):
     assert "Demo · datos ficticios" in html
 
 
-@pytest.mark.parametrize("archivo", DIRECCIONES, ids=lambda d: d.parent.name)
-def test_con_dolor_no_se_propone_ninguna_suba_frenada(archivo):
-    html = leer(archivo)
-    con_dolor = re.findall(r"<li[^>]*data-con-dolor[^>]*>(.*?)</li>", html, re.S)
-    sin_dolor = re.findall(r"<li[^>]*data-sin-dolor[^>]*>(.*?)</li>", html, re.S)
-    assert con_dolor and sin_dolor
-    # Lo que el freno reemplaza o mantiene nunca muestra una suba de carga.
-    assert all('class="delta"' not in item for item in con_dolor)
-    # El estado inicial es "con dolor": esas filas se ven y las alternativas sin dolor arrancan ocultas.
-    assert all("hidden" not in tag for tag in re.findall(r"<li[^>]*data-con-dolor[^>]*>", html))
-    assert all("hidden" in tag for tag in re.findall(r"<li[^>]*data-sin-dolor[^>]*>", html))
+@pytest.fixture(scope="module")
+def propuestas():
+    node = shutil.which("node")
+    if not node:
+        pytest.skip("sin Node")
+    salida = subprocess.run(
+        [node, "-e", motor(leer(DIRECCIONES[0])) + CASOS], capture_output=True, text=True, encoding="utf-8", check=True
+    )
+    return json.loads(salida.stdout)
+
+
+def test_con_dolor_se_baja_o_se_sustituye_y_se_avisa(propuestas):
+    for caso in ("dolor", "dolorYCansancio"):
+        for zona, p in zip(propuestas["zonas"], propuestas[caso], strict=True):
+            if zona != "rodilla":
+                continue
+            assert p["freno"]
+            assert p["delta"] < 0 or p.get("reemplaza"), p
+            assert "Marcos" in p["porque"]
+
+
+def test_un_chequeo_desfavorable_nunca_sube(propuestas):
+    for caso in ("sueno", "energia", "dolorYCansancio"):
+        assert all(p["delta"] <= 0 and p["freno"] for p in propuestas[caso]), caso
+
+
+def test_sin_frenos_hay_subas_explicadas(propuestas):
+    assert all(p["delta"] > 0 and not p["freno"] and p["porque"].startswith("Subís") for p in propuestas["bien"])

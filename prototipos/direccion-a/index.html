@@ -109,6 +109,7 @@ button:focus-visible { outline: 2px solid var(--foco); outline-offset: 2px; }
 @keyframes entrar { from { opacity: 0; transform: translateY(14px); filter: blur(6px); } }
 .ejercicio b { font-weight: 600; }
 .carga { font: 700 18px/1 var(--fuente-numeros); font-variant-numeric: tabular-nums; text-align: right; }
+.delta.baja { background: var(--freno); }
 .delta { display: inline-block; margin-left: 6px; font-size: 12px; color: var(--color-noche-950); background: var(--acento); padding: 2px 6px; border-radius: 6px; vertical-align: 2px; }
 .porque { grid-column: 1 / -1; color: var(--texto-suave); font-size: 13px; }
 .ejercicio.frenado { background: linear-gradient(90deg, rgb(255 181 71 / .16), rgb(255 181 71 / .03)); box-shadow: inset 3px 0 0 var(--freno); }
@@ -157,41 +158,18 @@ button:focus-visible { outline: 2px solid var(--foco); outline-offset: 2px; }
       <h2 id="t-chequeo">Chequeo del día</h2>
       <div class="chequeo">
         <div class="pregunta"><span>Sueño</span>
-          <div class="opciones" data-grupo="sueno"><button aria-pressed="true">Bien</button><button aria-pressed="false">Regular</button><button aria-pressed="false" class="malo">Mal</button></div></div>
+          <div class="opciones" data-grupo="sueno"><button aria-pressed="true" value="bien">Bien</button><button aria-pressed="false" value="regular">Regular</button><button aria-pressed="false" class="malo" value="mal">Mal</button></div></div>
         <div class="pregunta"><span>Energía</span>
-          <div class="opciones" data-grupo="energia"><button aria-pressed="false">Alta</button><button aria-pressed="true">Normal</button><button aria-pressed="false" class="malo">Baja</button></div></div>
+          <div class="opciones" data-grupo="energia"><button aria-pressed="false" value="alta">Alta</button><button aria-pressed="true" value="normal">Normal</button><button aria-pressed="false" class="malo" value="baja">Baja</button></div></div>
         <div class="pregunta"><span>Dolor</span>
-          <div class="opciones" data-grupo="dolor"><button aria-pressed="false">No</button><button aria-pressed="true" class="malo">Rodilla</button></div></div>
+          <div class="opciones" data-grupo="dolor"><button aria-pressed="false" value="">No</button><button aria-pressed="true" class="malo" value="rodilla">Rodilla</button></div></div>
       </div>
     </section>
 
     <section class="tarjeta" aria-labelledby="t-sesion">
       <h2 id="t-sesion">Sesión propuesta</h2>
       <div class="sesion-cabecera"><strong>Pierna A</strong><small>5 ejercicios · 52 min</small></div>
-      <ul class="ejercicios">
-        <li class="ejercicio frenado" style="--i:0" data-con-dolor>
-          <span class="etiqueta-freno">Freno · dolor reportado</span>
-          <b>Sentadilla</b><span class="carga">60 kg</span>
-          <span class="porque">Tocaba subir 2,5 kg, pero reportaste dolor en la rodilla: se mantiene la carga.</span>
-        </li>
-        <li class="ejercicio" style="--i:0" data-sin-dolor hidden>
-          <b>Sentadilla</b><span class="carga">62,5 kg<span class="delta">+2,5</span></span>
-          <span class="porque">Subís: la semana pasada completaste 3×12 a RIR 2.</span>
-        </li>
-        <li class="ejercicio frenado" style="--i:1" data-con-dolor>
-          <span class="etiqueta-freno">Freno · sustitución</span>
-          <b>Empuje de cadera <s style="color:var(--texto-suave);font-weight:400">en vez de estocadas</s></b><span class="carga">70 kg</span>
-          <span class="porque">Las estocadas cargan la rodilla: las reemplazamos. Marcos ya fue avisado.</span>
-        </li>
-        <li class="ejercicio" style="--i:1" data-sin-dolor hidden>
-          <b>Estocadas</b><span class="carga">2×12 kg<span class="delta">+2</span></span>
-          <span class="porque">Subís: completaste 3×10 por pierna a RIR 2.</span>
-        </li>
-        <li class="ejercicio" style="--i:2">
-          <b>Peso muerto rumano</b><span class="carga">52,5 kg<span class="delta">+2,5</span></span>
-          <span class="porque">Subís: completaste 3×10 a RIR 2 y no involucra la rodilla.</span>
-        </li>
-      </ul>
+      <ul class="ejercicios" data-ejercicios></ul>
     </section>
 
     <section class="tarjeta" aria-labelledby="t-aforo">
@@ -216,20 +194,67 @@ button:focus-visible { outline: 2px solid var(--foco); outline-offset: 2px; }
     <button class="empezar">Empezar sesión</button>
   </main>
 </div>
+<script id="motor">
+  // Motor de la demo: versión mínima de las reglas (ADR 0002), sin DOM, idéntica en las dos direcciones.
+  // Frenos: con dolor en la zona se baja o se sustituye y se avisa al entrenador; con un chequeo
+  // del día desfavorable no se sube nada.
+  const SESION = [
+    { nombre: "Sentadilla", zona: "rodilla", carga: 60, suba: 2.5, motivo: "la semana pasada completaste 3×12 a RIR 2",
+      freno: { tipo: "baja", carga: 50 } },
+    { nombre: "Estocadas", zona: "rodilla", prefijo: "2×", carga: 12, suba: 2, motivo: "completaste 3×10 por pierna a RIR 2",
+      freno: { tipo: "sustitucion", nombre: "Empuje de cadera", carga: 70 } },
+    { nombre: "Peso muerto rumano", zona: "cadera", carga: 50, suba: 2.5, motivo: "completaste 3×10 a RIR 2" },
+  ];
+  function numero(n) { return String(n).replace(".", ","); }
+  function chequeoDesfavorable(chequeo) { return chequeo.sueno === "mal" || chequeo.energia === "baja"; }
+  function proponer(ejercicio, chequeo) {
+    const prefijo = ejercicio.prefijo ?? "";
+    if (chequeo.dolor === ejercicio.zona) {
+      const freno = ejercicio.freno;
+      if (freno.tipo === "sustitucion") {
+        return { nombre: freno.nombre, reemplaza: ejercicio.nombre, prefijo: "", carga: freno.carga, delta: 0,
+          freno: "sustitución", porque: `${ejercicio.nombre} carga la ${ejercicio.zona}: la reemplazamos. Avisamos a Marcos.` };
+      }
+      return { nombre: ejercicio.nombre, prefijo, carga: freno.carga, delta: freno.carga - ejercicio.carga,
+        freno: "dolor reportado", porque: `Te duele la ${ejercicio.zona}: bajamos la carga. Avisamos a Marcos.` };
+    }
+    if (chequeoDesfavorable(chequeo)) {
+      return { nombre: ejercicio.nombre, prefijo, carga: ejercicio.carga, delta: 0, freno: "chequeo del día",
+        porque: `Tocaba subir ${numero(ejercicio.suba)} kg, pero hoy el chequeo no acompaña: se mantiene.` };
+    }
+    return { nombre: ejercicio.nombre, prefijo, carga: ejercicio.carga + ejercicio.suba, delta: ejercicio.suba,
+      freno: null, porque: `Subís: ${ejercicio.motivo}.` };
+  }
+</script>
 <script>
-  // Chequeo del día: un botón por grupo; el dolor en la rodilla activa el freno de la sesión.
+  // Chequeo del día: un botón por grupo; cada cambio vuelve a pedir la propuesta al motor.
+  const lista = document.querySelector("[data-ejercicios]");
+  function leerChequeo() {
+    const valor = (grupo) => document.querySelector(`[data-grupo="${grupo}"] [aria-pressed="true"]`).value || null;
+    return { sueno: valor("sueno"), energia: valor("energia"), dolor: valor("dolor") };
+  }
+  function pintarSesion() {
+    const chequeo = leerChequeo();
+    lista.innerHTML = SESION.map((ejercicio, i) => {
+      const p = proponer(ejercicio, chequeo);
+      const delta = p.delta > 0 ? `<span class="delta">+${numero(p.delta)}</span>`
+        : p.delta < 0 ? `<span class="delta baja">${numero(p.delta)}</span>` : "";
+      const reemplazo = p.reemplaza ? ` <s style="color:var(--texto-suave);font-weight:400">en vez de ${p.reemplaza.toLowerCase()}</s>` : "";
+      return `<li class="ejercicio${p.freno ? " frenado" : ""}" style="--i:${i}">`
+        + (p.freno ? `<span class="etiqueta-freno">Freno · ${p.freno}</span>` : "")
+        + `<b>${p.nombre}${reemplazo}</b><span class="carga">${p.prefijo}${numero(p.carga)} kg${delta}</span>`
+        + `<span class="porque">${p.porque}</span></li>`;
+    }).join("");
+  }
   for (const grupo of document.querySelectorAll(".opciones")) {
     grupo.addEventListener("click", (evento) => {
       const boton = evento.target.closest("button");
       if (!boton) return;
       for (const otro of grupo.children) otro.setAttribute("aria-pressed", String(otro === boton));
-      if (grupo.dataset.grupo === "dolor") {
-        const conDolor = boton.textContent === "Rodilla";
-        for (const item of document.querySelectorAll("[data-con-dolor]")) item.hidden = !conDolor;
-        for (const item of document.querySelectorAll("[data-sin-dolor]")) item.hidden = conDolor;
-      }
+      pintarSesion();
     });
   }
+  pintarSesion();
   // Aforo simulado: varía cada pocos segundos (en el producto llega por eventos del servidor).
   const capacidad = 60;
   let dentro = 23;

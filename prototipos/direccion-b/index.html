@@ -100,6 +100,7 @@ button:focus-visible { outline: 2px solid var(--foco); outline-offset: 3px; bord
 .ejercicio .carga { grid-column: 3; }
 .ejercicio.frenado::before { grid-row: 2; }
 .carga { font: 400 24px/1 var(--fuente-numeros); font-variant-numeric: oldstyle-nums tabular-nums; text-align: right; }
+.delta.baja { color: var(--freno); }
 .delta { display: block; font: 600 11px var(--fuente-texto); color: var(--exito); margin-top: 4px; letter-spacing: .04em; }
 .porque { grid-column: 2 / -1; font-size: 13px; color: var(--texto-suave); }
 .ejercicio.frenado { background: linear-gradient(var(--color-mostaza-100), var(--color-mostaza-100)) left / 3px 100% no-repeat; padding-left: var(--espacio-3); margin-left: calc(var(--espacio-3) * -1); }
@@ -148,9 +149,9 @@ button:focus-visible { outline: 2px solid var(--foco); outline-offset: 3px; bord
     <section aria-labelledby="t-chequeo">
       <h2 id="t-chequeo">Chequeo del día</h2>
       <p class="frase">
-        Dormí <button class="eleccion" data-opciones="bien|regular|mal">bien</button>,
-        tengo energía <button class="eleccion" data-opciones="normal|alta|baja">normal</button>
-        y me duele <button class="eleccion malo" data-opciones="la rodilla|nada" data-dolor>la rodilla</button>.
+        Dormí <button class="eleccion" data-pregunta="sueno" data-opciones="bien|regular|mal">bien</button>,
+        tengo energía <button class="eleccion" data-pregunta="energia" data-opciones="normal|alta|baja">normal</button>
+        y me duele <button class="eleccion malo" data-pregunta="dolor" data-opciones="la rodilla|nada">la rodilla</button>.
       </p>
       <p class="ayuda">Tocá una palabra subrayada para cambiarla.</p>
     </section>
@@ -158,30 +159,7 @@ button:focus-visible { outline: 2px solid var(--foco); outline-offset: 3px; bord
     <section aria-labelledby="t-sesion">
       <h2 id="t-sesion">Sesión propuesta</h2>
       <div class="sesion-titulo"><strong>Pierna A</strong><small>5 ejercicios · 52 min</small></div>
-      <ol class="ejercicios">
-        <li class="ejercicio frenado" style="--i:0" data-con-dolor>
-          <span class="sello">Freno · dolor reportado</span>
-          <b>Sentadilla</b><span class="carga">60<small style="font-size:14px"> kg</small></span>
-          <span class="porque">Tocaba subir 2,5 kg, pero te duele la rodilla: mantenemos la carga.</span>
-        </li>
-        <li class="ejercicio" style="--i:0" data-sin-dolor hidden>
-          <b>Sentadilla</b><span class="carga">62,5<small style="font-size:14px"> kg</small><span class="delta">+2,5 kg</span></span>
-          <span class="porque">Subís porque la semana pasada completaste 3×12 a RIR 2.</span>
-        </li>
-        <li class="ejercicio frenado" style="--i:1" data-con-dolor>
-          <span class="sello">Freno · sustitución</span>
-          <b>Empuje de cadera</b><span class="carga">70<small style="font-size:14px"> kg</small></span>
-          <span class="porque">Reemplaza a las estocadas, que cargan la rodilla. Avisamos a Marcos.</span>
-        </li>
-        <li class="ejercicio" style="--i:1" data-sin-dolor hidden>
-          <b>Estocadas</b><span class="carga">2×12<small style="font-size:14px"> kg</small><span class="delta">+2 kg</span></span>
-          <span class="porque">Subís porque completaste 3×10 por pierna a RIR 2.</span>
-        </li>
-        <li class="ejercicio" style="--i:2">
-          <b>Peso muerto rumano</b><span class="carga">52,5<small style="font-size:14px"> kg</small><span class="delta">+2,5 kg</span></span>
-          <span class="porque">Subís porque completaste 3×10 a RIR 2, y no involucra la rodilla.</span>
-        </li>
-      </ol>
+      <ol class="ejercicios" data-ejercicios></ol>
     </section>
 
     <section aria-labelledby="t-aforo">
@@ -195,21 +173,68 @@ button:focus-visible { outline: 2px solid var(--foco); outline-offset: 3px; bord
     <button class="empezar">Empezar la sesión →</button>
   </main>
 </div>
+<script id="motor">
+  // Motor de la demo: versión mínima de las reglas (ADR 0002), sin DOM, idéntica en las dos direcciones.
+  // Frenos: con dolor en la zona se baja o se sustituye y se avisa al entrenador; con un chequeo
+  // del día desfavorable no se sube nada.
+  const SESION = [
+    { nombre: "Sentadilla", zona: "rodilla", carga: 60, suba: 2.5, motivo: "la semana pasada completaste 3×12 a RIR 2",
+      freno: { tipo: "baja", carga: 50 } },
+    { nombre: "Estocadas", zona: "rodilla", prefijo: "2×", carga: 12, suba: 2, motivo: "completaste 3×10 por pierna a RIR 2",
+      freno: { tipo: "sustitucion", nombre: "Empuje de cadera", carga: 70 } },
+    { nombre: "Peso muerto rumano", zona: "cadera", carga: 50, suba: 2.5, motivo: "completaste 3×10 a RIR 2" },
+  ];
+  function numero(n) { return String(n).replace(".", ","); }
+  function chequeoDesfavorable(chequeo) { return chequeo.sueno === "mal" || chequeo.energia === "baja"; }
+  function proponer(ejercicio, chequeo) {
+    const prefijo = ejercicio.prefijo ?? "";
+    if (chequeo.dolor === ejercicio.zona) {
+      const freno = ejercicio.freno;
+      if (freno.tipo === "sustitucion") {
+        return { nombre: freno.nombre, reemplaza: ejercicio.nombre, prefijo: "", carga: freno.carga, delta: 0,
+          freno: "sustitución", porque: `${ejercicio.nombre} carga la ${ejercicio.zona}: la reemplazamos. Avisamos a Marcos.` };
+      }
+      return { nombre: ejercicio.nombre, prefijo, carga: freno.carga, delta: freno.carga - ejercicio.carga,
+        freno: "dolor reportado", porque: `Te duele la ${ejercicio.zona}: bajamos la carga. Avisamos a Marcos.` };
+    }
+    if (chequeoDesfavorable(chequeo)) {
+      return { nombre: ejercicio.nombre, prefijo, carga: ejercicio.carga, delta: 0, freno: "chequeo del día",
+        porque: `Tocaba subir ${numero(ejercicio.suba)} kg, pero hoy el chequeo no acompaña: se mantiene.` };
+    }
+    return { nombre: ejercicio.nombre, prefijo, carga: ejercicio.carga + ejercicio.suba, delta: ejercicio.suba,
+      freno: null, porque: `Subís: ${ejercicio.motivo}.` };
+  }
+</script>
 <script>
-  // Chequeo del día como frase: cada palabra rota entre sus opciones; el dolor activa el freno.
+  // Chequeo del día como frase: cada palabra rota entre sus opciones y la sesión se vuelve a proponer.
+  const lista = document.querySelector("[data-ejercicios]");
+  function leerChequeo() {
+    const valor = (pregunta) => document.querySelector(`[data-pregunta="${pregunta}"]`).textContent;
+    return { sueno: valor("sueno"), energia: valor("energia"), dolor: valor("dolor") === "la rodilla" ? "rodilla" : null };
+  }
+  function pintarSesion() {
+    const chequeo = leerChequeo();
+    lista.innerHTML = SESION.map((ejercicio, i) => {
+      const p = proponer(ejercicio, chequeo);
+      const delta = p.delta > 0 ? `<span class="delta">+${numero(p.delta)} kg</span>`
+        : p.delta < 0 ? `<span class="delta baja">${numero(p.delta)} kg</span>` : "";
+      const reemplazo = p.reemplaza ? ` <em style="font-weight:400;color:var(--texto-suave)">(en vez de ${p.reemplaza.toLowerCase()})</em>` : "";
+      return `<li class="ejercicio${p.freno ? " frenado" : ""}" style="--i:${i}">`
+        + (p.freno ? `<span class="sello">Freno · ${p.freno}</span>` : "")
+        + `<b>${p.nombre}${reemplazo}</b><span class="carga">${p.prefijo}${numero(p.carga)}<small style="font-size:14px"> kg</small>${delta}</span>`
+        + `<span class="porque">${p.porque}</span></li>`;
+    }).join("");
+  }
   for (const boton of document.querySelectorAll(".eleccion")) {
     boton.addEventListener("click", () => {
       const opciones = boton.dataset.opciones.split("|");
       const siguiente = opciones[(opciones.indexOf(boton.textContent) + 1) % opciones.length];
       boton.textContent = siguiente;
       boton.classList.toggle("malo", ["mal", "baja", "la rodilla"].includes(siguiente));
-      if ("dolor" in boton.dataset) {
-        const conDolor = siguiente === "la rodilla";
-        for (const item of document.querySelectorAll("[data-con-dolor]")) item.hidden = !conDolor;
-        for (const item of document.querySelectorAll("[data-sin-dolor]")) item.hidden = conDolor;
-      }
+      pintarSesion();
     });
   }
+  pintarSesion();
   // Ocupación típica por hora (6 a 21 h), datos ficticios; la barra actual y el mejor horario se destacan.
   const tipica = [30, 55, 70, 45, 35, 30, 28, 22, 20, 26, 48, 80, 95, 85, 60, 35];
   const horaActual = 10, mejores = [8, 9];
