@@ -2,5 +2,5 @@ id = "registro-series"
 nombre = "Registro idempotente de sesiones y series realizadas"
 grupo = "Entrenamiento"
 etapa = 1
-nivel = "pendiente"
-prueba = "pruebas/e2e/test_series.py"
+nivel = "esqueleto"
+prueba = "pruebas/e2e/test_esqueleto_andante.py"

@@ -3,5 +3,5 @@ nombre = "Historial de entradas y salidas con ocupación registrada"
 grupo = "Recepción"
 etapa = 1
 # La integración exige MySQL real; las pruebas saltadas no acreditan un nivel.
-nivel = "pendiente"
+nivel = "funcional"
 prueba = "pruebas/test_visitas.py"

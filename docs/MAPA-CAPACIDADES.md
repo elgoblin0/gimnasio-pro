@@ -37,9 +37,9 @@ Generado por `scripts/mapa_capacidades.py` desde `docs/capacidades/`. No editar 
 
 | Capacidad | Etapa | Nivel | Prueba |
 |---|---|---|---|
-| Entrada del socio por recepción con membresía y aforo | 1 | pendiente | `pruebas/test_visitas_api.py` |
-| Pantalla de recepción para entrada y salida | 1 | pendiente | `pruebas/e2e/test_recepcion.py` |
-| Salida confirmada del socio y lecturas para recepción | 1 | pendiente | `pruebas/test_visitas_api.py` |
+| Entrada del socio por recepción con membresía y aforo | 1 | esqueleto | `pruebas/e2e/test_esqueleto_andante.py` |
+| Pantalla de recepción para entrada y salida | 1 | esqueleto | `pruebas/e2e/test_recepcion.py` |
+| Salida confirmada del socio y lecturas para recepción | 1 | esqueleto | `pruebas/e2e/test_esqueleto_andante.py` |
 | Clases y reservas con lista de espera | 5 | pendiente | — |
 | Ficha completa con salud y consentimientos | 5 | pendiente | — |
 | Registro de pagos en guaraníes | 5 | pendiente | — |
@@ -48,10 +48,10 @@ Generado por `scripts/mapa_capacidades.py` desde `docs/capacidades/`. No editar 
 
 | Capacidad | Etapa | Nivel | Prueba |
 |---|---|---|---|
-| Persistencia de sesiones realizadas y series realizadas | 1 | pendiente | `pruebas/test_entrenamiento_repositorio.py` |
-| Pantalla del socio con propuesta, explicación y pendientes | 1 | pendiente | `pruebas/e2e/test_entrenamiento.py` |
-| Registro idempotente de sesiones y series realizadas | 1 | pendiente | `pruebas/e2e/test_series.py` |
-| Sesión propuesta según la secuencia del programa de entrenamiento | 1 | pendiente | `pruebas/test_entrenamiento_api.py` |
+| Persistencia de sesiones realizadas y series realizadas | 1 | funcional | `pruebas/test_entrenamiento_repositorio.py` |
+| Pantalla del socio con propuesta, explicación y pendientes | 1 | esqueleto | `pruebas/e2e/test_entrenamiento.py` |
+| Registro idempotente de sesiones y series realizadas | 1 | esqueleto | `pruebas/e2e/test_esqueleto_andante.py` |
+| Sesión propuesta según la secuencia del programa de entrenamiento | 1 | esqueleto | `pruebas/e2e/test_esqueleto_andante.py` |
 | Chequeo del día | 2 | pendiente | — |
 | "Me duele" y "máquina ocupada" | 2 | pendiente | — |
 | Doble progresión + RPE/RIR con ajustes automáticos y frenos | 2 | pendiente | — |
@@ -68,8 +68,8 @@ Generado por `scripts/mapa_capacidades.py` desde `docs/capacidades/`. No editar 
 
 | Capacidad | Etapa | Nivel | Prueba |
 |---|---|---|---|
-| Historial de entradas y salidas con ocupación registrada | 1 | pendiente | `pruebas/test_visitas.py` |
-| Consulta de membresía de acceso por vigencia, sin cupo de entradas | 1 | pendiente | `pruebas/test_socios_membresia.py` |
+| Historial de entradas y salidas con ocupación registrada | 1 | funcional | `pruebas/test_visitas.py` |
+| Consulta de membresía de acceso por vigencia, sin cupo de entradas | 1 | funcional | `pruebas/test_socios_membresia.py` |
 | Aforo en vivo y mejores horarios | 3 | pendiente | — |
 | Tarjeta contextual en recepción | 3 | pendiente | — |
 
@@ -77,7 +77,7 @@ Generado por `scripts/mapa_capacidades.py` desde `docs/capacidades/`. No editar 
 
 | Capacidad | Etapa | Nivel | Prueba |
 |---|---|---|---|
-| Lectura del programa de entrenamiento y sus sesiones planificadas por socio y versión | 1 | pendiente | `pruebas/test_programas.py` |
+| Lectura del programa de entrenamiento y sus sesiones planificadas por socio y versión | 1 | funcional | `pruebas/test_programas.py` |
 | Bandeja priorizada del entrenador | 4 | pendiente | — |
 | Equipos y alternativas | 4 | pendiente | — |
 | Programas desde plantillas | 4 | pendiente | — |
@@ -86,7 +86,7 @@ Generado por `scripts/mapa_capacidades.py` desde `docs/capacidades/`. No editar 
 
 | Capacidad | Etapa | Nivel | Prueba |
 |---|---|---|---|
-| PWA instalable en escritorio, con pantallas que se adaptan a tablet y celular | 1 | pendiente | `pruebas/e2e/test_pwa.py` |
+| PWA instalable en escritorio, con pantallas que se adaptan a tablet y celular | 1 | esqueleto | `pruebas/e2e/test_pwa.py` |
 | Cuerpo 3D muscular | 2 | pendiente | — |
 | Escena de ocupación | 3 | pendiente | — |
 | Movimiento cuidado y alternativa sin efectos | 7 | pendiente | — |
