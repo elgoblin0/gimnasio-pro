@@ -5,6 +5,7 @@ import secrets
 
 from flask import Flask
 
+from gimnasio.comun.bd import registrar_cierre
 from gimnasio.comun.errores import registrar_manejadores
 from gimnasio.comun.reloj import RelojSistema
 
@@ -43,10 +44,13 @@ def crear_app(config=None, reloj=None):
     app.extensions["reloj"] = reloj if reloj is not None else RelojSistema()
 
     registrar_manejadores(app)
+    registrar_cierre(app)
 
+    from gimnasio.permisos.rutas import bp as permisos
     from gimnasio.sistema.rutas import bp as sistema
 
     app.register_blueprint(sistema)
+    app.register_blueprint(permisos)
 
     @app.get("/")
     def inicio():

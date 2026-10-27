@@ -60,11 +60,8 @@ def generar(capacidades):
         "",
     ]
     lineas += [f"- **{nivel}**: {texto}" for nivel, texto in DEFINICIONES.items()]
-    conteo = {nivel: 0 for nivel in NIVELES}
-    for cap in capacidades:
-        conteo[cap["nivel"]] += 1
-    resumen = ", ".join(f"{nivel} {cantidad}" for nivel, cantidad in conteo.items())
-    lineas += ["", f"Resumen: {resumen}.", ""]
+    # Sin línea de resumen: cambiaría en cada PR y generaría conflictos entre ramas paralelas.
+    lineas.append("")
     grupos = []
     for cap in capacidades:
         if cap["grupo"] not in grupos:

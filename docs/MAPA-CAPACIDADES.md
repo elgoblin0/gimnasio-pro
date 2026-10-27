@@ -9,8 +9,6 @@ Generado por `scripts/mapa_capacidades.py` desde `docs/capacidades.toml`. No edi
 - **pulida**: Estados vacíos, carga y error, móvil, accesibilidad y movimiento; lo prueba un e2e con chequeo de accesibilidad.
 - **validada**: El usuario la aprobó en un dispositivo real en el cierre de una etapa.
 
-Resumen: pendiente 24, esqueleto 0, funcional 4, pulida 0, validada 0.
-
 ## Fundaciones
 
 | Capacidad | Etapa | Nivel | Prueba |
@@ -24,8 +22,8 @@ Resumen: pendiente 24, esqueleto 0, funcional 4, pulida 0, validada 0.
 
 | Capacidad | Etapa | Nivel | Prueba |
 |---|---|---|---|
-| Login real por rol | 0 | pendiente | — |
-| Accesos rápidos "entrar como…" en modo demo | 0 | pendiente | — |
+| Login real por rol | 0 | funcional | `pruebas/test_permisos_sesion.py::test_inicia_sesion_con_cedula_o_correo_y_la_cierra` |
+| Accesos rápidos "entrar como…" en modo demo | 0 | funcional | `pruebas/test_permisos_sesion.py::test_entrar_como_solo_usa_usuarios_demo` |
 
 ## Demo
 

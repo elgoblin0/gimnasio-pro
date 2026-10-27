@@ -41,16 +41,16 @@ id = "login-por-rol"
 nombre = "Login real por rol"
 grupo = "Acceso"
 etapa = 0
-nivel = "pendiente"
-prueba = ""
+nivel = "funcional"
+prueba = "pruebas/test_permisos_sesion.py::test_inicia_sesion_con_cedula_o_correo_y_la_cierra"
 
 [[capacidad]]
 id = "entrar-como"
 nombre = "Accesos rápidos \"entrar como…\" en modo demo"
 grupo = "Acceso"
 etapa = 0
-nivel = "pendiente"
-prueba = ""
+nivel = "funcional"
+prueba = "pruebas/test_permisos_sesion.py::test_entrar_como_solo_usa_usuarios_demo"
 
 [[capacidad]]
 id = "semilla-demo"

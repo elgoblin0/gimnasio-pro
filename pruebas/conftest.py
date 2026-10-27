@@ -31,3 +31,24 @@ def bd_vacia():
     finally:
         cursor.execute(f"DROP DATABASE IF EXISTS `{nombre}`")
         administracion.close()
+
+
+@pytest.fixture
+def reloj_fijo():
+    from datetime import UTC, datetime
+
+    from gimnasio.comun.reloj import RelojFijo
+
+    return RelojFijo(datetime(2026, 10, 27, 12, 0, tzinfo=UTC))
+
+
+@pytest.fixture
+def app_con_bd(bd_vacia, reloj_fijo):
+    """App de prueba sobre una base vacía con todas las migraciones aplicadas y un RelojFijo."""
+    from gimnasio import crear_app
+    from gimnasio.comun.migrar import aplicar
+
+    aplicar(bd_vacia, salida=lambda _: None)
+    return crear_app(
+        {"ENTORNO": "prueba", "SECRET_KEY": "solo-pruebas", "MODO_DEMO": False, "BD": bd_vacia}, reloj_fijo
+    )
