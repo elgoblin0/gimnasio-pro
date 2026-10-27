@@ -21,12 +21,18 @@
   <p data-demo>Datos ficticios que se reinician cada día. Requiere conexión.</p>
   <p data-estado role="status" aria-live="polite">Cargando tu propuesta…</p>
   <p data-error role="alert"></p>
+  <div class="barra" data-reintento hidden>
+    <button type="button" data-reintentar>Reintentar operación</button>
+    <button type="button" data-descartar>Descartar reintento</button>
+  </div>
   <button type="button" data-actualizar>Actualizar propuesta</button>
   <div data-contenido hidden>
     <p data-fecha></p>
     <div class="grilla">
       <section aria-labelledby="titulo-sesion">
         <h2 id="titulo-sesion" data-titulo-sesion>Sesión propuesta</h2>
+        <button type="button" data-iniciar hidden>Iniciar sesión realizada</button>
+        <p data-sesion-actual hidden>La sesión realizada está abierta para registrar series.</p>
         <ul class="lista" data-ejercicios></ul>
       </section>
       <section aria-labelledby="titulo-explicacion">
@@ -35,6 +41,11 @@
       </section>
     </div>
   </div>
+  <section data-registro hidden aria-labelledby="titulo-registro">
+    <h2 id="titulo-registro">Series guardadas</h2>
+    <p data-sin-series>Todavía no hay series guardadas en esta sesión realizada.</p>
+    <ul class="lista" data-series></ul>
+  </section>
 </main>
 </body>
 </html>

@@ -3,4 +3,4 @@ nombre = "Registro idempotente de sesiones y series realizadas"
 grupo = "Entrenamiento"
 etapa = 1
 nivel = "pendiente"
-prueba = "pruebas/test_entrenamiento_api.py"
+prueba = "pruebas/e2e/test_series.py"
