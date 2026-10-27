@@ -1,0 +1,7 @@
+id = "historial-visitas"
+nombre = "Historial de entradas y salidas con ocupación registrada"
+grupo = "Recepción"
+etapa = 1
+# La integración exige MySQL real; las pruebas saltadas no acreditan un nivel.
+nivel = "pendiente"
+prueba = "pruebas/test_visitas.py"

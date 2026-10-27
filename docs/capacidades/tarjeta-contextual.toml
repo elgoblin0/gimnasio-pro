@@ -1,0 +1,6 @@
+id = "tarjeta-contextual"
+nombre = "Tarjeta contextual en recepción"
+grupo = "Recepción"
+etapa = 3
+nivel = "pendiente"
+prueba = ""

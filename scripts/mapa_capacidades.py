@@ -1,4 +1,9 @@
-"""Genera docs/MAPA-CAPACIDADES.md desde docs/capacidades.toml.
+"""Genera docs/MAPA-CAPACIDADES.md desde docs/capacidades/<id>.toml (un archivo por capacidad).
+
+Cada archivo define: id (igual al nombre del archivo), nombre, grupo, etapa, nivel, prueba.
+Niveles: pendiente < esqueleto < funcional < pulida < validada.
+Todo nivel distinto de "pendiente" exige `prueba` ("ruta" o "ruta::funcion") que exista.
+"validada" exige además `validacion` con el issue de cierre donde el usuario la aprobó.
 
 Uso:
     python scripts/mapa_capacidades.py             # regenera el mapa
@@ -10,7 +15,7 @@ import tomllib
 from pathlib import Path
 
 RAIZ = Path(__file__).resolve().parent.parent
-FUENTE = RAIZ / "docs" / "capacidades.toml"
+FUENTE = RAIZ / "docs" / "capacidades"
 DESTINO = RAIZ / "docs" / "MAPA-CAPACIDADES.md"
 
 NIVELES = ["pendiente", "esqueleto", "funcional", "pulida", "validada"]
@@ -23,6 +28,24 @@ DEFINICIONES = {
     ),
     "validada": "El usuario la aprobó en un dispositivo real en el cierre de una etapa.",
 }
+
+
+def cargar():
+    """Lee un archivo por capacidad, ordenado por etapa e id para que el mapa no dependa del orden de fusión."""
+    capacidades = []
+    errores = []
+    for archivo in sorted(FUENTE.glob("*.toml")):
+        cap = tomllib.loads(archivo.read_text(encoding="utf-8"))
+        if cap.get("id") != archivo.stem:
+            errores.append(f"{archivo.name}: el id {cap.get('id')!r} debe ser {archivo.stem!r}")
+            continue
+        faltan = [campo for campo in ("nombre", "grupo", "etapa", "nivel") if campo not in cap]
+        if faltan:
+            errores.append(f"{archivo.name}: faltan {', '.join(faltan)}")
+            continue
+        capacidades.append(cap)
+    capacidades.sort(key=lambda cap: (cap["etapa"], cap["id"]))
+    return capacidades, errores
 
 
 def validar(capacidades):
@@ -54,7 +77,7 @@ def generar(capacidades):
     lineas = [
         "# Mapa de capacidades",
         "",
-        "Generado por `scripts/mapa_capacidades.py` desde `docs/capacidades.toml`. No editar a mano.",
+        "Generado por `scripts/mapa_capacidades.py` desde `docs/capacidades/`. No editar a mano.",
         "",
         "## Niveles",
         "",
@@ -80,8 +103,8 @@ def generar(capacidades):
 
 
 def main():
-    capacidades = tomllib.loads(FUENTE.read_text(encoding="utf-8"))["capacidad"]
-    errores = validar(capacidades)
+    capacidades, errores = cargar()
+    errores += validar(capacidades)
     if errores:
         print("\n".join(errores))
         return 1

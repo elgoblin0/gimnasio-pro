@@ -69,6 +69,9 @@ Fuera de Render, o si falta un valor válido, se usa la dirección de la conexi�
 
 ## Verificación del usuario
 
+`python scripts/verificar_demo.py <URL de Render>` comprueba los pasos 2, 4 (el 429 con `Retry-After`)
+y 5. Los demás pasos son manuales.
+
 1. Ejecutar **Reiniciar demo** manualmente y comprobar que migraciones y semilla terminan bien.
 2. Abrir la URL HTTPS de Render y `/api/estado`; debe responder `modo_demo: true`.
 3. Comprobar el aviso de datos ficticios y los accesos rápidos por rol.

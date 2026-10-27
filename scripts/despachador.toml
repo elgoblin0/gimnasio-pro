@@ -5,6 +5,8 @@ rama_base = "main"
 carpeta_trabajo = "../gimnasio-pro-trabajo"
 max_codex = 3
 max_claude = 1
+# Issues en curso o en revisión a la vez. En 1 no hay conflictos entre PR: cada uno parte del main con el anterior.
+max_issues_activos = 1
 espera_segundos = 60
 # Intentos totales por issue (implementar + correcciones por CI o revisión).
 intentos_max_codex = 3
@@ -22,7 +24,7 @@ binario = "codex"
 sandbox = "workspace-write"
 config = ['model_reasoning_effort="high"']
 # La revisión lee un diff, no explora ni depura: le alcanza con menos razonamiento.
-config_revision = ['model_reasoning_effort="medium"']
+config_revision = ['model_reasoning_effort="low"']
 
 [claude]
 binario = "claude"
