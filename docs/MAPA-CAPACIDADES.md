@@ -17,6 +17,7 @@ Generado por `scripts/mapa_capacidades.py` desde `docs/capacidades.toml`. No edi
 | Migraciones versionadas sobre MySQL | 0 | funcional | `pruebas/test_migrar.py::test_aplica_en_orden_y_la_segunda_pasada_no_hace_nada` |
 | Reloj inyectable, UTC y zona de la sede | 0 | funcional | `pruebas/test_reloj.py::test_fecha_local_y_semana_al_cruzar_medianoche_en_asuncion` |
 | Formatos de Paraguay (guaraníes, cédula, +595, fechas) | 0 | funcional | `pruebas/test_formatos.py::test_vectores_compartidos` |
+| Idempotencia para escrituras | 1 | funcional | `pruebas/test_idempotencia.py::test_solicitudes_simultaneas_no_duplican` |
 
 ## Acceso
 

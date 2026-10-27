@@ -7,6 +7,7 @@ from flask import Flask
 
 from gimnasio.comun.bd import registrar_cierre
 from gimnasio.comun.errores import registrar_manejadores
+from gimnasio.comun.idempotencia import registrar_idempotencia
 from gimnasio.comun.reloj import RelojSistema
 
 ENTORNOS = ("desarrollo", "prueba", "produccion")
@@ -51,6 +52,10 @@ def crear_app(config=None, reloj=None):
 
     app.register_blueprint(sistema)
     app.register_blueprint(permisos)
+
+    from gimnasio.permisos.servicio import usuario_actual
+
+    registrar_idempotencia(app, usuario_actual)
 
     @app.get("/")
     def inicio():
