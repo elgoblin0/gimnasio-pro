@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="es" data-direccion="b">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Recepción · Gimnasio Pro</title>
+  <meta name="theme-color" content="#b2452a">
+  <link rel="icon" href="/iconos/gimnasio-192.png">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="stylesheet" href="/estilos/tokens.css">
+  <link rel="stylesheet" href="/estilos/base.css">
+  <link rel="stylesheet" href="/estilos/recorrido.css">
+  <script type="importmap">{"imports":{"@comun/":"/js/comun/"}}</script>
+  <script type="module" src="/js/recepcion.js"></script>
+</head>
+<body>
+<main>
+  <header class="barra"><a href="/">Gimnasio Pro</a><button type="button" data-cerrar>Cerrar sesión</button></header>
+  <p class="etiqueta">Cuaderno de recepción</p>
+  <h1>Entrada y salida</h1>
+  <p data-demo>Datos ficticios que se reinician cada día. Requiere conexión.</p>
+  <p data-estado role="status" aria-live="polite">Cargando recepción…</p>
+  <p data-error role="alert"></p>
+  <div class="barra" data-reintento hidden>
+    <button type="button" data-reintentar>Reintentar operación</button>
+    <button type="button" data-descartar>Descartar reintento</button>
+  </div>
+  <button type="button" data-actualizar>Actualizar visitas</button>
+  <div data-contenido hidden>
+    <div class="grilla">
+      <section aria-labelledby="titulo-ocupacion">
+        <h2 id="titulo-ocupacion">Ocupación registrada</h2>
+        <p class="cifra" data-ocupacion>—</p>
+        <p>Visitas abiertas de socios. El personal no cuenta en el aforo de esta etapa.</p>
+      </section>
+      <section aria-labelledby="titulo-entrada">
+        <h2 id="titulo-entrada">Registrar entrada</h2>
+        <form data-entrada>
+          <label for="socio">Socio</label>
+          <select id="socio" name="socio" required aria-describedby="ayuda-socio"><option value="">Elegí un socio</option></select>
+          <p id="ayuda-socio">Nombre y cédula de los socios activos.</p>
+          <button type="submit">Registrar entrada</button>
+        </form>
+      </section>
+    </div>
+    <section aria-labelledby="titulo-visitas">
+      <h2 id="titulo-visitas">Visitas abiertas</h2>
+      <p data-vacio hidden>No hay visitas abiertas.</p>
+      <ul class="lista" data-visitas></ul>
+    </section>
+  </div>
+</main>
+</body>
+</html>

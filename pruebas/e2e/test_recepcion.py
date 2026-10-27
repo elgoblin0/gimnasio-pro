@@ -1,0 +1,124 @@
+"""Recepción usa API y MySQL reales en escritorio y celular, con hechos aislados."""
+
+import pytest
+
+from gimnasio.comun.bd import transaccion
+
+expect = pytest.importorskip("playwright.sync_api").expect
+pytestmark = pytest.mark.e2e
+
+
+def ingresar(pagina, instancia):
+    pagina.goto(instancia.url)
+    pagina.get_by_role("button", name="Entrar como recepción", exact=True).click()
+    pagina.get_by_role("link", name="Ir a recepción", exact=True).click()
+    expect(pagina.get_by_text("Recepción lista.", exact=True)).to_be_visible()
+    opciones = pagina.locator("#socio option").evaluate_all(
+        "opciones => opciones.filter(o => o.value).map(o => ({id:o.value,nombre:o.textContent}))"
+    )
+    socio = next(o for o in opciones if "Lucía Benítez" in o["nombre"])
+    pagina.get_by_label("Socio", exact=True).select_option(socio["id"])
+    return socio
+
+
+def contar(instancia, tabla):
+    assert tabla in {"entradas", "salidas"}
+    with instancia.app.app_context(), transaccion() as cursor:
+        cursor.execute(f"SELECT COUNT(*) AS cantidad FROM {tabla}")
+        return cursor.fetchone()["cantidad"]
+
+
+@pytest.mark.parametrize("ancho,alto", [(1440, 900), (390, 844)])
+def test_entrada_salida_recarga_y_teclado(pagina_demo, demo_aislada, ancho, alto):
+    pagina = pagina_demo
+    pagina.set_viewport_size({"width": ancho, "height": alto})
+    errores = []
+    pagina.on("pageerror", lambda error: errores.append(str(error)))
+    pagina.on("console", lambda mensaje: errores.append(mensaje.text) if mensaje.type == "error" else None)
+    ingresar(pagina, demo_aislada)
+    expect(pagina.get_by_text("Datos ficticios que se reinician cada día. Requiere conexión.")).to_be_visible()
+    expect(pagina.locator("[data-ocupacion]")).to_have_text("0 de 60")
+    boton = pagina.get_by_role("button", name="Registrar entrada", exact=True)
+    boton.focus()
+    pagina.keyboard.press("Enter")
+    expect(pagina.get_by_text("Entrada registrada.", exact=True)).to_be_visible()
+    expect(pagina.locator("[data-ocupacion]")).to_have_text("1 de 60")
+    pagina.reload()
+    expect(pagina.get_by_role("button", name="Registrar salida de Lucía Benítez")).to_be_visible()
+    pagina.get_by_role("button", name="Registrar salida de Lucía Benítez").click()
+    expect(pagina.get_by_text("Salida registrada.", exact=True)).to_be_visible()
+    expect(pagina.locator("[data-ocupacion]")).to_have_text("0 de 60")
+    expect(pagina.get_by_text("No hay visitas abiertas.", exact=True)).to_be_visible()
+    assert pagina.evaluate("document.documentElement.scrollWidth <= innerWidth")
+    assert contar(demo_aislada, "entradas") == contar(demo_aislada, "salidas") == 1
+    assert errores == []
+
+
+def test_respuesta_perdida_reintento_manual_y_cierre_sin_salida(pagina_demo, demo_aislada):
+    pagina = pagina_demo
+    pagina.add_init_script("""(() => {
+      const original = window.fetch;
+      window.enviosDeEntrada = [];
+      let perder = true;
+      window.fetch = async (ruta, opciones) => {
+        if (ruta !== '/api/entradas' || opciones?.method !== 'POST') return original(ruta, opciones);
+        window.enviosDeEntrada.push([opciones.body, opciones.headers['Idempotency-Key']]);
+        const respuesta = await original(ruta, opciones);
+        if (perder) { perder = false; throw new TypeError('Respuesta perdida después del commit'); }
+        return respuesta;
+      };
+    })();""")
+    ingresar(pagina, demo_aislada)
+    pagina.get_by_role("button", name="Registrar entrada", exact=True).dblclick()
+    expect(pagina.get_by_role("button", name="Reintentar operación")).to_be_visible()
+    assert contar(demo_aislada, "entradas") == 1
+    pagina.get_by_role("button", name="Reintentar operación").click()
+    expect(pagina.get_by_text("Entrada registrada.", exact=True)).to_be_visible()
+    envios = pagina.evaluate("window.enviosDeEntrada")
+    assert len(envios) == 2
+    assert envios[0] == envios[1]
+    assert contar(demo_aislada, "entradas") == 1
+    pagina.get_by_role("button", name="Cerrar sesión", exact=True).click()
+    expect(pagina.get_by_role("heading", name="Ingresar", exact=True)).to_be_visible()
+    assert contar(demo_aislada, "salidas") == 0
+
+
+def test_red_fallida_no_reenvia_al_recuperar_conexion(pagina_demo, demo_aislada):
+    pagina = pagina_demo
+    ingresar(pagina, demo_aislada)
+    pagina.context.set_offline(True)
+    pagina.get_by_role("button", name="Registrar entrada", exact=True).click()
+    expect(pagina.get_by_role("button", name="Reintentar operación")).to_be_visible()
+    pagina.context.set_offline(False)
+    pagina.get_by_role("button", name="Actualizar visitas").click()
+    expect(pagina.get_by_text("No hay visitas abiertas.", exact=True)).to_be_visible()
+    assert contar(demo_aislada, "entradas") == 0
+    pagina.get_by_role("button", name="Reintentar operación").click()
+    expect(pagina.get_by_text("Entrada registrada.", exact=True)).to_be_visible()
+    assert contar(demo_aislada, "entradas") == 1
+
+
+def test_membresia_aforo_y_acceso_del_socio(pagina_demo, demo_aislada):
+    pagina = pagina_demo
+    socio = ingresar(pagina, demo_aislada)
+    with demo_aislada.app.app_context(), transaccion() as cursor:
+        from gimnasio.comun.ids import a_bytes, desde_texto
+
+        cursor.execute(
+            "UPDATE membresias SET hasta='2026-10-26' WHERE socio_id=%s", (a_bytes(desde_texto(socio["id"])),)
+        )
+    pagina.get_by_role("button", name="Registrar entrada", exact=True).click()
+    expect(pagina.get_by_role("alert")).to_contain_text("membresía vigente")
+    with demo_aislada.app.app_context(), transaccion() as cursor:
+        cursor.execute(
+            "UPDATE membresias SET hasta='2026-11-26' WHERE socio_id=%s", (a_bytes(desde_texto(socio["id"])),)
+        )
+        cursor.execute("UPDATE sedes SET aforo_maximo=0")
+    pagina.get_by_role("button", name="Registrar entrada", exact=True).click()
+    expect(pagina.get_by_role("alert")).to_contain_text("aforo máximo")
+    assert contar(demo_aislada, "entradas") == 0
+    pagina.get_by_role("button", name="Cerrar sesión", exact=True).click()
+    pagina.get_by_role("button", name="Entrar como socio", exact=True).click()
+    pagina.goto(demo_aislada.url + "/recepcion.html")
+    expect(pagina.get_by_text("Ingresá como recepción desde el inicio para registrar visitas.")).to_be_visible()
+    expect(pagina.locator("[data-contenido]")).to_be_hidden()

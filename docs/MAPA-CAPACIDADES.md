@@ -38,6 +38,7 @@ Generado por `scripts/mapa_capacidades.py` desde `docs/capacidades/`. No editar 
 | Capacidad | Etapa | Nivel | Prueba |
 |---|---|---|---|
 | Entrada del socio por recepción con membresía y aforo | 1 | pendiente | `pruebas/test_visitas_api.py` |
+| Pantalla de recepción para entrada y salida | 1 | pendiente | `pruebas/e2e/test_recepcion.py` |
 | Salida confirmada del socio y lecturas para recepción | 1 | pendiente | `pruebas/test_visitas_api.py` |
 | Clases y reservas con lista de espera | 5 | pendiente | — |
 | Ficha completa con salud y consentimientos | 5 | pendiente | — |
