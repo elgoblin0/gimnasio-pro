@@ -1,6 +1,6 @@
 ---
 name: dividir-en-tickets
-description: Partir una spec o un plan de Gimnasio Pro en tickets de bala trazadora para Codex, publicarlos en GitHub con sus dependencias y entregar un prompt por ticket. Usar después de escribir-spec, o cuando el dueño pide tickets.
+description: Partir una especificación o un plan de Gimnasio Pro en tickets de bala trazadora para Codex, publicarlos en GitHub con sus dependencias y entregar un prompt por ticket. Usar después de escribir-especificacion, o cuando el dueño pide tickets.
 ---
 
 ## 1. Contexto
@@ -26,11 +26,11 @@ Mostrá la división como lista numerada; por ticket: título, bloqueos y qué c
 
 ## 4. Publicar
 
-Uno por ticket, en orden de dependencias (los bloqueos primero), para que cada `Depende de` cite números reales. No modifiques ni cierres la spec.
+Uno por ticket, en orden de dependencias (los bloqueos primero), para que cada `Depende de` cite números reales. No modifiques ni cierres la especificación.
 
 ```bash
 gh issue create --title "<título>" --label estado:listo --label ejecutor:codex --label modulo:<modulo> --label tipo:<tipo> --milestone "Etapa N: …" --body-file - <<'EOF'
-Parte de #<spec>
+Parte de #<especificación>
 
 ## Objetivo
 Qué queda funcionando, en términos del glosario.
