@@ -223,12 +223,26 @@ def preparar_worktree(numero):
     return carpeta
 
 
-def quitar_worktree(numero):
-    carpeta = carpeta_de(numero)
+def preparar_worktree_revision(numero):
+    """Worktree desacoplado en la punta remota de la rama: no choca si la rama está tomada en otra carpeta."""
+    carpeta = (RAIZ / CONFIG["carpeta_trabajo"] / f"revision-{numero}").resolve()
+    punta = f"origin/{PREFIJO_RAMA}{numero}"
     with _candado_git:
+        correr(["git", "fetch", "origin", "--prune"])
         if carpeta.exists():
-            correr(["git", "worktree", "remove", "--force", str(carpeta)], chequear=False)
-            shutil.rmtree(carpeta, ignore_errors=True)
+            correr(["git", "checkout", "--detach", "--force", punta], cwd=carpeta)
+        else:
+            correr(["git", "worktree", "add", "--detach", str(carpeta), punta])
+    return carpeta
+
+
+def quitar_worktree(numero):
+    carpetas = [carpeta_de(numero), (RAIZ / CONFIG["carpeta_trabajo"] / f"revision-{numero}").resolve()]
+    with _candado_git:
+        for carpeta in carpetas:
+            if carpeta.exists():
+                correr(["git", "worktree", "remove", "--force", str(carpeta)], chequear=False)
+                shutil.rmtree(carpeta, ignore_errors=True)
         correr(["git", "worktree", "prune"], chequear=False)
 
 
@@ -475,7 +489,7 @@ def toca_sensibles(numero_pr):
 
 def revisar(issue, pr, revisor):
     inicio = time.monotonic()
-    carpeta = preparar_worktree(issue.numero)
+    carpeta = preparar_worktree_revision(issue.numero)
     sensible = toca_sensibles(pr["number"])
     prompt = prompt_revisar(issue, gh("pr", "diff", str(pr["number"])), resumen_ci(pr["number"]), sensible)
     try:
