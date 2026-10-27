@@ -31,13 +31,13 @@ Generado por `scripts/mapa_capacidades.py` desde `docs/capacidades.toml`. No edi
 | Capacidad | Etapa | Nivel | Prueba |
 |---|---|---|---|
 | Semilla ficticia de Paraguay que se reinicia | 0 | funcional | `pruebas/test_demo_semilla.py::test_dos_reinicios_dejan_los_mismos_datos` |
-| Demo pública en hosting gratuito con límites de uso | 1 | pendiente | — |
+| Demo pública en hosting gratuito con límites de uso | 1 | funcional | `pruebas/test_demo_limites.py` |
 
 ## Experiencia
 
 | Capacidad | Etapa | Nivel | Prueba |
 |---|---|---|---|
-| PWA instalable que registra sin conexión y sincroniza | 1 | pendiente | — |
+| PWA instalable en escritorio, con pantallas que se adaptan a tablet y celular | 1 | pendiente | — |
 | Cuerpo 3D muscular | 2 | pendiente | — |
 | Escena de ocupación | 3 | pendiente | — |
 | Recorrido guiado de dos minutos | 7 | pendiente | — |

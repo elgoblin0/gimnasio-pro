@@ -1,0 +1,32 @@
+services:
+  - type: web
+    name: gimnasio-pro-demo
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    # El plan gratuito no tiene preDeployCommand. El certificado está disponible al arrancar.
+    startCommand: >-
+      python -m gimnasio.comun.migrar &&
+      exec gunicorn wsgi:app --bind 0.0.0.0:$PORT --workers 1 --threads 4
+    healthCheckPath: /api/estado
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.13.14"
+      - key: GIMNASIO_ENTORNO
+        value: produccion
+      - key: MODO_DEMO
+        value: "1"
+      - key: GIMNASIO_CLAVE_SECRETA
+        generateValue: true
+      - key: GIMNASIO_BD_HOST
+        sync: false
+      - key: GIMNASIO_BD_PUERTO
+        sync: false
+      - key: GIMNASIO_BD_USUARIO
+        sync: false
+      - key: GIMNASIO_BD_CLAVE
+        sync: false
+      - key: GIMNASIO_BD_NOMBRE
+        sync: false
+      - key: GIMNASIO_BD_CA
+        sync: false

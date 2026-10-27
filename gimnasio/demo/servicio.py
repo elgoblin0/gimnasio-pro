@@ -2,6 +2,10 @@
 
 import random
 import secrets
+from collections import OrderedDict, deque
+from datetime import timedelta
+from math import ceil
+from threading import Lock
 
 from gimnasio.comun.bd import transaccion
 from gimnasio.comun.formatos import normalizar_cedula, normalizar_telefono
@@ -18,6 +22,36 @@ USUARIOS_DEMO = (
     ("Ana", "Duarte", "administracion"),
 )
 SOCIOS_ADICIONALES = 36
+SOLICITUDES_POR_MINUTO = 60
+VENTANA_DE_SOLICITUDES = timedelta(minutes=1)
+
+
+class LimitePorIp:
+    """Ventana móvil en memoria, compartida por los hilos de un único proceso de la demo."""
+
+    def __init__(self):
+        self.solicitudes = OrderedDict()
+        self._candado = Lock()
+
+    def espera(self, ip):
+        """Admite la solicitud o devuelve los segundos hasta que haya lugar."""
+        with self._candado:
+            ahora = reloj_actual().ahora()
+            vencimiento = ahora - VENTANA_DE_SOLICITUDES
+            # El orden sigue la última solicitud admitida: las IP inactivas salen primero.
+            while self.solicitudes:
+                primeras = next(iter(self.solicitudes.values()))
+                if primeras[-1] > vencimiento:
+                    break
+                self.solicitudes.popitem(last=False)
+            solicitudes = self.solicitudes.setdefault(ip, deque())
+            while solicitudes and solicitudes[0] <= vencimiento:
+                solicitudes.popleft()
+            if len(solicitudes) >= SOLICITUDES_POR_MINUTO:
+                return ceil((solicitudes[0] + VENTANA_DE_SOLICITUDES - ahora).total_seconds())
+            solicitudes.append(ahora)
+            self.solicitudes.move_to_end(ip)
+            return 0
 
 
 def generar_personas():

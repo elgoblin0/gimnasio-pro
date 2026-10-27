@@ -20,7 +20,9 @@ La demo pública debe ser gratuita y tener Python, MySQL y HTTPS. Las condicione
 - Un workflow programado de GitHub Actions reinicia la demo cada día a las 04:00 de Asunción:
   - aplica las migraciones, borra los datos y carga la semilla;
   - de paso, mantiene activa la base de Aiven.
-- Las credenciales viven solo en los secretos de Render y de GitHub (`DEMO_DB_URL`), nunca en el repo.
+- Las credenciales viven solo en los secretos de Render y de GitHub, nunca en el repo. Son las mismas
+  variables `GIMNASIO_BD_*` que ya lee la app (`gimnasio/comun/bd.py`), más el certificado CA de Aiven;
+  no hay una `DEMO_DB_URL` aparte (ajuste del 2026-10-27).
 - El modo demo muestra siempre el aviso "datos ficticios, se reinician cada día".
 
 ## Consecuencias

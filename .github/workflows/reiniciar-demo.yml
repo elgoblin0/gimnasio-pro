@@ -1,0 +1,56 @@
+name: Reiniciar demo
+
+on:
+  schedule:
+    - cron: "0 7 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: reiniciar-demo
+  cancel-in-progress: false
+
+jobs:
+  reiniciar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      MODO_DEMO: "1"
+      GIMNASIO_BD_HOST: ${{ secrets.GIMNASIO_BD_HOST }}
+      GIMNASIO_BD_PUERTO: ${{ secrets.GIMNASIO_BD_PUERTO }}
+      GIMNASIO_BD_USUARIO: ${{ secrets.GIMNASIO_BD_USUARIO }}
+      GIMNASIO_BD_CLAVE: ${{ secrets.GIMNASIO_BD_CLAVE }}
+      GIMNASIO_BD_NOMBRE: ${{ secrets.GIMNASIO_BD_NOMBRE }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+      - run: pip install -r requirements.txt
+      - name: Preparar la conexión TLS
+        env:
+          GIMNASIO_BD_CA_PEM: ${{ secrets.GIMNASIO_BD_CA_PEM }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          for variable in GIMNASIO_BD_HOST GIMNASIO_BD_PUERTO GIMNASIO_BD_USUARIO GIMNASIO_BD_CLAVE GIMNASIO_BD_NOMBRE GIMNASIO_BD_CA_PEM; do
+            if [ -z "${!variable}" ]; then
+              echo "Falta el secreto $variable." >&2
+              exit 1
+            fi
+          done
+          umask 077
+          certificado="$RUNNER_TEMP/aiven-ca.pem"
+          printf '%s' "$GIMNASIO_BD_CA_PEM" > "$certificado"
+          echo "GIMNASIO_BD_CA=$certificado" >> "$GITHUB_ENV"
+      - name: Aplicar migraciones y reiniciar la semilla ficticia
+        run: |
+          python -m gimnasio.comun.migrar
+          python -m gimnasio.demo.semilla --reiniciar
+      - name: Eliminar el certificado temporal
+        if: always()
+        shell: bash
+        run: rm -f -- "$RUNNER_TEMP/aiven-ca.pem"

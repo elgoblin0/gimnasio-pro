@@ -1,4 +1,4 @@
-"""Crea o actualiza las etiquetas y los milestones del protocolo de AGENTS.md. Es idempotente.
+"""Crea o actualiza las etiquetas y los milestones del protocolo de docs/protocolo-agentes.md. Es idempotente.
 
 Uso: python scripts/configurar_github.py
 """

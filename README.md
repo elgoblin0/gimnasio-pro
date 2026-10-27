@@ -20,6 +20,9 @@ Esta es la base inicial de Pro: conserva las funciones y el stack originales. La
 
 ## Ejecutar ambas versiones
 
+La preparación y verificación de la demo pública en Render y Aiven está en
+[docs/demo-publica.md](docs/demo-publica.md).
+
 La estándar utiliza la base `gimnasio` y el puerto 5001. Pro utiliza la base `gimnasio_pro` y el puerto 5002. Cada repositorio incluye su propio SQL: importar el de Pro solo reinicia `gimnasio_pro`.
 
 No compartir una misma base entre ambas versiones. Las futuras migraciones de Pro pertenecen exclusivamente a su base.

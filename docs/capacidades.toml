@@ -65,12 +65,12 @@ id = "demo-publica"
 nombre = "Demo pública en hosting gratuito con límites de uso"
 grupo = "Demo"
 etapa = 1
-nivel = "pendiente"
-prueba = ""
+nivel = "funcional"
+prueba = "pruebas/test_demo_limites.py"
 
 [[capacidad]]
-id = "pwa-sin-conexion"
-nombre = "PWA instalable que registra sin conexión y sincroniza"
+id = "pwa-escritorio"
+nombre = "PWA instalable en escritorio, con pantallas que se adaptan a tablet y celular"
 grupo = "Experiencia"
 etapa = 1
 nivel = "pendiente"

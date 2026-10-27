@@ -18,6 +18,7 @@ def _config_desde_entorno():
         "ENTORNO": os.environ.get("GIMNASIO_ENTORNO", "desarrollo"),
         "SECRET_KEY": os.environ.get("GIMNASIO_CLAVE_SECRETA"),
         "MODO_DEMO": os.environ.get("MODO_DEMO") == "1",
+        "EN_RENDER": os.environ.get("RENDER") == "true",
     }
 
 
@@ -47,9 +48,11 @@ def crear_app(config=None, reloj=None):
     registrar_manejadores(app)
     registrar_cierre(app)
 
+    from gimnasio.demo.limites import registrar_limites
     from gimnasio.permisos.rutas import bp as permisos
     from gimnasio.sistema.rutas import bp as sistema
 
+    registrar_limites(app)
     app.register_blueprint(sistema)
     app.register_blueprint(permisos)
 
