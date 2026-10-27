@@ -6,6 +6,16 @@ Por decisión del dueño del 27/10/2026, el trabajo se coordina desde un chat de
 
 El despachador se eliminó del repo el 27/10/2026; su último estado queda en el historial de git (commit `1aade43`).
 
+## Roles
+
+- **Opus** (sesión corta de Claude Code) decide y especifica; no implementa:
+  - planifica cada etapa y crea sus issues con la plantilla `tarea.yml`, `estado:listo` y `ejecutor:codex`, con criterios de aceptación, archivos, pruebas y ADR aplicables, para que Codex no tenga que decidir;
+  - decide diseño, dirección visual, modelo de datos, reglas, frenos, términos del glosario y ADR;
+  - resuelve los `necesita-criterio`: decide, registra un ADR provisional si hace falta y deja el issue `estado:listo`;
+  - revisa el diff de los PR que tocan rutas sensibles.
+- **Codex** (app de escritorio) implementa todos los issues, `tipo:patron` incluido, y revisa todos los PR.
+- **El dueño** elige cuándo abrir cada sesión, autoriza las fusiones y revisa los ADR provisionales al cierre de cada etapa.
+
 ## Ejecución
 
 1. Revisá el estado local y GitHub antes de tocar archivos. Conservá cambios ajenos y reutilizá ramas y worktrees de los PR abiertos.
@@ -19,9 +29,9 @@ Las pruebas de MySQL saltadas en local no sustituyen el CI de GitHub. Se mantien
 
 ## Revisión y rutas sensibles
 
-Codex implementa y otro agente de Codex revisa todos los PR, también los que tocan reglas, migraciones, permisos, salud o `comun/migrar.py`. No se requiere saldo ni intervención de Opus.
+Otro agente de Codex revisa todos los PR. Los que tocan reglas, migraciones, permisos, salud o `comun/migrar.py` necesitan además la revisión de Opus: con `revisado:codex` puesto, quedan en `estado:revision` hasta que una sesión de Opus lea su diff y agregue `revisado:opus`.
 
-Usá `revisado:codex` después de aprobar el estado actual. La etiqueta histórica `revisado:opus` solo se agrega si una integración existente la exige: acompañala de un comentario que cite la decisión del dueño y aclare que no hubo revisión real de Opus. Una corrección invalida las aprobaciones afectadas y exige revisar de nuevo.
+Usá `revisado:codex` después de aprobar el estado actual. Una corrección invalida las aprobaciones afectadas y exige revisar de nuevo.
 
 ## Etiquetas y dependencias
 
@@ -29,15 +39,15 @@ Usá `revisado:codex` después de aprobar el estado actual. La etiqueta históri
 - `estado:en-curso` y `agente:codex`: trabajo activo.
 - `estado:revision`: PR abierto pendiente de CI o revisión.
 - `correccion-pendiente`: corrección requerida por CI o revisión.
-- `ejecutor:codex`: ejecución por Codex; las etiquetas históricas de Opus no obligan a usar Claude.
-- `modulo:*` y `tipo:*`: clasificación del trabajo; `tipo:patron` también puede hacerlo Codex dentro de lo especificado.
+- `ejecutor:codex`: todo issue de implementación. `ejecutor:opus` queda para issues de planificación o de decisión, que no producen código.
+- `modulo:*` y `tipo:*`: clasificación del trabajo; en un `tipo:patron`, Opus especifica el patrón en el issue y Codex lo implementa.
 - `bloqueado`: impedimento externo documentado.
-- `necesita-criterio`: decisión de producto, alcance o término que debe resolver el dueño.
+- `necesita-criterio`: decisión de diseño, producto, alcance o término que resuelve Opus.
 
 Respetá `Depende de: #N, #M` en cada issue. Al fusionar, retirás las etiquetas de trabajo activo y cerrás el issue; conservás las de clasificación.
 
 ## Bloqueos y continuidad
 
-Resolvé los problemas técnicos dentro del alcance autorizado, incluidos conflictos y fallos de CI. Documentá lo probado cuando exista un impedimento externo. Las decisiones de producto, alcance, términos y ADR siguen a cargo del dueño; señalalas con `necesita-criterio` y una recomendación concreta. Continuá con trabajo independiente cuando sea posible.
+Resolvé los problemas técnicos dentro del alcance autorizado, incluidos conflictos y fallos de CI. Documentá lo probado cuando exista un impedimento externo. Las decisiones de diseño, producto, alcance, términos y ADR son de Opus; señalalas con `necesita-criterio` y una recomendación concreta. Continuá con trabajo independiente cuando sea posible.
 
 Si se agota el cupo, guardá los cambios y un resumen para retomar. No registres el límite como fallo de implementación ni prometas ejecución durante la inactividad del chat. Al terminar, informá PR fusionados, checks y pendientes.
