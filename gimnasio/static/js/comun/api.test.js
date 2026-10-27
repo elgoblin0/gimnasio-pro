@@ -37,6 +37,31 @@ test("sin red falla con conexión requerida y no reintenta escrituras", async ()
   assert.equal(llamadas, 1);
 });
 
+for (const metodo of ["GET", "POST"]) {
+  test(`un ${metodo} con corte de conexión al leer el cuerpo requiere conexión y no reintenta`, async () => {
+    let llamadas = 0;
+    const llamar = crearApi({ fetch: async () => {
+      llamadas += 1;
+      return new Response(new ReadableStream({
+        start(controlador) {
+          controlador.enqueue(new TextEncoder().encode('{"usuario":'));
+        },
+        pull(controlador) {
+          controlador.error(new TypeError("Conexión interrumpida al leer el cuerpo"));
+        },
+      }), { status: 200, headers: { "Content-Type": "application/json" } });
+    }, nuevaClave: () => "clave-1" });
+    await assert.rejects(llamar("/api/sesion", { metodo }), (error) => {
+      assert.ok(error instanceof ErrorDeApi);
+      assert.equal(error.codigo, "conexion_requerida");
+      assert.match(error.message, /Se requiere conexión/);
+      assert.equal(error.estadoHttp, 0);
+      return true;
+    });
+    assert.equal(llamadas, 1);
+  });
+}
+
 test("un POST lleva X-Gimnasio y una clave de idempotencia", async () => {
   const { pedir, llamadas } = fetchFalso(201, {});
   await crearApi({ fetch: pedir, nuevaClave: () => "clave-1" })("/api/x", { metodo: "POST", cuerpo: { a: 1 } });

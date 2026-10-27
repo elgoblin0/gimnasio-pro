@@ -23,6 +23,7 @@ export function crearApi({ fetch: pedir = globalThis.fetch, nuevaClave = () => c
     }
     if (cuerpo !== undefined) encabezados["Content-Type"] = "application/json";
     let respuesta;
+    let datos;
     try {
       respuesta = await pedir(ruta, {
         method: metodo,
@@ -31,10 +32,10 @@ export function crearApi({ fetch: pedir = globalThis.fetch, nuevaClave = () => c
         credentials: "same-origin",
         cache: "no-store",
       });
+      datos = respuesta.status === 204 ? null : await respuesta.json();
     } catch {
       throw new ErrorDeApi("conexion_requerida", "Se requiere conexión a Internet. No se pudo conectar con el servidor.", 0);
     }
-    const datos = respuesta.status === 204 ? null : await respuesta.json();
     if (!respuesta.ok) {
       const error = datos?.error ?? {};
       throw new ErrorDeApi(error.codigo ?? "error", error.mensaje ?? "Error inesperado", respuesta.status);

@@ -33,7 +33,7 @@ function entorno({ version = "1", almacen = new Map() } = {}) {
   class Peticion extends Request {
     constructor(ruta, opciones) { super(new URL(ruta, ORIGEN), opciones); }
   }
-  runInNewContext(CODIGO.replace('const VERSION = "1";', `const VERSION = "${version}";`), {
+  runInNewContext(CODIGO.replace(/const VERSION = "[^"]+";/, `const VERSION = "${version}";`), {
     self: {
       location: { origin: ORIGEN },
       clients: { claim: async () => { controlado = true; } },

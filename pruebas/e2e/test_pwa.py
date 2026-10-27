@@ -34,9 +34,11 @@ def servidor_pwa():
             respuesta.direct_passthrough = False
             respuesta.status_code = 200
             respuesta.set_data(
-                (ESTATICOS / "sw.js")
-                .read_text(encoding="utf-8")
-                .replace('const VERSION = "1";', f'const VERSION = "{app.config["VERSION_PWA"]}";')
+                re.sub(
+                    r'const VERSION = "[^"]+";',
+                    f'const VERSION = "{app.config["VERSION_PWA"]}";',
+                    (ESTATICOS / "sw.js").read_text(encoding="utf-8"),
+                )
             )
             respuesta.headers.pop("ETag", None)
             respuesta.headers.pop("Last-Modified", None)
