@@ -9,7 +9,7 @@ Closes #
 
 ## Rutas sensibles
 - [ ] No toca `reglas/`, `migraciones/`, `comun/migrar.py`, `permisos/` ni `salud/`
-- [ ] Toca rutas sensibles: necesita revisión independiente de Codex
+- [ ] Toca rutas sensibles: necesita la revisión de Codex y la de Opus sobre el diff
 
 ## Definición de terminado
 - [ ] CI en verde (ruff, pytest, migraciones, secretos)
