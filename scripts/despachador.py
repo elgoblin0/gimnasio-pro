@@ -868,8 +868,14 @@ def planificar(ocupados, libres, solo_codex):
             plan.acciones.append(("revisar", issue, faltan[0], pr))
 
     # 3. Issues listos.
-    activos = {i.modulo for i in issues("estado:en-curso") + issues("estado:revision")}
+    en_marcha = issues("estado:en-curso") + issues("estado:revision")
+    activos = {i.modulo for i in en_marcha}
+    # Cada PR fusionado deja a los demás en conflicto y resolverlo cuesta una corrida entera: con el tope en 1,
+    # el siguiente issue arranca recién cuando el anterior entró en main.
+    cupo = CONFIG["max_issues_activos"] - len(en_marcha)
     for issue in sorted(issues("estado:listo"), key=lambda i: i.numero):
+        if cupo <= 0:
+            break
         if issue.numero in ocupados or {"bloqueado", "necesita-criterio"} & issue.etiquetas:
             continue
         if issue.modulo in activos:
@@ -884,6 +890,7 @@ def planificar(ocupados, libres, solo_codex):
             continue
         if reservar(ejecutor):
             activos.add(issue.modulo)
+            cupo -= 1
             plan.acciones.append(("implementar", issue, ejecutor, None))
     return plan
 
