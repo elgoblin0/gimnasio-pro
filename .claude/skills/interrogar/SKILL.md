@@ -21,6 +21,6 @@ Trabajá por **rondas**. La **frontera** son las decisiones cuyos requisitos ya 
 
 Redactá cada pregunta para que «sí» acepte tu recomendación. Una pregunta que depende de otra todavía abierta va en una ronda posterior.
 
-Los **hechos** los buscás vos, nunca el dueño: leé el código, `VISION.md`, `ROADMAP.md`, `docs/ALCANCE-FUNCIONAL.md` y los ADR con Grep y Read. Lanzá un subagente solo para un barrido de muchos archivos: la cuota de Claude es lo escaso. Las **decisiones** son del dueño: planteá cada una y esperá.
+Los **hechos** los buscás vos, nunca el dueño. Cuando una pregunta de la frontera necesita un hecho del entorno (el código, `VISION.md`, `ROADMAP.md`, `docs/ALCANCE-FUNCIONAL.md`, los ADR), lanzá un subagente que lo busque; no le preguntes al dueño nada que puedas averiguar. No te frenes esperándolo: una búsqueda en curso es un requisito sin resolver, así que solo esperan las preguntas que dependen de ella; el resto de la frontera se pregunta ya. Las **decisiones** son del dueño: planteá cada una y esperá.
 
 Terminado: la frontera está vacía (cada rama del árbol visitada, nada supuesto en silencio) y el dueño confirma el entendimiento compartido. Antes de eso no actúes sobre el plan.
