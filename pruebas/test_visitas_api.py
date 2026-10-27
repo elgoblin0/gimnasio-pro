@@ -139,8 +139,12 @@ def test_fallo_revierte_entrada_y_respuesta(visitas_api, monkeypatch):
     assert enviar(datos.cliente(), cuerpo, clave).status_code == 201
 
 
-def test_dos_conexiones_al_ultimo_lugar_no_superan_aforo(visitas_api, monkeypatch):
+@pytest.mark.parametrize("mismo_socio", [False, True])
+def test_dos_conexiones_respetan_aforo_y_una_visita_por_socio(visitas_api, monkeypatch, mismo_socio):
     datos = visitas_api
+    if mismo_socio:
+        with datos.app.app_context(), transaccion() as cursor:
+            cursor.execute("UPDATE sedes SET aforo_maximo = 2 WHERE id = %s", (a_bytes(datos.sede),))
     tomada, segunda, continuar = Event(), Event(), Event()
     original = repositorio.bloquear_sede
 
@@ -158,7 +162,7 @@ def test_dos_conexiones_al_ultimo_lugar_no_superan_aforo(visitas_api, monkeypatc
         primera = hilos.submit(enviar, datos.cliente(), datos.cuerpo())
         try:
             assert tomada.wait(10)
-            otra = hilos.submit(enviar, datos.cliente(), datos.cuerpo(datos.socios[1]))
+            otra = hilos.submit(enviar, datos.cliente(), datos.cuerpo(datos.socios[0 if mismo_socio else 1]))
             assert segunda.wait(10)
         finally:
             continuar.set()
