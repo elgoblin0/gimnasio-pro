@@ -25,9 +25,9 @@ jobs:
       - run: pip install -r requirements-dev.txt
       - name: ruff
         run: |
-          set +e
-          { ruff check . --output-format concise; ruff format --check .; } > ruff.txt 2>&1
-          estado=$?
+          estado=0
+          ruff check . --output-format concise > ruff.txt 2>&1 || estado=1
+          ruff format --check . >> ruff.txt 2>&1 || estado=1
           python scripts/mapa_capacidades.py --verificar >> ruff.txt 2>&1 || estado=1
           if [ -d gimnasio/static/js ]; then node --test gimnasio/static/js >> ruff.txt 2>&1 || estado=1; fi
           cat ruff.txt

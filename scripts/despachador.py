@@ -519,7 +519,9 @@ def corregir_o_bloquear(issue, motivo):
     ejecutor = issue.ejecutor
     maximo = CONFIG["intentos_max_opus"] if ejecutor == "opus" else CONFIG["intentos_max_codex"]
     if intentos(issue.numero, ejecutor) >= maximo:
-        etiquetar(issue.numero, ["bloqueado"], ["estado:revision"])
+        agregar = ["bloqueado"] + ([] if ejecutor == "opus" else ["ejecutor:opus"])
+        quitar = ["estado:revision"] + ([] if ejecutor == "opus" else ["ejecutor:codex"])
+        etiquetar(issue.numero, agregar, quitar)
         comentar(issue.numero, f"Bloqueado: se agotaron los intentos de {ejecutor}.\n\n{motivo[:3000]}")
     else:
         etiquetar(issue.numero, ["estado:en-curso", "correccion-pendiente"], ["estado:revision"])
@@ -560,6 +562,8 @@ def planificar(ocupados, libres, solo_codex):
     # 1. Correcciones pedidas por CI o revisión.
     for issue in issues("correccion-pendiente"):
         if issue.numero in ocupados or {"bloqueado", "necesita-criterio"} & issue.etiquetas:
+            continue
+        if issue.ejecutor == "opus" and fraccion >= CONFIG["presupuesto"]["aviso"] and not issue.sensible:
             continue
         if reservar(issue.ejecutor):
             comentarios = gh_json("issue", "view", str(issue.numero), "--json", "comments")["comments"]
@@ -613,6 +617,23 @@ def planificar(ocupados, libres, solo_codex):
 
 
 def ejecutar_accion(accion):
+    """Ejecuta una acción; si algo falla, devuelve el issue a la cola en vez de dejarlo con el candado puesto."""
+    tipo, issue, ejecutor, _ = accion
+    try:
+        _ejecutar_accion(accion)
+    except Exception as error:
+        detalle = f"Error del despachador en `{tipo}`: {error}"
+        if tipo in ("implementar", "corregir"):
+            registrar(
+                {"issue": issue.numero, "ejecutor": ejecutor, "fase": tipo, "uso": {}, "ponderados": 0, "codigo": -1}
+            )
+            fallar(issue, ejecutor, detalle)
+        else:
+            comentar(issue.numero, detalle)
+        raise
+
+
+def _ejecutar_accion(accion):
     tipo, issue, ejecutor, extra = accion
     if tipo == "implementar":
         etiquetar(issue.numero, ["estado:en-curso", f"agente:{ejecutor}"], ["estado:listo"])
