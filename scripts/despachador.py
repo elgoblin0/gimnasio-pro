@@ -495,7 +495,11 @@ def revisar(issue, pr, revisor):
     try:
         _, texto, uso = correr_agente(revisor, carpeta, prompt, esquema=ESQUEMA_REVISION, solo_lectura=True)
     except subprocess.TimeoutExpired:
-        texto, uso = "", {}
+        texto, uso = "tiempo agotado", {}
+    try:
+        veredicto = json.loads(texto)
+    except json.JSONDecodeError:
+        veredicto = None
     registrar(
         {
             "issue": issue.numero,
@@ -505,12 +509,19 @@ def revisar(issue, pr, revisor):
             "uso": uso,
             "ponderados": tokens_ponderados(uso),
             "segundos": int(time.monotonic() - inicio),
+            "fallida": veredicto is None,
         }
     )
-    try:
-        veredicto = json.loads(texto)
-    except json.JSONDecodeError:
-        return  # se reintenta en la próxima vuelta
+    if veredicto is None:
+        # Se reintenta en la próxima vuelta, pero no sin fin: tras varias seguidas se bloquea con el error a la vista.
+        if revisiones_fallidas_seguidas(pr["number"]) >= CONFIG["revisiones_fallidas_max"]:
+            etiquetar(issue.numero, ["bloqueado"], [])
+            comentar(
+                issue.numero,
+                f"Bloqueado: {CONFIG['revisiones_fallidas_max']} revisiones seguidas de {revisor} sin veredicto "
+                f"en el PR #{pr['number']}. Última salida:\n\n```\n{texto[-1500:]}\n```",
+            )
+        return
     hallazgos = "\n".join(f"- **{h['gravedad']}** `{h['archivo']}`: {h['problema']}" for h in veredicto["hallazgos"])
     if veredicto["aprobado"]:
         gh("pr", "edit", str(pr["number"]), "--add-label", f"revisado:{revisor}")
@@ -559,6 +570,14 @@ def integrar_main(issue):
         )
         correr(["git", "push", "origin", f"{PREFIJO_RAMA}{issue.numero}"], cwd=carpeta)
     registrar({"issue": issue.numero, "ejecutor": "script", "fase": "integrar-main", "uso": {}, "ponderados": 0})
+
+
+def revisiones_fallidas_seguidas(numero_pr):
+    seguidas = 0
+    for entrada in leer_registro():
+        if entrada.get("fase") == "revisar" and entrada.get("pr") == numero_pr:
+            seguidas = seguidas + 1 if entrada.get("fallida") else 0
+    return seguidas
 
 
 def corregir_o_bloquear(issue, motivo):
@@ -625,7 +644,7 @@ def planificar(ocupados, libres, solo_codex):
 
     # 2. PR en revisión: CI, revisión cruzada y fusión.
     for issue in issues("estado:revision"):
-        if issue.numero in ocupados:
+        if issue.numero in ocupados or "bloqueado" in issue.etiquetas:
             continue
         prs = gh_json(
             "pr",
