@@ -3,19 +3,24 @@ cambiar un permiso obliga a cambiar las dos y a pasar por la revisión de Opus."
 
 import pytest
 
+from gimnasio import crear_app
+from gimnasio.permisos import servicio
 from gimnasio.permisos.matriz import PERMISOS, ROLES, puede
 from gimnasio.permisos.servicio import requiere
 
 S, R, E, A = "socio", "recepcion", "entrenador", "administracion"
 ESPERADO = {
+    "entrenamiento.ver_propio": {S},
     "entrenamiento.registrar_propio": {S},
     "salud.ver_propia": {S},
     "consentimientos.gestionar_propios": {S},
     "visitas.registrar": {R},
+    "visitas.ver": {R},
     "socios.ver_tarjeta": {R, A},
     "pagos.registrar": {R, A},
     "clases.gestionar_reservas": {R},
     "socios.ver_asignados": {E},
+    "entrenamiento.ver_asignados": {E},
     "salud.ver_asignados": {E},
     "programas.editar": {E},
     "configuracion.editar": {A},
@@ -37,6 +42,27 @@ def test_salud_nunca_la_ven_recepcion_ni_administracion():
     for permiso in ("salud.ver_propia", "salud.ver_asignados"):
         assert not puede(R, permiso)
         assert not puede(A, permiso)
+
+
+@pytest.mark.parametrize("rol", [None, *ROLES])
+@pytest.mark.parametrize(
+    "permiso,rol_permitido",
+    [("entrenamiento.ver_propio", S), ("entrenamiento.ver_asignados", E), ("visitas.ver", R)],
+)
+def test_requiere_en_lecturas_del_recorrido(monkeypatch, rol, permiso, rol_permitido):
+    app = crear_app({"ENTORNO": "prueba", "SECRET_KEY": "solo-pruebas", "MODO_DEMO": False})
+    monkeypatch.setattr(servicio, "usuario_actual", lambda: {"rol": rol} if rol else None)
+
+    @app.get("/api/prueba/lectura")
+    @requiere(permiso)
+    def lectura():
+        return "", 204
+
+    respuesta = app.test_client().get("/api/prueba/lectura")
+    esperado = 401 if rol is None else 204 if rol == rol_permitido else 403
+    assert respuesta.status_code == esperado
+    if esperado != 204:
+        assert respuesta.get_json()["error"]["codigo"] == ("sin_sesion" if rol is None else "sin_permiso")
 
 
 def test_rechaza_roles_y_permisos_desconocidos():

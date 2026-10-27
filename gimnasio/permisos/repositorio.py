@@ -114,6 +114,18 @@ def consentimiento_vigente(cursor, socio_id, tipo):
     return cursor.fetchone()
 
 
+def tiene_asignacion_vigente(cursor, socio_id, entrenador_id):
+    cursor.execute(
+        """SELECT 1 AS vigente FROM asignaciones_entrenador a
+           JOIN usuarios s ON s.id = a.socio_id AND s.rol = 'socio' AND s.activo = TRUE
+           JOIN usuarios e ON e.id = a.entrenador_id AND e.rol = 'entrenador' AND e.activo = TRUE
+           WHERE a.socio_id = %s AND a.entrenador_id = %s AND a.hasta IS NULL
+           LIMIT 1""",
+        (a_bytes(socio_id), a_bytes(entrenador_id)),
+    )
+    return cursor.fetchone() is not None
+
+
 def adquirir_candado(cursor, nombre, segundos):
     cursor.execute("SELECT GET_LOCK(%s, %s) AS obtenido", (nombre, segundos))
     return cursor.fetchone()["obtenido"] == 1
