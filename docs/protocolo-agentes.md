@@ -16,6 +16,27 @@ El despachador se eliminó del repo el 27/10/2026; su último estado queda en el
 - **Codex** (app de escritorio) implementa todos los issues, `tipo:patron` incluido, y revisa todos los PR.
 - **El dueño** elige cuándo abrir cada sesión, autoriza las fusiones y revisa los ADR provisionales al cierre de cada etapa.
 
+## Planificar una etapa (Opus)
+
+Una sola sesión de Claude Code por etapa, porque `to-spec` sintetiza la conversación sin volver a preguntar. El dueño lanza las habilidades en este orden:
+
+1. `/mattpocock-skills:grill-with-docs`: entrevista sobre la etapa; deja los términos en `GLOSSARY.md` y las decisiones en `docs/adr/`.
+2. `/mattpocock-skills:to-spec`: publica la spec de la etapa como issue.
+3. `/mattpocock-skills:to-tickets`: la parte en tickets `estado:listo` + `ejecutor:codex`, con `Depende de: #N`.
+
+Cómo usan GitHub y las etiquetas: `docs/agents/`.
+
+Al cerrar la sesión, Opus entrega un prompt por ticket, en orden de dependencias, cada uno en su bloque para copiar:
+
+```
+Implementá el issue #N de elgoblin0/gimnasio-pro. Leelo con `gh issue view N --comments`.
+Seguí AGENTS.md y docs/protocolo-agentes.md. Corré ruff y pytest,
+abrí el PR con la plantilla y pedí la revisión a un subagente de Codex.
+<solo si hace falta: una o dos líneas con la trampa o la decisión que el issue no alcanza a decir>
+```
+
+El dueño pega cada prompt en un chat nuevo de la app de Codex cuando el ticket anterior está fusionado.
+
 ## Ejecución
 
 1. Revisá el estado local y GitHub antes de tocar archivos. Conservá cambios ajenos y reutilizá ramas y worktrees de los PR abiertos.
