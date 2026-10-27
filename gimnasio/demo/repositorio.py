@@ -6,6 +6,10 @@ from gimnasio.comun.ids import a_bytes
 def vaciar_datos(cursor):
     """Borra en orden de dependencias, conservando migraciones_aplicadas y las claves foráneas."""
     cursor.execute("DELETE FROM solicitudes_idempotentes")
+    cursor.execute("DELETE FROM ejercicios_planificados")
+    cursor.execute("DELETE FROM sesiones_planificadas")
+    cursor.execute("DELETE FROM programas_entrenamiento")
+    cursor.execute("DELETE FROM ejercicios")
     cursor.execute("DELETE FROM intentos_de_ingreso")
     cursor.execute("DELETE FROM consentimientos")
     cursor.execute("DELETE FROM asignaciones_entrenador")

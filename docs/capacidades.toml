@@ -157,6 +157,14 @@ nivel = "pendiente"
 prueba = ""
 
 [[capacidad]]
+id = "lectura-programas"
+nombre = "Lectura del programa de entrenamiento y sus sesiones planificadas por socio y versión"
+grupo = "Entrenador"
+etapa = 1
+nivel = "pendiente"
+prueba = "pruebas/test_programas.py"
+
+[[capacidad]]
 id = "bandeja-entrenador"
 nombre = "Bandeja priorizada del entrenador"
 grupo = "Entrenador"

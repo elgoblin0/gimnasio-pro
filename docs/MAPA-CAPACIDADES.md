@@ -65,6 +65,7 @@ Generado por `scripts/mapa_capacidades.py` desde `docs/capacidades.toml`. No edi
 | Capacidad | Etapa | Nivel | Prueba |
 |---|---|---|---|
 | Programas desde plantillas | 4 | pendiente | — |
+| Lectura del programa de entrenamiento y sus sesiones planificadas por socio y versión | 1 | pendiente | `pruebas/test_programas.py` |
 | Bandeja priorizada del entrenador | 4 | pendiente | — |
 | Equipos y alternativas | 4 | pendiente | — |
 
