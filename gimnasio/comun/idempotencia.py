@@ -76,6 +76,10 @@ def registrar_idempotencia(app, obtener_usuario):
                 return Response(
                     b64decode(guardada["cuerpo"]), status=fila["estado_http"], headers=guardada["encabezados"]
                 )
+            # La búsqueda sin resultado también abre una lectura consistente en MySQL.
+            # Cerrarla permite que el servicio vea el estado confirmado tras esperar sus candados.
+            # Todavía no se escribió ningún hecho ni se activó la transacción de la operación.
+            conexion.commit()
         g.solicitud_idempotente = (clave, usuario_id, huella, ahora)
         g.idempotencia_activa = True
         return None

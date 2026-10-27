@@ -1,0 +1,6 @@
+id = "entrada-socio"
+nombre = "Entrada del socio por recepción con membresía y aforo"
+grupo = "Operación"
+etapa = 1
+nivel = "pendiente"
+prueba = "pruebas/test_visitas_api.py"
