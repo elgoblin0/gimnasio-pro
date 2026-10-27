@@ -39,7 +39,7 @@ scripts/           despachador, mapa de capacidades, resumen del CI
 - `pruebas/test_dependencias.py` hace cumplir estas reglas.
 
 ## Rutas sensibles
-`gimnasio/reglas/`, `migraciones/`, `gimnasio/comun/migrar.py`, `gimnasio/sincronizacion/`, `gimnasio/permisos/`, `gimnasio/salud/`.
+`gimnasio/reglas/`, `migraciones/`, `gimnasio/comun/migrar.py`, `gimnasio/permisos/`, `gimnasio/salud/`.
 Todo PR que las toque necesita revisión de Opus, aunque lo haya escrito Codex.
 
 ## Definición de terminado

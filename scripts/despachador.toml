@@ -39,8 +39,7 @@ sensibles = [
     "gimnasio/reglas/",
     "migraciones/",
     "gimnasio/comun/migrar.py",
-    "gimnasio/sincronizacion/",
     "gimnasio/permisos/",
     "gimnasio/salud/",
 ]
-modulos_sensibles = ["reglas", "migraciones", "sincronizacion", "permisos", "salud"]
+modulos_sensibles = ["reglas", "migraciones", "permisos", "salud"]
