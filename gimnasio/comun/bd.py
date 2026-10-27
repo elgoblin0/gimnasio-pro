@@ -47,12 +47,13 @@ def conexion_actual():
 
 @contextmanager
 def transaccion():
-    """Cursor de diccionarios dentro de una transacción: commit al salir, rollback ante un error."""
+    """Commit al salir, salvo que idempotencia confirme escritura y respuesta juntas."""
     conexion = conexion_actual()
     cursor = conexion.cursor(dictionary=True)
     try:
         yield cursor
-        conexion.commit()
+        if not g.get("idempotencia_activa"):
+            conexion.commit()
     except Exception:
         conexion.rollback()
         raise

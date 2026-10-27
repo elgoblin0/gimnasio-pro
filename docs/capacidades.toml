@@ -227,3 +227,11 @@ grupo = "Experiencia"
 etapa = 7
 nivel = "pendiente"
 prueba = ""
+
+[[capacidad]]
+id = "idempotencia"
+nombre = "Idempotencia para escrituras"
+grupo = "Fundaciones"
+etapa = 1
+nivel = "funcional"
+prueba = "pruebas/test_idempotencia.py::test_solicitudes_simultaneas_no_duplican"

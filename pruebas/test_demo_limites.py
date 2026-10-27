@@ -16,7 +16,8 @@ def crear_demo(reloj, **config):
         reloj=reloj,
     )
 
-    @app.post("/api/prueba/cuerpo")
+    # Solo consulta bytes: GET permite probar límites sin simular una escritura de dominio.
+    @app.get("/api/prueba/cuerpo")
     def cuerpo():
         return {"bytes": len(request.get_data())}
 
@@ -74,14 +75,15 @@ def test_las_solicitudes_simultaneas_no_esquivan_el_limite(reloj_fijo):
     assert estados.count(429) == 20
 
 
+@pytest.mark.parametrize("metodo", ["GET", "POST"])
 @pytest.mark.parametrize("ruta", ["/api/prueba/cuerpo", "/api/estado", "/"])
-def test_rechaza_mas_de_un_mb_incluso_si_la_ruta_no_lee_el_cuerpo(reloj_fijo, ruta):
+def test_rechaza_mas_de_un_mb_incluso_si_la_ruta_no_lee_el_cuerpo(reloj_fijo, ruta, metodo):
     respuesta = (
         crear_demo(reloj_fijo)
         .test_client()
         .open(
             ruta,
-            method="POST" if ruta == "/api/prueba/cuerpo" else "GET",
+            method=metodo,
             data=b"x" * 1_000_001,
             headers={"X-Gimnasio": "1"},
         )
@@ -93,7 +95,7 @@ def test_admite_un_mb_y_conserva_el_cuerpo_para_la_ruta(reloj_fijo):
     respuesta = (
         crear_demo(reloj_fijo)
         .test_client()
-        .post("/api/prueba/cuerpo", data=b"x" * 1_000_000, headers={"X-Gimnasio": "1"})
+        .get("/api/prueba/cuerpo", data=b"x" * 1_000_000, headers={"X-Gimnasio": "1"})
     )
     assert respuesta.status_code == 200
     assert respuesta.get_json() == {"bytes": 1_000_000}
@@ -106,7 +108,7 @@ def test_controla_el_tamano_sin_content_length(reloj_fijo, cantidad, estado):
         .test_client()
         .open(
             "/api/prueba/cuerpo",
-            method="POST",
+            method="GET",
             headers={"X-Gimnasio": "1"},
             environ_overrides={
                 "CONTENT_LENGTH": "",
@@ -124,7 +126,7 @@ def test_fuera_de_demo_no_aplica_ninguno_de_los_limites(reloj_fijo):
     cliente = crear_demo(reloj_fijo, MODO_DEMO=False).test_client()
     for _ in range(61):
         assert cliente.get("/api/estado").status_code == 200
-    respuesta = cliente.post("/api/prueba/cuerpo", data=b"x" * 1_000_001, headers={"X-Gimnasio": "1"})
+    respuesta = cliente.get("/api/prueba/cuerpo", data=b"x" * 1_000_001, headers={"X-Gimnasio": "1"})
     assert respuesta.status_code == 200
 
 
