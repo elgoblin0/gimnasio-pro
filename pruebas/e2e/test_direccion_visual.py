@@ -95,6 +95,9 @@ def test_ingreso_en_b_claro_y_oscuro_con_teclado_sin_desborde(
         nombre = "Lucía" if modo_demo else "Ana"
         expect(pagina.get_by_role("heading", name=f"Hola, {nombre}", exact=True)).to_be_visible()
         sin_desborde(pagina)
+        recorrido = pagina.get_by_role("link", name="Ver mi entrenamiento", exact=True)
+        avanzar_con_foco(pagina, recorrido)
+        expect(recorrido).to_have_attribute("href", "/entrenamiento.html")
         salir = pagina.get_by_role("button", name="Salir", exact=True)
         avanzar_con_foco(pagina, salir)
         pagina.keyboard.press("Enter")

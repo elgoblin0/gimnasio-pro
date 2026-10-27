@@ -77,6 +77,13 @@ export function formatearFecha(texto) {
   return `${texto.slice(8, 10)}/${texto.slice(5, 7)}/${texto.slice(0, 4)}`;
 }
 
+/** Carga de la API en kg: el valor decimal permanece intacto, solo cambia su presentación. */
+export function formatearCarga(valor) {
+  if ((typeof valor !== "number" && typeof valor !== "string") || String(valor).trim() === ""
+      || !Number.isFinite(Number(valor)) || Number(valor) < 0) throw new Error("Se requiere una carga válida en kg");
+  return `${new Intl.NumberFormat("es-PY", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(Number(valor))} kg`;
+}
+
 /** Recibe un ISO 8601 con zona; la salida usa la zona de la sede por defecto. */
 export function formatearFechaHora(texto, zona = "America/Asuncion") {
   if (typeof texto !== "string") throw new Error("Se requiere una fecha y hora con zona horaria");

@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="es" data-direccion="b">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Tu entrenamiento · Gimnasio Pro</title>
+  <meta name="theme-color" content="#b2452a">
+  <link rel="icon" href="/iconos/gimnasio-192.png">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="stylesheet" href="/estilos/tokens.css">
+  <link rel="stylesheet" href="/estilos/base.css">
+  <link rel="stylesheet" href="/estilos/recorrido.css">
+  <script type="importmap">{"imports":{"@comun/":"/js/comun/"}}</script>
+  <script type="module" src="/js/entrenamiento.js"></script>
+</head>
+<body>
+<main>
+  <header class="barra"><a href="/">Gimnasio Pro</a><button type="button" data-cerrar>Cerrar sesión</button></header>
+  <p class="etiqueta">Tu cuaderno de entrenamiento</p>
+  <h1>Tu entrenamiento</h1>
+  <p data-demo>Datos ficticios que se reinician cada día. Requiere conexión.</p>
+  <p data-estado role="status" aria-live="polite">Cargando tu propuesta…</p>
+  <p data-error role="alert"></p>
+  <button type="button" data-actualizar>Actualizar propuesta</button>
+  <div data-contenido hidden>
+    <p data-fecha></p>
+    <div class="grilla">
+      <section aria-labelledby="titulo-sesion">
+        <h2 id="titulo-sesion" data-titulo-sesion>Sesión propuesta</h2>
+        <ul class="lista" data-ejercicios></ul>
+      </section>
+      <section aria-labelledby="titulo-explicacion">
+        <h2 id="titulo-explicacion">Por qué esta sesión</h2>
+        <ul data-explicacion></ul>
+      </section>
+    </div>
+  </div>
+</main>
+</body>
+</html>

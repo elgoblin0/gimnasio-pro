@@ -18,9 +18,9 @@ function mostrarBienvenida(usuario) {
   $("[data-saludo]").textContent = `Hola, ${usuario.nombre}`;
   $("[data-rol-actual]").textContent = NOMBRES_DE_ROL[usuario.rol] + (usuario.es_demo ? " · demo" : "");
   const recorrido = $("[data-recorrido]");
-  recorrido.hidden = usuario.rol !== "recepcion";
-  recorrido.href = "/recepcion.html";
-  recorrido.textContent = "Ir a recepción";
+  recorrido.hidden = !["recepcion", "socio"].includes(usuario.rol);
+  recorrido.href = usuario.rol === "socio" ? "/entrenamiento.html" : "/recepcion.html";
+  recorrido.textContent = usuario.rol === "socio" ? "Ver mi entrenamiento" : "Ir a recepción";
 }
 
 function mostrarIngreso(modoDemo) {
