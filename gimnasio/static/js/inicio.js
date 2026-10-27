@@ -1,10 +1,64 @@
-import { llamarApi } from "@comun/api.js";
+import { ErrorDeApi, llamarApi } from "@comun/api.js";
 
-const estado = document.querySelector("[data-estado]");
+const NOMBRES_DE_ROL = {
+  socio: "Socio",
+  recepcion: "Recepción",
+  entrenador: "Entrenador",
+  administracion: "Administración",
+};
 
-try {
-  const datos = await llamarApi("/api/estado");
-  estado.textContent = datos.modo_demo ? "Modo demo: datos ficticios que se reinician cada día." : "Servicio en línea.";
-} catch {
-  estado.textContent = "No se pudo conectar con el servidor.";
+const $ = (selector) => document.querySelector(selector);
+
+function mostrarBienvenida(usuario) {
+  $("[data-ingreso]").hidden = true;
+  $("[data-bienvenida]").hidden = false;
+  $("[data-saludo]").textContent = `Hola, ${usuario.nombre}`;
+  $("[data-rol-actual]").textContent = NOMBRES_DE_ROL[usuario.rol] + (usuario.es_demo ? " · demo" : "");
 }
+
+function mostrarIngreso(modoDemo) {
+  $("[data-bienvenida]").hidden = true;
+  $("[data-ingreso]").hidden = false;
+  $("[data-demo]").hidden = !modoDemo;
+}
+
+async function usuarioActual() {
+  try {
+    return (await llamarApi("/api/sesion")).usuario;
+  } catch (error) {
+    if (error instanceof ErrorDeApi && error.estadoHttp === 401) return null;
+    throw error;
+  }
+}
+
+async function iniciar() {
+  const estado = await llamarApi("/api/estado");
+  $("[data-estado]").textContent = estado.modo_demo ? "Modo demo: datos ficticios que se reinician cada día." : "";
+  const usuario = await usuarioActual();
+  if (usuario) mostrarBienvenida(usuario);
+  else mostrarIngreso(estado.modo_demo);
+
+  $("[data-formulario-ingreso]").addEventListener("submit", async (evento) => {
+    evento.preventDefault();
+    const datos = Object.fromEntries(new FormData(evento.target));
+    try {
+      mostrarBienvenida((await llamarApi("/api/sesion", { metodo: "POST", cuerpo: datos })).usuario);
+    } catch (error) {
+      $("[data-error-ingreso]").textContent = error.message;
+    }
+  });
+  for (const boton of document.querySelectorAll("[data-rol]")) {
+    boton.addEventListener("click", async () => {
+      const respuesta = await llamarApi(`/api/sesion/demo/${boton.dataset.rol}`, { metodo: "POST" });
+      mostrarBienvenida(respuesta.usuario);
+    });
+  }
+  $("[data-salir]").addEventListener("click", async () => {
+    await llamarApi("/api/sesion", { metodo: "DELETE" });
+    mostrarIngreso(estado.modo_demo);
+  });
+}
+
+iniciar().catch(() => {
+  $("[data-estado]").textContent = "No se pudo conectar con el servidor.";
+});

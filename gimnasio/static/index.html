@@ -15,9 +15,33 @@
   <script type="module" src="/js/inicio.js"></script>
 </head>
 <body>
-  <main id="contenido" aria-live="polite">
+  <main id="contenido">
     <h1>Gimnasio Pro</h1>
-    <p data-estado>Conectando…</p>
+    <p data-estado aria-live="polite">Conectando…</p>
+
+    <section data-ingreso hidden aria-labelledby="t-ingreso">
+      <h2 id="t-ingreso">Ingresar</h2>
+      <form data-formulario-ingreso novalidate>
+        <label>Cédula o correo <input name="identificador" autocomplete="username" required></label>
+        <label>Clave <input name="clave" type="password" autocomplete="current-password" required></label>
+        <button type="submit">Entrar</button>
+        <p data-error-ingreso role="alert"></p>
+      </form>
+      <div data-demo hidden>
+        <h2>Entrar como…</h2>
+        <p>Datos ficticios que se reinician cada día.</p>
+        <button type="button" data-rol="socio">Entrar como socio</button>
+        <button type="button" data-rol="recepcion">Entrar como recepción</button>
+        <button type="button" data-rol="entrenador">Entrar como entrenador</button>
+        <button type="button" data-rol="administracion">Entrar como administración</button>
+      </div>
+    </section>
+
+    <section data-bienvenida hidden>
+      <h2 data-saludo></h2>
+      <p data-rol-actual></p>
+      <button type="button" data-salir>Salir</button>
+    </section>
   </main>
 </body>
 </html>

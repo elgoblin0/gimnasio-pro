@@ -4,8 +4,10 @@ Toda conexión trabaja en UTC (ADR 0005) y sin autocommit: el servicio decide la
 """
 
 import os
+from contextlib import contextmanager
 
 import mysql.connector
+from flask import current_app, g
 
 
 def parametros_desde_entorno(base=None):
@@ -34,3 +36,33 @@ def conectar(parametros=None):
         autocommit=False,
         use_pure=True,
     )
+
+
+def conexion_actual():
+    """Una conexión por solicitud, con los parámetros de `app.config["BD"]` si existen."""
+    if "bd" not in g:
+        g.bd = conectar(current_app.config.get("BD"))
+    return g.bd
+
+
+@contextmanager
+def transaccion():
+    """Cursor de diccionarios dentro de una transacción: commit al salir, rollback ante un error."""
+    conexion = conexion_actual()
+    cursor = conexion.cursor(dictionary=True)
+    try:
+        yield cursor
+        conexion.commit()
+    except Exception:
+        conexion.rollback()
+        raise
+    finally:
+        cursor.close()
+
+
+def registrar_cierre(app):
+    @app.teardown_appcontext
+    def cerrar_conexion(_error):
+        conexion = g.pop("bd", None)
+        if conexion is not None:
+            conexion.close()
