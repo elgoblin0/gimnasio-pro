@@ -152,3 +152,41 @@ def test_foco_durante_post_no_intercala_lecturas_anteriores(pagina_demo, demo_ai
     expect(pagina.locator("[data-ocupacion]")).to_have_text("1 de 60")
     expect(pagina.get_by_role("button", name="Registrar salida de Lucía Benítez")).to_be_visible()
     assert pagina.evaluate("window.lecturasDeVisitas") == lecturas + 3
+
+
+def test_reintento_espera_la_lectura_en_curso(pagina_demo, demo_aislada):
+    pagina = pagina_demo
+    pagina.add_init_script("""(() => {
+      const original = window.fetch;
+      let perder = true;
+      window.enviosDeEntrada = 0;
+      window.fetch = async (ruta, opciones) => {
+        if (ruta === '/api/entradas' && opciones?.method === 'POST') {
+          window.enviosDeEntrada++;
+          const respuesta = await original(ruta, opciones);
+          if (perder) { perder = false; throw new TypeError('Respuesta perdida'); }
+          return respuesta;
+        }
+        const respuesta = await original(ruta, opciones);
+        if (ruta === '/api/ocupacion' && window.retenerLectura) {
+          window.lecturaEnEspera = true;
+          await new Promise(resolver => { window.liberarLectura = resolver; });
+        }
+        return respuesta;
+      };
+    })();""")
+    ingresar(pagina, demo_aislada)
+    pagina.get_by_role("button", name="Registrar entrada", exact=True).click()
+    expect(pagina.get_by_role("button", name="Reintentar operación")).to_be_visible()
+    pagina.evaluate("window.retenerLectura = true")
+    pagina.get_by_role("button", name="Actualizar visitas").click()
+    pagina.wait_for_function("window.lecturaEnEspera === true")
+    expect(pagina.get_by_role("button", name="Reintentar operación")).to_be_disabled()
+    pagina.evaluate("document.querySelector('[data-reintentar]').dispatchEvent(new Event('click'))")
+    assert pagina.evaluate("window.enviosDeEntrada") == 1
+    pagina.evaluate("window.retenerLectura = false; window.liberarLectura()")
+    expect(pagina.get_by_role("button", name="Reintentar operación")).to_be_enabled()
+    pagina.get_by_role("button", name="Reintentar operación").click()
+    expect(pagina.get_by_text("Entrada registrada.", exact=True)).to_be_visible()
+    expect(pagina.locator("[data-ocupacion]")).to_have_text("1 de 60")
+    assert contar(demo_aislada, "entradas") == 1

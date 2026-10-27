@@ -15,7 +15,7 @@ function actualizarBotones() {
     elemento.disabled = Boolean(control.actual) || cargando;
   }
   $("[data-reintento]").hidden = !control.actual || control.enCurso;
-  $("[data-reintentar]").disabled = control.enCurso;
+  $("[data-reintentar]").disabled = control.enCurso || cargando;
   $("[data-descartar]").disabled = control.enCurso;
 }
 
@@ -72,6 +72,7 @@ async function actualizar() {
 }
 
 async function enviar() {
+  if (cargando) return;
   const operacion = control.comenzar();
   if (!operacion) return;
   actualizarBotones();
