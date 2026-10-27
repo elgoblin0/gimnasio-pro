@@ -340,8 +340,23 @@ def entorno_agente():
     return entorno
 
 
+def binario_codex():
+    """El ejecutable de Codex, o None si no aparece.
+
+    La app de Windows no agrega `codex` al PATH: lo instala en %LOCALAPPDATA%/OpenAI/Codex/bin/<hash>/, y el
+    hash cambia con cada actualización. Se toma el más reciente.
+    """
+    if os.environ.get("GIMNASIO_CODEX_BIN"):
+        return os.environ["GIMNASIO_CODEX_BIN"]
+    if encontrado := shutil.which(CONFIG["codex"]["binario"]):
+        return encontrado
+    carpeta = Path(os.environ.get("LOCALAPPDATA", "")) / "OpenAI" / "Codex" / "bin"
+    instalados = list(carpeta.glob("*/codex.exe")) if os.environ.get("LOCALAPPDATA") else []
+    return str(max(instalados, key=lambda p: p.stat().st_mtime)) if instalados else None
+
+
 def correr_codex(carpeta, prompt, esquema=None):
-    binario = os.environ.get("GIMNASIO_CODEX_BIN") or CONFIG["codex"]["binario"]
+    binario = binario_codex()
     salida = carpeta / ".despachador-ultimo.txt"
     comando = [binario, "exec", "--json", "-C", str(carpeta), "-o", str(salida)]
     for valor in CONFIG["codex"]["config_revision" if esquema else "config"]:
@@ -984,6 +999,14 @@ def main():
             file=sys.stderr,
         )
         return 2
+    # Sin este chequeo, cada issue gastaba sus intentos en WinError 2 y quedaba bloqueado y pasado a Opus.
+    if not argumentos.simular and binario_codex() is None:
+        print(
+            "No encuentro el ejecutable de Codex: ni GIMNASIO_CODEX_BIN, ni `codex` en el PATH, ni la app en "
+            "%LOCALAPPDATA%/OpenAI/Codex/bin.",
+            file=sys.stderr,
+        )
+        return 1
     candado = None if argumentos.simular else tomar_candado_instancia()
     if not argumentos.simular and candado is None:
         print(f"Ya hay otro despachador corriendo ({CANDADO.relative_to(RAIZ)}).", file=sys.stderr)

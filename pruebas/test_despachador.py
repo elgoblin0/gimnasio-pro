@@ -1,6 +1,7 @@
 """Pruebas de las partes puras del despachador y del resumen del CI (sin gh, git ni agentes)."""
 
 import importlib.util
+import os
 from pathlib import Path
 
 import pytest
@@ -99,3 +100,21 @@ def test_el_resumen_no_repite_registros_de_un_trabajo_que_paso(tmp_path, capsys)
     salida = capsys.readouterr().out
     assert "log de pruebas" in salida
     assert "log de e2e" not in salida
+
+
+def test_binario_codex_busca_la_app_de_windows_si_no_esta_en_el_path(despachador, tmp_path, monkeypatch):
+    monkeypatch.delenv("GIMNASIO_CODEX_BIN", raising=False)
+    monkeypatch.setattr(despachador.shutil, "which", lambda _: None)
+    monkeypatch.setenv("LOCALAPPDATA", str(tmp_path))
+    assert despachador.binario_codex() is None
+
+    bin_ = tmp_path / "OpenAI" / "Codex" / "bin"
+    viejo, nuevo = bin_ / "aaa" / "codex.exe", bin_ / "bbb" / "codex.exe"
+    for archivo, fecha in ((viejo, 1_000), (nuevo, 2_000)):
+        archivo.parent.mkdir(parents=True)
+        archivo.write_text("")
+        os.utime(archivo, (fecha, fecha))
+    assert despachador.binario_codex() == str(nuevo)
+
+    monkeypatch.setenv("GIMNASIO_CODEX_BIN", "C:/elegido/codex.exe")
+    assert despachador.binario_codex() == "C:/elegido/codex.exe"
