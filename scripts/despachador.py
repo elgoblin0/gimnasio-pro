@@ -529,6 +529,33 @@ def revisar(issue, pr, revisor):
         corregir_o_bloquear(issue, motivo)
 
 
+GENERADOS = {"docs/MAPA-CAPACIDADES.md"}
+
+
+def integrar_main(issue):
+    """Integra origin/main en la rama sin gastar tokens si solo chocan archivos generados; si no, pide corrección."""
+    carpeta = preparar_worktree(issue.numero)
+    with _candado_git:
+        correr(["git", "merge", "--no-edit", f"origin/{CONFIG['rama_base']}"], cwd=carpeta, chequear=False)
+        conflictos = set(correr(["git", "diff", "--name-only", "--diff-filter=U"], cwd=carpeta).stdout.split())
+        if conflictos - GENERADOS:
+            correr(["git", "merge", "--abort"], cwd=carpeta, chequear=False)
+            lista = ", ".join(sorted(conflictos - GENERADOS))
+            corregir_o_bloquear(issue, f"Conflicto con main en: {lista}. Integrá origin/main y resolvé los conflictos.")
+            return
+        python = RAIZ / ".venv" / ("Scripts" if os.name == "nt" else "bin") / "python"
+        correr([str(python), "scripts/mapa_capacidades.py"], cwd=carpeta)
+        correr(["git", "add", "-A"], cwd=carpeta)
+        # Si la fusión fue limpia ya quedó commiteada y no hay nada más que confirmar.
+        correr(
+            ["git", "commit", "--no-edit", "-m", "Integrar main y regenerar archivos generados"],
+            cwd=carpeta,
+            chequear=False,
+        )
+        correr(["git", "push", "origin", f"{PREFIJO_RAMA}{issue.numero}"], cwd=carpeta)
+    registrar({"issue": issue.numero, "ejecutor": "script", "fase": "integrar-main", "uso": {}, "ponderados": 0})
+
+
 def corregir_o_bloquear(issue, motivo):
     ejecutor = issue.ejecutor
     maximo = CONFIG["intentos_max_opus"] if ejecutor == "opus" else CONFIG["intentos_max_codex"]
@@ -596,11 +623,22 @@ def planificar(ocupados, libres, solo_codex):
         if issue.numero in ocupados:
             continue
         prs = gh_json(
-            "pr", "list", "--head", f"{PREFIJO_RAMA}{issue.numero}", "--state", "open", "--json", "number,labels"
+            "pr",
+            "list",
+            "--head",
+            f"{PREFIJO_RAMA}{issue.numero}",
+            "--state",
+            "open",
+            "--json",
+            "number,labels,mergeable",
         )
         if not prs:
             continue
         pr = prs[0]
+        # Con conflictos GitHub no corre el CI: hay que integrar main antes de esperar los checks.
+        if pr["mergeable"] == "CONFLICTING":
+            plan.acciones.append(("integrar-main", issue, None, pr))
+            continue
         estado = estado_checks(pr["number"])
         if estado == "pendiente":
             continue
@@ -662,6 +700,8 @@ def _ejecutar_accion(accion):
     elif tipo == "corregir":
         etiquetar(issue.numero, [f"agente:{ejecutor}"], ["correccion-pendiente"])
         implementar(issue, ejecutor, motivo=extra)
+    elif tipo == "integrar-main":
+        integrar_main(issue)
     elif tipo == "ci-fallido":
         corregir_o_bloquear(issue, f"El CI falló.\n\n{resumen_ci(extra['number'])}")
     elif tipo == "revisar":
