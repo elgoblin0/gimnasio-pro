@@ -48,7 +48,7 @@ Generado por `scripts/mapa_capacidades.py` desde `docs/capacidades/`. No editar 
 | Capacidad | Etapa | Nivel | Prueba |
 |---|---|---|---|
 | Persistencia de sesiones realizadas y series realizadas | 1 | pendiente | `pruebas/test_entrenamiento_repositorio.py` |
-| Sesión propuesta según la secuencia del programa de entrenamiento | 1 | pendiente | `pruebas/reglas/test_sesion.py::test_propuesta_por_secuencia_y_series_vigentes` |
+| Sesión propuesta según la secuencia del programa de entrenamiento | 1 | pendiente | `pruebas/test_entrenamiento_api.py` |
 | Chequeo del día | 2 | pendiente | — |
 | "Me duele" y "máquina ocupada" | 2 | pendiente | — |
 | Doble progresión + RPE/RIR con ajustes automáticos y frenos | 2 | pendiente | — |
