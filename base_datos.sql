@@ -3,9 +3,9 @@
 -- Importar en phpMyAdmin (XAMPP)
 -- =============================================
 
-DROP DATABASE IF EXISTS gimnasio;
-CREATE DATABASE gimnasio;
-USE gimnasio;
+DROP DATABASE IF EXISTS gimnasio_pro;
+CREATE DATABASE gimnasio_pro;
+USE gimnasio_pro;
 
 -- ---------------------------------------------
 -- PLANES

@@ -1,7 +1,7 @@
 # =============================================
 # Backend del sistema de gimnasio (Flask + MySQL)
 # Ejecutar con: python3 app.py
-# Abrir en el navegador: http://localhost:5001
+# Abrir en el navegador: http://localhost:5002
 # =============================================
 
 from datetime import date, timedelta
@@ -10,7 +10,7 @@ import mysql.connector
 from flask import Flask, jsonify, request
 
 # static_url_path="" hace que los archivos de static/ se sirvan desde la raíz
-# (ej: http://localhost:5001/socio.html)
+# (ej: http://localhost:5002/socio.html)
 app = Flask(__name__, static_folder="static", static_url_path="")
 
 
@@ -24,7 +24,7 @@ def conectar():
         host="localhost",
         user="root",
         password="",
-        database="gimnasio",
+        database="gimnasio_pro",
         use_pure=True,  # conector en Python puro (más fácil de instalar)
     )
 
@@ -399,4 +399,4 @@ def registrar_peso(socio_id):
 
 
 if __name__ == "__main__":
-    app.run(debug=True, port=5001)
+    app.run(debug=True, port=5002)

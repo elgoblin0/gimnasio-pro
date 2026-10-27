@@ -6,12 +6,12 @@
 -- Es segura de repetir: si la columna ya se llama "ci", no hace nada.
 -- =============================================
 
-USE gimnasio;
+USE gimnasio_pro;
 
 SET @tiene_dni = (
     SELECT COUNT(*)
     FROM information_schema.COLUMNS
-    WHERE TABLE_SCHEMA = 'gimnasio' AND TABLE_NAME = 'socios' AND COLUMN_NAME = 'dni'
+    WHERE TABLE_SCHEMA = 'gimnasio_pro' AND TABLE_NAME = 'socios' AND COLUMN_NAME = 'dni'
 );
 
 -- CHANGE COLUMN (en vez de RENAME COLUMN) para que ande también en MariaDB viejo

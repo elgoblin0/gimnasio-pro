@@ -1,13 +1,27 @@
-# Sistema de gimnasio
+# Sistema de gimnasio Pro
 
 Proyecto de la facultad: gestión de socios de un gimnasio. Permite dar de alta socios, registrar sus entradas (check-in), renovar planes y seguir su peso, IMC y rutina.
 
 **Stack:** XAMPP (MySQL/MariaDB) + Python Flask (backend) + JavaScript (frontend).
 
-## Reglas del proyecto
+## Dos versiones del proyecto
 
-1. Siempre lo más sencillo posible, para poder explicar el código al profesor.
-2. Antes de escribir código, todo el grupo tiene que estar 100% de acuerdo.
+- **Estándar:** https://github.com/elgoblin0/gimnasio — mantiene Flask, MySQL y JavaScript, con mejoras pequeñas y explicables.
+- **Pro:** https://github.com/elgoblin0/gimnasio-pro — desarrollo independiente para explorar una experiencia de producto completa.
+- La etiqueta `base-original` conserva el punto de partida compartido.
+- Cada repositorio tiene su propia rama `main`. No se sincronizan automáticamente: los arreglos compartidos se trasladan de forma selectiva.
+- Ver `ROADMAP.md` para el alcance y las próximas etapas de esta versión.
+
+## Estado de esta versión
+
+Esta es la base inicial de Pro: conserva las funciones y el stack originales. Las funciones avanzadas del roadmap todavía no están implementadas. Su desarrollo es independiente del proyecto académico.
+
+## Ejecutar ambas versiones
+
+La estándar utiliza la base `gimnasio` y el puerto 5001. Pro utiliza la base `gimnasio_pro` y el puerto 5002. Cada repositorio incluye su propio SQL: importar el de Pro solo reinicia `gimnasio_pro`.
+
+No compartir una misma base entre ambas versiones. Las futuras migraciones de Pro pertenecen exclusivamente a su base.
+
 
 ## Qué hace falta instalar
 
@@ -19,12 +33,12 @@ Proyecto de la facultad: gestión de socios de un gimnasio. Permite dar de alta 
 
 1. Descargar el proyecto (solo la primera vez):
    ```
-   git clone https://github.com/elgoblin0/gimnasio.git
-   cd gimnasio
+   git clone https://github.com/elgoblin0/gimnasio-pro.git
+   cd gimnasio-pro
    ```
 2. Abrir el panel de XAMPP y arrancar **MySQL** y **Apache** (Apache solo hace falta para phpMyAdmin).
 3. Abrir `http://localhost/phpmyadmin`, ir a la pestaña **Importar** y subir `base_datos.sql`.
-   (Ojo: borra la base de datos `gimnasio` y la vuelve a crear con los datos de ejemplo.)
+   (Ojo: borra la base de datos `gimnasio_pro` y la vuelve a crear con los datos de ejemplo.)
 4. Instalar las librerías de Python:
    ```
    pip3 install -r requirements.txt
@@ -33,7 +47,7 @@ Proyecto de la facultad: gestión de socios de un gimnasio. Permite dar de alta 
    ```
    python3 app.py
    ```
-6. Abrir `http://localhost:5001` en el navegador.
+6. Abrir `http://localhost:5002` en el navegador.
 
 > En Windows puede que los comandos sean `pip` y `python` en vez de `pip3` y `python3`.
 
@@ -118,7 +132,7 @@ Si ya tenías la base creada y no quieres perder los datos, en vez de reimportar
 ## Problemas frecuentes
 
 - **`Can't connect to MySQL server`**: MySQL no está arrancado en XAMPP.
-- **`Unknown database 'gimnasio'`**: falta importar `base_datos.sql` en phpMyAdmin.
+- **`Unknown database 'gimnasio_pro'`**: falta importar `base_datos.sql` en phpMyAdmin.
 - **`Access denied for user 'root'`**: tu MySQL tiene contraseña. Ponla en `password=""` dentro de `conectar()` en `app.py`, pero **no la subas a GitHub**.
 - **`ModuleNotFoundError: No module named 'flask'`**: falta el paso 4 (`pip3 install -r requirements.txt`).
 - **`Address already in use`**: el servidor ya está abierto en otra terminal. Ciérralo con `Ctrl + C`.
