@@ -211,14 +211,14 @@ def preparar_worktree(numero):
     carpeta, rama = carpeta_de(numero), f"{PREFIJO_RAMA}{numero}"
     with _candado_git:
         correr(["git", "fetch", "origin", "--prune"])
-        if carpeta.exists():
-            correr(["git", "fetch", "origin"], cwd=carpeta)
-            remota = correr(["git", "ls-remote", "--heads", "origin", rama]).stdout.strip()
-            if remota:
-                correr(["git", "reset", "--hard", f"origin/{rama}"], cwd=carpeta)
-            return carpeta
         remota = correr(["git", "ls-remote", "--heads", "origin", rama]).stdout.strip()
         base = f"origin/{rama}" if remota else f"origin/{CONFIG['rama_base']}"
+        if carpeta.exists():
+            # Sin rama remota, el intento anterior no publicó nada: se parte de main actualizado,
+            # no del commit viejo en el que quedó la carpeta.
+            correr(["git", "reset", "--hard", base], cwd=carpeta)
+            correr(["git", "clean", "-fd"], cwd=carpeta)
+            return carpeta
         correr(["git", "worktree", "add", "-B", rama, str(carpeta), base])
     return carpeta
 
