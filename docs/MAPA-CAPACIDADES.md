@@ -9,8 +9,6 @@ Generado por `scripts/mapa_capacidades.py` desde `docs/capacidades.toml`. No edi
 - **pulida**: Estados vacíos, carga y error, móvil, accesibilidad y movimiento; lo prueba un e2e con chequeo de accesibilidad.
 - **validada**: El usuario la aprobó en un dispositivo real en el cierre de una etapa.
 
-Resumen: pendiente 23, esqueleto 0, funcional 5, pulida 0, validada 0.
-
 ## Fundaciones
 
 | Capacidad | Etapa | Nivel | Prueba |
@@ -18,7 +16,7 @@ Resumen: pendiente 23, esqueleto 0, funcional 5, pulida 0, validada 0.
 | Monolito modular con reglas de dependencia | 0 | funcional | `pruebas/test_dependencias.py::test_el_repo_cumple_las_reglas_de_dependencia` |
 | Migraciones versionadas sobre MySQL | 0 | funcional | `pruebas/test_migrar.py::test_aplica_en_orden_y_la_segunda_pasada_no_hace_nada` |
 | Reloj inyectable, UTC y zona de la sede | 0 | funcional | `pruebas/test_reloj.py::test_fecha_local_y_semana_al_cruzar_medianoche_en_asuncion` |
-| Formatos de Paraguay (guaraníes, cédula, +595, fechas) | 0 | pendiente | — |
+| Formatos de Paraguay (guaraníes, cédula, +595, fechas) | 0 | funcional | `pruebas/test_formatos.py::test_vectores_compartidos` |
 
 ## Acceso
 
