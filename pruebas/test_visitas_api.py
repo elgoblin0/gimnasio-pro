@@ -61,7 +61,7 @@ def enviar(cliente, cuerpo, clave=None):
 
 
 def contar(datos, tabla="entradas"):
-    assert tabla in {"entradas", "series_realizadas", "solicitudes_idempotentes"}
+    assert tabla in {"entradas", "salidas", "series_realizadas", "solicitudes_idempotentes"}
     with datos.app.app_context(), transaccion() as cursor:
         cursor.execute(f"SELECT COUNT(*) AS cantidad FROM {tabla}")
         return cursor.fetchone()["cantidad"]
@@ -202,3 +202,128 @@ def test_personal_con_sesion_no_ocupa_aforo(visitas_api):
     with datos.app.app_context(), transaccion() as cursor:
         assert repositorio.contar_ocupacion_registrada(cursor, datos.sede) == 0
     assert enviar(datos.cliente(), datos.cuerpo()).status_code == 201
+
+
+def enviar_salida(cliente, cuerpo, clave=None):
+    return cliente.post(
+        "/api/salidas", json=cuerpo, headers={"X-Gimnasio": "1", "Idempotency-Key": clave or str(uuid4())}
+    )
+
+
+def abrir(datos):
+    cuerpo = datos.cuerpo()
+    assert enviar(datos.cliente(), cuerpo).status_code == 201
+    return cuerpo["id"]
+
+
+def test_salida_cierra_visita_y_lectura_calcula_duracion_sin_escribir(visitas_api):
+    from datetime import timedelta
+
+    datos = visitas_api
+    cliente = datos.cliente()
+    entrada_id = abrir(datos)
+    datos.reloj.avanzar(timedelta(minutes=45))
+    visitas = cliente.get("/api/visitas?abiertas=1").json["visitas"]
+    assert len(visitas) == 1
+    assert visitas[0]["id"] == entrada_id
+    assert visitas[0]["duracion"] == 2700
+    assert visitas[0]["entrada"].endswith("+00:00")
+    assert visitas[0]["entrada_local"].endswith("-03:00")
+    assert set(visitas[0]) == {"id", "socio_id", "nombre", "cedula", "entrada", "entrada_local", "duracion"}
+    assert cliente.get("/api/visitas?abiertas=1").json["visitas"] == visitas
+    assert cliente.get("/api/ocupacion").json == {
+        "sede_id": str(datos.sede),
+        "ocupacion_registrada": 1,
+        "aforo_maximo": 1,
+    }
+    respuesta = enviar_salida(cliente, {"id": str(nuevo_id(datos.reloj)), "entrada_id": entrada_id})
+    assert respuesta.status_code == 201
+    assert respuesta.json["salida"]["entrada_id"] == entrada_id
+    assert cliente.get("/api/ocupacion").json["ocupacion_registrada"] == 0
+    assert cliente.get("/api/visitas?abiertas=1").json == {"visitas": []}
+    assert contar(datos, "series_realizadas") == 0
+    assert contar(datos, "salidas") == 1
+
+
+def test_salida_idempotente_y_cuerpo_invalido(visitas_api):
+    datos = visitas_api
+    cuerpo = {"id": str(nuevo_id(datos.reloj)), "entrada_id": abrir(datos)}
+    cliente, clave = datos.cliente(), str(uuid4())
+    assert cliente.post("/api/salidas", json=cuerpo, headers={"X-Gimnasio": "1"}).status_code == 428
+    primera = enviar_salida(cliente, cuerpo, clave)
+    assert primera.status_code == 201
+    assert enviar_salida(cliente, cuerpo, clave).data == primera.data
+    assert enviar_salida(cliente, cuerpo).json == primera.json
+    assert enviar_salida(cliente, cuerpo | {"id": str(nuevo_id(datos.reloj))}, clave).status_code == 422
+    assert enviar_salida(cliente, cuerpo | {"id": str(nuevo_id(datos.reloj))}).status_code == 409
+    assert enviar_salida(cliente, cuerpo | {"entrada_id": str(nuevo_id(datos.reloj))}).status_code == 404
+    assert enviar_salida(cliente, {"id": "inválido", "entrada_id": cuerpo["entrada_id"]}).status_code == 422
+    assert contar(datos, "salidas") == 1
+
+
+@pytest.mark.parametrize("rol", ["socio", "entrenador", "administracion"])
+def test_lecturas_y_salida_solo_para_recepcion(visitas_api, rol):
+    datos = visitas_api
+    cliente = datos.cliente(rol)
+    for ruta in ("/api/visitas?abiertas=1", "/api/ocupacion", "/api/visitas/socios"):
+        assert cliente.get(ruta).status_code == 403
+    assert (
+        enviar_salida(cliente, {"id": str(nuevo_id(datos.reloj)), "entrada_id": str(nuevo_id(datos.reloj))}).status_code
+        == 403
+    )
+
+
+def test_listado_minimo_excluye_socios_inactivos(visitas_api):
+    datos = visitas_api
+    with datos.app.app_context(), transaccion() as cursor:
+        cursor.execute("UPDATE usuarios SET activo=FALSE WHERE id=%s", (a_bytes(datos.socios[1]),))
+    filas = datos.cliente().get("/api/visitas/socios").json["socios"]
+    assert {fila["id"] for fila in filas} == {str(datos.socios[0]), str(datos.socios[2])}
+    assert all(set(fila) == {"id", "nombre", "cedula"} for fila in filas)
+
+
+def test_dos_claves_de_salida_no_duplican_y_misma_clave_simultanea(visitas_api, monkeypatch):
+    datos = visitas_api
+    entrada_id = abrir(datos)
+    tomada, continuar = Event(), Event()
+    original = repositorio.bloquear_sede
+
+    def bloquear(cursor, sede_id):
+        fila = original(cursor, sede_id)
+        if not tomada.is_set():
+            tomada.set()
+            assert continuar.wait(15)
+        return fila
+
+    monkeypatch.setattr(repositorio, "bloquear_sede", bloquear)
+    cuerpo, clave = {"id": str(nuevo_id(datos.reloj)), "entrada_id": entrada_id}, str(uuid4())
+    with ThreadPoolExecutor(max_workers=2) as hilos:
+        primera = hilos.submit(enviar_salida, datos.cliente(), cuerpo, clave)
+        try:
+            assert tomada.wait(10)
+            assert enviar_salida(datos.cliente(), cuerpo, clave).status_code == 409
+            otra = hilos.submit(enviar_salida, datos.cliente(), cuerpo | {"id": str(nuevo_id(datos.reloj))})
+        finally:
+            continuar.set()
+        assert primera.result(timeout=15).status_code == 201
+        assert otra.result(timeout=15).status_code == 409
+    assert enviar_salida(datos.cliente(), cuerpo, clave).status_code == 201
+    assert contar(datos, "salidas") == 1
+
+
+def test_fallo_revierte_salida_y_su_clave(visitas_api, monkeypatch):
+    datos = visitas_api
+    cuerpo, clave = {"id": str(nuevo_id(datos.reloj)), "entrada_id": abrir(datos)}, str(uuid4())
+    original = repositorio.insertar_salida
+
+    def fallar(*argumentos, **nombrados):
+        original(*argumentos, **nombrados)
+        raise RuntimeError("fallo después de salida")
+
+    monkeypatch.setattr(repositorio, "insertar_salida", fallar)
+    with pytest.raises(RuntimeError):
+        enviar_salida(datos.cliente(), cuerpo, clave)
+    assert contar(datos, "salidas") == 0
+    assert contar(datos, "solicitudes_idempotentes") == 1  # Solo la entrada confirmada.
+    monkeypatch.setattr(repositorio, "insertar_salida", original)
+    assert enviar_salida(datos.cliente(), cuerpo, clave).status_code == 201
