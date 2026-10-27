@@ -18,6 +18,23 @@ test("un GET no lleva encabezados de cambio", async () => {
   assert.deepEqual(datos, { estado: "ok" });
   assert.equal(llamadas[0].opciones.headers["X-Gimnasio"], undefined);
   assert.equal(llamadas[0].opciones.headers["Idempotency-Key"], undefined);
+  assert.equal(llamadas[0].opciones.cache, "no-store");
+});
+
+test("sin red falla con conexión requerida y no reintenta escrituras", async () => {
+  let llamadas = 0;
+  const llamar = crearApi({ fetch: async () => {
+    llamadas += 1;
+    throw new TypeError("Failed to fetch");
+  }, nuevaClave: () => "clave-1" });
+  await assert.rejects(llamar("/api/sesion", { metodo: "POST", cuerpo: {} }), (error) => {
+    assert.ok(error instanceof ErrorDeApi);
+    assert.equal(error.codigo, "conexion_requerida");
+    assert.match(error.message, /Se requiere conexión/);
+    assert.equal(error.estadoHttp, 0);
+    return true;
+  });
+  assert.equal(llamadas, 1);
 });
 
 test("un POST lleva X-Gimnasio y una clave de idempotencia", async () => {

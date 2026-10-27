@@ -22,12 +22,18 @@ export function crearApi({ fetch: pedir = globalThis.fetch, nuevaClave = () => c
       encabezados["Idempotency-Key"] = clave ?? nuevaClave();
     }
     if (cuerpo !== undefined) encabezados["Content-Type"] = "application/json";
-    const respuesta = await pedir(ruta, {
-      method: metodo,
-      headers: encabezados,
-      body: cuerpo === undefined ? undefined : JSON.stringify(cuerpo),
-      credentials: "same-origin",
-    });
+    let respuesta;
+    try {
+      respuesta = await pedir(ruta, {
+        method: metodo,
+        headers: encabezados,
+        body: cuerpo === undefined ? undefined : JSON.stringify(cuerpo),
+        credentials: "same-origin",
+        cache: "no-store",
+      });
+    } catch {
+      throw new ErrorDeApi("conexion_requerida", "Se requiere conexión a Internet. No se pudo conectar con el servidor.", 0);
+    }
     const datos = respuesta.status === 204 ? null : await respuesta.json();
     if (!respuesta.ok) {
       const error = datos?.error ?? {};

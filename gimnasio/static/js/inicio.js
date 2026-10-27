@@ -1,4 +1,7 @@
 import { llamarApi } from "@comun/api.js";
+import { registrarPwa } from "@comun/pwa.js";
+
+registrarPwa();
 
 const NOMBRES_DE_ROL = {
   socio: "Socio",
@@ -40,16 +43,24 @@ async function iniciar() {
   });
   for (const boton of document.querySelectorAll("[data-rol]")) {
     boton.addEventListener("click", async () => {
-      const respuesta = await llamarApi(`/api/sesion/demo/${boton.dataset.rol}`, { metodo: "POST" });
-      mostrarBienvenida(respuesta.usuario);
+      try {
+        const respuesta = await llamarApi(`/api/sesion/demo/${boton.dataset.rol}`, { metodo: "POST" });
+        mostrarBienvenida(respuesta.usuario);
+      } catch (error) {
+        $("[data-error-ingreso]").textContent = error.message;
+      }
     });
   }
   $("[data-salir]").addEventListener("click", async () => {
-    await llamarApi("/api/sesion", { metodo: "DELETE" });
-    mostrarIngreso(estado.modo_demo);
+    try {
+      await llamarApi("/api/sesion", { metodo: "DELETE" });
+      mostrarIngreso(estado.modo_demo);
+    } catch (error) {
+      $("[data-estado]").textContent = error.message;
+    }
   });
 }
 
-iniciar().catch(() => {
-  $("[data-estado]").textContent = "No se pudo conectar con el servidor.";
+iniciar().catch((error) => {
+  $("[data-estado]").textContent = error.message;
 });
