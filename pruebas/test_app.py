@@ -1,5 +1,3 @@
-import json
-
 import pytest
 
 from gimnasio import crear_app
@@ -57,15 +55,6 @@ def test_sirve_la_pagina_de_inicio():
     respuesta = app_de_prueba().test_client().get("/")
     assert respuesta.status_code == 200
     assert b'type="importmap"' in respuesta.data
-
-
-@pytest.mark.parametrize("usuario", [None, {"nombre": "Lucía </script>", "rol": "socio", "es_demo": True}])
-def test_inicio_incluye_el_usuario_sin_romper_el_json(monkeypatch, usuario):
-    monkeypatch.setattr("gimnasio.permisos.servicio.usuario_actual", lambda: usuario)
-    respuesta = app_de_prueba().test_client().get("/")
-    contenido = respuesta.get_data(as_text=True)
-    datos = contenido.split('<script id="usuario-inicial" type="application/json">', 1)[1].split("</script>", 1)[0]
-    assert json.loads(datos) == usuario
 
 
 def test_la_api_responde_errores_en_json():

@@ -33,10 +33,8 @@ def iniciar():
 
 @bp.get("")
 def ver():
-    usuario = servicio.usuario_actual()
-    if usuario is None:
-        raise ErrorDeDominio("sin_sesion", "No hay una sesión iniciada.", 401)
-    return jsonify({"usuario": usuario})
+    # Sin sesión responde 200 con usuario null: no tener sesión no es un error (ADR 0006).
+    return jsonify({"usuario": servicio.usuario_actual()})
 
 
 @bp.delete("")

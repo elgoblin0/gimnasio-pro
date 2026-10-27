@@ -1,0 +1,135 @@
+/*
+  Tokens de diseño (ADR 0007). Valores tomados de prototipos/direccion-a y prototipos/direccion-b.
+  La dirección se elige con data-direccion en <html>; hasta que el usuario elija, se usa "a".
+
+  Modo oscuro (criterio de #8):
+  - A, "Pulso nocturno", es oscura por identidad: no cambia con prefers-color-scheme.
+  - B, "Cuaderno de entrenamiento", es clara y tiene una variante oscura con la misma paleta.
+  Las pantallas usan solo los tokens semánticos; los primitivos (--color-*) quedan para esta hoja.
+*/
+
+[data-direccion="a"] {
+  color-scheme: dark;
+
+  --color-noche-950: #07080b;
+  --color-noche-900: #0d1016;
+  --color-noche-800: #151a23;
+  --color-noche-700: #222a37;
+  --color-niebla-300: #aab4c3;
+  --color-niebla-100: #eef2f7;
+  --color-lima-400: #c6f432;
+  --color-lima-300: #dbff6b;
+  --color-cian-400: #3ee6d7;
+  --color-ambar-400: #ffb547;
+  --color-coral-400: #ff6b5e;
+
+  --fuente-display: "Bahnschrift", "DIN Alternate", "Roboto Condensed", "Arial Narrow", sans-serif;
+  --fuente-texto: "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
+  --fuente-numeros: "Bahnschrift", "SF Mono", ui-monospace, monospace;
+  --espacio-1: 4px;
+  --espacio-2: 8px;
+  --espacio-3: 12px;
+  --espacio-4: 16px;
+  --espacio-5: 24px;
+  --espacio-6: 32px;
+  --radio-1: 10px;
+  --radio-2: 18px;
+  --radio-3: 28px;
+  --duracion-1: 160ms;
+  --duracion-2: 420ms;
+  --duracion-3: 900ms;
+  --curva-salida: cubic-bezier(.16, 1, .3, 1);
+  --curva-resorte: cubic-bezier(.34, 1.56, .64, 1);
+
+  --superficie: var(--color-noche-950);
+  --superficie-elevada: rgb(21 26 35 / .72);
+  --borde: rgb(255 255 255 / .08);
+  --texto: var(--color-niebla-100);
+  --texto-suave: var(--color-niebla-300);
+  --acento: var(--color-lima-400);
+  --exito: var(--color-cian-400);
+  --alerta: var(--color-ambar-400);
+  --peligro: var(--color-coral-400);
+  --freno: var(--color-ambar-400);
+  --foco: var(--color-lima-300);
+}
+
+[data-direccion="b"] {
+  color-scheme: light;
+
+  --color-papel-50: #fbf7f0;
+  --color-papel-100: #f3ecdf;
+  --color-papel-200: #e6dccb;
+  --color-papel-400: #c9bfae;
+  --color-tinta-950: #16130f;
+  --color-tinta-900: #1e1b16;
+  --color-tinta-800: #2b2620;
+  --color-tinta-700: #3d362d;
+  --color-tinta-600: #5c554a;
+  --color-tinta-400: #8f8270; /* 3,5:1 sobre el papel: alcanza para gráficos (WCAG 1.4.11) */
+  --color-terracota-600: #b2452a;
+  --color-terracota-400: #e27a5c;
+  --color-terracota-100: #f6dfd5;
+  --color-bosque-700: #1f5a43;
+  --color-bosque-300: #7cc4a0;
+  --color-bosque-100: #d9ebe1;
+  --color-mostaza-600: #8a5a00;
+  --color-mostaza-300: #e0b04a;
+  --color-mostaza-100: #f8e7b8;
+
+  --fuente-display: "Iowan Old Style", "Palatino Linotype", Charter, "Book Antiqua", Georgia, serif;
+  --fuente-texto: "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
+  --fuente-numeros: "Iowan Old Style", "Palatino Linotype", Georgia, serif;
+  --espacio-1: 4px;
+  --espacio-2: 8px;
+  --espacio-3: 12px;
+  --espacio-4: 16px;
+  --espacio-5: 24px;
+  --espacio-6: 40px;
+  --radio-1: 4px;
+  --radio-2: 8px;
+  --radio-3: 999px;
+  --duracion-1: 180ms;
+  --duracion-2: 520ms;
+  --duracion-3: 1100ms;
+  --curva-salida: cubic-bezier(.22, 1, .36, 1);
+  --curva-resorte: cubic-bezier(.5, 1.6, .4, 1);
+
+  --superficie: var(--color-papel-50);
+  --superficie-elevada: #fffdf9;
+  --borde: var(--color-papel-200);
+  --texto: var(--color-tinta-900);
+  --texto-suave: var(--color-tinta-600);
+  --acento: var(--color-terracota-600);
+  --exito: var(--color-bosque-700);
+  --alerta: var(--color-mostaza-600);
+  --peligro: var(--color-terracota-600);
+  --freno: var(--color-mostaza-600);
+  --foco: var(--color-bosque-700);
+}
+
+@media (prefers-color-scheme: dark) {
+  [data-direccion="b"] {
+    color-scheme: dark;
+
+    --superficie: var(--color-tinta-950);
+    --superficie-elevada: var(--color-tinta-800);
+    --borde: var(--color-tinta-700);
+    --texto: var(--color-papel-100);
+    --texto-suave: var(--color-papel-400);
+    --acento: var(--color-terracota-400);
+    --exito: var(--color-bosque-300);
+    --alerta: var(--color-mostaza-300);
+    --peligro: var(--color-terracota-400);
+    --freno: var(--color-mostaza-300);
+    --foco: var(--color-bosque-300);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-direccion] {
+    --duracion-1: 0ms;
+    --duracion-2: 0ms;
+    --duracion-3: 0ms;
+  }
+}

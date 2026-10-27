@@ -25,7 +25,7 @@ function mostrarIngreso(modoDemo) {
 async function iniciar() {
   const estado = await llamarApi("/api/estado");
   $("[data-estado]").textContent = estado.modo_demo ? "Modo demo: datos ficticios que se reinician cada día." : "";
-  const usuario = JSON.parse($("#usuario-inicial").textContent);
+  const { usuario } = await llamarApi("/api/sesion");
   if (usuario) mostrarBienvenida(usuario);
   else mostrarIngreso(estado.modo_demo);
 
