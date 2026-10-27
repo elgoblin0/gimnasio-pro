@@ -89,7 +89,7 @@ Con el presupuesto de Opus agotado (ADR 0011), los issues dudosos van a Codex co
 - Decidir producto, alcance o términos nuevos: etiqueta `necesita-criterio`, explica la duda en un comentario y se detiene.
 - Escribir ADR, cambiar `VISION.md`, `GLOSSARY.md` o los frenos de seguridad.
 - Crear migraciones que alteren tablas de hechos, o cambiar `reglas/` sin un issue que lo especifique.
-- Tocar `.github/workflows/`, `scripts/despachador*` o la configuración de presupuesto.
+- Tocar `.github/workflows/`, `scripts/despachador*` o la configuración de presupuesto, salvo que el issue lo autorice por escrito.
 - Agregar dependencias que el issue no nombre.
 - Desactivar pruebas, bajar umbrales del CI o usar `# noqa` sin explicación.
 
