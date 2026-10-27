@@ -4,6 +4,8 @@ Proyecto de la facultad: gestión de socios de un gimnasio. Permite dar de alta 
 
 **Stack:** XAMPP (MySQL/MariaDB) + Python Flask (backend) + JavaScript (frontend).
 
+**Meta visual de Pro:** convertirse en una demo cutting edge, con impacto «wow» inmediato, que explore el techo visual e interactivo de la tecnología disponible. La próxima entrega será un prototipo visual de alta ambición; la interfaz actual todavía corresponde a la base original. La dirección y los criterios de calidad están en `ROADMAP.md`.
+
 ## Dos versiones del proyecto
 
 - **Estándar:** https://github.com/elgoblin0/gimnasio — mantiene Flask, MySQL y JavaScript, con mejoras pequeñas y explicables.
