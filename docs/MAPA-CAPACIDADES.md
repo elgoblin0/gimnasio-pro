@@ -1,0 +1,85 @@
+# Mapa de capacidades
+
+Generado por `scripts/mapa_capacidades.py` desde `docs/capacidades.toml`. No editar a mano.
+
+## Niveles
+
+- **esqueleto**: Funciona de punta a punta con la semilla; lo prueba un e2e de humo.
+- **funcional**: Cumple sus reglas y casos de aceptación; lo prueban pytest o node --test.
+- **pulida**: Estados vacíos, carga y error, móvil, accesibilidad y movimiento; lo prueba un e2e con chequeo de accesibilidad.
+- **validada**: El usuario la aprobó en un dispositivo real en el cierre de una etapa.
+
+Resumen: pendiente 28, esqueleto 0, funcional 0, pulida 0, validada 0.
+
+## Fundaciones
+
+| Capacidad | Etapa | Nivel | Prueba |
+|---|---|---|---|
+| Monolito modular con reglas de dependencia | 0 | pendiente | — |
+| Migraciones versionadas sobre MySQL | 0 | pendiente | — |
+| Reloj inyectable, UTC y zona de la sede | 0 | pendiente | — |
+| Formatos de Paraguay (guaraníes, cédula, +595, fechas) | 0 | pendiente | — |
+
+## Acceso
+
+| Capacidad | Etapa | Nivel | Prueba |
+|---|---|---|---|
+| Login real por rol | 0 | pendiente | — |
+| Accesos rápidos "entrar como…" en modo demo | 0 | pendiente | — |
+
+## Demo
+
+| Capacidad | Etapa | Nivel | Prueba |
+|---|---|---|---|
+| Semilla ficticia de Paraguay que se reinicia | 0 | pendiente | — |
+| Demo pública en hosting gratuito con límites de uso | 1 | pendiente | — |
+
+## Experiencia
+
+| Capacidad | Etapa | Nivel | Prueba |
+|---|---|---|---|
+| PWA instalable que registra sin conexión y sincroniza | 1 | pendiente | — |
+| Cuerpo 3D muscular | 2 | pendiente | — |
+| Escena de ocupación | 3 | pendiente | — |
+| Recorrido guiado de dos minutos | 7 | pendiente | — |
+| Movimiento cuidado y alternativa sin efectos | 7 | pendiente | — |
+
+## Entrenamiento
+
+| Capacidad | Etapa | Nivel | Prueba |
+|---|---|---|---|
+| Sesión en vivo completa | 2 | pendiente | — |
+| Chequeo del día | 2 | pendiente | — |
+| "Me duele" y "máquina ocupada" | 2 | pendiente | — |
+| Doble progresión + RPE/RIR con ajustes automáticos y frenos | 2 | pendiente | — |
+| Récords y progreso | 2 | pendiente | — |
+
+## Recepción
+
+| Capacidad | Etapa | Nivel | Prueba |
+|---|---|---|---|
+| Tarjeta contextual en recepción | 3 | pendiente | — |
+| Aforo en vivo y mejores horarios | 3 | pendiente | — |
+
+## Entrenador
+
+| Capacidad | Etapa | Nivel | Prueba |
+|---|---|---|---|
+| Programas desde plantillas | 4 | pendiente | — |
+| Bandeja priorizada del entrenador | 4 | pendiente | — |
+| Equipos y alternativas | 4 | pendiente | — |
+
+## Operación
+
+| Capacidad | Etapa | Nivel | Prueba |
+|---|---|---|---|
+| Clases y reservas con lista de espera | 5 | pendiente | — |
+| Registro de pagos en guaraníes | 5 | pendiente | — |
+| Ficha completa con salud y consentimientos | 5 | pendiente | — |
+
+## Acompañamiento
+
+| Capacidad | Etapa | Nivel | Prueba |
+|---|---|---|---|
+| Incorporación de 90 días y riesgo de abandono | 6 | pendiente | — |
+| Resumen semanal | 6 | pendiente | — |
