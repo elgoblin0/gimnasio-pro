@@ -50,7 +50,7 @@ nombre = "Accesos rápidos \"entrar como…\" en modo demo"
 grupo = "Acceso"
 etapa = 0
 nivel = "funcional"
-prueba = "pruebas/test_permisos_sesion.py::test_entrar_como_solo_usa_usuarios_demo"
+prueba = "pruebas/e2e/test_ingreso_demo.py::test_entrar_como_socio_saluda_a_lucia_sin_errores"
 
 [[capacidad]]
 id = "semilla-demo"

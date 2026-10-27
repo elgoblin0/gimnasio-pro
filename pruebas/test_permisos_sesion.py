@@ -28,7 +28,7 @@ def entrar(cliente, identificador, clave=CLAVE):
 def test_inicia_sesion_con_cedula_o_correo_y_la_cierra(app_con_bd):
     crear(app_con_bd, "recepcion", "4567890", correo="Rocio@Demo.Gimnasio.invalid", nombre="Rocío")
     cliente = app_con_bd.test_client()
-    assert cliente.get("/api/sesion").status_code == 401
+    assert cliente.get("/api/sesion").get_json() == {"usuario": None}
 
     respuesta = entrar(cliente, "4.567.890")
     assert respuesta.status_code == 200
@@ -36,7 +36,7 @@ def test_inicia_sesion_con_cedula_o_correo_y_la_cierra(app_con_bd):
     assert cliente.get("/api/sesion").get_json()["usuario"]["nombre"] == "Rocío"
 
     assert cliente.delete("/api/sesion", headers=CABECERA).status_code == 204
-    assert cliente.get("/api/sesion").status_code == 401
+    assert cliente.get("/api/sesion").get_json() == {"usuario": None}
     assert entrar(cliente, "rocio@demo.gimnasio.invalid").status_code == 200
 
 
@@ -126,7 +126,7 @@ def test_un_usuario_desactivado_pierde_la_sesion_abierta(app_con_bd):
     entrar(cliente, "1234567")
     with app_con_bd.app_context(), transaccion() as cursor:
         cursor.execute("UPDATE usuarios SET activo = FALSE WHERE id = %s", (usuario_id.bytes,))
-    assert cliente.get("/api/sesion").status_code == 401
+    assert cliente.get("/api/sesion").get_json() == {"usuario": None}
 
 
 def test_consentimientos_solo_agregan_y_vale_el_ultimo(app_con_bd, reloj_fijo):

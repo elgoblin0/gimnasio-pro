@@ -85,6 +85,49 @@ jobs:
             reporte-pytest.xml
             registro-*.txt
 
+  e2e:
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_ROOT_PASSWORD: solo-ci
+          MYSQL_DATABASE: gimnasio_pro
+        ports: ["3306:3306"]
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -psolo-ci"
+          --health-interval=5s --health-timeout=3s --health-retries=20
+    env:
+      GIMNASIO_BD_HOST: 127.0.0.1
+      GIMNASIO_BD_PUERTO: "3306"
+      GIMNASIO_BD_USUARIO: root
+      GIMNASIO_BD_CLAVE: solo-ci
+      GIMNASIO_BD_NOMBRE: gimnasio_pro
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+          cache-dependency-path: requirements-dev.txt
+      - run: pip install -r requirements-dev.txt
+      - run: playwright install --with-deps chromium
+      - name: Migraciones sobre base vacía
+        run: |
+          set -o pipefail
+          { python -m gimnasio.comun.migrar && python -m gimnasio.comun.migrar --sin-pendientes; } 2>&1 | tee registro-migraciones.txt
+      - name: pytest
+        run: |
+          set -o pipefail
+          pytest -m e2e --junitxml=reporte-pytest.xml -q 2>&1 | tee registro-pytest.txt
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: e2e
+          path: |
+            reporte-pytest.xml
+            registro-*.txt
+
   secretos:
     runs-on: ubuntu-latest
     steps:
@@ -97,7 +140,7 @@ jobs:
 
   resumen:
     if: always() && github.event_name == 'pull_request'
-    needs: [calidad, pruebas, secretos]
+    needs: [calidad, pruebas, e2e, secretos]
     runs-on: ubuntu-latest
     permissions:
       contents: read
