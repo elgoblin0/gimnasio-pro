@@ -118,3 +118,47 @@ def test_binario_codex_busca_la_app_de_windows_si_no_esta_en_el_path(despachador
 
     monkeypatch.setenv("GIMNASIO_CODEX_BIN", "C:/elegido/codex.exe")
     assert despachador.binario_codex() == "C:/elegido/codex.exe"
+
+
+AVISO_LIMITE = (
+    '{"type":"error","message":"You\u2019ve hit your usage limit. Upgrade to Pro (https://chatgpt.com/explore/pro), '
+    'visit https://chatgpt.com/settings/usage to purchase more credits or try again at 1:06 PM."}'
+)
+
+
+def test_fin_del_limite_lee_la_hora_del_aviso_de_codex(despachador):
+    from datetime import datetime
+
+    temprano = datetime(2026, 10, 27, 11, 20)
+    assert despachador.fin_del_limite(AVISO_LIMITE, temprano) == datetime(2026, 10, 27, 13, 6)
+    # Si la hora ya pasó hoy, es la de mañana.
+    assert despachador.fin_del_limite(AVISO_LIMITE, datetime(2026, 10, 27, 14, 0)) == datetime(2026, 10, 28, 13, 6)
+    assert despachador.fin_del_limite("hit your usage limit", temprano) == datetime(2026, 10, 27, 11, 50)
+    assert despachador.fin_del_limite('{"type":"turn.completed"}', temprano) is None
+
+
+@pytest.mark.parametrize(
+    ("tipo", "agregar", "quitar"),
+    [
+        ("implementar", ["estado:listo"], ["estado:en-curso", "agente:codex"]),
+        ("corregir", ["correccion-pendiente"], ["agente:codex"]),
+    ],
+)
+def test_sin_cupo_el_issue_vuelve_a_la_cola_sin_gastar_un_intento(despachador, monkeypatch, tipo, agregar, quitar):
+    from datetime import datetime
+
+    def sin_cupo(_accion):
+        raise despachador.LimiteDeUso("codex", datetime(2026, 10, 27, 13, 6))
+
+    etiquetas, comentarios = [], []
+    monkeypatch.setattr(despachador, "_ejecutar_accion", sin_cupo)
+    monkeypatch.setattr(despachador, "etiquetar", lambda n, a=(), q=(): etiquetas.append((n, a, q)))
+    monkeypatch.setattr(despachador, "comentar", lambda n, t: comentarios.append(t))
+    issue = despachador.Issue(numero=39, titulo="x", cuerpo="", etiquetas={"ejecutor:codex"})
+
+    with pytest.raises(despachador.LimiteDeUso):
+        despachador.ejecutar_accion((tipo, issue, "codex", None))
+
+    assert etiquetas == [(39, agregar, quitar)]
+    assert comentarios == []
+    assert not despachador.REGISTRO.exists()

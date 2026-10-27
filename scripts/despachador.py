@@ -355,6 +355,31 @@ def binario_codex():
     return str(max(instalados, key=lambda p: p.stat().st_mtime)) if instalados else None
 
 
+class LimiteDeUso(Exception):
+    """El agente se quedó sin cupo: no es un intento fallido, la tarea vuelve a la cola sin gastar intentos."""
+
+    def __init__(self, ejecutor, hasta):
+        super().__init__(f"{ejecutor} sin cupo hasta {hasta:%H:%M}")
+        self.ejecutor = ejecutor
+        self.hasta = hasta
+
+
+def fin_del_limite(salida, ahora_local):
+    """La hora local en que Codex vuelve a tener cupo, o None si la salida no es un aviso de límite de uso.
+
+    Codex avisa "You've hit your usage limit. ... try again at 1:06 PM." Sin hora legible se espera
+    `espera_limite_minutos`; si la hora ya pasó hoy, es la de mañana.
+    """
+    if "usage limit" not in salida.lower():
+        return None
+    hora = re.search(r"try again at[^\n]*?(\d{1,2}):(\d{2})\s*([AP]M)", salida, re.IGNORECASE)
+    if not hora:
+        return ahora_local + timedelta(minutes=CONFIG["espera_limite_minutos"])
+    horas = int(hora[1]) % 12 + (12 if hora[3].upper() == "PM" else 0)
+    hasta = ahora_local.replace(hour=horas, minute=int(hora[2]), second=0, microsecond=0)
+    return hasta if hasta > ahora_local else hasta + timedelta(days=1)
+
+
 def correr_codex(carpeta, prompt, esquema=None):
     binario = binario_codex()
     salida = carpeta / ".despachador-ultimo.txt"
@@ -378,6 +403,8 @@ def correr_codex(carpeta, prompt, esquema=None):
         env=entorno_agente(),
         timeout=CONFIG["limite_minutos_por_tarea"] * 60,
     )
+    if hasta := fin_del_limite(resultado.stdout + resultado.stderr, datetime.now()):
+        raise LimiteDeUso("codex", hasta)
     uso = {"entrada": 0, "salida": 0, "lectura_cache": 0, "creacion_cache": 0}
     for linea in resultado.stdout.splitlines():
         try:
@@ -866,6 +893,13 @@ def ejecutar_accion(accion):
     tipo, issue, ejecutor, _ = accion
     try:
         _ejecutar_accion(accion)
+    except LimiteDeUso:
+        # Se deshace el candado sin registrar el intento: el issue queda como estaba antes de tomarlo.
+        if tipo == "implementar":
+            etiquetar(issue.numero, ["estado:listo"], ["estado:en-curso", f"agente:{ejecutor}"])
+        elif tipo == "corregir":
+            etiquetar(issue.numero, ["correccion-pendiente"], [f"agente:{ejecutor}"])
+        raise
     except Exception as error:
         detalle = f"Error del despachador en `{tipo}`: {error}"
         if tipo in ("implementar", "corregir"):
@@ -927,18 +961,29 @@ def describir(accion):
 
 def ciclo(argumentos):
     corriendo = {}  # número de issue -> (future, ejecutor)
+    pausas = {}  # ejecutor sin cupo -> hora local en que vuelve a tenerlo
     with ThreadPoolExecutor(max_workers=CONFIG["max_codex"] + CONFIG["max_claude"] + 4) as hilos:
         while True:
             for numero, (futuro, _) in list(corriendo.items()):
                 if futuro.done():
                     error = futuro.exception()
-                    if error:
+                    if isinstance(error, LimiteDeUso):
+                        if error.ejecutor not in pausas:
+                            print(f"Pausa: {error}; las tareas vuelven a la cola sin gastar intentos.")
+                        pausas[error.ejecutor] = max(pausas.get(error.ejecutor, error.hasta), error.hasta)
+                    elif error:
                         print(f"#{numero}: error {error}", file=sys.stderr)
                     del corriendo[numero]
+            for ejecutor, hasta in list(pausas.items()):
+                if datetime.now() >= hasta:
+                    print(f"{ejecutor} vuelve a tener cupo.")
+                    del pausas[ejecutor]
             libres = {
                 "codex": CONFIG["max_codex"] - sum(e == "codex" for _, e in corriendo.values()),
                 "opus": CONFIG["max_claude"] - sum(e == "opus" for _, e in corriendo.values()),
             }
+            for ejecutor in pausas:
+                libres[ejecutor] = 0
             try:
                 plan = planificar(set(corriendo), libres, argumentos.solo_codex)
             except RuntimeError as error:
@@ -954,9 +999,12 @@ def ciclo(argumentos):
                     corriendo[accion[1].numero] = (hilos.submit(ejecutar_accion, accion), accion[2])
             if argumentos.una_vuelta or argumentos.simular:
                 for futuro, _ in corriendo.values():
-                    futuro.result()
+                    try:
+                        futuro.result()
+                    except LimiteDeUso as error:
+                        print(f"Sin cupo: {error}.")
                 return 0
-            if not corriendo and not plan.acciones and not issues("estado:revision"):
+            if not corriendo and not plan.acciones and not pausas and not issues("estado:revision"):
                 print("Cola vacía.")
                 return 0
             time.sleep(CONFIG["espera_segundos"])
