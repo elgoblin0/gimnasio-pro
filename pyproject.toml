@@ -8,16 +8,8 @@ line-length = 120
 target-version = "py313"
 extend-exclude = ["static/", "gimnasio/static/", "prototipos/"]
 
-[tool.ruff.format]
-# app.py es heredado y sus líneas están citadas en INDICADORES.md: no se reformatea.
-exclude = ["app.py"]
-
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "UP", "B", "SIM"]
-
-[tool.ruff.lint.per-file-ignores]
-# app.py es el código heredado de la versión básica; se reemplaza en la etapa 1.
-"app.py" = ["E501", "SIM", "UP", "B"]
 
 [tool.pytest.ini_options]
 testpaths = ["pruebas"]
