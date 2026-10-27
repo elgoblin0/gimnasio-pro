@@ -12,6 +12,8 @@ intentos_max_codex = 3
 revisiones_fallidas_max = 3
 intentos_max_opus = 2
 limite_minutos_por_tarea = 60
+# Pausa si Codex avisa que se quedó sin cupo y no dice a qué hora vuelve.
+espera_limite_minutos = 30
 
 [codex]
 # Ruta del ejecutable; la variable GIMNASIO_CODEX_BIN tiene prioridad. Si no está en el PATH, se busca la app
