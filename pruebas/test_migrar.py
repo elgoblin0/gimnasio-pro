@@ -32,6 +32,10 @@ def test_rechaza_versiones_repetidas(tmp_path):
         leer_migraciones(tmp_path)
 
 
+def test_las_migraciones_del_repo_tienen_versiones_unicas():
+    assert leer_migraciones()
+
+
 def test_el_catalogo_del_repo_tiene_versiones_unicas():
     migraciones = leer_migraciones()
     assert migraciones

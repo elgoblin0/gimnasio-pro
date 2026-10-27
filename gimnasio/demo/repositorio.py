@@ -11,6 +11,17 @@ def vaciar_datos(cursor):
     cursor.execute("DELETE FROM programas_entrenamiento")
     cursor.execute("DELETE FROM ejercicios")
     cursor.execute("DELETE FROM intentos_de_ingreso")
+    # Las autorreferencias exigen borrar primero las correcciones sin sucesoras.
+    # No se desactivan las FK, ni siquiera durante el reinicio de la demo.
+    for tabla in ("salidas", "entradas"):
+        while True:
+            cursor.execute(
+                f"DELETE original FROM {tabla} original "
+                f"LEFT JOIN {tabla} correccion ON correccion.corrige_a = original.id "
+                "WHERE correccion.id IS NULL"
+            )
+            if cursor.rowcount == 0:
+                break
     cursor.execute("DELETE FROM consentimientos")
     cursor.execute("DELETE FROM asignaciones_entrenador")
     cursor.execute("DELETE FROM membresias")

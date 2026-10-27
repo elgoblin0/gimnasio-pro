@@ -33,6 +33,15 @@ Generado por `scripts/mapa_capacidades.py` desde `docs/capacidades/`. No editar 
 | Semilla ficticia de Paraguay que se reinicia | 0 | funcional | `pruebas/test_demo_semilla.py::test_dos_reinicios_dejan_los_mismos_datos` |
 | Demo pública en hosting gratuito con límites de uso | 1 | funcional | `pruebas/test_demo_limites.py` |
 
+## Recepción
+
+| Capacidad | Etapa | Nivel | Prueba |
+|---|---|---|---|
+| Historial de entradas y salidas con ocupación registrada | 1 | pendiente | `pruebas/test_visitas.py` |
+| Consulta de membresía de acceso por vigencia, sin cupo de entradas | 1 | pendiente | `pruebas/test_socios_membresia.py` |
+| Aforo en vivo y mejores horarios | 3 | pendiente | — |
+| Tarjeta contextual en recepción | 3 | pendiente | — |
+
 ## Entrenador
 
 | Capacidad | Etapa | Nivel | Prueba |
@@ -41,14 +50,6 @@ Generado por `scripts/mapa_capacidades.py` desde `docs/capacidades/`. No editar 
 | Bandeja priorizada del entrenador | 4 | pendiente | — |
 | Equipos y alternativas | 4 | pendiente | — |
 | Programas desde plantillas | 4 | pendiente | — |
-
-## Recepción
-
-| Capacidad | Etapa | Nivel | Prueba |
-|---|---|---|---|
-| Consulta de membresía de acceso por vigencia, sin cupo de entradas | 1 | pendiente | `pruebas/test_socios_membresia.py` |
-| Aforo en vivo y mejores horarios | 3 | pendiente | — |
-| Tarjeta contextual en recepción | 3 | pendiente | — |
 
 ## Experiencia
 
