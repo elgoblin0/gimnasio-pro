@@ -6,6 +6,16 @@ from gimnasio.comun.ids import a_bytes
 def vaciar_datos(cursor):
     """Borra en orden de dependencias, conservando migraciones_aplicadas y las claves foráneas."""
     cursor.execute("DELETE FROM solicitudes_idempotentes")
+    # Las series pueden corregir otras series: borrar primero las hojas del historial.
+    while True:
+        cursor.execute(
+            "DELETE original FROM series_realizadas original "
+            "LEFT JOIN series_realizadas correccion ON correccion.corrige_a = original.id "
+            "WHERE correccion.id IS NULL"
+        )
+        if cursor.rowcount == 0:
+            break
+    cursor.execute("DELETE FROM sesiones_realizadas")
     cursor.execute("DELETE FROM ejercicios_planificados")
     cursor.execute("DELETE FROM sesiones_planificadas")
     cursor.execute("DELETE FROM programas_entrenamiento")

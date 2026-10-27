@@ -1,0 +1,6 @@
+id = "historial-entrenamiento"
+nombre = "Persistencia de sesiones realizadas y series realizadas"
+grupo = "Entrenamiento"
+etapa = 1
+nivel = "pendiente"
+prueba = "pruebas/test_entrenamiento_repositorio.py"
