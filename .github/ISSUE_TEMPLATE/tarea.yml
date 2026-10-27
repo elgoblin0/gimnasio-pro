@@ -1,5 +1,5 @@
 name: Tarea para un agente
-description: Trabajo especificado para que lo tome el despachador
+description: Trabajo especificado para que lo tome un agente
 labels: ["estado:listo"]
 body:
   - type: textarea

@@ -5,13 +5,11 @@ Uso: python scripts/configurar_github.py
 
 import json
 import subprocess
-import tomllib
-from pathlib import Path
 
-REPO = tomllib.loads((Path(__file__).parent / "despachador.toml").read_text(encoding="utf-8"))["repo"]
+REPO = "elgoblin0/gimnasio-pro"
 
 ETIQUETAS = {
-    "estado:listo": ("0e8a16", "Especificado; el despachador lo puede tomar"),
+    "estado:listo": ("0e8a16", "Especificado y disponible"),
     "estado:en-curso": ("fbca04", "Un agente lo tiene"),
     "estado:revision": ("1d76db", "PR abierto: CI y revisión cruzada"),
     "ejecutor:opus": ("5319e7", "Lo hace Opus: decisiones, patrones, rutas sensibles"),
