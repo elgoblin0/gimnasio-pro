@@ -8,15 +8,18 @@ ROLES = ("socio", "recepcion", "entrenador", "administracion")
 
 PERMISOS = {
     # Propios del socio
+    "entrenamiento.ver_propio": {"socio"},
     "entrenamiento.registrar_propio": {"socio"},
     "salud.ver_propia": {"socio"},
     "consentimientos.gestionar_propios": {"socio"},
     # Recepción
+    "visitas.ver": {"recepcion"},
     "visitas.registrar": {"recepcion"},
     "socios.ver_tarjeta": {"recepcion", "administracion"},
     "pagos.registrar": {"recepcion", "administracion"},
     "clases.gestionar_reservas": {"recepcion"},
     # Entrenador
+    "entrenamiento.ver_asignados": {"entrenador"},
     "socios.ver_asignados": {"entrenador"},
     "salud.ver_asignados": {"entrenador"},
     "programas.editar": {"entrenador"},

@@ -22,13 +22,20 @@ export function crearApi({ fetch: pedir = globalThis.fetch, nuevaClave = () => c
       encabezados["Idempotency-Key"] = clave ?? nuevaClave();
     }
     if (cuerpo !== undefined) encabezados["Content-Type"] = "application/json";
-    const respuesta = await pedir(ruta, {
-      method: metodo,
-      headers: encabezados,
-      body: cuerpo === undefined ? undefined : JSON.stringify(cuerpo),
-      credentials: "same-origin",
-    });
-    const datos = respuesta.status === 204 ? null : await respuesta.json();
+    let respuesta;
+    let datos;
+    try {
+      respuesta = await pedir(ruta, {
+        method: metodo,
+        headers: encabezados,
+        body: cuerpo === undefined ? undefined : JSON.stringify(cuerpo),
+        credentials: "same-origin",
+        cache: "no-store",
+      });
+      datos = respuesta.status === 204 ? null : await respuesta.json();
+    } catch {
+      throw new ErrorDeApi("conexion_requerida", "Se requiere conexión a Internet. No se pudo conectar con el servidor.", 0);
+    }
     if (!respuesta.ok) {
       const error = datos?.error ?? {};
       throw new ErrorDeApi(error.codigo ?? "error", error.mensaje ?? "Error inesperado", respuesta.status);

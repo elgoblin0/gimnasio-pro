@@ -64,4 +64,18 @@ def crear_app(config=None, reloj=None):
     def inicio():
         return app.send_static_file("index.html")
 
+    @app.get("/manifest.webmanifest")
+    def manifiesto():
+        respuesta = app.send_static_file("manifest.webmanifest")
+        respuesta.mimetype = "application/manifest+json"
+        return respuesta
+
+    @app.get("/sw.js")
+    def servir_sw():
+        respuesta = app.send_static_file("sw.js")
+        respuesta.mimetype = "text/javascript"
+        respuesta.headers["Cache-Control"] = "no-cache"
+        respuesta.headers["Service-Worker-Allowed"] = "/"
+        return respuesta
+
     return app

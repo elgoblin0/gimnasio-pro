@@ -5,7 +5,7 @@ import test from "node:test";
 const CSS = readFileSync(new URL("./tokens.css", import.meta.url), "utf8");
 
 const SEMANTICOS = [
-  "--superficie", "--superficie-elevada", "--texto", "--texto-suave", "--acento",
+  "--superficie", "--superficie-elevada", "--borde", "--texto", "--texto-suave", "--acento",
   "--exito", "--alerta", "--peligro", "--freno", "--foco",
 ];
 const PRIMITIVOS = ["--color-", "--espacio-", "--radio-", "--fuente-", "--duracion-", "--curva-"];
@@ -41,7 +41,6 @@ function bloques(css, media = "") {
 
 const TODOS = bloques(CSS);
 const bloque = (selector, media = "") => TODOS.find((b) => b.selector === selector && b.media === media);
-const A = bloque('[data-direccion="a"]');
 const B = bloque('[data-direccion="b"]');
 const B_OSCURO = bloque('[data-direccion="b"]', "@media (prefers-color-scheme: dark)");
 
@@ -84,42 +83,66 @@ function contraste(variables, texto, fondo) {
   return (claro + 0.05) / (oscuro + 0.05);
 }
 
-test("las dos direcciones definen el mismo conjunto de tokens semánticos", () => {
+test("B define todos los tokens semánticos y resuelve sus colores", () => {
   const semanticos = (b) => Object.keys(b.variables).filter((n) => !PRIMITIVOS.some((p) => n.startsWith(p))).sort();
-  assert.deepEqual(semanticos(A), semanticos(B));
-  for (const nombre of SEMANTICOS) assert.ok(nombre in A.variables && nombre in B.variables, nombre);
+  assert.deepEqual(semanticos(B), [...SEMANTICOS].sort());
+  for (const nombre of SEMANTICOS) aRgba(resolver(B.variables, nombre));
 });
 
-test("las dos direcciones definen las mismas familias de primitivos no cromáticos", () => {
-  const familias = (b) => Object.keys(b.variables).filter((n) => PRIMITIVOS.some((p) => n.startsWith(p)) && !n.startsWith("--color-")).sort();
-  assert.deepEqual(familias(A), familias(B));
+test("B conserva tipografía, espacios, radios y movimiento completos", () => {
+  for (const nombre of [
+    "--fuente-display", "--fuente-texto", "--fuente-numeros",
+    ...[1, 2, 3, 4, 5, 6].map((n) => `--espacio-${n}`),
+    ...[1, 2, 3].flatMap((n) => [`--radio-${n}`, `--duracion-${n}`]),
+    "--curva-salida", "--curva-resorte",
+  ]) assert.ok(resolver(B.variables, nombre), nombre);
 });
 
-test("el modo oscuro de B solo cambia tokens semánticos existentes", () => {
-  for (const nombre of Object.keys(B_OSCURO.variables)) {
-    assert.ok(SEMANTICOS.includes(nombre) || nombre === "--borde", nombre);
+test("no quedan selectores ni tokens exclusivos de A", () => {
+  assert.equal(bloque('[data-direccion="a"]'), undefined);
+  assert.doesNotMatch(CSS, /--color-(noche|niebla|lima|cian|ambar|coral)-/);
+  for (const { selector } of TODOS) {
+    assert.ok(['[data-direccion="b"]', "[data-direccion]"].includes(selector), selector);
   }
+});
+
+test("el modo oscuro de B redefine todos los colores semánticos", () => {
+  assert.deepEqual(Object.keys(B_OSCURO.variables).sort(), [...SEMANTICOS].sort());
+  for (const nombre of SEMANTICOS) {
+    const oscuro = resolver({ ...B.variables, ...B_OSCURO.variables }, nombre);
+    aRgba(oscuro);
+    assert.notEqual(oscuro, resolver(B.variables, nombre), nombre);
+  }
+  assert.match(CSS, /\[data-direccion="b"\]\s*\{\s*color-scheme: light;/);
+  assert.match(CSS, /@media \(prefers-color-scheme: dark\)\s*\{\s*\[data-direccion="b"\]\s*\{\s*color-scheme: dark;/);
 });
 
 test("con movimiento reducido todas las duraciones valen 0ms", () => {
   const reducido = bloque("[data-direccion]", "@media (prefers-reduced-motion: reduce)");
-  const duraciones = Object.keys(A.variables).filter((n) => n.startsWith("--duracion-"));
+  const duraciones = Object.keys(B.variables).filter((n) => n.startsWith("--duracion-"));
   assert.ok(duraciones.length > 0);
   for (const nombre of duraciones) assert.equal(reducido.variables[nombre], "0ms", nombre);
 });
 
 test("los pares de texto y superficie cumplen el contraste AA", () => {
   const esquemas = {
-    a: A.variables,
     "b claro": B.variables,
     "b oscuro": { ...B.variables, ...B_OSCURO.variables },
   };
   for (const [esquema, variables] of Object.entries(esquemas)) {
-    for (const texto of ["--texto", "--texto-suave"]) {
+    for (const texto of ["--texto", "--texto-suave", "--acento", "--peligro"]) {
       for (const fondo of ["--superficie", "--superficie-elevada"]) {
         const valor = contraste(variables, texto, fondo);
         assert.ok(valor >= 4.5, `${esquema}: ${texto} sobre ${fondo} da ${valor.toFixed(2)}:1`);
       }
+    }
+  }
+});
+
+test("el foco visible contrasta con ambas superficies en claro y oscuro", () => {
+  for (const variables of [B.variables, { ...B.variables, ...B_OSCURO.variables }]) {
+    for (const fondo of ["--superficie", "--superficie-elevada"]) {
+      assert.ok(contraste(variables, "--foco", fondo) >= 3, fondo);
     }
   }
 });

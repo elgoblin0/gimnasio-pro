@@ -7,7 +7,6 @@
 }
 
 @layer base {
-  :root { color-scheme: light dark; }
   body {
     background: var(--superficie);
     color: var(--texto);
@@ -15,6 +14,32 @@
     line-height: 1.5;
     padding: var(--espacio-4, 1rem);
   }
+  main { max-width: 60rem; margin-inline: auto; overflow-wrap: anywhere; }
+  h1, h2 { font-family: var(--fuente-display); }
+  h1 { color: var(--acento); }
+  section {
+    background: var(--superficie-elevada);
+    border: 1px solid var(--borde);
+    border-radius: var(--radio-2);
+    padding: var(--espacio-5);
+  }
+  form { display: grid; gap: var(--espacio-4); max-width: 28rem; }
+  label { display: grid; gap: var(--espacio-1); min-width: 0; }
+  input, button {
+    font: inherit;
+    color: var(--texto);
+    background: var(--superficie);
+    border: 1px solid var(--texto-suave);
+    border-radius: var(--radio-1);
+    padding: var(--espacio-3) var(--espacio-4);
+    max-width: 100%;
+  }
+  input { min-width: 0; width: 100%; }
+  button { color: var(--acento); border-color: currentColor; cursor: pointer; }
+  [data-demo] button { margin-block-end: var(--espacio-2); }
+  [data-estado] { color: var(--texto-suave); }
+  [role="alert"] { color: var(--peligro); }
+  :focus-visible { outline: 3px solid var(--foco); outline-offset: 3px; }
   @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after { animation-duration: 0ms !important; transition-duration: 0ms !important; }
   }

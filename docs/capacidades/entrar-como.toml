@@ -1,0 +1,6 @@
+id = "entrar-como"
+nombre = "Accesos rápidos \"entrar como…\" en modo demo"
+grupo = "Acceso"
+etapa = 0
+nivel = "funcional"
+prueba = "pruebas/e2e/test_direccion_visual.py::test_ingreso_en_b_claro_y_oscuro_con_teclado_sin_desborde"

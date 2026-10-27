@@ -355,6 +355,31 @@ def binario_codex():
     return str(max(instalados, key=lambda p: p.stat().st_mtime)) if instalados else None
 
 
+class LimiteDeUso(Exception):
+    """El agente se quedó sin cupo: no es un intento fallido, la tarea vuelve a la cola sin gastar intentos."""
+
+    def __init__(self, ejecutor, hasta):
+        super().__init__(f"{ejecutor} sin cupo hasta {hasta:%H:%M}")
+        self.ejecutor = ejecutor
+        self.hasta = hasta
+
+
+def fin_del_limite(salida, ahora_local):
+    """La hora local en que Codex vuelve a tener cupo, o None si la salida no es un aviso de límite de uso.
+
+    Codex avisa "You've hit your usage limit. ... try again at 1:06 PM." Sin hora legible se espera
+    `espera_limite_minutos`; si la hora ya pasó hoy, es la de mañana.
+    """
+    if "usage limit" not in salida.lower():
+        return None
+    hora = re.search(r"try again at[^\n]*?(\d{1,2}):(\d{2})\s*([AP]M)", salida, re.IGNORECASE)
+    if not hora:
+        return ahora_local + timedelta(minutes=CONFIG["espera_limite_minutos"])
+    horas = int(hora[1]) % 12 + (12 if hora[3].upper() == "PM" else 0)
+    hasta = ahora_local.replace(hour=horas, minute=int(hora[2]), second=0, microsecond=0)
+    return hasta if hasta > ahora_local else hasta + timedelta(days=1)
+
+
 def correr_codex(carpeta, prompt, esquema=None):
     binario = binario_codex()
     salida = carpeta / ".despachador-ultimo.txt"
@@ -378,6 +403,8 @@ def correr_codex(carpeta, prompt, esquema=None):
         env=entorno_agente(),
         timeout=CONFIG["limite_minutos_por_tarea"] * 60,
     )
+    if hasta := fin_del_limite(resultado.stdout + resultado.stderr, datetime.now()):
+        raise LimiteDeUso("codex", hasta)
     uso = {"entrada": 0, "salida": 0, "lectura_cache": 0, "creacion_cache": 0}
     for linea in resultado.stdout.splitlines():
         try:
@@ -706,21 +733,25 @@ GENERADOS = {"docs/MAPA-CAPACIDADES.md"}
 
 
 def integrar_main(issue):
-    """Integra origin/main en la rama sin gastar tokens si solo chocan archivos generados; si no, pide corrección."""
+    """Integra origin/main en la rama sin gastar tokens si solo chocan archivos generados; si no, pide corrección.
+
+    Devuelve False si la rama ya contenía main y no había nada que integrar.
+    """
     carpeta = preparar_worktree(issue.numero)
     with _candado_git:
+        antes = correr(["git", "rev-parse", "HEAD"], cwd=carpeta).stdout.strip()
         fusion = correr(["git", "merge", "--no-edit", f"origin/{CONFIG['rama_base']}"], cwd=carpeta, chequear=False)
         conflictos = set(correr(["git", "diff", "--name-only", "--diff-filter=U"], cwd=carpeta).stdout.split())
         if fusion.returncode != 0 and not conflictos:
             # Falló por otra causa (archivos locales que se sobrescribirían, etc.): no se empuja nada.
             correr(["git", "merge", "--abort"], cwd=carpeta, chequear=False)
             corregir_o_bloquear(issue, f"No se pudo integrar main: {fusion.stderr.strip()[:1500]}")
-            return
+            return True
         if conflictos - GENERADOS:
             correr(["git", "merge", "--abort"], cwd=carpeta, chequear=False)
             lista = ", ".join(sorted(conflictos - GENERADOS))
             corregir_o_bloquear(issue, f"Conflicto con main en: {lista}. Integrá origin/main y resolvé los conflictos.")
-            return
+            return True
         python = RAIZ / ".venv" / ("Scripts" if os.name == "nt" else "bin") / "python"
         correr([str(python), "scripts/mapa_capacidades.py"], cwd=carpeta)
         correr(["git", "add", "-A"], cwd=carpeta)
@@ -730,8 +761,11 @@ def integrar_main(issue):
             cwd=carpeta,
             chequear=False,
         )
+        if correr(["git", "rev-parse", "HEAD"], cwd=carpeta).stdout.strip() == antes:
+            return False
         correr(["git", "push", "origin", f"{PREFIJO_RAMA}{issue.numero}"], cwd=carpeta)
     registrar({"issue": issue.numero, "ejecutor": "script", "fase": "integrar-main", "uso": {}, "ponderados": 0})
+    return True
 
 
 def revisiones_fallidas_seguidas(numero_pr):
@@ -841,8 +875,14 @@ def planificar(ocupados, libres, solo_codex):
             plan.acciones.append(("revisar", issue, faltan[0], pr))
 
     # 3. Issues listos.
-    activos = {i.modulo for i in issues("estado:en-curso") + issues("estado:revision")}
+    en_marcha = issues("estado:en-curso") + issues("estado:revision")
+    activos = {i.modulo for i in en_marcha}
+    # Cada PR fusionado deja a los demás en conflicto y resolverlo cuesta una corrida entera: con el tope en 1,
+    # el siguiente issue arranca recién cuando el anterior entró en main.
+    cupo = CONFIG["max_issues_activos"] - len(en_marcha)
     for issue in sorted(issues("estado:listo"), key=lambda i: i.numero):
+        if cupo <= 0:
+            break
         if issue.numero in ocupados or {"bloqueado", "necesita-criterio"} & issue.etiquetas:
             continue
         if issue.modulo in activos:
@@ -857,6 +897,7 @@ def planificar(ocupados, libres, solo_codex):
             continue
         if reservar(ejecutor):
             activos.add(issue.modulo)
+            cupo -= 1
             plan.acciones.append(("implementar", issue, ejecutor, None))
     return plan
 
@@ -866,6 +907,13 @@ def ejecutar_accion(accion):
     tipo, issue, ejecutor, _ = accion
     try:
         _ejecutar_accion(accion)
+    except LimiteDeUso:
+        # Se deshace el candado sin registrar el intento: el issue queda como estaba antes de tomarlo.
+        if tipo == "implementar":
+            etiquetar(issue.numero, ["estado:listo"], ["estado:en-curso", f"agente:{ejecutor}"])
+        elif tipo == "corregir":
+            etiquetar(issue.numero, ["correccion-pendiente"], [f"agente:{ejecutor}"])
+        raise
     except Exception as error:
         detalle = f"Error del despachador en `{tipo}`: {error}"
         if tipo in ("implementar", "corregir"):
@@ -903,7 +951,11 @@ def _ejecutar_accion(accion):
                 time.sleep(15)
                 gh("pr", "merge", str(extra["number"]), "--squash", "--delete-branch")
         except RuntimeError as error:
-            motivo = "No se pudo fusionar (¿conflicto con main?). Integrá origin/main y resolvé los conflictos."
+            # Primero el script integra main gratis; Codex solo interviene si queda un conflicto real
+            # o si la rama ya estaba al día y el fallo es otro.
+            if integrar_main(issue):
+                return
+            motivo = "No se pudo fusionar y la rama ya tiene main. Revisá el error y corregilo."
             corregir_o_bloquear(issue, f"{motivo}\n\n{error}")
             return
         etiquetar(issue.numero, [], ["estado:revision"])
@@ -927,18 +979,29 @@ def describir(accion):
 
 def ciclo(argumentos):
     corriendo = {}  # número de issue -> (future, ejecutor)
+    pausas = {}  # ejecutor sin cupo -> hora local en que vuelve a tenerlo
     with ThreadPoolExecutor(max_workers=CONFIG["max_codex"] + CONFIG["max_claude"] + 4) as hilos:
         while True:
             for numero, (futuro, _) in list(corriendo.items()):
                 if futuro.done():
                     error = futuro.exception()
-                    if error:
+                    if isinstance(error, LimiteDeUso):
+                        if error.ejecutor not in pausas:
+                            print(f"Pausa: {error}; las tareas vuelven a la cola sin gastar intentos.")
+                        pausas[error.ejecutor] = max(pausas.get(error.ejecutor, error.hasta), error.hasta)
+                    elif error:
                         print(f"#{numero}: error {error}", file=sys.stderr)
                     del corriendo[numero]
+            for ejecutor, hasta in list(pausas.items()):
+                if datetime.now() >= hasta:
+                    print(f"{ejecutor} vuelve a tener cupo.")
+                    del pausas[ejecutor]
             libres = {
                 "codex": CONFIG["max_codex"] - sum(e == "codex" for _, e in corriendo.values()),
                 "opus": CONFIG["max_claude"] - sum(e == "opus" for _, e in corriendo.values()),
             }
+            for ejecutor in pausas:
+                libres[ejecutor] = 0
             try:
                 plan = planificar(set(corriendo), libres, argumentos.solo_codex)
             except RuntimeError as error:
@@ -954,9 +1017,12 @@ def ciclo(argumentos):
                     corriendo[accion[1].numero] = (hilos.submit(ejecutar_accion, accion), accion[2])
             if argumentos.una_vuelta or argumentos.simular:
                 for futuro, _ in corriendo.values():
-                    futuro.result()
+                    try:
+                        futuro.result()
+                    except LimiteDeUso as error:
+                        print(f"Sin cupo: {error}.")
                 return 0
-            if not corriendo and not plan.acciones and not issues("estado:revision"):
+            if not corriendo and not plan.acciones and not pausas and not issues("estado:revision"):
                 print("Cola vacía.")
                 return 0
             time.sleep(CONFIG["espera_segundos"])

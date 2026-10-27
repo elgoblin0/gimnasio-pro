@@ -1,0 +1,6 @@
+id = "estructura-modulos"
+nombre = "Monolito modular con reglas de dependencia"
+grupo = "Fundaciones"
+etapa = 0
+nivel = "funcional"
+prueba = "pruebas/test_dependencias.py::test_el_repo_cumple_las_reglas_de_dependencia"

@@ -1,0 +1,17 @@
+{
+  "name": "Gimnasio Pro",
+  "short_name": "Gimnasio Pro",
+  "id": "/",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "lang": "es",
+  "theme_color": "#b2452a",
+  "background_color": "#fbf7f0",
+  "description": "Gimnasio Pro requiere conexión a Internet.",
+  "icons": [
+    { "src": "/iconos/gimnasio-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/iconos/gimnasio-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/iconos/gimnasio-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
