@@ -11,6 +11,16 @@ from gimnasio.comun.ids import a_bytes
 MEDIDAS = ("repeticiones", "carga", "duracion", "distancia")
 
 
+def obtener_socio(cursor, socio_id):
+    cursor.execute("SELECT id, rol, activo FROM usuarios WHERE id = %s", (a_bytes(socio_id),))
+    return cursor.fetchone()
+
+
+def obtener_sede(cursor):
+    cursor.execute("SELECT zona_horaria FROM sedes ORDER BY id LIMIT 1")
+    return cursor.fetchone()
+
+
 def validar_medidas(medidas, valores):
     """Conserva kg/segundos/metros, rechaza no aplicables, no finitos y redondeos."""
     if not isinstance(medidas, list) or any(m not in MEDIDAS for m in medidas):
