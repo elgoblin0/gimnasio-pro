@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dirección B · Cuaderno de entrenamiento</title>
+<style>
+:root {
+  /* Primitivos */
+  --color-papel-50: #fbf7f0;
+  --color-papel-100: #f3ecdf;
+  --color-papel-200: #e6dccb;
+  --color-tinta-900: #1e1b16;
+  --color-tinta-600: #5c554a;
+  --color-terracota-600: #b2452a;
+  --color-terracota-100: #f6dfd5;
+  --color-bosque-700: #1f5a43;
+  --color-bosque-100: #d9ebe1;
+  --color-mostaza-600: #8a5a00;
+  --color-mostaza-100: #f8e7b8;
+  --fuente-display: "Iowan Old Style", "Palatino Linotype", Charter, "Book Antiqua", Georgia, serif;
+  --fuente-texto: "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
+  --fuente-numeros: "Iowan Old Style", "Palatino Linotype", Georgia, serif;
+  --espacio-1: 4px; --espacio-2: 8px; --espacio-3: 12px; --espacio-4: 16px; --espacio-5: 24px; --espacio-6: 40px;
+  --radio-1: 4px; --radio-2: 8px; --radio-3: 999px;
+  --duracion-1: 180ms; --duracion-2: 520ms; --duracion-3: 1100ms;
+  --curva-salida: cubic-bezier(.22, 1, .36, 1);
+  --curva-resorte: cubic-bezier(.5, 1.6, .4, 1);
+  /* Semánticos */
+  --superficie: var(--color-papel-50);
+  --superficie-elevada: #fffdf9;
+  --borde: var(--color-papel-200);
+  --texto: var(--color-tinta-900);
+  --texto-suave: var(--color-tinta-600);
+  --acento: var(--color-terracota-600);
+  --exito: var(--color-bosque-700);
+  --alerta: var(--color-mostaza-600);
+  --peligro: var(--color-terracota-600);
+  --freno: var(--color-mostaza-600);
+  --foco: var(--color-bosque-700);
+}
+@media (prefers-reduced-motion: reduce) {
+  :root { --duracion-1: 0ms; --duracion-2: 0ms; --duracion-3: 0ms; }
+}
+*, *::before, *::after { box-sizing: border-box; }
+body {
+  margin: 0; min-height: 100dvh; display: grid; place-items: center;
+  font: 15px/1.5 var(--fuente-texto); color: var(--texto); background: #d9cfbd;
+}
+.telefono {
+  position: relative; width: min(100%, 390px); min-height: 100dvh; overflow: hidden;
+  background:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2'/%3E%3CfeColorMatrix values='0 0 0 0 .3 0 0 0 0 .25 0 0 0 0 .2 0 0 0 .07 0'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)'/%3E%3C/svg%3E"),
+    var(--superficie);
+}
+@media (min-width: 500px) {
+  .telefono { min-height: 820px; margin: 32px 0; border-radius: 40px; box-shadow: 0 0 0 10px #2a251d, 0 30px 80px rgb(30 27 22 / .35); }
+}
+.contenido { padding: var(--espacio-5) var(--espacio-5) var(--espacio-6); display: grid; gap: var(--espacio-5); }
+.cabecera { display: flex; justify-content: space-between; align-items: center; font-size: 12px; color: var(--texto-suave); letter-spacing: .08em; text-transform: uppercase; }
+.demo { border: 1px solid var(--alerta); color: var(--alerta); padding: 3px 8px; border-radius: var(--radio-3); font-weight: 600; }
+.saludo h1 {
+  margin: 0; font: 400 clamp(46px, 13vw, 60px)/.95 var(--fuente-display); letter-spacing: -.025em;
+}
+.saludo h1 em { font-style: italic; color: var(--acento); }
+.saludo p { margin: var(--espacio-3) 0 0; font: italic 17px/1.4 var(--fuente-display); color: var(--texto-suave); }
+h2 {
+  display: flex; align-items: center; gap: var(--espacio-3); margin: 0 0 var(--espacio-3);
+  font: 600 11px/1 var(--fuente-texto); letter-spacing: .16em; text-transform: uppercase; color: var(--texto-suave);
+}
+h2::after { content: ""; flex: 1; height: 1px; background: var(--borde); }
+/* Chequeo del día: tres preguntas como una frase */
+.frase { margin: 0; font: 400 21px/1.7 var(--fuente-display); }
+.eleccion {
+  position: relative; border: 0; padding: 0 2px; background: none; cursor: pointer;
+  font: italic 21px var(--fuente-display); color: var(--acento);
+}
+.eleccion::after {
+  content: ""; position: absolute; left: 0; right: 0; bottom: 2px; height: 2px; background: currentColor;
+  transform-origin: left; animation: trazo var(--duracion-3) var(--curva-salida) both; animation-delay: .5s;
+}
+@keyframes trazo { from { transform: scaleX(0); } }
+.eleccion.malo { color: var(--freno); }
+button:focus-visible { outline: 2px solid var(--foco); outline-offset: 3px; border-radius: 2px; }
+.ayuda { margin: var(--espacio-2) 0 0; font-size: 12px; color: var(--texto-suave); }
+/* Sesión propuesta como página de cuaderno */
+.sesion-titulo { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: var(--espacio-2); }
+.sesion-titulo strong { font: 400 30px/1 var(--fuente-display); }
+.sesion-titulo small { color: var(--texto-suave); }
+.ejercicios { list-style: none; margin: 0; padding: 0; counter-reset: ejercicio; }
+.ejercicio {
+  display: grid; grid-template-columns: 28px 1fr auto; gap: 2px var(--espacio-3); padding: var(--espacio-4) 0;
+  border-top: 1px solid var(--borde); counter-increment: ejercicio;
+  animation: aparecer var(--duracion-2) var(--curva-salida) both; animation-delay: calc(var(--i) * 110ms + 150ms);
+}
+@keyframes aparecer { from { opacity: 0; transform: translateX(-10px); } }
+.ejercicio::before { content: counter(ejercicio, decimal-leading-zero); font: italic 15px var(--fuente-numeros); color: var(--texto-suave); padding-top: 2px; }
+.ejercicio b { font-weight: 600; }
+.carga { font: 400 24px/1 var(--fuente-numeros); font-variant-numeric: oldstyle-nums tabular-nums; text-align: right; }
+.delta { display: block; font: 600 11px var(--fuente-texto); color: var(--exito); margin-top: 4px; letter-spacing: .04em; }
+.porque { grid-column: 2 / -1; font-size: 13px; color: var(--texto-suave); }
+.ejercicio.frenado { background: linear-gradient(var(--color-mostaza-100), var(--color-mostaza-100)) left / 3px 100% no-repeat; padding-left: var(--espacio-3); margin-left: calc(var(--espacio-3) * -1); }
+.sello {
+  grid-column: 2 / -1; justify-self: start; margin-bottom: var(--espacio-1);
+  font: 700 10px/1 var(--fuente-texto); letter-spacing: .14em; text-transform: uppercase;
+  color: var(--freno); border: 1.5px solid currentColor; padding: 4px 7px; border-radius: var(--radio-1); transform: rotate(-2deg);
+}
+[hidden] { display: none !important; }
+/* Aforo: barras por hora del día */
+.aforo-cifra { display: flex; align-items: baseline; gap: var(--espacio-2); }
+.aforo-cifra strong { font: 400 56px/1 var(--fuente-numeros); font-variant-numeric: lining-nums tabular-nums; }
+.aforo-cifra span { color: var(--texto-suave); }
+.vivo { margin-left: auto; font-size: 12px; color: var(--exito); display: inline-flex; gap: 6px; align-items: center; }
+.vivo::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: currentColor; animation: titilar 2s ease-in-out infinite; }
+@keyframes titilar { 50% { opacity: .25; } }
+.barras { display: grid; grid-template-columns: repeat(16, 1fr); align-items: end; gap: 3px; height: 72px; margin-top: var(--espacio-3); }
+.barras i { display: block; background: var(--color-papel-200); border-radius: 2px 2px 0 0; height: var(--h); transform-origin: bottom; animation: crecer var(--duracion-3) var(--curva-salida) both; animation-delay: calc(var(--j) * 40ms + 400ms); }
+.barras i.ahora { background: var(--acento); }
+.barras i.mejor { background: var(--color-bosque-100); box-shadow: inset 0 2px 0 var(--exito); }
+@keyframes crecer { from { transform: scaleY(0); } }
+.horas { display: flex; justify-content: space-between; font-size: 11px; color: var(--texto-suave); margin-top: 4px; }
+.nota { margin: var(--espacio-2) 0 0; font-size: 13px; color: var(--texto-suave); }
+.nota strong { color: var(--exito); }
+.empezar {
+  min-height: 56px; border: 0; border-radius: var(--radio-3); cursor: pointer;
+  font: italic 400 21px var(--fuente-display); color: var(--superficie-elevada); background: var(--texto);
+  transition: transform var(--duracion-2) var(--curva-resorte), background var(--duracion-1);
+}
+.empezar:hover { background: var(--acento); transform: translateY(-2px); }
+@media (prefers-reduced-motion: reduce) {
+  .ejercicio, .barras i, .eleccion::after, .vivo::before { animation: none; }
+}
+</style>
+</head>
+<body>
+<div class="telefono">
+  <main class="contenido">
+    <div class="cabecera"><span>Mar 27 · oct</span><span class="demo">Demo · datos ficticios</span></div>
+
+    <header class="saludo">
+      <h1>Buen día,<br><em>Lucía.</em></h1>
+      <p>Semana 3 de 8. Vas por buen camino.</p>
+    </header>
+
+    <section aria-labelledby="t-chequeo">
+      <h2 id="t-chequeo">Chequeo del día</h2>
+      <p class="frase">
+        Dormí <button class="eleccion" data-opciones="bien|regular|mal">bien</button>,
+        tengo energía <button class="eleccion" data-opciones="normal|alta|baja">normal</button>
+        y me duele <button class="eleccion malo" data-opciones="la rodilla|nada" data-dolor>la rodilla</button>.
+      </p>
+      <p class="ayuda">Tocá una palabra subrayada para cambiarla.</p>
+    </section>
+
+    <section aria-labelledby="t-sesion">
+      <h2 id="t-sesion">Sesión propuesta</h2>
+      <div class="sesion-titulo"><strong>Pierna A</strong><small>5 ejercicios · 52 min</small></div>
+      <ol class="ejercicios">
+        <li class="ejercicio" style="--i:0">
+          <b>Sentadilla</b><span class="carga">62,5<small style="font-size:14px"> kg</small><span class="delta">+2,5 kg</span></span>
+          <span class="porque">Subís porque la semana pasada completaste 3×12 a RIR 2.</span>
+        </li>
+        <li class="ejercicio frenado" style="--i:1" data-freno>
+          <span class="sello">Freno · dolor reportado</span>
+          <b>Prensa 45°</b><span class="carga">80<small style="font-size:14px"> kg</small></span>
+          <span class="porque">Reemplaza a las estocadas por tu molestia en la rodilla. No subimos carga y avisamos a Marcos.</span>
+        </li>
+        <li class="ejercicio" style="--i:1" data-sin-freno hidden>
+          <b>Estocadas</b><span class="carga">2×12<small style="font-size:14px"> kg</small><span class="delta">+2 kg</span></span>
+          <span class="porque">Subís porque completaste 3×10 por pierna a RIR 2.</span>
+        </li>
+        <li class="ejercicio" style="--i:2">
+          <b>Peso muerto rumano</b><span class="carga">50<small style="font-size:14px"> kg</small></span>
+          <span class="porque">Se mantiene: la última serie fue a RIR 1.</span>
+        </li>
+      </ol>
+    </section>
+
+    <section aria-labelledby="t-aforo">
+      <h2 id="t-aforo">La sede ahora</h2>
+      <div class="aforo-cifra"><strong data-dentro aria-live="polite">23</strong><span>de 60 personas</span><span class="vivo">en vivo</span></div>
+      <div class="barras" aria-hidden="true" data-barras></div>
+      <div class="horas" aria-hidden="true"><span>6</span><span>10</span><span>14</span><span>18</span><span>22</span></div>
+      <p class="nota">Hoy conviene venir de <strong>14:00 a 16:00</strong>: suele haber la mitad de gente.</p>
+    </section>
+
+    <button class="empezar">Empezar la sesión →</button>
+  </main>
+</div>
+<script>
+  // Chequeo del día como frase: cada palabra rota entre sus opciones; el dolor activa el freno.
+  for (const boton of document.querySelectorAll(".eleccion")) {
+    boton.addEventListener("click", () => {
+      const opciones = boton.dataset.opciones.split("|");
+      const siguiente = opciones[(opciones.indexOf(boton.textContent) + 1) % opciones.length];
+      boton.textContent = siguiente;
+      boton.classList.toggle("malo", ["mal", "baja", "la rodilla"].includes(siguiente));
+      if ("dolor" in boton.dataset) {
+        const conDolor = siguiente === "la rodilla";
+        document.querySelector("[data-freno]").hidden = !conDolor;
+        document.querySelector("[data-sin-freno]").hidden = conDolor;
+      }
+    });
+  }
+  // Ocupación típica por hora (6 a 21 h), datos ficticios; la barra actual y el mejor horario se destacan.
+  const tipica = [30, 55, 70, 45, 35, 30, 28, 22, 20, 26, 48, 80, 95, 85, 60, 35];
+  const horaActual = 10, mejores = [8, 9];
+  document.querySelector("[data-barras]").innerHTML = tipica.map((valor, j) =>
+    `<i style="--h:${valor}%;--j:${j}" class="${j === horaActual ? "ahora" : mejores.includes(j) ? "mejor" : ""}"></i>`).join("");
+  let dentro = 23;
+  setInterval(() => {
+    dentro = Math.max(8, Math.min(58, dentro + Math.round(Math.random() * 6 - 3)));
+    document.querySelector("[data-dentro]").textContent = dentro;
+  }, 3500);
+</script>
+</body>
+</html>
