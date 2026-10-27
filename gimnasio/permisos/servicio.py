@@ -194,3 +194,12 @@ def registrar_consentimiento(cursor, socio_id, tipo, otorgado, version_texto, au
 def tiene_consentimiento(cursor, socio_id, tipo):
     vigente = repositorio.consentimiento_vigente(cursor, socio_id, tipo)
     return bool(vigente and vigente["otorgado"])
+
+
+def tiene_asignacion_vigente(cursor, socio_id, entrenador_id):
+    """Consulta el alcance del entrenador dentro de la transacción del servicio de dominio.
+
+    Vigente significa `hasta IS NULL`, con ambos usuarios activos y sus roles correspondientes.
+    No reemplaza `@requiere`: el servicio de entrenamiento valida usuario propio o socio asignado.
+    """
+    return repositorio.tiene_asignacion_vigente(cursor, socio_id, entrenador_id)

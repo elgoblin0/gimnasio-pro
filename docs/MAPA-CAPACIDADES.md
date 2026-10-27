@@ -23,7 +23,7 @@ Generado por `scripts/mapa_capacidades.py` desde `docs/capacidades.toml`. No edi
 
 | Capacidad | Etapa | Nivel | Prueba |
 |---|---|---|---|
-| Login real por rol | 0 | funcional | `pruebas/test_permisos_sesion.py::test_inicia_sesion_con_cedula_o_correo_y_la_cierra` |
+| Login real por rol y permisos de lectura de entrenamiento y visitas | 0 | funcional | `pruebas/test_permisos_sesion.py` |
 | Accesos rápidos "entrar como…" en modo demo | 0 | funcional | `pruebas/e2e/test_ingreso_demo.py::test_entrar_como_socio_saluda_a_lucia_sin_errores` |
 
 ## Demo

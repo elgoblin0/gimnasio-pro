@@ -38,11 +38,11 @@ prueba = "pruebas/test_formatos.py::test_vectores_compartidos"
 
 [[capacidad]]
 id = "login-por-rol"
-nombre = "Login real por rol"
+nombre = "Login real por rol y permisos de lectura de entrenamiento y visitas"
 grupo = "Acceso"
 etapa = 0
 nivel = "funcional"
-prueba = "pruebas/test_permisos_sesion.py::test_inicia_sesion_con_cedula_o_correo_y_la_cierra"
+prueba = "pruebas/test_permisos_sesion.py"
 
 [[capacidad]]
 id = "entrar-como"
