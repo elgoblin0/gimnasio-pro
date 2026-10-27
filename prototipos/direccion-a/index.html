@@ -169,22 +169,27 @@ button:focus-visible { outline: 2px solid var(--foco); outline-offset: 2px; }
       <h2 id="t-sesion">Sesión propuesta</h2>
       <div class="sesion-cabecera"><strong>Pierna A</strong><small>5 ejercicios · 52 min</small></div>
       <ul class="ejercicios">
-        <li class="ejercicio" style="--i:0">
+        <li class="ejercicio frenado" style="--i:0" data-con-dolor>
+          <span class="etiqueta-freno">Freno · dolor reportado</span>
+          <b>Sentadilla</b><span class="carga">60 kg</span>
+          <span class="porque">Tocaba subir 2,5 kg, pero reportaste dolor en la rodilla: se mantiene la carga.</span>
+        </li>
+        <li class="ejercicio" style="--i:0" data-sin-dolor hidden>
           <b>Sentadilla</b><span class="carga">62,5 kg<span class="delta">+2,5</span></span>
           <span class="porque">Subís: la semana pasada completaste 3×12 a RIR 2.</span>
         </li>
-        <li class="ejercicio frenado" style="--i:1" data-freno>
-          <span class="etiqueta-freno">Freno · dolor reportado</span>
-          <b>Prensa 45° <s style="color:var(--texto-suave);font-weight:400">en vez de estocadas</s></b><span class="carga">80 kg</span>
-          <span class="porque">Reportaste molestia en la rodilla: sustituimos y no subimos carga. Marcos ya fue avisado.</span>
+        <li class="ejercicio frenado" style="--i:1" data-con-dolor>
+          <span class="etiqueta-freno">Freno · sustitución</span>
+          <b>Empuje de cadera <s style="color:var(--texto-suave);font-weight:400">en vez de estocadas</s></b><span class="carga">70 kg</span>
+          <span class="porque">Las estocadas cargan la rodilla: las reemplazamos. Marcos ya fue avisado.</span>
         </li>
-        <li class="ejercicio" style="--i:2" data-sin-freno hidden>
+        <li class="ejercicio" style="--i:1" data-sin-dolor hidden>
           <b>Estocadas</b><span class="carga">2×12 kg<span class="delta">+2</span></span>
           <span class="porque">Subís: completaste 3×10 por pierna a RIR 2.</span>
         </li>
-        <li class="ejercicio" style="--i:3">
-          <b>Peso muerto rumano</b><span class="carga">50 kg</span>
-          <span class="porque">Se mantiene: la última serie fue a RIR 1.</span>
+        <li class="ejercicio" style="--i:2">
+          <b>Peso muerto rumano</b><span class="carga">52,5 kg<span class="delta">+2,5</span></span>
+          <span class="porque">Subís: completaste 3×10 a RIR 2 y no involucra la rodilla.</span>
         </li>
       </ul>
     </section>
@@ -220,8 +225,8 @@ button:focus-visible { outline: 2px solid var(--foco); outline-offset: 2px; }
       for (const otro of grupo.children) otro.setAttribute("aria-pressed", String(otro === boton));
       if (grupo.dataset.grupo === "dolor") {
         const conDolor = boton.textContent === "Rodilla";
-        document.querySelector("[data-freno]").hidden = !conDolor;
-        document.querySelector("[data-sin-freno]").hidden = conDolor;
+        for (const item of document.querySelectorAll("[data-con-dolor]")) item.hidden = !conDolor;
+        for (const item of document.querySelectorAll("[data-sin-dolor]")) item.hidden = conDolor;
       }
     });
   }

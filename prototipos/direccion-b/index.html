@@ -95,7 +95,9 @@ button:focus-visible { outline: 2px solid var(--foco); outline-offset: 3px; bord
 }
 @keyframes aparecer { from { opacity: 0; transform: translateX(-10px); } }
 .ejercicio::before { content: counter(ejercicio, decimal-leading-zero); font: italic 15px var(--fuente-numeros); color: var(--texto-suave); padding-top: 2px; }
-.ejercicio b { font-weight: 600; }
+.ejercicio b { grid-column: 2; font-weight: 600; }
+.ejercicio .carga { grid-column: 3; }
+.ejercicio.frenado::before { grid-row: 2; }
 .carga { font: 400 24px/1 var(--fuente-numeros); font-variant-numeric: oldstyle-nums tabular-nums; text-align: right; }
 .delta { display: block; font: 600 11px var(--fuente-texto); color: var(--exito); margin-top: 4px; letter-spacing: .04em; }
 .porque { grid-column: 2 / -1; font-size: 13px; color: var(--texto-suave); }
@@ -156,22 +158,27 @@ button:focus-visible { outline: 2px solid var(--foco); outline-offset: 3px; bord
       <h2 id="t-sesion">Sesión propuesta</h2>
       <div class="sesion-titulo"><strong>Pierna A</strong><small>5 ejercicios · 52 min</small></div>
       <ol class="ejercicios">
-        <li class="ejercicio" style="--i:0">
+        <li class="ejercicio frenado" style="--i:0" data-con-dolor>
+          <span class="sello">Freno · dolor reportado</span>
+          <b>Sentadilla</b><span class="carga">60<small style="font-size:14px"> kg</small></span>
+          <span class="porque">Tocaba subir 2,5 kg, pero te duele la rodilla: mantenemos la carga.</span>
+        </li>
+        <li class="ejercicio" style="--i:0" data-sin-dolor hidden>
           <b>Sentadilla</b><span class="carga">62,5<small style="font-size:14px"> kg</small><span class="delta">+2,5 kg</span></span>
           <span class="porque">Subís porque la semana pasada completaste 3×12 a RIR 2.</span>
         </li>
-        <li class="ejercicio frenado" style="--i:1" data-freno>
-          <span class="sello">Freno · dolor reportado</span>
-          <b>Prensa 45°</b><span class="carga">80<small style="font-size:14px"> kg</small></span>
-          <span class="porque">Reemplaza a las estocadas por tu molestia en la rodilla. No subimos carga y avisamos a Marcos.</span>
+        <li class="ejercicio frenado" style="--i:1" data-con-dolor>
+          <span class="sello">Freno · sustitución</span>
+          <b>Empuje de cadera</b><span class="carga">70<small style="font-size:14px"> kg</small></span>
+          <span class="porque">Reemplaza a las estocadas, que cargan la rodilla. Avisamos a Marcos.</span>
         </li>
-        <li class="ejercicio" style="--i:1" data-sin-freno hidden>
+        <li class="ejercicio" style="--i:1" data-sin-dolor hidden>
           <b>Estocadas</b><span class="carga">2×12<small style="font-size:14px"> kg</small><span class="delta">+2 kg</span></span>
           <span class="porque">Subís porque completaste 3×10 por pierna a RIR 2.</span>
         </li>
         <li class="ejercicio" style="--i:2">
-          <b>Peso muerto rumano</b><span class="carga">50<small style="font-size:14px"> kg</small></span>
-          <span class="porque">Se mantiene: la última serie fue a RIR 1.</span>
+          <b>Peso muerto rumano</b><span class="carga">52,5<small style="font-size:14px"> kg</small><span class="delta">+2,5 kg</span></span>
+          <span class="porque">Subís porque completaste 3×10 a RIR 2, y no involucra la rodilla.</span>
         </li>
       </ol>
     </section>
@@ -197,8 +204,8 @@ button:focus-visible { outline: 2px solid var(--foco); outline-offset: 3px; bord
       boton.classList.toggle("malo", ["mal", "baja", "la rodilla"].includes(siguiente));
       if ("dolor" in boton.dataset) {
         const conDolor = siguiente === "la rodilla";
-        document.querySelector("[data-freno]").hidden = !conDolor;
-        document.querySelector("[data-sin-freno]").hidden = conDolor;
+        for (const item of document.querySelectorAll("[data-con-dolor]")) item.hidden = !conDolor;
+        for (const item of document.querySelectorAll("[data-sin-dolor]")) item.hidden = conDolor;
       }
     });
   }
