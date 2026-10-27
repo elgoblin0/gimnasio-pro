@@ -2,5 +2,5 @@ id = "salida-socio"
 nombre = "Salida confirmada del socio y lecturas para recepción"
 grupo = "Operación"
 etapa = 1
-nivel = "pendiente"
-prueba = "pruebas/test_visitas_api.py"
+nivel = "esqueleto"
+prueba = "pruebas/e2e/test_esqueleto_andante.py"

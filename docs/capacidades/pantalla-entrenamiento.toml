@@ -2,5 +2,5 @@ id = "pantalla-entrenamiento"
 nombre = "Pantalla del socio con propuesta, explicación y pendientes"
 grupo = "Entrenamiento"
 etapa = 1
-nivel = "pendiente"
+nivel = "esqueleto"
 prueba = "pruebas/e2e/test_entrenamiento.py"

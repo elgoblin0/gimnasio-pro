@@ -2,5 +2,5 @@ id = "sesion-propuesta"
 nombre = "Sesión propuesta según la secuencia del programa de entrenamiento"
 grupo = "Entrenamiento"
 etapa = 1
-nivel = "pendiente"
-prueba = "pruebas/test_entrenamiento_api.py"
+nivel = "esqueleto"
+prueba = "pruebas/e2e/test_esqueleto_andante.py"
