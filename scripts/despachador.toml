@@ -1,0 +1,42 @@
+# Configuración del despachador (scripts/despachador.py). Ver ADR 0011.
+repo = "elgoblin0/gimnasio-pro"
+rama_base = "main"
+# Carpeta donde se crean los worktrees, relativa a la raíz del repo.
+carpeta_trabajo = "../gimnasio-pro-trabajo"
+max_codex = 3
+max_claude = 1
+espera_segundos = 60
+# Intentos totales por issue (implementar + correcciones por CI o revisión).
+intentos_max_codex = 3
+intentos_max_opus = 2
+limite_minutos_por_tarea = 60
+
+[codex]
+# Ruta del ejecutable; la variable GIMNASIO_CODEX_BIN tiene prioridad. Sin modelo fijo: usa el predeterminado.
+binario = "codex"
+sandbox = "workspace-write"
+config = ['model_reasoning_effort="high"']
+
+[claude]
+binario = "claude"
+modelo = "claude-opus-5-5"
+modo_permisos = "auto"
+
+[presupuesto]
+# Tokens ponderados = entrada + salida + creación de caché + peso_lectura_cache × lectura de caché.
+semanal_opus = 2_000_000
+aviso = 0.8
+corte = 1.0
+peso_lectura_cache = 0.1
+zona = "America/Asuncion"
+
+[rutas]
+sensibles = [
+    "gimnasio/reglas/",
+    "migraciones/",
+    "gimnasio/comun/migrar.py",
+    "gimnasio/sincronizacion/",
+    "gimnasio/permisos/",
+    "gimnasio/salud/",
+]
+modulos_sensibles = ["reglas", "migraciones", "sincronizacion", "permisos", "salud"]

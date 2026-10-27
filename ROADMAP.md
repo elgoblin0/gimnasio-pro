@@ -1,7 +1,9 @@
 # Versión Pro
 
 ## Objetivo
-Explorar el techo del producto mediante una experiencia completa para socios, recepción, entrenadores y administradores. Elegir tecnologías mantenidas y versiones estables vigentes al implementar cada etapa; el stack definitivo todavía está pendiente.
+Explorar el techo del producto mediante una experiencia completa para socios, recepción, entrenadores y administradores. La meta final y sus límites están en [VISION.md](VISION.md). Stack: Flask, MySQL y JavaScript moderno sin framework ni build (ver `docs/adr/`).
+
+El núcleo funcional es administrar entrenamiento personalizado y la operación real del gimnasio: programas, sesiones diarias, ejercicios y series realizados, balance semanal, propuestas automáticas explicables, entradas, salidas, permanencia y aforo. Ver [alcance funcional propuesto](docs/ALCANCE-FUNCIONAL.md) y [glosario](GLOSSARY.md). La experiencia visual debe representar estos procesos y sus datos.
 
 La ambición visual es **cutting edge**: ser una demo de lo más avanzado que se pueda imaginar y construir con la tecnología disponible, con un impacto «wow» inmediato para cualquier persona que la vea. Esta es una meta central del producto y debe orientar las decisiones de interfaz, interacción y presentación.
 
@@ -19,30 +21,32 @@ La ambición visual es **cutting edge**: ser una demo de lo más avanzado que se
 La aceptación visual requiere revisar el resultado en navegador, escritorio y celular: impacto de los primeros segundos, coherencia del sistema visual y una demostración completa de aproximadamente dos minutos. El efecto «wow» se valida mostrando el prototipo a personas con distintos perfiles y recogiendo sus impresiones.
 
 ## Próxima entrega: prototipo visual
-- [ ] Definir identidad y explorar dos direcciones visuales de alta ambición.
-- [ ] Elegir una dirección y construir una primera escena interactiva que establezca el techo visual.
-- [ ] Prototipar el recorrido de demo con datos ficticios, identificados como tales.
-- [ ] Verificar apariencia, fluidez, accesibilidad y adaptación antes de extender el diseño al producto completo.
-
-Esta entrega visual precede a la ampliación funcional para fijar el nivel de calidad desde el comienzo. Las escenas y tecnologías mencionadas son exploraciones pendientes.
+- [ ] Prototipar dos direcciones visuales chicas y descartables (etapa 0).
+- [ ] El usuario elige una al cerrar la etapa 0; se fija en los tokens de diseño.
+- [ ] Construir la primera escena interactiva con la dirección elegida (etapa 2).
+- [ ] Verificar apariencia, fluidez, accesibilidad y adaptación antes de extender el diseño.
 
 ## Preparación completada
 - [x] Conservar el historial original y la etiqueta `base-original`.
 - [x] Crear un repositorio independiente de la versión estándar.
 - [x] Separar la base de datos (`gimnasio_pro`) y el puerto local (5002).
 
-## Etapas propuestas
-1. **Base confiable:** validaciones, transacciones, configuración por entorno, autenticación y permisos por rol, pruebas de flujos críticos y CI.
-2. **Experiencia de producto:** diseño adaptable, panel de recepción, portal del socio, accesibilidad y datos de demostración.
-3. **Operación completa:** clases, cupos, reservas, lista de espera, membresías, registro de pagos y check-in por QR.
-4. **Gestión avanzada:** múltiples sedes, notificaciones, auditoría e indicadores de ocupación, ingresos y renovaciones.
-5. **IA e integraciones:** asistente con acceso controlado a los datos y aprobación del entrenador para propuestas de rutinas; evaluar proveedores, costos y utilidad antes de integrar.
-6. **Entrega operable:** despliegue automatizado, monitoreo, copias de seguridad y restauración comprobada.
+## Etapas
+Cada etapa es un milestone de GitHub y termina con un issue "Cierre de etapa N", la demo pública actualizada y el mapa de capacidades al día. El usuario interviene solo en ese cierre.
 
-Cada etapa debe terminar con una demostración funcional y criterios de aceptación. Estas capacidades son propuestas pendientes, no funciones disponibles.
+0. **Fundaciones:** visión, ADR de base, protocolo de agentes, CI, despachador, estructura de módulos, reloj, autenticación mínima, semilla con formatos de Paraguay, tokens de diseño, primer e2e y dos direcciones visuales.
+1. **Esqueleto andante:** un recorrido de punta a punta en la demo pública: entrar, sesión propuesta, registrar series, salir. PWA instalable y sincronización mínima sin conexión.
+2. **Socio + cuerpo 3D:** sesión en vivo completa, chequeo del día, "me duele" / "máquina ocupada", doble progresión con RPE/RIR y frenos, récords y progreso, cuerpo 3D muscular.
+3. **Recepción + escena de ocupación:** tarjeta contextual, aforo en vivo, mejores horarios, escena de ocupación.
+4. **Entrenador:** programas desde plantillas, bandeja priorizada, revisión de ajustes frenados, equipos y alternativas.
+5. **Operación:** clases y reservas con lista de espera, registro de pagos en guaraníes, ficha completa con salud y consentimientos.
+6. **Acompañamiento:** incorporación de 90 días, riesgo de abandono, resumen semanal.
+7. **Pulido y recorrido guiado:** recorrido guiado de dos minutos, movimiento cuidado en todo el producto, rendimiento, accesibilidad y alternativa sin efectos.
+
+Quedan fuera: IA en el producto, QR rotativo, múltiples sedes y app nativa.
 
 ## Primera demostración objetivo
-Un socio reserva una clase, recepción registra su entrada y el administrador consulta la ocupación. Después se amplía a pagos, múltiples sedes e IA.
+Un socio entra, recepción y aforo se actualizan, el sistema propone su sesión según el programa y lo realizado esta semana, el socio registra ejercicios y series, consulta qué queda pendiente y registra su salida. El entrenador puede revisar y ajustar la propuesta. Después se amplía a reservas y pagos. El sistema ajusta carga y volumen solo, dentro de los frenos de seguridad, y avisa al entrenador cuando un freno actúa.
 
 ## Relación con la estándar
 Origen: https://github.com/elgoblin0/gimnasio, etiqueta `base-original`. Conservar el remoto `upstream` como referencia. Revisar correcciones y trasladar solo las aplicables; no asumir compatibilidad futura entre esquemas de datos.

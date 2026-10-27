@@ -1,0 +1,34 @@
+name: Tarea para un agente
+description: Trabajo especificado para que lo tome el despachador
+labels: ["estado:listo"]
+body:
+  - type: textarea
+    id: objetivo
+    attributes:
+      label: Objetivo
+      description: Qué debe quedar funcionando, en términos del glosario.
+    validations:
+      required: true
+  - type: textarea
+    id: especificacion
+    attributes:
+      label: Especificación
+      description: Archivos, firmas, reglas y ADR que aplican. Lo que no está acá no se hace.
+    validations:
+      required: true
+  - type: textarea
+    id: aceptacion
+    attributes:
+      label: Criterios de aceptación
+      description: Lista verificable; cada punto con su prueba.
+    validations:
+      required: true
+  - type: input
+    id: dependencias
+    attributes:
+      label: Dependencias
+      description: "Formato exacto: Depende de: #12, #13 (vacío si no hay)"
+  - type: textarea
+    id: fuera
+    attributes:
+      label: Fuera de alcance

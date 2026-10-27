@@ -1,0 +1,166 @@
+# Gimnasio Pro
+
+Lenguaje del entrenamiento personalizado y la operación del gimnasio.
+
+## Entrenamiento
+
+**Programa de entrenamiento**:
+Plan individual de varias semanas que reúne objetivos, sesiones y criterios de progresión.
+_Evitar_: Plan, cuando pueda confundirse con una membresía.
+
+**Sesión planificada**:
+Entrenamiento previsto con ejercicios, objetivos de trabajo y una fecha o posición dentro de una secuencia.
+_Evitar_: Asistencia, visita.
+
+**Sesión realizada**:
+Entrenamiento registrado por el socio o el entrenador, completo o parcial, con lo que efectivamente se hizo.
+_Evitar_: Rutina completada por el solo hecho de ingresar al gimnasio.
+
+**Serie realizada**:
+Ejecución registrada de una serie de un ejercicio, con sus medidas aplicables: repeticiones, carga, duración o distancia.
+
+**Pendiente de entrenamiento**:
+Trabajo planificado todavía no realizado, que puede requerir reprogramación, sustitución o revisión.
+_Evitar_: Deuda de ejercicio.
+
+## Operación
+
+**Membresía**:
+Derecho de acceso del socio con vigencia y condiciones de uso.
+_Evitar_: Programa de entrenamiento, plan sin calificar.
+
+**Visita**:
+Permanencia del socio en una sede, desde su entrada hasta su salida.
+_Evitar_: Sesión de entrenamiento.
+
+**Ocupación registrada**:
+Cantidad de personas cuya presencia está registrada como abierta en una sede.
+_Evitar_: Ocupación real cuando faltan registros de entrada o salida.
+
+**Aforo máximo**:
+Límite de personas permitido para una sede o zona, configurado por su responsable.
+
+**Permanencia habitual**:
+Estimación de cuánto suele durar una visita, obtenida de visitas con entrada y salida confiables.
+_Evitar_: Hora de salida confirmada.
+
+**Sede**:
+Lugar físico del gimnasio, con su zona horaria. Gimnasio Pro maneja una sola sede.
+
+**Entrada / Salida**:
+Registros que abren y cierran una visita. Una salida puede ser confirmada, corregida por recepción o estimada.
+
+**Tarjeta contextual**:
+Resumen del socio que ve recepción al registrar su entrada: membresía, pagos pendientes, avisos para el personal, incorporación y riesgo de abandono. No muestra el detalle de salud.
+
+**Mejores horarios**:
+Franjas con menor ocupación prevista, calculadas desde el historial de visitas. Es una previsión, no un dato actual.
+
+**Escena de ocupación**:
+Visualización interactiva de la ocupación registrada de la sede, con datos simulados identificados como tales en el modo demo.
+
+## Progresión y seguridad
+
+**Carga**:
+Peso o resistencia de una serie, en kilogramos.
+_Evitar_: Carga de trabajo (usar **Volumen**).
+
+**Volumen**:
+Cantidad de trabajo de un ejercicio o sesión: series por repeticiones, o tiempo y distancia cuando corresponda.
+
+**Doble progresión**:
+Regla que primero sube repeticiones dentro de un rango y, al completar el tope del rango en todas las series, sube la carga y vuelve al piso del rango.
+
+**RPE**:
+Esfuerzo percibido de una serie, de 1 a 10.
+
+**RIR**:
+Repeticiones que el socio cree que le quedaban en reserva al terminar una serie. RIR 2 equivale a RPE 8.
+
+**Chequeo del día**:
+Respuestas breves del socio antes de entrenar (sueño, energía, dolor) que pueden bajar el volumen o la intensidad de la sesión, nunca subirlos.
+
+**Ajuste automático**:
+Cambio de carga o volumen que el motor de reglas aplica sin intervención del entrenador, siempre dentro de los frenos.
+
+**Freno de seguridad**:
+Regla fija que impide un ajuste automático: dolor reportado, restricción de salud, tope de suba semanal o chequeo del día desfavorable. Cuando actúa, el sistema sustituye o baja el ejercicio y avisa al entrenador.
+_Evitar_: Bloqueo, alerta.
+
+**Dolor reportado**:
+Aviso del socio, durante la sesión o en el chequeo del día, de dolor en una zona del cuerpo. Activa un freno sobre los ejercicios que la involucran.
+
+**Restricción de salud**:
+Condición registrada en la ficha que excluye ejercicios, patrones de movimiento o zonas.
+
+**Sustitución**:
+Reemplazo de un ejercicio planificado por una alternativa equivalente, por freno, máquina ocupada o equipo fuera de servicio.
+
+**Máquina ocupada**:
+Aviso del socio de que el equipo de un ejercicio no está disponible en ese momento. Produce una sustitución, no un cambio en el programa.
+
+**Equipo**:
+Máquina o implemento del gimnasio, con su estado (disponible o fuera de servicio).
+
+**Alternativa**:
+Ejercicio que puede reemplazar a otro porque comparte patrón de movimiento y grupos musculares con equipamiento distinto.
+
+**Explicación**:
+Lista de las reglas del motor que produjeron una propuesta o un ajuste, con los datos que usaron.
+
+**Récord personal**:
+Mejor marca registrada de un socio en un ejercicio para una medida (carga, repeticiones a una carga, distancia o tiempo).
+
+## Programas y acompañamiento
+
+**Plantilla de programa**:
+Programa genérico que el entrenador usa como base para armar el programa de entrenamiento de un socio.
+
+**Bandeja del entrenador**:
+Lista priorizada de socios que requieren atención: frenos activados, socios sin programa, riesgo de abandono.
+
+**Incorporación**:
+Primeros 90 días de un socio desde su alta, con seguimiento específico.
+
+**Riesgo de abandono**:
+Indicador calculado por reglas (asistencia, tendencia y señales) de que un socio puede dejar de venir. No es una predicción estadística.
+
+**Resumen semanal**:
+Informe para socio y entrenador con lo cumplido, los cambios y los pendientes de la semana (lunes a domingo).
+
+**Clase**:
+Actividad grupal con horario, entrenador y cupo.
+
+**Reserva**:
+Lugar de un socio en una clase. Si no hay cupo, queda en **lista de espera**.
+
+**Pago registrado**:
+Constancia de un pago en guaraníes hecho fuera del sistema. Gimnasio Pro no procesa cobros.
+
+## Personas y datos
+
+**Rol**:
+Función de un usuario: socio, recepción, entrenador o administración. Define qué puede ver y hacer.
+
+**Consentimiento**:
+Autorización expresa, versionada y revocable del socio para un tratamiento de datos, en especial los de salud.
+
+**Ficha de salud**:
+Datos sensibles del socio: condiciones, restricciones y dolores. Solo la ven el socio y su entrenador asignado.
+
+**Cédula**:
+Cédula de identidad paraguaya. Se guarda solo con dígitos y se muestra con puntos.
+
+## Producto y demo
+
+**Modo demo**:
+Configuración de la instancia pública: datos ficticios que se reinician solos, accesos rápidos "entrar como…" y límites de uso.
+
+**Cuerpo 3D muscular**:
+Modelo 3D que resalta los grupos musculares trabajados o con dolor reportado.
+
+**Recorrido guiado**:
+Demostración paso a paso de unos dos minutos que muestra el producto a alguien sin conocimientos técnicos.
+
+**Movimiento cuidado**:
+Animaciones que explican cambios de estado, fluidas a 60 fps y desactivables con la preferencia de movimiento reducido.

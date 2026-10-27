@@ -1,3 +1,11 @@
 __pycache__/
 *.pyc
 .DS_Store
+.venv/
+.env
+.env.*
+.despachador/
+.pytest_cache/
+.ruff_cache/
+reporte-*.xml
+resumen-ci.md
