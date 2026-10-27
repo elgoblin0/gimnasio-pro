@@ -1,0 +1,21 @@
+name: Error
+description: Algo que no funciona como dice la visión o un ADR
+labels: ["tipo:error"]
+body:
+  - type: textarea
+    id: pasos
+    attributes:
+      label: Pasos para reproducir
+    validations:
+      required: true
+  - type: textarea
+    id: esperado
+    attributes:
+      label: Esperado y obtenido
+    validations:
+      required: true
+  - type: textarea
+    id: evidencia
+    attributes:
+      label: Evidencia
+      description: Prueba que falla, salida del CI o mensaje de error. Sin datos reales.
