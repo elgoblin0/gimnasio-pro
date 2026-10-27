@@ -536,8 +536,13 @@ def integrar_main(issue):
     """Integra origin/main en la rama sin gastar tokens si solo chocan archivos generados; si no, pide corrección."""
     carpeta = preparar_worktree(issue.numero)
     with _candado_git:
-        correr(["git", "merge", "--no-edit", f"origin/{CONFIG['rama_base']}"], cwd=carpeta, chequear=False)
+        fusion = correr(["git", "merge", "--no-edit", f"origin/{CONFIG['rama_base']}"], cwd=carpeta, chequear=False)
         conflictos = set(correr(["git", "diff", "--name-only", "--diff-filter=U"], cwd=carpeta).stdout.split())
+        if fusion.returncode != 0 and not conflictos:
+            # Falló por otra causa (archivos locales que se sobrescribirían, etc.): no se empuja nada.
+            correr(["git", "merge", "--abort"], cwd=carpeta, chequear=False)
+            corregir_o_bloquear(issue, f"No se pudo integrar main: {fusion.stderr.strip()[:1500]}")
+            return
         if conflictos - GENERADOS:
             correr(["git", "merge", "--abort"], cwd=carpeta, chequear=False)
             lista = ", ".join(sorted(conflictos - GENERADOS))
