@@ -172,3 +172,32 @@ def test_dos_fallos_simultaneos_no_esquivan_el_limite(app_con_bd):
     for hilo in hilos:
         hilo.join(timeout=30)
     assert sorted(codigos) == [401, 429]
+
+
+def test_fallos_simultaneos_a_cuentas_distintas_no_esquivan_el_limite_por_ip(app_con_bd):
+    for numero in range(19):
+        assert entrar(app_con_bd.test_client(), str(1_000_000 + numero), "incorrecta").status_code == 401
+    barrera = threading.Barrier(2)
+    codigos = []
+
+    def intentar(identificador):
+        cliente = app_con_bd.test_client()
+        barrera.wait()
+        codigos.append(entrar(cliente, identificador, "incorrecta").status_code)
+
+    hilos = [threading.Thread(target=intentar, args=(cedula,)) for cedula in ("2000001", "2000002")]
+    for hilo in hilos:
+        hilo.start()
+    for hilo in hilos:
+        hilo.join(timeout=30)
+    assert sorted(codigos) == [401, 429]
+
+
+@pytest.mark.parametrize(
+    "cuerpo",
+    [["1234567", CLAVE], {"identificador": 1234567, "clave": CLAVE}, {"identificador": "1234567", "clave": None}, "x"],
+)
+def test_rechaza_cuerpos_con_tipos_invalidos(app_con_bd, cuerpo):
+    respuesta = app_con_bd.test_client().post("/api/sesion", json=cuerpo, headers=CABECERA)
+    assert respuesta.status_code == 400
+    assert respuesta.get_json()["error"]["codigo"] == "cuerpo_invalido"

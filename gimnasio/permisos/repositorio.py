@@ -112,3 +112,13 @@ def consentimiento_vigente(cursor, socio_id, tipo):
         (a_bytes(socio_id), tipo),
     )
     return cursor.fetchone()
+
+
+def adquirir_candado(cursor, nombre, segundos):
+    cursor.execute("SELECT GET_LOCK(%s, %s) AS obtenido", (nombre, segundos))
+    return cursor.fetchone()["obtenido"] == 1
+
+
+def liberar_candado(cursor, nombre):
+    cursor.execute("SELECT RELEASE_LOCK(%s) AS liberado", (nombre,))
+    cursor.fetchone()

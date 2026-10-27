@@ -21,9 +21,13 @@ def exigir_encabezado_anti_csrf():
 
 @bp.post("")
 def iniciar():
-    datos = request.get_json(silent=True) or {}
+    datos = request.get_json(silent=True)
+    if not isinstance(datos, dict) or not all(
+        isinstance(datos.get(campo), str) for campo in ("identificador", "clave")
+    ):
+        raise ErrorDeDominio("cuerpo_invalido", "Enviá identificador y clave como texto.", 400)
     ip = request.remote_addr or "desconocida"
-    usuario = servicio.iniciar_sesion(datos.get("identificador"), datos.get("clave"), ip)
+    usuario = servicio.iniciar_sesion(datos["identificador"], datos["clave"], ip)
     return jsonify({"usuario": usuario})
 
 

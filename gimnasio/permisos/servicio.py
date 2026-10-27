@@ -1,5 +1,6 @@
 """Acceso por rol, "entrar como…" en modo demo y consentimientos (ADR 0006). Ruta sensible."""
 
+from contextlib import contextmanager
 from datetime import timedelta
 from functools import cache, wraps
 
@@ -16,6 +17,7 @@ from gimnasio.permisos.matriz import ROLES, puede
 
 VENTANA_DE_INTENTOS = timedelta(minutes=15)
 MAX_FALLIDOS_POR_USUARIO = 5
+SEGUNDOS_DE_ESPERA_DEL_CANDADO = 10
 MAX_FALLIDOS_POR_IP = 20
 LARGO_MINIMO_DE_CLAVE = 8
 TIPOS_DE_CONSENTIMIENTO = ("datos_personales", "salud", "imagen")
@@ -56,7 +58,31 @@ def _abrir_sesion(fila):
 
 def iniciar_sesion(identificador, clave, ip):
     """Valida cédula o correo y clave. Limita los fallidos por usuario (con cualquiera de sus identificadores)
-    y por IP en una ventana móvil. Los ingresos simultáneos de un mismo usuario se serializan."""
+    y por IP en una ventana móvil. Los ingresos simultáneos desde una IP o hacia un usuario se serializan."""
+    with _candado_por_ip(ip):
+        return _iniciar_sesion(identificador, clave, ip)
+
+
+@contextmanager
+def _candado_por_ip(ip):
+    """Candado con nombre de MySQL por IP: cuenta y registro de fallidos de una IP no se intercalan.
+
+    Se toma y se suelta en transacciones aparte, para que la transacción del ingreso empiece después
+    de tenerlo y su primera lectura consistente vea los intentos ya confirmados por otros.
+    """
+    nombre = f"gimnasio:ingreso:{ip}"[:64]
+    with transaccion() as cursor:
+        obtenido = repositorio.adquirir_candado(cursor, nombre, SEGUNDOS_DE_ESPERA_DEL_CANDADO)
+    if not obtenido:
+        raise ErrorDeDominio("ocupado", "Hay demasiados ingresos en curso. Probá de nuevo en unos segundos.", 503)
+    try:
+        yield
+    finally:
+        with transaccion() as cursor:
+            repositorio.liberar_candado(cursor, nombre)
+
+
+def _iniciar_sesion(identificador, clave, ip):
     reloj = reloj_actual()
     ahora = reloj.ahora()
     normalizado = _normalizar_identificador(identificador)
