@@ -130,3 +130,26 @@ def contar_ocupacion_registrada(cursor, sede_id):
         (a_bytes(sede_id),),
     )
     return int(cursor.fetchone()["cantidad"])
+
+
+def bloquear_sede(cursor, sede_id):
+    cursor.execute("SELECT * FROM sedes WHERE id = %s FOR UPDATE", (a_bytes(sede_id),))
+    return cursor.fetchone()
+
+
+def bloquear_socio(cursor, socio_id):
+    cursor.execute("SELECT id, rol, activo FROM usuarios WHERE id = %s FOR UPDATE", (a_bytes(socio_id),))
+    return cursor.fetchone()
+
+
+def obtener_entrada(cursor, entrada_id):
+    cursor.execute("SELECT * FROM entradas WHERE id = %s", (a_bytes(entrada_id),))
+    return cursor.fetchone()
+
+
+def tiene_visita_abierta(cursor, socio_id):
+    cursor.execute(
+        _ESTADOS_VIGENTES + "SELECT COUNT(*) AS cantidad FROM estados_vigentes WHERE socio_id = %s AND abierta = TRUE",
+        (a_bytes(socio_id),),
+    )
+    return cursor.fetchone()["cantidad"] > 0
