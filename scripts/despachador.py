@@ -32,15 +32,20 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
+if os.name == "nt":
+    import msvcrt
+else:
+    import fcntl
+
 RAIZ = Path(__file__).resolve().parent.parent
 CONFIG = tomllib.loads((Path(__file__).with_suffix(".toml")).read_text(encoding="utf-8"))
 REGISTRO = RAIZ / ".despachador" / "registro.jsonl"
+CANDADO = RAIZ / ".despachador" / "corriendo.lock"
 PREFIJO_RAMA = "agente/issue-"
 MARCA_CRITERIO = "NECESITA-CRITERIO:"
 ESQUEMA_REVISION = {
     "type": "object",
     "properties": {
-        "aprobado": {"type": "boolean"},
         "hallazgos": {
             "type": "array",
             "items": {
@@ -55,7 +60,7 @@ ESQUEMA_REVISION = {
             },
         },
     },
-    "required": ["aprobado", "hallazgos"],
+    "required": ["hallazgos"],
     "additionalProperties": False,
 }
 _candado_git = threading.Lock()
@@ -98,6 +103,26 @@ def registrar(entrada):
     entrada = {"fecha": ahora().isoformat(timespec="seconds"), **entrada}
     with _candado_registro, REGISTRO.open("a", encoding="utf-8") as archivo:
         archivo.write(json.dumps(entrada, ensure_ascii=False) + "\n")
+
+
+def tomar_candado_instancia():
+    """Un solo despachador a la vez: dos instancias revisaban el mismo PR en paralelo y duplicaban el gasto.
+
+    Devuelve el archivo abierto, que hay que mantener vivo mientras corre, o None si otra instancia lo tiene.
+    El sistema operativo suelta el candado cuando el proceso termina, aunque muera sin limpiar.
+    """
+    CANDADO.parent.mkdir(exist_ok=True)
+    archivo = CANDADO.open("a+")
+    try:
+        if os.name == "nt":
+            archivo.seek(0)
+            msvcrt.locking(archivo.fileno(), msvcrt.LK_NBLCK, 1)
+        else:
+            fcntl.flock(archivo, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except OSError:
+        archivo.close()
+        return None
+    return archivo
 
 
 def leer_registro():
@@ -319,7 +344,7 @@ def correr_codex(carpeta, prompt, esquema=None):
     binario = os.environ.get("GIMNASIO_CODEX_BIN") or CONFIG["codex"]["binario"]
     salida = carpeta / ".despachador-ultimo.txt"
     comando = [binario, "exec", "--json", "-C", str(carpeta), "-o", str(salida)]
-    for valor in CONFIG["codex"]["config"]:
+    for valor in CONFIG["codex"]["config_revision" if esquema else "config"]:
         comando += ["-c", valor]
     if esquema:
         archivo = carpeta / ".despachador-esquema.json"
@@ -436,15 +461,41 @@ def prompt_corregir(issue, motivo):
     )
 
 
+FOCO_SENSIBLE = "Rutas sensibles: revisá reglas, frenos, permisos, salud y migraciones con especial cuidado.\n"
+CRITERIO_BLOQUEANTE = (
+    "Es bloqueante solo un error, una violación de ADR, una prueba que falta, un secreto o un término fuera del "
+    "glosario; todo lo demás es menor. El PR se aprueba si no queda ningún bloqueante. "
+)
+
+
+def lista_hallazgos(hallazgos):
+    return "\n".join(f"- **{h['gravedad']}** `{h['archivo']}`: {h['problema']}" for h in hallazgos)
+
+
 def prompt_revisar(issue, diff, resumen_ci, sensible):
-    foco = "Rutas sensibles: revisá reglas, frenos, permisos, salud y migraciones con especial cuidado.\n"
     return (
         "Revisá este PR de Gimnasio Pro contra AGENTS.md y el issue. Leé el diff; abrí otros archivos solo si "
-        "hace falta. Aprobá si no hay problemas bloqueantes (errores, violaciones de ADR, falta de pruebas, "
-        "secretos, términos fuera del glosario). Respondé solo con el JSON pedido.\n"
-        + (foco if sensible else "")
+        "hace falta. "
+        + CRITERIO_BLOQUEANTE
+        + "Respondé solo con el JSON pedido.\n"
+        + (FOCO_SENSIBLE if sensible else "")
         + f"\n# Issue #{issue.numero}: {issue.titulo}\n{issue.cuerpo}\n\n# Resumen del CI\n{resumen_ci}\n"
         + f"\n# Diff\n```diff\n{diff[:150_000]}\n```\n"
+    )
+
+
+def prompt_revisar_de_nuevo(issue, diff, hallazgos, resumen_ci, sensible):
+    """De la segunda ronda en adelante: se verifica lo pedido y lo que cambió, sin volver a revisar todo el PR."""
+    return (
+        "Volvé a revisar este PR de Gimnasio Pro. Ya lo revisaste: abajo están tus hallazgos anteriores y el diff "
+        "de lo que cambió desde entonces. Verificá cada bloqueante anterior: si sigue sin resolver, repetilo. "
+        "Un hallazgo nuevo cuenta solo si está en este diff. "
+        + CRITERIO_BLOQUEANTE
+        + "Abrí otros archivos solo si hace falta. Respondé solo con el JSON pedido.\n"
+        + (FOCO_SENSIBLE if sensible else "")
+        + f"\n# Issue #{issue.numero}: {issue.titulo}\n{issue.cuerpo}\n"
+        + f"\n# Hallazgos anteriores\n{lista_hallazgos(hallazgos)}\n\n# Resumen del CI\n{resumen_ci}\n"
+        + f"\n# Diff desde la revisión anterior\n```diff\n{diff[:150_000]}\n```\n"
     )
 
 
@@ -540,32 +591,76 @@ def toca_sensibles(numero_pr):
     return any(a.startswith(tuple(CONFIG["rutas"]["sensibles"])) for a in archivos)
 
 
+def ultima_revision(numero_pr, revisor):
+    """La última revisión con veredicto de este revisor sobre el PR, si guardó el commit y los hallazgos."""
+    for entrada in reversed(leer_registro()):
+        if entrada.get("fase") != "revisar" or entrada.get("pr") != numero_pr or entrada.get("ejecutor") != revisor:
+            continue
+        if not entrada.get("fallida") and entrada.get("commit") and entrada.get("hallazgos") is not None:
+            return entrada
+    return None
+
+
+def diff_incremental(carpeta, numero_pr, commit):
+    """Cambios desde el commit ya revisado, solo en archivos del PR: lo que trae main al integrarse queda afuera.
+
+    Devuelve None si la rama se reescribió y ese commit ya no es ancestro: entonces se revisa el diff completo.
+    """
+    if correr(["git", "merge-base", "--is-ancestor", commit, "HEAD"], cwd=carpeta, chequear=False).returncode != 0:
+        return None
+    archivos = gh("pr", "diff", str(numero_pr), "--name-only").split()
+    return correr(["git", "diff", commit, "HEAD", "--", *archivos], cwd=carpeta).stdout
+
+
+def leer_hallazgos(texto):
+    """Los hallazgos del veredicto, o None si la salida no es el JSON pedido."""
+    try:
+        veredicto = json.loads(texto)
+    except json.JSONDecodeError:
+        return None
+    if not isinstance(veredicto, dict) or not isinstance(veredicto.get("hallazgos"), list):
+        return None
+    return veredicto["hallazgos"]
+
+
+def aprobado(hallazgos):
+    # Lo decide el script y no el modelo: un PR con solo hallazgos menores se aprueba siempre.
+    return all(h["gravedad"] != "bloqueante" for h in hallazgos)
+
+
 def revisar(issue, pr, revisor):
     inicio = time.monotonic()
     carpeta = preparar_worktree_revision(issue.numero)
-    sensible = toca_sensibles(pr["number"])
-    prompt = prompt_revisar(issue, gh("pr", "diff", str(pr["number"])), resumen_ci(pr["number"]), sensible)
+    numero = pr["number"]
+    sensible = toca_sensibles(numero)
+    commit = correr(["git", "rev-parse", "HEAD"], cwd=carpeta).stdout.strip()
+    anterior = ultima_revision(numero, revisor)
+    diff = diff_incremental(carpeta, numero, anterior["commit"]) if anterior else None
+    if diff is None:
+        prompt = prompt_revisar(issue, gh("pr", "diff", str(numero)), resumen_ci(numero), sensible)
+    else:
+        prompt = prompt_revisar_de_nuevo(issue, diff, anterior["hallazgos"], resumen_ci(numero), sensible)
     try:
         _, texto, uso = correr_agente(revisor, carpeta, prompt, esquema=ESQUEMA_REVISION, solo_lectura=True)
     except subprocess.TimeoutExpired:
         texto, uso = "tiempo agotado", {}
-    try:
-        veredicto = json.loads(texto)
-    except json.JSONDecodeError:
-        veredicto = None
+    hallazgos = leer_hallazgos(texto)
     registrar(
         {
             "issue": issue.numero,
-            "pr": pr["number"],
+            "pr": numero,
             "ejecutor": revisor,
             "fase": "revisar",
             "uso": uso,
             "ponderados": tokens_ponderados(uso),
             "segundos": int(time.monotonic() - inicio),
-            "fallida": veredicto is None,
+            "fallida": hallazgos is None,
+            "incremental": diff is not None,
+            "commit": commit,
+            "hallazgos": hallazgos,
         }
     )
-    if veredicto is None:
+    if hallazgos is None:
         # Se reintenta en la próxima vuelta, pero no sin fin: tras varias seguidas se bloquea con el error a la vista.
         if revisiones_fallidas_seguidas(pr["number"]) >= CONFIG["revisiones_fallidas_max"]:
             etiquetar(issue.numero, ["bloqueado"], [])
@@ -575,21 +670,20 @@ def revisar(issue, pr, revisor):
                 f"en el PR #{pr['number']}. Última salida:\n\n```\n{texto[-1500:]}\n```",
             )
         return
-    hallazgos = "\n".join(f"- **{h['gravedad']}** `{h['archivo']}`: {h['problema']}" for h in veredicto["hallazgos"])
-    if veredicto["aprobado"]:
-        gh("pr", "edit", str(pr["number"]), "--add-label", f"revisado:{revisor}")
+    if aprobado(hallazgos):
+        gh("pr", "edit", str(numero), "--add-label", f"revisado:{revisor}")
         if hallazgos:
             gh(
                 "pr",
                 "comment",
-                str(pr["number"]),
+                str(numero),
                 "--body-file",
                 "-",
-                entrada=f"Revisión de {revisor}: aprobado con observaciones menores.\n\n{hallazgos}",
+                entrada=f"Revisión de {revisor}: aprobado con observaciones menores.\n\n{lista_hallazgos(hallazgos)}",
             )
     else:
-        motivo = f"Revisión de {revisor}: cambios pedidos.\n\n{hallazgos}"
-        gh("pr", "comment", str(pr["number"]), "--body-file", "-", entrada=motivo)
+        motivo = f"Revisión de {revisor}: cambios pedidos.\n\n{lista_hallazgos(hallazgos)}"
+        gh("pr", "comment", str(numero), "--body-file", "-", entrada=motivo)
         corregir_o_bloquear(issue, motivo)
 
 
@@ -890,7 +984,15 @@ def main():
             file=sys.stderr,
         )
         return 2
-    return ciclo(argumentos)
+    candado = None if argumentos.simular else tomar_candado_instancia()
+    if not argumentos.simular and candado is None:
+        print(f"Ya hay otro despachador corriendo ({CANDADO.relative_to(RAIZ)}).", file=sys.stderr)
+        return 1
+    try:
+        return ciclo(argumentos)
+    finally:
+        if candado:
+            candado.close()
 
 
 if __name__ == "__main__":
