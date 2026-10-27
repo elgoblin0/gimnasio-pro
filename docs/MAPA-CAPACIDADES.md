@@ -58,6 +58,7 @@ Generado por `scripts/mapa_capacidades.py` desde `docs/capacidades.toml`. No edi
 | Capacidad | Etapa | Nivel | Prueba |
 |---|---|---|---|
 | Tarjeta contextual en recepción | 3 | pendiente | — |
+| Historial de entradas y salidas con ocupación registrada | 1 | pendiente | `pruebas/test_visitas.py` |
 | Aforo en vivo y mejores horarios | 3 | pendiente | — |
 
 ## Entrenador
