@@ -9,7 +9,7 @@ El `app.py` heredado concentra rutas, SQL y reglas en un archivo. Pro suma mucha
 
 ## Decisión
 - Un paquete `gimnasio/` con una fábrica `crear_app(config)`.
-- Un subpaquete por módulo de dominio (`socios`, `visitas`, `entrenamiento`, `programas`, `clases`, `pagos`, `salud`, `permisos`, `sincronizacion`, `demo`), cada uno con:
+- Un subpaquete por módulo de dominio (`socios`, `visitas`, `entrenamiento`, `programas`, `clases`, `pagos`, `salud`, `permisos`, `demo`), cada uno con:
   - `rutas.py`: blueprint; solo valida la entrada, llama al servicio y arma la respuesta;
   - `servicio.py`: casos de uso y transacciones;
   - `repositorio.py`: SQL parametrizado del módulo.

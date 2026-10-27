@@ -13,7 +13,7 @@ Se considera terminada cuando una persona sin conocimientos técnicos recorre la
 1. **Sin IA en el producto.** Las propuestas y sus explicaciones salen de un motor de reglas determinista, versionado y probado. La explicación de una propuesta enumera las reglas que la produjeron.
 2. **Ajustes automáticos con frenos.** La carga y el volumen se ajustan solos (doble progresión + RPE/RIR + chequeo del día). Los frenos de seguridad no se pueden desactivar.
 3. **El historial no se reescribe.** Toda corrección agrega un registro con autor, fecha y motivo.
-4. **Funciona sin conexión.** PWA: el socio registra su sesión aunque no haya red; al reconectar se sincroniza sin duplicar.
+4. **Escritorio primero.** Cada pantalla se diseña para escritorio y se reacomoda en tablet y celular. Se instala como PWA en Windows y abre en su propia ventana. Requiere conexión.
 5. **Sin build.** Módulos ES, import maps y librerías copiadas al repo (Three.js, animación, gráficos).
 6. **Datos ficticios y visibles como tales.** La demo nunca usa datos reales.
 7. **Código y lenguaje en español**, según `GLOSSARY.md`.
@@ -27,7 +27,7 @@ Se considera terminada cuando una persona sin conocimientos técnicos recorre la
 | Socio | Ficha completa con salud, restricciones y consentimientos; incorporación de 90 días y riesgo de abandono; resumen semanal |
 | Recepción | Entrada y salida con tarjeta contextual del socio; aforo en vivo y mejores horarios; clases y reservas con lista de espera; registro de pagos en guaraníes |
 | Entrenador | Bandeja priorizada de socios que requieren atención; revisión de ajustes frenados |
-| Experiencia | Cuerpo 3D muscular; escena de ocupación; recorrido guiado; movimiento cuidado; versión móvil, accesible y con alternativa sin efectos |
+| Experiencia | Cuerpo 3D muscular; escena de ocupación; recorrido guiado; movimiento cuidado; adaptación a tablet y celular, accesible y con alternativa sin efectos |
 | Acceso | Login real por rol y accesos rápidos "entrar como…" solo en modo demo |
 
 ## Fuera de alcance
@@ -35,16 +35,17 @@ Se considera terminada cuando una persona sin conocimientos técnicos recorre la
 - IA o modelos de lenguaje dentro del producto.
 - QR rotativo para la entrada.
 - Múltiples sedes (el modelo guarda la sede y su zona horaria, pero hay una sola).
-- App nativa; la experiencia móvil es la PWA.
+- App nativa: en celular se usa la misma web, adaptada.
+- Funcionamiento sin conexión y sincronización posterior (decidido el 2026-10-27: la app requiere red).
 - Cobros en línea: los pagos se registran, no se procesan.
 
 ## Personas y recorridos
 
-**Socio, en el celular.** Lucía abre la PWA al llegar. Responde el chequeo del día (sueño, energía, dolor). El sistema le propone la sesión y le explica por qué ("subís 2,5 kg en sentadilla: completaste 3×12 a RIR 2 la semana pasada"). Registra series con un toque; si una máquina está ocupada, recibe una alternativa equivalente; si algo le duele, lo marca y ese ejercicio se reemplaza o baja. Al terminar ve récords, progreso y el cuerpo 3D con los músculos trabajados.
+**Socio, en la PC del gimnasio o en el celular.** Lucía abre la app al llegar. Responde el chequeo del día (sueño, energía, dolor). El sistema le propone la sesión y le explica por qué ("subís 2,5 kg en sentadilla: completaste 3×12 a RIR 2 la semana pasada"). Registra series con un toque; si una máquina está ocupada, recibe una alternativa equivalente; si algo le duele, lo marca y ese ejercicio se reemplaza o baja. Al terminar ve récords, progreso y el cuerpo 3D con los músculos trabajados.
 
 **Recepción, en escritorio.** Rocío registra la entrada de un socio y ve su tarjeta contextual: membresía, pagos pendientes, avisos de salud relevantes para el personal, si está en sus primeros 90 días o en riesgo de abandono. Ve el aforo en vivo y la escena de ocupación, gestiona reservas de clases y registra pagos.
 
-**Entrenador, en tablet.** Marcos abre su bandeja priorizada: ajustes frenados por dolor o restricción, socios nuevos sin programa, socios en riesgo de abandono. Arma programas desde plantillas, revisa las explicaciones del motor y corrige cuando hace falta.
+**Entrenador, en escritorio o tablet.** Marcos abre su bandeja priorizada: ajustes frenados por dolor o restricción, socios nuevos sin programa, socios en riesgo de abandono. Arma programas desde plantillas, revisa las explicaciones del motor y corrige cuando hace falta.
 
 **Administración, en escritorio.** Configura aforo, clases, plantillas, equipos y usuarios.
 

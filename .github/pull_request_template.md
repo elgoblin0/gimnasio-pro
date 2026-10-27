@@ -8,7 +8,7 @@ Closes #
 <!-- Pruebas nuevas o actualizadas, y qué fallaba antes del cambio. -->
 
 ## Rutas sensibles
-- [ ] No toca `reglas/`, `migraciones/`, `comun/migrar.py`, `sincronizacion/`, `permisos/` ni `salud/`
+- [ ] No toca `reglas/`, `migraciones/`, `comun/migrar.py`, `permisos/` ni `salud/`
 - [ ] Toca rutas sensibles: necesita revisión de Opus
 
 ## Definición de terminado
