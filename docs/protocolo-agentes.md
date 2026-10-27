@@ -18,7 +18,7 @@ El despachador se eliminó del repo el 27/10/2026; su último estado queda en el
 
 ## Planificar una etapa (Opus)
 
-Una sola sesión de Claude Code por etapa con la habilidad `planificar-etapa` (`.claude/skills/`, adaptadas de las de Matt Pocock): `interrogar` → `escribir-spec` → `dividir-en-tickets`. Termina con la spec y los tickets publicados y un prompt por ticket. El dueño pega cada prompt en un chat nuevo de la app de Codex cuando el ticket anterior está fusionado.
+Una sola sesión de Claude Code por etapa con la habilidad `planificar-etapa` (`.claude/skills/`, adaptadas de las de Matt Pocock): `interrogar` → `escribir-especificacion` → `dividir-en-tickets`. Termina con la especificación y los tickets publicados y un prompt por ticket. El dueño pega cada prompt en un chat nuevo de la app de Codex cuando el ticket anterior está fusionado.
 
 ## Ejecución
 

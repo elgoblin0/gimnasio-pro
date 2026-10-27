@@ -1,13 +1,13 @@
 ---
-name: escribir-spec
-description: Convertir la conversación actual en la spec de una etapa o función de Gimnasio Pro y publicarla como issue de GitHub, sin volver a interrogar. Usar después de interrogar, o cuando el dueño pide la spec.
+name: escribir-especificacion
+description: Convertir la conversación actual en la especificación de una etapa o función de Gimnasio Pro y publicarla como issue de GitHub, sin volver a interrogar. Usar después de interrogar, o cuando el dueño pide la especificación.
 ---
 
 Sintetizá lo que ya se habló; no interrogues.
 
-1. Si todavía no exploraste, leé lo que toca la spec: `GLOSSARY.md`, los ADR del área, `VISION.md`, la sección de la etapa en `ROADMAP.md` y el código vigente. Usá los términos del glosario y respetá los ADR.
+1. Si todavía no exploraste, leé lo que toca la especificación: `GLOSSARY.md`, los ADR del área, `VISION.md`, la sección de la etapa en `ROADMAP.md` y el código vigente. Usá los términos del glosario y respetá los ADR.
 2. Bosquejá las **costuras de prueba**: dónde se va a probar el comportamiento. Preferí las que ya existen y la más alta posible; lo ideal es una sola. Confirmalas con el dueño.
-3. Escribí la spec con esta plantilla y publicala.
+3. Escribí la especificación con esta plantilla y publicala.
 
 ## Plantilla
 
@@ -36,9 +36,9 @@ Qué hace buena a una prueba (comportamiento externo, no detalles internos), qu�
 ## Publicar
 
 ```bash
-gh issue create --title "Spec: <etapa o función>" --label tipo:docs --label ejecutor:opus --milestone "Etapa N: …" --body-file - <<'EOF'
+gh issue create --title "Especificación: <etapa o función>" --label tipo:docs --label ejecutor:opus --milestone "Etapa N: …" --body-file - <<'EOF'
 …
 EOF
 ```
 
-Sin `estado:listo`: la spec no se implementa, la implementan sus tickets. Terminado: el issue existe y le pasaste el número al dueño.
+Sin `estado:listo`: la especificación no se implementa, la implementan sus tickets. Terminado: el issue existe y le pasaste el número al dueño.
