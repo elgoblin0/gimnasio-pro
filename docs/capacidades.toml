@@ -25,8 +25,8 @@ id = "reloj"
 nombre = "Reloj inyectable, UTC y zona de la sede"
 grupo = "Fundaciones"
 etapa = 0
-nivel = "pendiente"
-prueba = ""
+nivel = "funcional"
+prueba = "pruebas/test_reloj.py::test_fecha_local_y_semana_al_cruzar_medianoche_en_asuncion"
 
 [[capacidad]]
 id = "formatos-paraguay"

@@ -6,6 +6,7 @@ import secrets
 from flask import Flask
 
 from gimnasio.comun.errores import registrar_manejadores
+from gimnasio.comun.reloj import RelojSistema
 
 ENTORNOS = ("desarrollo", "prueba", "produccion")
 
@@ -39,8 +40,7 @@ def crear_app(config=None, reloj=None):
         SESSION_COOKIE_SECURE=entorno == "produccion",
     )
     app.json.ensure_ascii = False
-    # El issue del reloj reemplaza este valor por RelojSistema() cuando no se inyecta uno.
-    app.extensions["reloj"] = reloj
+    app.extensions["reloj"] = reloj if reloj is not None else RelojSistema()
 
     registrar_manejadores(app)
 
