@@ -9,7 +9,7 @@ Crear una base MySQL gratuita en Aiven, dedicada exclusivamente a datos ficticio
 borra los datos de esa base y vuelve a cargar la semilla; conserva `migraciones_aplicadas`.
 Descargar el certificado CA de Aiven. No subir credenciales ni certificados al repositorio.
 
-Se usan las variables existentes `GIMNASIO_BD_*`, según la aclaración del issue. No se usa `DEMO_DB_URL`.
+Se usan las variables existentes `GIMNASIO_BD_*`, como fija el ADR 0009. No se usa `DEMO_DB_URL`.
 
 | Nombre | GitHub Actions: secretos del repositorio | Render |
 |---|---|---|
