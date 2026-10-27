@@ -21,8 +21,8 @@ La ambición visual es **cutting edge**: ser una demo de lo más avanzado que se
 La aceptación visual requiere revisar el resultado en navegador, escritorio y celular: impacto de los primeros segundos, coherencia del sistema visual y una demostración completa de aproximadamente dos minutos. El efecto «wow» se valida mostrando el prototipo a personas con distintos perfiles y recogiendo sus impresiones.
 
 ## Próxima entrega: prototipo visual
-- [ ] Prototipar dos direcciones visuales chicas y descartables (etapa 0).
-- [ ] El usuario elige una al cerrar la etapa 0; se fija en los tokens de diseño.
+- [x] Prototipar las direcciones visuales de la etapa 0; se conserva Cuaderno de entrenamiento (B).
+- [x] Fijar B en los tokens de diseño y retirar A, por decisión del usuario en #33.
 - [ ] Construir la primera escena interactiva con la dirección elegida (etapa 2).
 - [ ] Verificar apariencia, fluidez, accesibilidad y adaptación antes de extender el diseño.
 
@@ -34,7 +34,7 @@ La aceptación visual requiere revisar el resultado en navegador, escritorio y c
 ## Etapas
 Cada etapa es un milestone de GitHub y termina con un issue "Cierre de etapa N", la demo pública actualizada y el mapa de capacidades al día. El usuario interviene solo en ese cierre.
 
-0. **Fundaciones:** visión, ADR de base, protocolo de agentes, CI, despachador, estructura de módulos, reloj, autenticación mínima, semilla con formatos de Paraguay, tokens de diseño, primer e2e y dos direcciones visuales.
+0. **Fundaciones:** visión, ADR de base, protocolo de agentes, CI, despachador, estructura de módulos, reloj, autenticación mínima, semilla con formatos de Paraguay, tokens de diseño, primer e2e y dirección visual B elegida.
 1. **Esqueleto andante:** un recorrido de punta a punta en la demo pública: entrar, sesión propuesta, registrar series, salir. PWA instalable en escritorio y pantallas adaptadas a celular.
 2. **Socio + cuerpo 3D:** sesión en vivo completa, chequeo del día, "me duele" / "máquina ocupada", doble progresión con RPE/RIR y frenos, récords y progreso, cuerpo 3D muscular.
 3. **Recepción + escena de ocupación:** tarjeta contextual, aforo en vivo, mejores horarios, escena de ocupación.

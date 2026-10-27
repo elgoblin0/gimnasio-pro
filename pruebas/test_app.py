@@ -55,6 +55,7 @@ def test_sirve_la_pagina_de_inicio():
     respuesta = app_de_prueba().test_client().get("/")
     assert respuesta.status_code == 200
     assert b'type="importmap"' in respuesta.data
+    assert b'<html lang="es" data-direccion="b">' in respuesta.data
 
 
 def test_la_api_responde_errores_en_json():

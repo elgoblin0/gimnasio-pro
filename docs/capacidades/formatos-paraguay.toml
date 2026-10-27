@@ -1,0 +1,6 @@
+id = "formatos-paraguay"
+nombre = "Formatos de Paraguay (guaraníes, cédula, +595, fechas)"
+grupo = "Fundaciones"
+etapa = 0
+nivel = "funcional"
+prueba = "pruebas/test_formatos.py::test_vectores_compartidos"

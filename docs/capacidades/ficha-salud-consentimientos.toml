@@ -1,0 +1,6 @@
+id = "ficha-salud-consentimientos"
+nombre = "Ficha completa con salud y consentimientos"
+grupo = "Operación"
+etapa = 5
+nivel = "pendiente"
+prueba = ""

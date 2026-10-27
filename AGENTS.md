@@ -46,7 +46,7 @@ Todo PR que las toque necesita revisión de Opus, aunque lo haya escrito Codex.
 1. Hace lo que pide el issue, sin agregados no pedidos.
 2. Pruebas nuevas que fallaban antes del cambio; `ruff` y `pytest` en verde en el CI.
 3. Migraciones aplicables sobre una base vacía (el CI lo comprueba).
-4. Si cambia una capacidad, se actualiza `docs/capacidades.toml` y se regenera el mapa.
+4. Si cambia una capacidad, se edita su `docs/capacidades/<id>.toml` (ver docstring de `scripts/mapa_capacidades.py`) y se regenera el mapa.
 5. Si mueve código citado en `INDICADORES.md`, se actualizan sus referencias.
 6. PR con la plantilla completa, incluida "Notas para el próximo agente".
 7. Revisión cruzada aprobada.

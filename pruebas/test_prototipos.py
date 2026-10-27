@@ -36,12 +36,12 @@ def tokens_semanticos(html):
     return set(re.findall(r"(--[a-z0-9-]+)\s*:", bloque))
 
 
-def test_hay_dos_direcciones_con_el_mismo_motor_y_los_mismos_tokens():
-    assert [d.parent.name for d in DIRECCIONES] == ["direccion-a", "direccion-b"]
-    a, b = (leer(d) for d in DIRECCIONES)
-    assert motor(a) == motor(b)
-    assert tokens_semanticos(a) == tokens_semanticos(b)
-    assert {"--superficie", "--texto", "--acento", "--freno", "--foco"} <= tokens_semanticos(a)
+def test_permanece_b_y_se_retiro_a():
+    assert [d.parent.name for d in DIRECCIONES] == ["direccion-b"]
+    assert not (PROTOTIPOS / "direccion-a").exists()
+    b = leer(DIRECCIONES[0])
+    assert motor(b)
+    assert {"--superficie", "--texto", "--acento", "--freno", "--foco"} <= tokens_semanticos(b)
 
 
 @pytest.mark.parametrize("archivo", DIRECCIONES, ids=lambda d: d.parent.name)

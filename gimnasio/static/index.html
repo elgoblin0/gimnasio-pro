@@ -1,10 +1,12 @@
 <!DOCTYPE html>
-<html lang="es" data-direccion="a">
+<html lang="es" data-direccion="b">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Gimnasio Pro</title>
-  <link rel="icon" href="data:,">
+  <meta name="theme-color" content="#b2452a">
+  <link rel="icon" type="image/png" href="/iconos/gimnasio-192.png">
+  <link rel="manifest" href="/manifest.webmanifest">
   <link rel="stylesheet" href="/estilos/tokens.css">
   <link rel="stylesheet" href="/estilos/base.css">
   <script type="importmap">
@@ -19,6 +21,8 @@
 <body>
   <main id="contenido">
     <h1>Gimnasio Pro</h1>
+    <p data-estado-pwa>Requiere conexión a Internet, también al instalarla.</p>
+    <p data-actualizacion role="status" hidden>Hay una actualización disponible. Se aplicará cuando cierres todas las ventanas de Gimnasio Pro. Podés terminar el formulario en curso.</p>
     <p data-estado aria-live="polite">Conectando…</p>
 
     <section data-ingreso hidden aria-labelledby="t-ingreso">

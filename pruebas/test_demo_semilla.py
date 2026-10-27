@@ -9,6 +9,7 @@ from gimnasio.comun.formatos import normalizar_cedula, normalizar_telefono
 from gimnasio.demo import servicio
 from gimnasio.demo.nombres import APELLIDOS, NOMBRES
 from gimnasio.demo.semilla import main
+from gimnasio.socios.servicio import consultar_membresia
 
 
 def test_las_personas_son_deterministas_y_sus_datos_son_ficticios():
@@ -71,6 +72,12 @@ def datos_semilla(app):
                FROM consentimientos c JOIN usuarios s ON s.id = c.socio_id
                JOIN personas p ON p.id = s.persona_id ORDER BY p.cedula""",
         ),
+        "membresias": consultar(
+            app,
+            """SELECT p.cedula, m.desde, m.hasta, m.actualizada_en
+               FROM membresias m JOIN usuarios u ON u.id = m.socio_id
+               JOIN personas p ON p.id = u.persona_id ORDER BY p.cedula""",
+        ),
         "intentos": consultar(app, "SELECT * FROM intentos_de_ingreso"),
         "migraciones": consultar(app, "SELECT * FROM migraciones_aplicadas ORDER BY version"),
     }
@@ -120,6 +127,9 @@ def test_dos_reinicios_dejan_los_mismos_datos(app_con_bd, reloj_fijo):
     assert len(socios) == 37
     assert {a["cedula"] for a in primera["asignaciones"]} == {p["cedula"] for p in socios}
     assert all(a["rol"] == "entrenador" and a["hasta"] is None for a in primera["asignaciones"])
+    assert len(primera["membresias"]) == len(socios)
+    assert {m["cedula"] for m in primera["membresias"]} == {p["cedula"] for p in socios}
+    assert all(m["hasta"] - m["desde"] == timedelta(days=29) for m in primera["membresias"])
     assert len(primera["consentimientos"]) == round(len(socios) * 0.8) == 30
     assert all(c["tipo"] == "salud" and c["otorgado"] and c["propio"] for c in primera["consentimientos"])
     assert all(p["activo"] for p in primera["personas"])
@@ -144,6 +154,7 @@ def test_las_fechas_siguen_el_reloj_de_la_app(app_con_bd, reloj_fijo):
         ("sedes", ("actualizada_en",)),
         ("asignaciones", ("desde",)),
         ("consentimientos", ("registrado_en",)),
+        ("membresias", ("desde", "hasta", "actualizada_en")),
     ):
         for anterior, posterior in zip(primera[tabla], segunda[tabla], strict=True):
             for columna in columnas:
@@ -166,3 +177,22 @@ def test_un_error_durante_la_carga_conserva_los_datos_anteriores(app_con_bd, mon
         servicio.reiniciar()
     assert datos_semilla(app_con_bd) == anterior
     assert consultar(app_con_bd, "SELECT * FROM usuarios ORDER BY id") == usuarios
+
+
+@pytest.mark.bd
+def test_membresias_de_semilla_sin_superposiciones_y_sin_depender_de_salud(app_con_bd, reloj_fijo):
+    from gimnasio.comun.ids import desde_bytes
+    from gimnasio.comun.reloj import fecha_local
+
+    with app_con_bd.app_context():
+        servicio.reiniciar()
+        with transaccion() as cursor:
+            cursor.execute("SELECT socio_id, COUNT(*) AS cantidad FROM membresias GROUP BY socio_id")
+            membresias = cursor.fetchall()
+            cursor.execute("SELECT DISTINCT socio_id FROM consentimientos WHERE tipo = 'salud'")
+            con_salud = {fila["socio_id"] for fila in cursor.fetchall()}
+        assert len(membresias) == 37
+        assert all(m["cantidad"] == 1 for m in membresias)
+        assert len(con_salud) < len(membresias)
+        for membresia in membresias:
+            assert consultar_membresia(desde_bytes(membresia["socio_id"]), fecha_local(reloj_fijo.ahora())) is not None
