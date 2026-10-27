@@ -37,9 +37,19 @@ Generado por `scripts/mapa_capacidades.py` desde `docs/capacidades/`. No editar 
 
 | Capacidad | Etapa | Nivel | Prueba |
 |---|---|---|---|
+| Historial de entradas y salidas con ocupación registrada | 1 | pendiente | `pruebas/test_visitas.py` |
 | Consulta de membresía de acceso por vigencia, sin cupo de entradas | 1 | pendiente | `pruebas/test_socios_membresia.py` |
 | Aforo en vivo y mejores horarios | 3 | pendiente | — |
 | Tarjeta contextual en recepción | 3 | pendiente | — |
+
+## Entrenador
+
+| Capacidad | Etapa | Nivel | Prueba |
+|---|---|---|---|
+| Lectura del programa de entrenamiento y sus sesiones planificadas por socio y versión | 1 | pendiente | `pruebas/test_programas.py` |
+| Bandeja priorizada del entrenador | 4 | pendiente | — |
+| Equipos y alternativas | 4 | pendiente | — |
+| Programas desde plantillas | 4 | pendiente | — |
 
 ## Experiencia
 
@@ -61,14 +71,6 @@ Generado por `scripts/mapa_capacidades.py` desde `docs/capacidades/`. No editar 
 | Doble progresión + RPE/RIR con ajustes automáticos y frenos | 2 | pendiente | — |
 | Récords y progreso | 2 | pendiente | — |
 | Sesión en vivo completa | 2 | pendiente | — |
-
-## Entrenador
-
-| Capacidad | Etapa | Nivel | Prueba |
-|---|---|---|---|
-| Bandeja priorizada del entrenador | 4 | pendiente | — |
-| Equipos y alternativas | 4 | pendiente | — |
-| Programas desde plantillas | 4 | pendiente | — |
 
 ## Operación
 

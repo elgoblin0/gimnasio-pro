@@ -32,6 +32,16 @@ def test_rechaza_versiones_repetidas(tmp_path):
         leer_migraciones(tmp_path)
 
 
+def test_las_migraciones_del_repo_tienen_versiones_unicas():
+    assert leer_migraciones()
+
+
+def test_el_catalogo_del_repo_tiene_versiones_unicas():
+    migraciones = leer_migraciones()
+    assert migraciones
+    assert len({m.version for m in migraciones}) == len(migraciones)
+
+
 def test_la_suma_no_depende_de_los_saltos_de_linea(tmp_path):
     escribir(tmp_path, "0001_a.sql", "SELECT 1;\n")
     unix = leer_migraciones(tmp_path)[0].sha256

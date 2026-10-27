@@ -1,55 +1,43 @@
 # Protocolo de agentes
 
-Cómo se reparte, se revisa y se paga el trabajo entre Opus y Codex. Lo lee quien planifica o escribe issues; el despachador (`scripts/despachador.py`) aplica casi todo solo. Para implementar un issue alcanza con `AGENTS.md`.
+## Método vigente
 
-## Etiquetas
-| Etiqueta | Significado |
-|---|---|
-| `estado:listo` | Especificado; el despachador lo puede tomar |
-| `estado:en-curso` | Un agente lo tiene (ver `agente:*`) |
-| `estado:revision` | PR abierto, esperando revisión o CI |
-| `ejecutor:opus` / `ejecutor:codex` | Quién debe hacerlo |
-| `agente:opus`, `agente:codex` | Quién lo tiene ahora (candado) |
-| `correccion-pendiente` | El CI o la revisión pidió cambios; vuelve a su ejecutor |
-| `revisado:codex`, `revisado:opus` (en PR) | Revisión cruzada aprobada |
-| `modulo:*` | Módulo principal; un solo issue activo por módulo |
-| `tipo:patron` | Primera instancia de un patrón: siempre Opus |
-| `tipo:funcion`, `tipo:error`, `tipo:mantenimiento`, `tipo:docs`, `tipo:prototipo`, `tipo:cierre` | Clase de trabajo |
-| `necesita-criterio` | Ambigüedad de producto; Codex se detiene y Opus decide |
-| `bloqueado` | Depende de algo externo (cuentas, el usuario); ver comentario |
+Por decisión del dueño del 27/10/2026, el trabajo se coordina desde un chat de la app de Codex. Este procedimiento reemplaza las instrucciones operativas anteriores sobre el despachador y las sesiones de Claude, incluidas las del ADR 0011. Los ADR de arquitectura y los frenos de seguridad conservan su vigencia.
 
-Dependencias: el cuerpo del issue lista `Depende de: #N, #M`. El despachador no toma un issue con dependencias abiertas.
+El despachador y su vigilancia automática quedan detenidos. Sus archivos se conservan como antecedentes; ejecutar sus comandos no forma parte del trabajo ni de la definición de terminado.
 
-## Opus o Codex
-Va a **Opus** si cumple al menos una:
-- planificación, ADR o cambio de alcance;
-- modelo de datos nuevo o migración que cambia tablas de hechos;
-- motor de reglas, frenos, concurrencia, sincronización, permisos o salud;
-- `tipo:patron`: primera instancia de un patrón de arquitectura o de dominio;
-- dirección visual o primera escena de un tipo nuevo;
-- un issue `necesita-criterio`, o bloqueado que Codex ya intentó.
+## Ejecución
 
-Va a **Codex** todo lo demás, en especial:
-- repetir un patrón existente;
-- CRUD, pantallas, pruebas, datos de semilla, estilos con tokens;
-- documentación derivada y correcciones de CI.
+1. Revisá el estado local y GitHub antes de tocar archivos. Conservá cambios ajenos y reutilizá ramas y worktrees de los PR abiertos.
+2. Leé el issue, sus comentarios, dependencias y los documentos que necesita. Trabajá un issue a la vez; empezá el siguiente cuando el anterior esté fusionado. Al retomar varios PR existentes, terminá uno antes de continuar con los demás.
+3. Implementá o corregí en una rama de trabajo; integrá `origin/main` y resolvé conflictos preservando el alcance del issue.
+4. Ejecutá las verificaciones pertinentes y abrí o actualizá el PR con la plantilla completa. Si cambia una capacidad, editá su archivo en `docs/capacidades/` y regenerá el mapa.
+5. Pedí una revisión independiente a un subagente de Codex desde el mismo chat. Este protocolo autoriza esa delegación de revisión. Revisá el diff, el issue y el CI; corregí los hallazgos y repetí la revisión cuando corresponda.
+6. Con revisión aprobada y todos los checks requeridos de GitHub en verde, fusioná con squash y cerrá el issue. Actualizá el checkout principal y continuá con el siguiente issue cuyas dependencias estén cerradas.
 
-Con el presupuesto de Opus agotado (ADR 0011), los issues dudosos van a Codex con más detalle.
+Las pruebas de MySQL saltadas en local no sustituyen el CI de GitHub. Se mantienen la protección de main y los checks calidad, pruebas, e2e y secretos. Las fusiones requieren autorización del dueño; su autorización para completar una etapa cubre los PR de esa etapa.
 
-## Revisión cruzada
-- PR de Codex sin rutas sensibles: lo revisa otra corrida de Codex.
-- PR de Opus, o con rutas sensibles: Codex revisa siempre; Opus revisa además lo sensible.
-- La revisión lee el diff y el resumen del CI (`resumen-ci.md`), no el repo entero. Desde la segunda ronda recibe sus hallazgos anteriores y solo el diff nuevo.
-- Se fusiona con squash cuando el CI está verde y la revisión aprueba. Nunca se empuja a `main`.
+## Revisión y rutas sensibles
 
-## Bloqueos
-Codex: un intento y un reintento. Si sigue trabado, el despachador etiqueta `bloqueado` y `ejecutor:opus` con lo que probó. Opus intenta una vez; si no sale, el issue pasa al milestone de la etapa siguiente con su explicación.
+Codex implementa y otro agente de Codex revisa todos los PR, también los que tocan reglas, migraciones, permisos, salud o `comun/migrar.py`. No se requiere saldo ni intervención de Opus.
 
-## Sesiones de Claude
-La cuota de Claude es lo escaso: cada turno de una sesión vuelve a leer todo su contexto, así que una sesión larga cuesta más por turno que una corta.
-- **Planificar** es una sesión interactiva que termina cuando los issues están creados con `estado:listo`.
-- **Implementar, corregir y revisar** lo hace el despachador: `claude -p` limpio por issue, uno a la vez, hasta tres Codex en paralelo. Corre en una terminal aparte con `--hasta-vaciar`; `--solo-codex` solo mientras haya una sesión de Claude abierta a mano.
-- **Volver a Claude** cuando un issue queda `bloqueado` o `necesita-criterio`: la sesión nueva lee ese issue, su PR y `--informe`, no los logs del despachador.
-- Sin capturas ni videos de rutina: la verificación visual la hace el usuario en el cierre.
-- Lo determinista va a scripts y al CI (mapa de capacidades, resúmenes, etiquetas).
-- Presupuesto semanal en `scripts/despachador.toml` (ADR 0011). Cuenta las corridas del despachador y las sesiones interactivas de este repo.
+Usá `revisado:codex` después de aprobar el estado actual. La etiqueta histórica `revisado:opus` solo se agrega si una integración existente la exige: acompañala de un comentario que cite la decisión del dueño y aclare que no hubo revisión real de Opus. Una corrección invalida las aprobaciones afectadas y exige revisar de nuevo.
+
+## Etiquetas y dependencias
+
+- `estado:listo`: issue especificado y disponible.
+- `estado:en-curso` y `agente:codex`: trabajo activo.
+- `estado:revision`: PR abierto pendiente de CI o revisión.
+- `correccion-pendiente`: corrección requerida por CI o revisión.
+- `ejecutor:codex`: ejecución por Codex; las etiquetas históricas de Opus no obligan a usar Claude.
+- `modulo:*` y `tipo:*`: clasificación del trabajo; `tipo:patron` también puede hacerlo Codex dentro de lo especificado.
+- `bloqueado`: impedimento externo documentado.
+- `necesita-criterio`: decisión de producto, alcance o término que debe resolver el dueño.
+
+Respetá `Depende de: #N, #M` en cada issue. Al fusionar, retirás las etiquetas de trabajo activo y cerrás el issue; conservás las de clasificación.
+
+## Bloqueos y continuidad
+
+Resolvé los problemas técnicos dentro del alcance autorizado, incluidos conflictos y fallos de CI. Documentá lo probado cuando exista un impedimento externo. Las decisiones de producto, alcance, términos y ADR siguen a cargo del dueño; señalalas con `necesita-criterio` y una recomendación concreta. Continuá con trabajo independiente cuando sea posible.
+
+Si se agota el cupo, guardá los cambios y un resumen para retomar. No registres el límite como fallo de implementación ni prometas ejecución durante la inactividad del chat. Al terminar, informá PR fusionados, checks y pendientes.
