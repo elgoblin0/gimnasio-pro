@@ -48,6 +48,7 @@ Generado por `scripts/mapa_capacidades.py` desde `docs/capacidades/`. No editar 
 | Capacidad | Etapa | Nivel | Prueba |
 |---|---|---|---|
 | Persistencia de sesiones realizadas y series realizadas | 1 | pendiente | `pruebas/test_entrenamiento_repositorio.py` |
+| Registro idempotente de sesiones y series realizadas | 1 | pendiente | `pruebas/test_entrenamiento_api.py` |
 | Sesión propuesta según la secuencia del programa de entrenamiento | 1 | pendiente | `pruebas/test_entrenamiento_api.py` |
 | Chequeo del día | 2 | pendiente | — |
 | "Me duele" y "máquina ocupada" | 2 | pendiente | — |

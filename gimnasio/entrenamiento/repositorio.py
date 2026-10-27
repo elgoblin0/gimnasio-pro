@@ -84,13 +84,33 @@ def insertar_sesion(cursor, sesion_id, socio_id, sesion_planificada_id, creada_e
     )
 
 
-def obtener_sesion(cursor, sesion_id):
-    cursor.execute("SELECT * FROM sesiones_realizadas WHERE id = %s", (a_bytes(sesion_id),))
+def obtener_sesion(cursor, sesion_id, *, actual=False):
+    cursor.execute(
+        "SELECT * FROM sesiones_realizadas WHERE id = %s" + (" FOR SHARE" if actual else ""), (a_bytes(sesion_id),)
+    )
     return cursor.fetchone()
 
 
-def obtener_serie(cursor, serie_id):
-    cursor.execute("SELECT * FROM series_realizadas WHERE id = %s", (a_bytes(serie_id),))
+def obtener_serie(cursor, serie_id, *, actual=False):
+    cursor.execute(
+        "SELECT * FROM series_realizadas WHERE id = %s" + (" FOR SHARE" if actual else ""), (a_bytes(serie_id),)
+    )
+    return cursor.fetchone()
+
+
+def obtener_planificada(cursor, planificada_id):
+    cursor.execute(
+        """SELECT s.id, p.socio_id FROM sesiones_planificadas s
+           JOIN programas_entrenamiento p ON p.id = s.programa_id WHERE s.id = %s""",
+        (a_bytes(planificada_id),),
+    )
+    return cursor.fetchone()
+
+
+def obtener_ejercicio_planificado(cursor, ejercicio_id):
+    cursor.execute(
+        "SELECT id, sesion_planificada_id FROM ejercicios_planificados WHERE id = %s", (a_bytes(ejercicio_id),)
+    )
     return cursor.fetchone()
 
 

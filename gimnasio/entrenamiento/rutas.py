@@ -1,6 +1,6 @@
 """Lecturas de entrenamiento con permisos y alcance declarados."""
 
-from flask import Blueprint, jsonify
+from flask import Blueprint, jsonify, request
 
 from gimnasio.entrenamiento import servicio
 from gimnasio.permisos.servicio import requiere, usuario_actual
@@ -19,3 +19,23 @@ def propuesta_propia():
 @requiere("entrenamiento.ver_asignados")
 def propuesta_asignada(socio_id):
     return jsonify(servicio.consultar_propuesta(socio_id, usuario_actual()))
+
+
+@bp.post("/sesiones")
+@requiere("entrenamiento.registrar_propio")
+def crear_sesion():
+    return jsonify({"sesion_realizada": servicio.crear_sesion(request.get_json(silent=True), usuario_actual())}), 201
+
+
+@bp.post("/sesiones/<sesion_id>/series")
+@requiere("entrenamiento.registrar_propio")
+def registrar_serie(sesion_id):
+    return jsonify(
+        {"serie_realizada": servicio.registrar_serie(sesion_id, request.get_json(silent=True), usuario_actual())}
+    ), 201
+
+
+@bp.get("/sesiones/<sesion_id>")
+@requiere("entrenamiento.ver_propio")
+def consultar_sesion(sesion_id):
+    return jsonify(servicio.consultar_sesion(sesion_id, usuario_actual()))
