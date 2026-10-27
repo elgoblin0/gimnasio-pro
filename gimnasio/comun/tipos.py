@@ -15,8 +15,10 @@ from decimal import Decimal
 class EjercicioPlanificado:
     ejercicio_id: str
     series: int
-    repeticiones: int
-    carga: Decimal
+    repeticiones: int | None
+    carga: Decimal | None
+    duracion: int | None = None
+    distancia: Decimal | None = None
 
 
 @dataclass(frozen=True)
@@ -35,9 +37,11 @@ class SerieRealizada:
     sesion_planificada_id: str
     ejercicio_id: str
     numero_serie: int
-    repeticiones: int
-    carga: Decimal
+    repeticiones: int | None
+    carga: Decimal | None
     vigente: bool = True
+    duracion: int | None = None
+    distancia: Decimal | None = None
 
 
 @dataclass(frozen=True)

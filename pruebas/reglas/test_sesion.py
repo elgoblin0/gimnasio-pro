@@ -234,3 +234,17 @@ def test_programa_sin_sesiones_no_propone_trabajo():
     assert propuesta.sesion_planificada is None
     assert propuesta.pendientes == ()
     assert propuesta.explicacion[0].regla == "secuencia_realizada"
+
+
+def test_cardio_conserva_duracion_distancia_y_medidas_no_aplicables():
+    ejercicio = EjercicioPlanificado("carrera", 2, None, None, duracion=120, distancia=Decimal("1500.25"))
+    sesion = SesionPlanificada("cardio", (ejercicio,))
+    serie = SerieRealizada("cardio", "carrera", 1, None, None, duracion=100, distancia=Decimal("1200.50"))
+    entrada = DatosPropuesta(ProgramaEntrenamiento((sesion,)), LUNES, LUNES, (serie,))
+    propuesta = proponer_sesion(entrada)
+    assert propuesta.sesion_planificada is sesion
+    assert propuesta.sesion_planificada.ejercicios == (ejercicio,)
+    assert propuesta.pendientes == (PendienteEntrenamiento("carrera", (2,)),)
+    assert ejercicio.duracion == 120
+    assert ejercicio.distancia == Decimal("1500.25")
+    assert ejercicio.repeticiones is ejercicio.carga is None
