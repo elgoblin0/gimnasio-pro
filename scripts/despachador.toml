@@ -24,7 +24,7 @@ binario = "codex"
 sandbox = "workspace-write"
 config = ['model_reasoning_effort="high"']
 # La revisión lee un diff, no explora ni depura: le alcanza con menos razonamiento.
-config_revision = ['model_reasoning_effort="medium"']
+config_revision = ['model_reasoning_effort="low"']
 
 [claude]
 binario = "claude"

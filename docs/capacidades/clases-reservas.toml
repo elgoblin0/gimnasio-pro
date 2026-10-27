@@ -1,0 +1,6 @@
+id = "clases-reservas"
+nombre = "Clases y reservas con lista de espera"
+grupo = "Operación"
+etapa = 5
+nivel = "pendiente"
+prueba = ""

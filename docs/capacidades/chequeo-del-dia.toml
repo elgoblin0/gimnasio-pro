@@ -1,0 +1,6 @@
+id = "chequeo-del-dia"
+nombre = "Chequeo del día"
+grupo = "Entrenamiento"
+etapa = 2
+nivel = "pendiente"
+prueba = ""

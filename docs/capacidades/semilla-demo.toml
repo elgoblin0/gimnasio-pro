@@ -1,0 +1,6 @@
+id = "semilla-demo"
+nombre = "Semilla ficticia de Paraguay que se reinicia"
+grupo = "Demo"
+etapa = 0
+nivel = "funcional"
+prueba = "pruebas/test_demo_semilla.py::test_dos_reinicios_dejan_los_mismos_datos"

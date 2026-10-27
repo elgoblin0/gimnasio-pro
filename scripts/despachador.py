@@ -733,21 +733,25 @@ GENERADOS = {"docs/MAPA-CAPACIDADES.md"}
 
 
 def integrar_main(issue):
-    """Integra origin/main en la rama sin gastar tokens si solo chocan archivos generados; si no, pide corrección."""
+    """Integra origin/main en la rama sin gastar tokens si solo chocan archivos generados; si no, pide corrección.
+
+    Devuelve False si la rama ya contenía main y no había nada que integrar.
+    """
     carpeta = preparar_worktree(issue.numero)
     with _candado_git:
+        antes = correr(["git", "rev-parse", "HEAD"], cwd=carpeta).stdout.strip()
         fusion = correr(["git", "merge", "--no-edit", f"origin/{CONFIG['rama_base']}"], cwd=carpeta, chequear=False)
         conflictos = set(correr(["git", "diff", "--name-only", "--diff-filter=U"], cwd=carpeta).stdout.split())
         if fusion.returncode != 0 and not conflictos:
             # Falló por otra causa (archivos locales que se sobrescribirían, etc.): no se empuja nada.
             correr(["git", "merge", "--abort"], cwd=carpeta, chequear=False)
             corregir_o_bloquear(issue, f"No se pudo integrar main: {fusion.stderr.strip()[:1500]}")
-            return
+            return True
         if conflictos - GENERADOS:
             correr(["git", "merge", "--abort"], cwd=carpeta, chequear=False)
             lista = ", ".join(sorted(conflictos - GENERADOS))
             corregir_o_bloquear(issue, f"Conflicto con main en: {lista}. Integrá origin/main y resolvé los conflictos.")
-            return
+            return True
         python = RAIZ / ".venv" / ("Scripts" if os.name == "nt" else "bin") / "python"
         correr([str(python), "scripts/mapa_capacidades.py"], cwd=carpeta)
         correr(["git", "add", "-A"], cwd=carpeta)
@@ -757,8 +761,11 @@ def integrar_main(issue):
             cwd=carpeta,
             chequear=False,
         )
+        if correr(["git", "rev-parse", "HEAD"], cwd=carpeta).stdout.strip() == antes:
+            return False
         correr(["git", "push", "origin", f"{PREFIJO_RAMA}{issue.numero}"], cwd=carpeta)
     registrar({"issue": issue.numero, "ejecutor": "script", "fase": "integrar-main", "uso": {}, "ponderados": 0})
+    return True
 
 
 def revisiones_fallidas_seguidas(numero_pr):
@@ -944,7 +951,11 @@ def _ejecutar_accion(accion):
                 time.sleep(15)
                 gh("pr", "merge", str(extra["number"]), "--squash", "--delete-branch")
         except RuntimeError as error:
-            motivo = "No se pudo fusionar (¿conflicto con main?). Integrá origin/main y resolvé los conflictos."
+            # Primero el script integra main gratis; Codex solo interviene si queda un conflicto real
+            # o si la rama ya estaba al día y el fallo es otro.
+            if integrar_main(issue):
+                return
+            motivo = "No se pudo fusionar y la rama ya tiene main. Revisá el error y corregilo."
             corregir_o_bloquear(issue, f"{motivo}\n\n{error}")
             return
         etiquetar(issue.numero, [], ["estado:revision"])
