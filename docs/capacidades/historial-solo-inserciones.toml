@@ -1,0 +1,6 @@
+id = "historial-solo-inserciones"
+nombre = "Verificación estática del historial que solo admite inserciones"
+grupo = "Infraestructura"
+etapa = 1
+nivel = "funcional"
+prueba = "pruebas/test_historial_inserciones.py"
