@@ -1,0 +1,23 @@
+@layer recorrido {
+  [hidden] { display: none !important; }
+  main { max-width: 72rem; }
+  h1 { font-size: clamp(2rem, 5vw, 3.5rem); line-height: 1.1; margin-block: var(--espacio-3) var(--espacio-5); }
+  h2 { margin-block-start: 0; }
+  a { color: var(--acento); }
+  button { min-height: 44px; }
+  button:disabled, select:disabled { opacity: .65; cursor: wait; }
+  select { font: inherit; color: var(--texto); background: var(--superficie); border: 1px solid var(--texto-suave); border-radius: var(--radio-1); padding: var(--espacio-3); width: 100%; min-width: 0; min-height: 44px; }
+  .barra { display: flex; align-items: center; justify-content: space-between; gap: var(--espacio-3); flex-wrap: wrap; }
+  .etiqueta { color: var(--texto-suave); text-transform: uppercase; letter-spacing: .12em; font-size: .8rem; margin-block-start: var(--espacio-6); }
+  .cifra { font: clamp(2rem, 5vw, 3.5rem)/1.2 var(--fuente-numeros); color: var(--acento); margin-block: var(--espacio-3); }
+  .grilla { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--espacio-5); margin-block: var(--espacio-5); }
+  .grilla > *, .lista > * { min-width: 0; }
+  .lista { display: grid; gap: var(--espacio-4); padding: 0; list-style: none; }
+  .tarjeta { border-block-start: 1px solid var(--borde); padding-block: var(--espacio-4); }
+  .tarjeta h3 { margin-block: 0 var(--espacio-2); }
+  .tarjeta p { margin-block: var(--espacio-1); }
+  .tarjeta button { margin-block-start: var(--espacio-3); }
+  [data-estado] { min-height: 1.5em; }
+  [data-actualizar] { margin-block: var(--espacio-3); }
+  @media (max-width: 48rem) { .grilla { grid-template-columns: minmax(0, 1fr); gap: var(--espacio-4); } }
+}

@@ -2,9 +2,11 @@
 
 import os
 import uuid
+from contextlib import contextmanager
 from datetime import UTC, datetime
 from pathlib import Path
 from threading import Thread
+from types import SimpleNamespace
 
 import pytest
 from mysql.connector import InterfaceError, OperationalError
@@ -17,8 +19,8 @@ from gimnasio.comun.reloj import RelojFijo
 from gimnasio.demo.servicio import reiniciar
 
 
-@pytest.fixture(scope="session")
-def url_base(playwright):
+@contextmanager
+def servidor_demo(playwright):
     """Prepara una base exclusiva y la elimina aun si falla la semilla o el recorrido."""
     if not os.environ.get("GIMNASIO_BD_HOST"):
         pytest.skip("sin MySQL: definí GIMNASIO_BD_HOST para correr los e2e")
@@ -47,12 +49,31 @@ def url_base(playwright):
                 hilo = Thread(target=servidor.serve_forever, daemon=True)
                 hilo.start()
                 try:
-                    yield f"http://127.0.0.1:{servidor.server_port}"
+                    yield SimpleNamespace(url=f"http://127.0.0.1:{servidor.server_port}", app=app)
                 finally:
                     servidor.shutdown()
                     hilo.join()
         finally:
             cursor.execute(f"DROP DATABASE IF EXISTS `{nombre}`")
+
+
+@pytest.fixture(scope="session")
+def url_base(playwright):
+    with servidor_demo(playwright) as instancia:
+        yield instancia.url
+
+
+@pytest.fixture
+def demo_aislada(playwright):
+    """Cada caso del recorrido recibe migraciones, semilla y hechos independientes."""
+    with servidor_demo(playwright) as instancia:
+        yield instancia
+
+
+@pytest.fixture
+def pagina_demo(demo_aislada, playwright):
+    with playwright.chromium.launch(channel="chromium") as navegador, navegador.new_context(locale="es-PY") as contexto:
+        yield contexto.new_page()
 
 
 @pytest.fixture(scope="session")

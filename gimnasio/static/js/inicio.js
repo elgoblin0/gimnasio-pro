@@ -17,6 +17,10 @@ function mostrarBienvenida(usuario) {
   $("[data-bienvenida]").hidden = false;
   $("[data-saludo]").textContent = `Hola, ${usuario.nombre}`;
   $("[data-rol-actual]").textContent = NOMBRES_DE_ROL[usuario.rol] + (usuario.es_demo ? " · demo" : "");
+  const recorrido = $("[data-recorrido]");
+  recorrido.hidden = usuario.rol !== "recepcion";
+  recorrido.href = "/recepcion.html";
+  recorrido.textContent = "Ir a recepción";
 }
 
 function mostrarIngreso(modoDemo) {
