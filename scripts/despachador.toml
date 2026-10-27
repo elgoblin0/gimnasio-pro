@@ -14,7 +14,8 @@ intentos_max_opus = 2
 limite_minutos_por_tarea = 60
 
 [codex]
-# Ruta del ejecutable; la variable GIMNASIO_CODEX_BIN tiene prioridad. Sin modelo fijo: usa el predeterminado.
+# Ruta del ejecutable; la variable GIMNASIO_CODEX_BIN tiene prioridad. Si no está en el PATH, se busca la app
+# de Windows en %LOCALAPPDATA%/OpenAI/Codex/bin. Sin modelo fijo: usa el predeterminado.
 binario = "codex"
 sandbox = "workspace-write"
 config = ['model_reasoning_effort="high"']
