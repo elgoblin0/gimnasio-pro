@@ -58,6 +58,12 @@ Generado por `scripts/mapa_capacidades.py` desde `docs/capacidades/`. No editar 
 | Récords y progreso | 2 | pendiente | — |
 | Sesión en vivo completa | 2 | pendiente | — |
 
+## Infraestructura
+
+| Capacidad | Etapa | Nivel | Prueba |
+|---|---|---|---|
+| Verificación estática del historial que solo admite inserciones | 1 | funcional | `pruebas/test_historial_inserciones.py` |
+
 ## Recepción
 
 | Capacidad | Etapa | Nivel | Prueba |
