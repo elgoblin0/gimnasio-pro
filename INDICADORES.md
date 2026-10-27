@@ -1,75 +1,70 @@
-# Indicadores de evaluación → dónde está en el proyecto
+# Indicadores de evaluación → aplicación modular vigente
 
-Guía para la presentación oral. Cada indicador de la rúbrica apunta al archivo y la línea donde se demuestra.
+Guía para explicar el recorrido de etapa 1. Las referencias `archivo:línea` señalan el comienzo de la evidencia. El alcance verificado está en [el mapa de capacidades](docs/MAPA-CAPACIDADES.md); esta guía no declara terminada la etapa 2 ni reemplaza el cierre del dueño en #52.
 
-## Base de Datos (5 pts)
+## Base de datos (5 pts)
 
-| Indicador | Evidencia |
+| Indicador | Evidencia vigente |
 |---|---|
-| Implementación | `base_datos.sql`: 5 tablas (`planes`, `rutinas`, `socios`, `asistencias`, `registros_peso`) con claves foráneas (líneas 52, 63, 75) y datos de ejemplo. `migraciones/001_dni_a_ci.sql` renombra una columna sin perder datos. |
-| C.R.U.D. | **C**reate: alta de socio (`app.py:182`), check-in (`app.py:326`), nuevo peso (`app.py:382`). **R**ead: lista y ficha (`app.py:168`, `app.py:261`). **U**pdate: editar datos del socio (`app.py:235`, formulario "Editar datos" en `socio.html`), renovar plan y actualizar peso. **D**elete: eliminar socio (`app.py:222`). |
-| Conexión desde Python | `conectar()` en `app.py:21` con `mysql.connector`. Las funciones `consultar`, `consultar_uno` y `ejecutar` (`app.py:32-58`), y `socio_existe` y `validar_datos_socio` evitan repetir código (`app.py:66-80`) usan consultas parametrizadas (`%s`). |
+| Implementación | Sedes y personas: `migraciones/0001_sedes_y_personas.sql:2`. Usuarios y asignaciones: `migraciones/0002_usuarios_y_asignaciones.sql:2`. Membresías: `migraciones/0006_membresias.sql:2`. Programa versionado: `migraciones/0007_programas_entrenamiento.sql:11`. Entradas y salidas con claves foráneas: `migraciones/0008_entradas_y_salidas.sql:2`. Sesiones y series realizadas: `migraciones/0009_sesiones_y_series_realizadas.sql:2`. |
+| C.R.U.D. | Creación y lectura del recorrido: `gimnasio/visitas/repositorio.py:72`, `gimnasio/visitas/repositorio.py:165`, `gimnasio/entrenamiento/repositorio.py:117`, `gimnasio/entrenamiento/repositorio.py:179`. Los hechos solo se insertan: no se presenta un CRUD destructivo sobre visitas o series. La interfaz de etapa 1 no ofrece edición o eliminación general de socios. |
+| Conexión desde Python | Parámetros desde el entorno: `gimnasio/comun/bd.py:13`. Conexión UTC: `gimnasio/comun/bd.py:29`. Transacción: `gimnasio/comun/bd.py:49`. SQL parametrizado: `gimnasio/visitas/repositorio.py:78`. |
+| Migraciones y datos ficticios | Aplicador con versiones y sumas: `gimnasio/comun/migrar.py:48`. Semilla demo: `gimnasio/demo/servicio.py:121`. El SQL heredado no forma parte de este esquema. |
 
 ## Python (10 pts)
 
-| Indicador | Evidencia |
+| Indicador | Evidencia vigente |
 |---|---|
-| Manejo de rutas | 10 rutas Flask con `@app.route`: `/`, `/api/planes`, `/api/socios`, `/api/socios/<int:socio_id>` y sus sub-rutas. Usan métodos GET, POST, PUT y DELETE. |
-| Conexión con el cliente | Flask sirve `static/` desde la raíz (`app.py:14`) y expone la API JSON que consume `fetch` en `app.js:13`. |
-| Paso de información con el cliente | Entrada: `request.get_json()` (`app.py:168`). Salida: `jsonify(...)`. Los errores usan `error()` con código HTTP (`app.py:61`). Los parámetros de URL (`<int:socio_id>`) también pasan datos. |
-| Lógica (iteradores y condicionales) | Bucle `for` que valida campos obligatorios (`app.py:73`, dentro de `validar_datos_socio`). Bucle `for` que calcula el estado de cada socio (`app.py:175`). Condicionales en las reglas: `calcular_estado`, `calcular_imc` y `calcular_progreso` (`app.py:96-135`) y en el check-in (`app.py:337-352`). |
-| Funciona sin errores | Validaciones antes de operar (peso, altura, CI duplicado, plan inexistente). Al borrar, primero se eliminan asistencias y pesos, y después el socio. |
+| Manejo de rutas | Fábrica y blueprints: `gimnasio/__init__.py:25`. Entradas, salidas y consultas: `gimnasio/visitas/rutas.py:12`. Propuesta: `gimnasio/entrenamiento/rutas.py:11`. Inicio de sesión realizada y series: `gimnasio/entrenamiento/rutas.py:24`. |
+| Conexión y paso de información con el cliente | Las rutas reciben JSON y responden JSON con códigos HTTP: `gimnasio/visitas/rutas.py:14`, `gimnasio/entrenamiento/rutas.py:26`. Errores JSON: `gimnasio/comun/errores.py:17`. La fábrica sirve los estáticos de `gimnasio/static/`. |
+| Iteradores y condicionales | Selección de primera sesión pendiente sin ajustes: `gimnasio/reglas/sesion.py:8`. Vigencia, visita abierta y aforo: `gimnasio/visitas/servicio.py:39`. Serialización de programa: `gimnasio/entrenamiento/servicio.py:44`. |
+| Comportamiento comprobado | E2E integrado con MySQL real y ambos anchos: `pruebas/e2e/test_esqueleto_andante.py:110`. Comprobación de solo inserciones: `pruebas/test_historial_inserciones.py:1`. Los resultados concretos se verifican en los checks del PR; las pruebas omitidas no acreditan el recorrido. |
 
 ## JavaScript (5 pts)
 
-| Indicador | Evidencia |
+| Indicador | Evidencia vigente |
 |---|---|
-| Lógica (iteradores y condicionales) | `for...of` para pintar la tabla de socios (`app.js:84`, con plantillas de texto), los planes (`app.js:63`) y el historial de peso (`app.js:238`). Condicionales en `mostrarMensaje`, en el color del progreso (`mostrarProgreso`, `app.js:214`) y en `confirm()` antes de eliminar (`app.js:110`). |
-| Funciona sin errores | Todas las llamadas pasan por `llamarApi` (`app.js:13`) y se muestra el mensaje o el error de la API (`mostrarResultado`, `app.js:38`). |
-| Recibe y procesa información | Lee el JSON de la API y lo transforma: `formatearFecha`, `etiquetaEstado`, el IMC con su categoría, el signo `+` en la diferencia de peso. Lee el `?id=` de la URL (`app.js:158`). `cargarFicha()` reparte los datos en funciones cortas (`mostrarDatos`, `mostrarPlan`, `mostrarSalud`, `mostrarProgreso`, `mostrarHistorial`). |
+| Iteradores y condicionales | Renderizado de visitas: `gimnasio/static/js/recepcion.js:22`. Formularios según medidas aplicables: `gimnasio/static/js/entrenamiento.js:27`. Explicación y ejercicios: `gimnasio/static/js/entrenamiento.js:85`. |
+| Comunicación y errores | Cliente fetch común, encabezados de escritura y lectura JSON: `gimnasio/static/js/comun/api.js:17`. Actualización de recepción: `gimnasio/static/js/recepcion.js:47`. Actualización del entrenamiento: `gimnasio/static/js/entrenamiento.js:118`. |
+| Persistencia y reintentos | Operaciones con cuerpo, identificador y clave conservados: `gimnasio/static/js/comun/operaciones.js:4`. Recuperación de sesión realizada desde la URL: `gimnasio/static/js/entrenamiento.js:118`. Cerrar sesión solo borra la sesión de usuario: `gimnasio/static/js/comun/operaciones.js:31`. |
 
 ## HTML (5 pts)
 
-| Indicador | Evidencia |
+| Indicador | Evidencia vigente |
 |---|---|
-| Construcción de la página | `static/index.html` (lista y alta) y `static/socio.html` (ficha). Etiquetas semánticas: `header`, `main`, `section`, `table`, `form`, `label`. |
-| Funcionamiento coordinado con el servidor | Las tablas y los desplegables se rellenan desde la API (`cargarSocios()`, `cargarPlanes()`). El formulario envía los datos con `onsubmit="darDeAlta(event)"`. |
-| Navegabilidad entre páginas | `index.html` → `socio.html?id=N` (botón "Ver ficha") → "← Volver" (`socio.html:11`). |
-| Estructura | `<!DOCTYPE html>`, `lang="es"`, `meta viewport`, `title`, `head` y `body` en las dos páginas. |
+| Construcción y estructura | Inicio con idioma español, viewport y dirección B: `gimnasio/static/index.html:2`. Formulario de ingreso: `gimnasio/static/index.html:30`. Recepción y entrenamiento usan `main`, `header`, secciones y controles etiquetados: `gimnasio/static/recepcion.html:17`, `gimnasio/static/entrenamiento.html:17`. |
+| Coordinación con el servidor | Formulario de entrada y selección de socio: `gimnasio/static/recepcion.html:38`, conectado por el módulo de recepción. Los formularios de series se crean según la respuesta real: `gimnasio/static/js/entrenamiento.js:27`. |
+| Navegación | La pantalla inicial ofrece enlaces según rol; recepción y entrenamiento vuelven a inicio y permiten cerrar sesión: `gimnasio/static/recepcion.html:18`, `gimnasio/static/entrenamiento.html:18`. |
 
 ## Hojas de estilo y CSS (5 + 5 pts)
 
-| Indicador | Evidencia |
+| Indicador | Evidencia vigente |
 |---|---|
-| Manejo de espacios | `margin`, `padding`, `gap`, `max-width: 900px` centrado. `display: grid` en `.campos` y `.columnas`. `@media (max-width: 600px)` pasa a una columna. |
-| Construcción visual | Cabecera oscura, secciones tipo tarjeta, etiquetas de colores para el estado (`.activo`, `.por-vencer`, `.vencido`), mensajes verdes y rojos. |
-| Importación | `<link rel="stylesheet" href="estilos.css">` en las dos páginas. |
-| Reutilización | Un solo `estilos.css` para ambas páginas. Clases reutilizables: `.boton` (sirve para `<button>` y `<a>`), `.estado`, `.mensaje`, `.columnas`. |
-| Aplicación de estilos a etiquetas | Selectores de etiqueta: `body`, `header`, `main`, `section`, `table`, `th, td`, `input, select`, `label`. |
-| Eventos `:hover` | `button:hover, .boton:hover` (`estilos.css:153`) y `.boton-eliminar:hover` (`estilos.css:182`). |
+| Espacios y adaptación | Ancho máximo, espaciado y formulario grid: `gimnasio/static/estilos/base.css:17`. Grilla de recorrido: `gimnasio/static/estilos/recorrido.css:13`. Una columna en celular: `gimnasio/static/estilos/recorrido.css:22`. |
+| Construcción visual | Tokens semánticos de B: `gimnasio/static/estilos/tokens.css:7`. Tema oscuro: `gimnasio/static/estilos/tokens.css:61`. Cifras, tarjetas y jerarquía: `gimnasio/static/estilos/recorrido.css:4`. |
+| Importación y reutilización | Las tres pantallas comparten tokens y base: `gimnasio/static/index.html:10`. Recepción y entrenamiento comparten recorrido: `gimnasio/static/recepcion.html:10`, `gimnasio/static/entrenamiento.html:10`. |
+| Selectores de etiquetas y estados | `body`, `main`, `section`, `form`, `label`, controles y foco visible: `gimnasio/static/estilos/base.css:10`. Estado deshabilitado: `gimnasio/static/estilos/recorrido.css:8`. Movimiento reducido: `gimnasio/static/estilos/base.css:43`. No se acredita un efecto `:hover` específico: el estilo vigente prioriza foco y estados de controles. |
 
 ## Funcionamiento y conocimiento del sistema (1 pt)
 
-Resumen para explicar en 30 segundos:
+1. Recepción inicia sesión y registra una entrada. La ruta autoriza el rol y el servicio verifica vigencia, visita abierta y aforo dentro de una transacción.
+2. El socio inicia sesión, recibe la primera sesión planificada pendiente y registra series con los objetivos originales del entrenador.
+3. La recarga recupera sus hechos. Recepción registra la salida y la ocupación vuelve al valor inicial. Cerrar sesión de usuario es una operación diferente.
 
-1. El navegador carga `index.html` y `app.js` llama a `/api/socios`.
-2. Flask recibe la petición, consulta MySQL con `consultar()` y aplica las reglas (estado, IMC, progreso, check-in).
-3. Flask devuelve JSON y `app.js` lo pinta en la tabla.
-
-Las 6 reglas del gimnasio están en el README, sección "Reglas del gimnasio".
+La propuesta no exige datos de dolor ni restricciones en etapa 1, no modifica carga, repeticiones, series o volumen y no reinicia la secuencia al cambiar de semana. El E2E comprueba además visita sin entrenamiento, sesión parcial, reingreso, aforo lleno y reintento sin duplicación.
 
 ## Modificación solicitada (5 pts): puntos de cambio
 
-Dónde tocar según lo que pidan:
-
-| Si piden... | Se toca |
+| Si piden… | Punto de cambio |
 |---|---|
-| Una regla nueva o distinta (por ejemplo, otros días de aviso de vencimiento) | La función de la regla en `app.py:86-135`. |
-| Un campo nuevo en el socio | Columna en `base_datos.sql`, `INSERT` y `SELECT` en `app.py`, formulario en `index.html`, dato en `app.js`. |
-| Un botón o acción nueva | Ruta en `app.py`, botón en el HTML y función en `app.js` con `llamarApi`. |
-| Un cambio visual | Clase nueva en `estilos.css` (por ejemplo, otro `:hover`). |
+| Una regla de propuesta | Motor puro `gimnasio/reglas/sesion.py:8`, con issue explícito y revisión independiente. |
+| Un cambio en entrada o salida | `gimnasio/visitas/rutas.py:12` → `gimnasio/visitas/servicio.py:39` → `gimnasio/visitas/repositorio.py:72`. |
+| Un campo persistido | Nueva migración hacia adelante, servicio/repositorio del módulo y pruebas; conservar los hechos existentes. |
+| Una acción de entrenamiento | `gimnasio/entrenamiento/rutas.py:24`, `gimnasio/static/js/entrenamiento.js:144` y pantalla correspondiente. |
+| Un cambio visual | Tokens y estilos compartidos en `gimnasio/static/estilos/`, manteniendo la dirección B. |
 
-## Puntos débiles a tener en cuenta
+## Límites y referencia histórica
 
-- **Seguridad en el frontend:** `app.js` arma el HTML con plantillas de texto y `innerHTML +=`, sin escapar los datos. Un nombre con `<script>` se inyectaría. En un proyecto de facultad es aceptable, pero conviene saber explicarlo.
-- **Duplicado en el check-in:** la consulta de "ya entró hoy" y la de "últimos 7 días" son dos SQL distintos. Es intencional, porque miden cosas diferentes.
+No se atribuyen a esta entrega los ajustes automáticos, el módulo de salud ni un CRUD completo de socios en la interfaz. La instalación PWA y el cierre de etapa requieren la validación reservada al dueño en #52. La caché del SW contiene estáticos públicos y no API ni HTML; sin conexión no se envían escrituras.
+
+La etiqueta `base-original`, el archivo raíz `base_datos.sql`, la migración heredada de tres dígitos y la carpeta raíz `static/` conservan la referencia académica original. No se usan para ejecutar la aplicación vigente y no hay migración de esos datos.
