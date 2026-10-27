@@ -42,7 +42,7 @@ nombre = "Login real por rol"
 grupo = "Acceso"
 etapa = 0
 nivel = "funcional"
-prueba = "pruebas/test_permisos_sesion.py::test_inicia_sesion_con_cedula_o_correo_y_la_cierra"
+prueba = "pruebas/e2e/test_direccion_visual.py::test_ingreso_en_b_claro_y_oscuro_con_teclado_sin_desborde"
 
 [[capacidad]]
 id = "entrar-como"
@@ -50,7 +50,7 @@ nombre = "Accesos rápidos \"entrar como…\" en modo demo"
 grupo = "Acceso"
 etapa = 0
 nivel = "funcional"
-prueba = "pruebas/e2e/test_ingreso_demo.py::test_entrar_como_socio_saluda_a_lucia_sin_errores"
+prueba = "pruebas/e2e/test_direccion_visual.py::test_ingreso_en_b_claro_y_oscuro_con_teclado_sin_desborde"
 
 [[capacidad]]
 id = "semilla-demo"
