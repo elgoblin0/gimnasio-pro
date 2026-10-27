@@ -120,6 +120,7 @@ def test_membresia_aforo_y_acceso_del_socio(pagina_demo, demo_aislada):
     assert contar(demo_aislada, "entradas") == 0
     pagina.get_by_role("button", name="Cerrar sesión", exact=True).click()
     pagina.get_by_role("button", name="Entrar como socio", exact=True).click()
+    expect(pagina.get_by_role("heading", name="Hola, Lucía", exact=True)).to_be_visible()
     pagina.goto(demo_aislada.url + "/recepcion.html")
     expect(pagina.get_by_text("Ingresá como recepción desde el inicio para registrar visitas.")).to_be_visible()
     expect(pagina.locator("[data-contenido]")).to_be_hidden()
