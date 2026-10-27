@@ -155,6 +155,7 @@ jobs:
           RESULTADOS: >-
             calidad=${{ needs.calidad.result }}
             pruebas=${{ needs.pruebas.result }}
+            e2e=${{ needs.e2e.result }}
             secretos=${{ needs.secretos.result }}
         run: |
           python scripts/resumen_ci.py artefactos $RESULTADOS > resumen-ci.md

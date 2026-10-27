@@ -56,11 +56,13 @@ def main(argumentos):
         salida += [f"- {fallo}" for fallo in fallos[:MAX_FALLOS]]
         if len(fallos) > MAX_FALLOS:
             salida.append(f"- … y {len(fallos) - MAX_FALLOS} más")
-    if resultados.get("pruebas") == "failure" and not fallos:
-        # Falló antes de producir el reporte (migraciones, importación): se muestra el final de los registros.
-        for registro in sorted(carpeta.rglob("registro-*.txt")):
-            cola = registro.read_text(encoding="utf-8", errors="replace").splitlines()[-MAX_LINEAS // 2 :]
-            salida += ["", f"### {registro.name}", "", "```", *cola, "```"]
+    for trabajo in ("pruebas", "e2e"):
+        if resultados.get(trabajo) == "failure" and not fallos_de_pytest(carpeta / trabajo)[1]:
+            # Falló antes de producir el reporte (migraciones, importación, Chromium): se muestra el final
+            # de los registros de ese trabajo; cada artefacto se descarga en una carpeta con su nombre.
+            for registro in sorted((carpeta / trabajo).rglob("registro-*.txt")):
+                cola = registro.read_text(encoding="utf-8", errors="replace").splitlines()[-MAX_LINEAS // 2 :]
+                salida += ["", f"### {trabajo}/{registro.name}", "", "```", *cola, "```"]
     if resultados.get("calidad") == "failure":
         lineas = lineas_de_calidad(carpeta)
         salida += ["", "### Calidad (ruff, formato, mapa, node)", "", "```"]
