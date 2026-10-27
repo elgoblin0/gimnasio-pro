@@ -10,7 +10,7 @@ from threading import Lock
 from gimnasio.comun.bd import transaccion
 from gimnasio.comun.formatos import normalizar_cedula, normalizar_telefono
 from gimnasio.comun.ids import nuevo_id
-from gimnasio.comun.reloj import reloj_actual
+from gimnasio.comun.reloj import fecha_local, reloj_actual
 from gimnasio.demo import repositorio
 from gimnasio.demo.nombres import APELLIDOS, NOMBRES
 from gimnasio.permisos import servicio as permisos
@@ -96,6 +96,9 @@ def reiniciar():
                 entrenador_id = usuario_id
         for socio_id in socios:
             repositorio.insertar_asignacion(cursor, nuevo_id(reloj), socio_id, entrenador_id, ahora)
+            # Un único intervalo ficticio por socio: treinta días inclusivos, sin superposiciones.
+            desde = fecha_local(ahora)
+            repositorio.insertar_membresia(cursor, nuevo_id(reloj), socio_id, desde, desde + timedelta(days=29), ahora)
         # 37 socios: el 80 % se redondea al entero más cercano (30).
         for socio_id in socios[: round(len(socios) * 0.8)]:
             permisos.registrar_consentimiento(cursor, socio_id, "salud", True, "demo-1", socio_id)

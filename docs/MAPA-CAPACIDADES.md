@@ -23,8 +23,8 @@ Generado por `scripts/mapa_capacidades.py` desde `docs/capacidades.toml`. No edi
 
 | Capacidad | Etapa | Nivel | Prueba |
 |---|---|---|---|
-| Login real por rol | 0 | funcional | `pruebas/test_permisos_sesion.py::test_inicia_sesion_con_cedula_o_correo_y_la_cierra` |
-| Accesos rápidos "entrar como…" en modo demo | 0 | funcional | `pruebas/e2e/test_ingreso_demo.py::test_entrar_como_socio_saluda_a_lucia_sin_errores` |
+| Login real por rol | 0 | funcional | `pruebas/e2e/test_direccion_visual.py::test_ingreso_en_b_claro_y_oscuro_con_teclado_sin_desborde` |
+| Accesos rápidos "entrar como…" en modo demo | 0 | funcional | `pruebas/e2e/test_direccion_visual.py::test_ingreso_en_b_claro_y_oscuro_con_teclado_sin_desborde` |
 
 ## Demo
 
@@ -37,7 +37,7 @@ Generado por `scripts/mapa_capacidades.py` desde `docs/capacidades.toml`. No edi
 
 | Capacidad | Etapa | Nivel | Prueba |
 |---|---|---|---|
-| PWA instalable en escritorio, con pantallas que se adaptan a tablet y celular | 1 | pendiente | — |
+| PWA instalable en escritorio, con pantallas que se adaptan a tablet y celular | 1 | pendiente | `pruebas/e2e/test_pwa.py` |
 | Cuerpo 3D muscular | 2 | pendiente | — |
 | Escena de ocupación | 3 | pendiente | — |
 | Recorrido guiado de dos minutos | 7 | pendiente | — |
@@ -57,6 +57,7 @@ Generado por `scripts/mapa_capacidades.py` desde `docs/capacidades.toml`. No edi
 
 | Capacidad | Etapa | Nivel | Prueba |
 |---|---|---|---|
+| Consulta de membresía de acceso por vigencia, sin cupo de entradas | 1 | pendiente | `pruebas/test_socios_membresia.py` |
 | Tarjeta contextual en recepción | 3 | pendiente | — |
 | Historial de entradas y salidas con ocupación registrada | 1 | pendiente | `pruebas/test_visitas.py` |
 | Aforo en vivo y mejores horarios | 3 | pendiente | — |

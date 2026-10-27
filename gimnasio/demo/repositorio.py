@@ -20,6 +20,7 @@ def vaciar_datos(cursor):
                 break
     cursor.execute("DELETE FROM consentimientos")
     cursor.execute("DELETE FROM asignaciones_entrenador")
+    cursor.execute("DELETE FROM membresias")
     cursor.execute("DELETE FROM usuarios")
     cursor.execute("DELETE FROM personas")
     cursor.execute("DELETE FROM sedes")
@@ -38,4 +39,12 @@ def insertar_asignacion(cursor, asignacion_id, socio_id, entrenador_id, momento)
         """INSERT INTO asignaciones_entrenador (id, socio_id, entrenador_id, desde, hasta)
            VALUES (%s, %s, %s, %s, NULL)""",
         (a_bytes(asignacion_id), a_bytes(socio_id), a_bytes(entrenador_id), momento),
+    )
+
+
+def insertar_membresia(cursor, membresia_id, socio_id, desde, hasta, momento):
+    cursor.execute(
+        """INSERT INTO membresias (id, socio_id, desde, hasta, actualizada_en)
+           VALUES (%s, %s, %s, %s, %s)""",
+        (a_bytes(membresia_id), a_bytes(socio_id), desde, hasta, momento),
     )

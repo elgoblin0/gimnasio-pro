@@ -32,10 +32,16 @@ def test_inicia_sesion_con_cedula_o_correo_y_la_cierra(app_con_bd):
 
     respuesta = entrar(cliente, "4.567.890")
     assert respuesta.status_code == 200
+    cookie = respuesta.headers["Set-Cookie"]
+    assert "HttpOnly" in cookie
+    assert "SameSite=Lax" in cookie
+    assert "Secure" not in cookie  # El cliente de pruebas usa HTTP local (ADR 0006).
     assert respuesta.get_json()["usuario"]["rol"] == "recepcion"
     assert cliente.get("/api/sesion").get_json()["usuario"]["nombre"] == "Rocío"
 
-    assert cliente.delete("/api/sesion", headers=CABECERA).status_code == 204
+    cierre = cliente.delete("/api/sesion", headers=CABECERA)
+    assert cierre.status_code == 204
+    assert "Max-Age=0" in cierre.headers["Set-Cookie"]
     assert cliente.get("/api/sesion").get_json() == {"usuario": None}
     assert entrar(cliente, "rocio@demo.gimnasio.invalid").status_code == 200
 
@@ -97,35 +103,52 @@ def test_entrar_como_solo_usa_usuarios_demo(app_con_bd):
     assert cliente.post("/api/sesion/demo/invitado", headers=CABECERA).status_code == 404
 
 
-def test_los_cambios_sin_encabezado_anti_csrf_se_rechazan(app_con_bd):
-    crear(app_con_bd, "socio", "1234567")
-    respuesta = app_con_bd.test_client().post("/api/sesion", json={"identificador": "1234567", "clave": CLAVE})
+@pytest.mark.parametrize(
+    "metodo,ruta", [("POST", "/api/sesion"), ("DELETE", "/api/sesion"), ("POST", "/api/sesion/demo/socio")]
+)
+def test_los_cambios_sin_encabezado_anti_csrf_se_rechazan(app_con_bd, metodo, ruta):
+    respuesta = app_con_bd.test_client().open(ruta, method=metodo, json={"identificador": "1234567", "clave": CLAVE})
     assert respuesta.status_code == 403
     assert respuesta.get_json()["error"]["codigo"] == "falta_encabezado"
 
 
-def test_requiere_aplica_la_matriz(app_con_bd):
+@pytest.mark.parametrize(
+    "permiso,rol_permitido",
+    [
+        ("visitas.registrar", "recepcion"),
+        ("visitas.ver", "recepcion"),
+        ("entrenamiento.ver_propio", "socio"),
+        ("entrenamiento.ver_asignados", "entrenador"),
+    ],
+)
+def test_requiere_aplica_la_matriz(app_con_bd, permiso, rol_permitido):
     @app_con_bd.get("/api/prueba/visitas")
-    @servicio.requiere("visitas.registrar")
-    def solo_recepcion():
+    @servicio.requiere(permiso)
+    def lectura():
         return jsonify({"ok": True})
 
-    crear(app_con_bd, "socio", "1111111")
-    crear(app_con_bd, "recepcion", "2222222")
     cliente = app_con_bd.test_client()
     assert cliente.get("/api/prueba/visitas").status_code == 401
-    entrar(cliente, "1111111")
-    assert cliente.get("/api/prueba/visitas").status_code == 403
-    entrar(cliente, "2222222")
-    assert cliente.get("/api/prueba/visitas").status_code == 200
+    for numero, rol in enumerate(("socio", "recepcion", "entrenador", "administracion")):
+        cedula = str(1_000_000 + numero)
+        crear(app_con_bd, rol, cedula)
+        assert entrar(cliente, cedula).status_code == 200
+        assert cliente.get("/api/prueba/visitas").status_code == (200 if rol == rol_permitido else 403)
 
 
 def test_un_usuario_desactivado_pierde_la_sesion_abierta(app_con_bd):
+    @app_con_bd.get("/api/prueba/entrenamiento")
+    @servicio.requiere("entrenamiento.ver_propio")
+    def lectura():
+        return "", 204
+
     usuario_id = crear(app_con_bd, "socio", "1234567")
     cliente = app_con_bd.test_client()
-    entrar(cliente, "1234567")
+    assert entrar(cliente, "1234567").status_code == 200
+    assert cliente.get("/api/prueba/entrenamiento").status_code == 204
     with app_con_bd.app_context(), transaccion() as cursor:
         cursor.execute("UPDATE usuarios SET activo = FALSE WHERE id = %s", (usuario_id.bytes,))
+    assert cliente.get("/api/prueba/entrenamiento").status_code == 401
     assert cliente.get("/api/sesion").get_json() == {"usuario": None}
 
 
