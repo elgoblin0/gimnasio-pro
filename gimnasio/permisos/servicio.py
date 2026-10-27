@@ -163,7 +163,7 @@ def requiere(permiso):
     return decorador
 
 
-def crear_usuario(cursor, persona, rol, clave=None, es_demo=False):
+def crear_usuario(cursor, persona, rol, clave=None, es_demo=False, *, identificadores=None):
     """Crea persona y usuario dentro de la transacción del llamador. Sin clave, solo entra por "entrar como…"."""
     if rol not in ROLES:
         raise ValueError(f"rol desconocido: {rol!r}")
@@ -174,20 +174,28 @@ def crear_usuario(cursor, persona, rol, clave=None, es_demo=False):
     datos = dict(persona, cedula=normalizar_cedula(persona["cedula"]))
     if datos.get("correo"):
         datos["correo"] = datos["correo"].strip().lower()
-    persona_id, usuario_id = nuevo_id(reloj), nuevo_id(reloj)
+    # La semilla puede aportar identidades ficticias estables; el repositorio valida UUIDv7.
+    persona_id, usuario_id = identificadores if identificadores is not None else (nuevo_id(reloj), nuevo_id(reloj))
     repositorio.insertar_persona(cursor, persona_id, datos, ahora)
     clave_hash = generate_password_hash(clave) if clave else None
     repositorio.insertar_usuario(cursor, usuario_id, persona_id, rol, clave_hash, es_demo, ahora)
     return usuario_id
 
 
-def registrar_consentimiento(cursor, socio_id, tipo, otorgado, version_texto, autor_id):
+def registrar_consentimiento(cursor, socio_id, tipo, otorgado, version_texto, autor_id, *, identificador=None):
     """Otorgar y revocar agregan un registro; nunca se modifica uno anterior (ADR 0003)."""
     if tipo not in TIPOS_DE_CONSENTIMIENTO:
         raise ValueError(f"tipo de consentimiento desconocido: {tipo!r}")
     reloj = reloj_actual()
     repositorio.insertar_consentimiento(
-        cursor, nuevo_id(reloj), socio_id, tipo, version_texto, otorgado, autor_id, reloj.ahora()
+        cursor,
+        identificador if identificador is not None else nuevo_id(reloj),
+        socio_id,
+        tipo,
+        version_texto,
+        otorgado,
+        autor_id,
+        reloj.ahora(),
     )
 
 

@@ -24,7 +24,11 @@ def iniciar(pagina, instancia):
 
 def contar(instancia):
     with instancia.app.app_context(), transaccion() as cursor:
-        cursor.execute("SELECT COUNT(*) AS cantidad FROM series_realizadas")
+        cursor.execute(
+            "SELECT COUNT(*) AS cantidad FROM series_realizadas s "
+            "JOIN sesiones_realizadas sr ON sr.id=s.sesion_realizada_id "
+            "JOIN usuarios u ON u.id=sr.socio_id WHERE u.es_demo=TRUE"
+        )
         return cursor.fetchone()["cantidad"]
 
 

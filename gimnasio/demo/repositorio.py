@@ -1,5 +1,7 @@
 """SQL de la demo; única excepción al borrado de hechos (ADR 0003)."""
 
+import json
+
 from gimnasio.comun.ids import a_bytes
 
 
@@ -44,7 +46,7 @@ def insertar_sede(cursor, sede_id, momento):
     cursor.execute(
         """INSERT INTO sedes (id, nombre, zona_horaria, aforo_maximo, actualizada_en)
            VALUES (%s, %s, %s, %s, %s)""",
-        (a_bytes(sede_id), "Gimnasio Pro Demo", "America/Asuncion", 60, momento),
+        (a_bytes(sede_id), "Gimnasio Pro Demo · Asunción", "America/Asuncion", 60, momento),
     )
 
 
@@ -61,4 +63,69 @@ def insertar_membresia(cursor, membresia_id, socio_id, desde, hasta, momento):
         """INSERT INTO membresias (id, socio_id, desde, hasta, actualizada_en)
            VALUES (%s, %s, %s, %s, %s)""",
         (a_bytes(membresia_id), a_bytes(socio_id), desde, hasta, momento),
+    )
+
+
+def insertar_ejercicio(cursor, ejercicio_id, nombre, medidas, momento):
+    cursor.execute(
+        "INSERT INTO ejercicios (id,nombre,medidas_aplicables,actualizada_en) VALUES (%s,%s,%s,%s)",
+        (a_bytes(ejercicio_id), nombre, json.dumps(medidas), momento),
+    )
+
+
+def insertar_programa(cursor, programa_id, socio_id, momento):
+    cursor.execute(
+        "INSERT INTO programas_entrenamiento (id,socio_id,version,creado_en) VALUES (%s,%s,1,%s)",
+        (a_bytes(programa_id), a_bytes(socio_id), momento),
+    )
+
+
+def insertar_sesion_planificada(cursor, sesion_id, programa_id, posicion, nombre):
+    cursor.execute(
+        "INSERT INTO sesiones_planificadas (id,programa_id,posicion,nombre) VALUES (%s,%s,%s,%s)",
+        (a_bytes(sesion_id), a_bytes(programa_id), posicion, nombre),
+    )
+
+
+def insertar_ejercicio_planificado(
+    cursor,
+    planificado_id,
+    sesion_id,
+    ejercicio_id,
+    posicion,
+    series,
+    *,
+    repeticiones=None,
+    carga=None,
+    duracion=None,
+    distancia=None,
+):
+    cursor.execute(
+        "INSERT INTO ejercicios_planificados "
+        "(id,sesion_planificada_id,ejercicio_id,posicion,series,repeticiones,carga,duracion,distancia) "
+        "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)",
+        (
+            a_bytes(planificado_id),
+            a_bytes(sesion_id),
+            a_bytes(ejercicio_id),
+            posicion,
+            series,
+            repeticiones,
+            carga,
+            duracion,
+            distancia,
+        ),
+    )
+
+
+def insertar_parcial(cursor, sesion_id, serie_id, socio_id, planificada_id, ejercicio_id, momento):
+    cursor.execute(
+        "INSERT INTO sesiones_realizadas (id,socio_id,sesion_planificada_id,creada_en) VALUES (%s,%s,%s,%s)",
+        (a_bytes(sesion_id), a_bytes(socio_id), a_bytes(planificada_id), momento),
+    )
+    cursor.execute(
+        "INSERT INTO series_realizadas "
+        "(id,sesion_realizada_id,ejercicio_planificado_id,repeticiones,carga,autor_id,registrada_en) "
+        "VALUES (%s,%s,%s,10,20.50,%s,%s)",
+        (a_bytes(serie_id), a_bytes(sesion_id), a_bytes(ejercicio_id), a_bytes(socio_id), momento),
     )

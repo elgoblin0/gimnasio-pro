@@ -1,15 +1,19 @@
-"""Carga determinista de personas ficticias; claves e identificadores se generan de nuevo."""
+"""Recorrido ficticio reiniciable; identidades estables y credenciales opacas nuevas."""
 
 import random
 import secrets
 from collections import OrderedDict, deque
-from datetime import timedelta
+from datetime import UTC, datetime, timedelta
+from itertools import count
 from math import ceil
 from threading import Lock
 
+from flask import current_app
+
 from gimnasio.comun.bd import transaccion
+from gimnasio.comun.errores import ErrorDeDominio
 from gimnasio.comun.formatos import normalizar_cedula, normalizar_telefono
-from gimnasio.comun.ids import nuevo_id
+from gimnasio.comun.ids import desde_texto
 from gimnasio.comun.reloj import fecha_local, reloj_actual
 from gimnasio.demo import repositorio
 from gimnasio.demo.nombres import APELLIDOS, NOMBRES
@@ -24,6 +28,44 @@ USUARIOS_DEMO = (
 SOCIOS_ADICIONALES = 36
 SOLICITUDES_POR_MINUTO = 60
 VENTANA_DE_SOLICITUDES = timedelta(minutes=1)
+
+
+def id_ficticio(numero, momento):
+    """UUIDv7 reproducible para igual reloj/semilla, validado por comun.ids."""
+    if type(numero) is not int or not 0 < numero < 2**48:
+        raise ValueError("El número de identidad ficticia debe ser un entero positivo de 48 bits.")
+    if momento.utcoffset() is None:
+        raise ValueError("El momento debe incluir una zona horaria.")
+    milisegundos = (momento - datetime(1970, 1, 1, tzinfo=UTC)) // timedelta(milliseconds=1)
+    if not 0 <= milisegundos < 2**48:
+        raise ValueError("El momento debe caber en los 48 bits del UUIDv7.")
+    fecha = f"{milisegundos:012x}"
+    return desde_texto(f"{fecha[:8]}-{fecha[8:]}-7000-8000-{numero:012x}")
+
+
+def _cargar_programas(cursor, socios, siguiente_id, ahora):
+    fuerza, cardio = siguiente_id(), siguiente_id()
+    repositorio.insertar_ejercicio(cursor, fuerza, "Sentadilla ficticia", ["repeticiones", "carga"], ahora)
+    repositorio.insertar_ejercicio(cursor, cardio, "Caminata ficticia", ["duracion", "distancia"], ahora)
+    for socio_id in socios[:2]:
+        programa, primera, segunda = siguiente_id(), siguiente_id(), siguiente_id()
+        repositorio.insertar_programa(cursor, programa, socio_id, ahora)
+        repositorio.insertar_sesion_planificada(cursor, primera, programa, 1, "Fuerza y cardio")
+        repositorio.insertar_sesion_planificada(cursor, segunda, programa, 2, "Fuerza")
+        ejercicio_fuerza = siguiente_id()
+        repositorio.insertar_ejercicio_planificado(
+            cursor, ejercicio_fuerza, primera, fuerza, 1, 2, repeticiones=10, carga="20.50"
+        )
+        repositorio.insertar_ejercicio_planificado(
+            cursor, siguiente_id(), primera, cardio, 2, 1, duracion=120, distancia="1500.25"
+        )
+        repositorio.insertar_ejercicio_planificado(
+            cursor, siguiente_id(), segunda, fuerza, 1, 2, repeticiones=8, carga="25.00"
+        )
+        if socio_id == socios[1]:
+            repositorio.insertar_parcial(
+                cursor, siguiente_id(), siguiente_id(), socio_id, primera, ejercicio_fuerza, ahora
+            )
 
 
 class LimitePorIp:
@@ -78,27 +120,42 @@ def generar_personas():
 
 def reiniciar():
     """Reemplaza todos los datos en una transacción; requiere las migraciones ya aplicadas."""
+    if not current_app.config.get("MODO_DEMO"):
+        raise ErrorDeDominio("fuera_de_demo", "El reinicio solo está disponible en modo demo.", 403)
     reloj = reloj_actual()
     ahora = reloj.ahora()
     personas = generar_personas()
+    contador = count(1)
+
+    def siguiente_id():
+        return id_ficticio(next(contador), ahora)
+
     socios = []
     with transaccion() as cursor:
         repositorio.vaciar_datos(cursor)
-        repositorio.insertar_sede(cursor, nuevo_id(reloj), ahora)
+        repositorio.insertar_sede(cursor, siguiente_id(), ahora)
         for persona in personas:
             # La clave se descarta: nunca se imprime ni depende de random.Random(2026).
             usuario_id = permisos.crear_usuario(
-                cursor, persona, persona["rol"], clave=secrets.token_urlsafe(32), es_demo=persona["es_demo"]
+                cursor,
+                persona,
+                persona["rol"],
+                clave=secrets.token_urlsafe(32),
+                es_demo=persona["es_demo"],
+                identificadores=(siguiente_id(), siguiente_id()),
             )
             if persona["rol"] == "socio":
                 socios.append(usuario_id)
             elif persona["rol"] == "entrenador":
                 entrenador_id = usuario_id
         for socio_id in socios:
-            repositorio.insertar_asignacion(cursor, nuevo_id(reloj), socio_id, entrenador_id, ahora)
+            repositorio.insertar_asignacion(cursor, siguiente_id(), socio_id, entrenador_id, ahora)
             # Un único intervalo ficticio por socio: treinta días inclusivos, sin superposiciones.
-            desde = fecha_local(ahora)
-            repositorio.insertar_membresia(cursor, nuevo_id(reloj), socio_id, desde, desde + timedelta(days=29), ahora)
+            desde = fecha_local(ahora) - (timedelta(days=30) if socio_id == socios[-1] else timedelta())
+            repositorio.insertar_membresia(cursor, siguiente_id(), socio_id, desde, desde + timedelta(days=29), ahora)
+        _cargar_programas(cursor, socios, siguiente_id, ahora)
         # 37 socios: el 80 % se redondea al entero más cercano (30).
         for socio_id in socios[: round(len(socios) * 0.8)]:
-            permisos.registrar_consentimiento(cursor, socio_id, "salud", True, "demo-1", socio_id)
+            permisos.registrar_consentimiento(
+                cursor, socio_id, "salud", True, "demo-1", socio_id, identificador=siguiente_id()
+            )

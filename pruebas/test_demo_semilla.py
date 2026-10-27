@@ -85,6 +85,7 @@ def datos_semilla(app):
 
 @pytest.mark.bd
 def test_dos_reinicios_dejan_los_mismos_datos(app_con_bd, reloj_fijo):
+    app_con_bd.config["MODO_DEMO"] = True
     migraciones = consultar(app_con_bd, "SELECT * FROM migraciones_aplicadas ORDER BY version")
     with app_con_bd.app_context():
         servicio.reiniciar()
@@ -117,7 +118,7 @@ def test_dos_reinicios_dejan_los_mismos_datos(app_con_bd, reloj_fijo):
     assert primera["migraciones"] == migraciones
     assert primera["sedes"] == [
         {
-            "nombre": "Gimnasio Pro Demo",
+            "nombre": "Gimnasio Pro Demo · Asunción",
             "zona_horaria": "America/Asuncion",
             "aforo_maximo": 60,
             "actualizada_en": reloj_fijo.ahora().replace(tzinfo=None),
@@ -141,6 +142,7 @@ def test_dos_reinicios_dejan_los_mismos_datos(app_con_bd, reloj_fijo):
 
 @pytest.mark.bd
 def test_las_fechas_siguen_el_reloj_de_la_app(app_con_bd, reloj_fijo):
+    app_con_bd.config["MODO_DEMO"] = True
     with app_con_bd.app_context():
         servicio.reiniciar()
     primera = datos_semilla(app_con_bd)
@@ -164,6 +166,7 @@ def test_las_fechas_siguen_el_reloj_de_la_app(app_con_bd, reloj_fijo):
 
 @pytest.mark.bd
 def test_un_error_durante_la_carga_conserva_los_datos_anteriores(app_con_bd, monkeypatch):
+    app_con_bd.config["MODO_DEMO"] = True
     with app_con_bd.app_context():
         servicio.reiniciar()
     anterior = datos_semilla(app_con_bd)
@@ -181,6 +184,7 @@ def test_un_error_durante_la_carga_conserva_los_datos_anteriores(app_con_bd, mon
 
 @pytest.mark.bd
 def test_membresias_de_semilla_sin_superposiciones_y_sin_depender_de_salud(app_con_bd, reloj_fijo):
+    app_con_bd.config["MODO_DEMO"] = True
     from gimnasio.comun.ids import desde_bytes
     from gimnasio.comun.reloj import fecha_local
 
@@ -194,5 +198,8 @@ def test_membresias_de_semilla_sin_superposiciones_y_sin_depender_de_salud(app_c
         assert len(membresias) == 37
         assert all(m["cantidad"] == 1 for m in membresias)
         assert len(con_salud) < len(membresias)
-        for membresia in membresias:
-            assert consultar_membresia(desde_bytes(membresia["socio_id"]), fecha_local(reloj_fijo.ahora())) is not None
+        vigentes = [
+            consultar_membresia(desde_bytes(m["socio_id"]), fecha_local(reloj_fijo.ahora())) for m in membresias
+        ]
+        assert sum(m is not None for m in vigentes) == 36
+        assert sum(m is None for m in vigentes) == 1  # Caso explícito de membresía vencida de #48.

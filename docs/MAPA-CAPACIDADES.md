@@ -30,7 +30,7 @@ Generado por `scripts/mapa_capacidades.py` desde `docs/capacidades/`. No editar 
 
 | Capacidad | Etapa | Nivel | Prueba |
 |---|---|---|---|
-| Semilla ficticia de Paraguay que se reinicia | 0 | funcional | `pruebas/test_demo_semilla.py::test_dos_reinicios_dejan_los_mismos_datos` |
+| Semilla ficticia de Paraguay con recorrido reiniciable de entrenamiento y visitas | 0 | funcional | `pruebas/test_demo_recorrido.py` |
 | Demo pública en hosting gratuito con límites de uso | 1 | funcional | `pruebas/test_demo_limites.py` |
 
 ## Operación
