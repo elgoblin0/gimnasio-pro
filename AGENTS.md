@@ -14,7 +14,7 @@ python -m venv .venv && .venv/Scripts/pip install -r requirements-dev.txt   # Wi
 ruff check . && ruff format --check .
 pytest                          # las pruebas con MySQL se saltan si no hay GIMNASIO_BD_*
 python -m gimnasio.comun.migrar # aplica migraciones/NNNN_*.sql pendientes
-node --test gimnasio/static/js  # módulos JS puros
+node --test "gimnasio/static/**/*.test.js"  # módulos JS puros (Node 24)
 python scripts/mapa_capacidades.py --verificar
 python scripts/despachador.py --una-vuelta --simular
 ```
