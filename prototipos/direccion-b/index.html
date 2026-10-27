@@ -178,11 +178,11 @@ button:focus-visible { outline: 2px solid var(--foco); outline-offset: 3px; bord
   // Frenos: con dolor en la zona se baja o se sustituye y se avisa al entrenador; con un chequeo
   // del día desfavorable no se sube nada.
   const SESION = [
-    { nombre: "Sentadilla", zona: "rodilla", carga: 60, suba: 2.5, motivo: "la semana pasada completaste 3×12 a RIR 2",
+    { nombre: "Sentadilla", zona: "rodilla", series: 3, carga: 60, suba: 2.5, motivo: "la semana pasada completaste 3×12 a RIR 2",
       freno: { tipo: "baja", carga: 50 } },
-    { nombre: "Estocadas", zona: "rodilla", prefijo: "2×", carga: 12, suba: 2, motivo: "completaste 3×10 por pierna a RIR 2",
+    { nombre: "Estocadas", zona: "rodilla", series: 3, prefijo: "2×", carga: 12, suba: 2, motivo: "completaste 3×10 por pierna a RIR 2",
       freno: { tipo: "sustitucion", nombre: "Empuje de cadera", carga: 70 } },
-    { nombre: "Peso muerto rumano", zona: "cadera", carga: 50, suba: 2.5, motivo: "completaste 3×10 a RIR 2" },
+    { nombre: "Peso muerto rumano", zona: "cadera", series: 3, carga: 50, suba: 2.5, motivo: "completaste 3×10 a RIR 2" },
   ];
   function numero(n) { return String(n).replace(".", ","); }
   function chequeoDesfavorable(chequeo) { return chequeo.sueno === "mal" || chequeo.energia === "baja"; }
@@ -191,17 +191,17 @@ button:focus-visible { outline: 2px solid var(--foco); outline-offset: 3px; bord
     if (chequeo.dolor === ejercicio.zona) {
       const freno = ejercicio.freno;
       if (freno.tipo === "sustitucion") {
-        return { nombre: freno.nombre, reemplaza: ejercicio.nombre, prefijo: "", carga: freno.carga, delta: 0,
+        return { nombre: freno.nombre, reemplaza: ejercicio.nombre, prefijo: "", carga: freno.carga, delta: 0, series: ejercicio.series,
           freno: "sustitución", porque: `${ejercicio.nombre} carga la ${ejercicio.zona}: la reemplazamos. Avisamos a Marcos.` };
       }
-      return { nombre: ejercicio.nombre, prefijo, carga: freno.carga, delta: freno.carga - ejercicio.carga,
+      return { nombre: ejercicio.nombre, prefijo, carga: freno.carga, delta: freno.carga - ejercicio.carga, series: ejercicio.series,
         freno: "dolor reportado", porque: `Te duele la ${ejercicio.zona}: bajamos la carga. Avisamos a Marcos.` };
     }
     if (chequeoDesfavorable(chequeo)) {
-      return { nombre: ejercicio.nombre, prefijo, carga: ejercicio.carga, delta: 0, freno: "chequeo del día",
-        porque: `Tocaba subir ${numero(ejercicio.suba)} kg, pero hoy el chequeo no acompaña: se mantiene. Avisamos a Marcos.` };
+      return { nombre: ejercicio.nombre, prefijo, carga: ejercicio.carga, delta: 0, series: ejercicio.series - 1,
+        freno: "chequeo del día", porque: `Hoy el chequeo no acompaña: no subimos y hacés ${ejercicio.series - 1} series en vez de ${ejercicio.series}. Avisamos a Marcos.` };
     }
-    return { nombre: ejercicio.nombre, prefijo, carga: ejercicio.carga + ejercicio.suba, delta: ejercicio.suba,
+    return { nombre: ejercicio.nombre, prefijo, carga: ejercicio.carga + ejercicio.suba, delta: ejercicio.suba, series: ejercicio.series,
       freno: null, porque: `Subís: ${ejercicio.motivo}.` };
   }
 </script>

@@ -73,9 +73,21 @@ def test_con_dolor_se_baja_o_se_sustituye_y_se_avisa(propuestas):
             assert "Marcos" in p["porque"]
 
 
-def test_un_chequeo_desfavorable_nunca_sube(propuestas):
+def test_un_chequeo_desfavorable_nunca_sube_y_baja_el_volumen(propuestas):
     for caso in ("sueno", "energia", "dolorYCansancio"):
         assert all(p["delta"] <= 0 and p["freno"] for p in propuestas[caso]), caso
+    # VISION.md, frenos §5: todo freno sustituye o baja. Con el chequeo desfavorable baja el volumen.
+    for caso in ("sueno", "energia"):
+        assert all(p["series"] < 3 for p in propuestas[caso]), caso
+
+
+def test_todo_freno_sustituye_o_baja(propuestas):
+    for caso, lista in propuestas.items():
+        if caso == "zonas":
+            continue
+        for p in lista:
+            if p["freno"]:
+                assert p.get("reemplaza") or p["delta"] < 0 or p["series"] < 3, (caso, p)
 
 
 def test_todo_freno_avisa_al_entrenador(propuestas):
