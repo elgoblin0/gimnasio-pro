@@ -33,6 +33,18 @@ Generado por `scripts/mapa_capacidades.py` desde `docs/capacidades/`. No editar 
 | Semilla ficticia de Paraguay que se reinicia | 0 | funcional | `pruebas/test_demo_semilla.py::test_dos_reinicios_dejan_los_mismos_datos` |
 | Demo pública en hosting gratuito con límites de uso | 1 | funcional | `pruebas/test_demo_limites.py` |
 
+## Entrenamiento
+
+| Capacidad | Etapa | Nivel | Prueba |
+|---|---|---|---|
+| Persistencia de sesiones realizadas y series realizadas | 1 | pendiente | `pruebas/test_entrenamiento_repositorio.py` |
+| Sesión propuesta según la secuencia del programa de entrenamiento | 1 | pendiente | `pruebas/reglas/test_sesion.py::test_propuesta_por_secuencia_y_series_vigentes` |
+| Chequeo del día | 2 | pendiente | — |
+| "Me duele" y "máquina ocupada" | 2 | pendiente | — |
+| Doble progresión + RPE/RIR con ajustes automáticos y frenos | 2 | pendiente | — |
+| Récords y progreso | 2 | pendiente | — |
+| Sesión en vivo completa | 2 | pendiente | — |
+
 ## Recepción
 
 | Capacidad | Etapa | Nivel | Prueba |
@@ -60,17 +72,6 @@ Generado por `scripts/mapa_capacidades.py` desde `docs/capacidades/`. No editar 
 | Escena de ocupación | 3 | pendiente | — |
 | Movimiento cuidado y alternativa sin efectos | 7 | pendiente | — |
 | Recorrido guiado de dos minutos | 7 | pendiente | — |
-
-## Entrenamiento
-
-| Capacidad | Etapa | Nivel | Prueba |
-|---|---|---|---|
-| Sesión propuesta según la secuencia del programa de entrenamiento | 1 | pendiente | `pruebas/reglas/test_sesion.py::test_propuesta_por_secuencia_y_series_vigentes` |
-| Chequeo del día | 2 | pendiente | — |
-| "Me duele" y "máquina ocupada" | 2 | pendiente | — |
-| Doble progresión + RPE/RIR con ajustes automáticos y frenos | 2 | pendiente | — |
-| Récords y progreso | 2 | pendiente | — |
-| Sesión en vivo completa | 2 | pendiente | — |
 
 ## Operación
 
