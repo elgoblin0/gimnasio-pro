@@ -1,0 +1,6 @@
+id = "sesion-propuesta"
+nombre = "Sesión propuesta según la secuencia del programa de entrenamiento"
+grupo = "Entrenamiento"
+etapa = 1
+nivel = "pendiente"
+prueba = "pruebas/reglas/test_sesion.py::test_propuesta_por_secuencia_y_series_vigentes"
