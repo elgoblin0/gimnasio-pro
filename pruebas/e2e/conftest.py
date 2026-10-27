@@ -1,5 +1,6 @@
 """Servidor demo y navegador para los recorridos de punta a punta."""
 
+import json
 import os
 import uuid
 from contextlib import contextmanager
@@ -13,7 +14,8 @@ from mysql.connector import InterfaceError, OperationalError
 from werkzeug.serving import make_server
 
 from gimnasio import crear_app
-from gimnasio.comun.bd import conectar, parametros_desde_entorno
+from gimnasio.comun.bd import conectar, parametros_desde_entorno, transaccion
+from gimnasio.comun.ids import a_bytes, desde_bytes, nuevo_id
 from gimnasio.comun.migrar import aplicar
 from gimnasio.comun.reloj import RelojFijo
 from gimnasio.demo.servicio import reiniciar
@@ -74,6 +76,68 @@ def demo_aislada(playwright):
 def pagina_demo(demo_aislada, playwright):
     with playwright.chromium.launch(channel="chromium") as navegador, navegador.new_context(locale="es-PY") as contexto:
         yield contexto.new_page()
+
+
+@pytest.fixture
+def programa_demo(demo_aislada):
+    """Programa ficticio explícito para probar pantallas antes de extender la semilla de etapa 1."""
+    with demo_aislada.app.app_context(), transaccion() as cursor:
+        reloj = demo_aislada.app.extensions["reloj"]
+        cursor.execute("SELECT id FROM usuarios WHERE rol='socio' AND es_demo=TRUE ORDER BY id LIMIT 1")
+        socio = desde_bytes(cursor.fetchone()["id"])
+        cursor.execute(
+            "SELECT COALESCE(MAX(version),0)+1 AS version FROM programas_entrenamiento WHERE socio_id=%s",
+            (a_bytes(socio),),
+        )
+        version = cursor.fetchone()["version"]
+        programa, sesion = nuevo_id(reloj), nuevo_id(reloj)
+
+        def insertar(tabla, **valores):
+            columnas = ", ".join(valores)
+            parametros = ", ".join("%s" for _ in valores)
+            cursor.execute(f"INSERT INTO {tabla} ({columnas}) VALUES ({parametros})", tuple(valores.values()))
+
+        insertar(
+            "programas_entrenamiento",
+            id=a_bytes(programa),
+            socio_id=a_bytes(socio),
+            version=version,
+            creado_en=reloj.ahora(),
+        )
+        insertar(
+            "sesiones_planificadas",
+            id=a_bytes(sesion),
+            programa_id=a_bytes(programa),
+            posicion=1,
+            nombre="Fuerza y cardio",
+        )
+        ejercicios = []
+        for posicion, nombre, medidas, series in (
+            (1, "Sentadilla ficticia", ["repeticiones", "carga"], 2),
+            (2, "Caminata ficticia", ["duracion", "distancia"], 1),
+        ):
+            ejercicio, planificado = nuevo_id(reloj), nuevo_id(reloj)
+            insertar(
+                "ejercicios",
+                id=a_bytes(ejercicio),
+                nombre=nombre,
+                medidas_aplicables=json.dumps(medidas),
+                actualizada_en=reloj.ahora(),
+            )
+            insertar(
+                "ejercicios_planificados",
+                id=a_bytes(planificado),
+                sesion_planificada_id=a_bytes(sesion),
+                ejercicio_id=a_bytes(ejercicio),
+                posicion=posicion,
+                series=series,
+                repeticiones=10 if posicion == 1 else None,
+                carga="20.50" if posicion == 1 else None,
+                duracion=120 if posicion == 2 else None,
+                distancia="1500.25" if posicion == 2 else None,
+            )
+            ejercicios.append(planificado)
+    return SimpleNamespace(socio=socio, programa=programa, planificada=sesion, ejercicios=ejercicios)
 
 
 @pytest.fixture(scope="session")
