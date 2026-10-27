@@ -12,6 +12,7 @@
   --color-papel-200: #e6dccb;
   --color-tinta-900: #1e1b16;
   --color-tinta-600: #5c554a;
+  --color-tinta-400: #8f8270; /* 3,5:1 sobre el papel: alcanza para gráficos (WCAG 1.4.11) */
   --color-terracota-600: #b2452a;
   --color-terracota-100: #f6dfd5;
   --color-bosque-700: #1f5a43;
@@ -116,9 +117,9 @@ button:focus-visible { outline: 2px solid var(--foco); outline-offset: 3px; bord
 .vivo::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: currentColor; animation: titilar 2s ease-in-out infinite; }
 @keyframes titilar { 50% { opacity: .25; } }
 .barras { display: grid; grid-template-columns: repeat(16, 1fr); align-items: end; gap: 3px; height: 72px; margin-top: var(--espacio-3); }
-.barras i { display: block; background: var(--color-papel-200); border-radius: 2px 2px 0 0; height: var(--h); transform-origin: bottom; animation: crecer var(--duracion-3) var(--curva-salida) both; animation-delay: calc(var(--j) * 40ms + 400ms); }
+.barras i { display: block; background: var(--color-tinta-400); border-radius: 2px 2px 0 0; height: var(--h); transform-origin: bottom; animation: crecer var(--duracion-3) var(--curva-salida) both; animation-delay: calc(var(--j) * 40ms + 400ms); }
 .barras i.ahora { background: var(--acento); }
-.barras i.mejor { background: var(--color-bosque-100); box-shadow: inset 0 2px 0 var(--exito); }
+.barras i.mejor { background: var(--exito); }
 @keyframes crecer { from { transform: scaleY(0); } }
 .horas { display: flex; justify-content: space-between; font-size: 11px; color: var(--texto-suave); margin-top: 4px; }
 .nota { margin: var(--espacio-2) 0 0; font-size: 13px; color: var(--texto-suave); }
@@ -186,7 +187,7 @@ button:focus-visible { outline: 2px solid var(--foco); outline-offset: 3px; bord
     <section aria-labelledby="t-aforo">
       <h2 id="t-aforo">La sede ahora</h2>
       <div class="aforo-cifra"><strong data-dentro aria-live="polite">23</strong><span>de 60 personas</span><span class="vivo">en vivo</span></div>
-      <div class="barras" aria-hidden="true" data-barras></div>
+      <div class="barras" role="img" aria-label="Ocupación típica por hora: pico entre las 18 y las 20; lo más tranquilo, entre las 14 y las 16." data-barras></div>
       <div class="horas" aria-hidden="true"><span>6</span><span>10</span><span>14</span><span>18</span><span>22</span></div>
       <p class="nota">Hoy conviene venir de <strong>14:00 a 16:00</strong>: suele haber la mitad de gente.</p>
     </section>
