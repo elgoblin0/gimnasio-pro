@@ -143,7 +143,9 @@ def bloquear_socio(cursor, socio_id):
 
 
 def obtener_entrada(cursor, entrada_id):
-    cursor.execute("SELECT * FROM entradas WHERE id = %s", (a_bytes(entrada_id),))
+    # Referencia inmutable: lectura actual sin abrir un snapshot antes del candado de sede.
+    # El candado compartido nunca se promueve; los exclusivos conservan sede → socio.
+    cursor.execute("SELECT * FROM entradas WHERE id = %s FOR SHARE", (a_bytes(entrada_id),))
     return cursor.fetchone()
 
 
@@ -153,3 +155,37 @@ def tiene_visita_abierta(cursor, socio_id):
         (a_bytes(socio_id),),
     )
     return cursor.fetchone()["cantidad"] > 0
+
+
+def obtener_salida(cursor, salida_id):
+    cursor.execute("SELECT * FROM salidas WHERE id = %s FOR SHARE", (a_bytes(salida_id),))
+    return cursor.fetchone()
+
+
+def listar_visitas_abiertas(cursor):
+    cursor.execute(
+        _ESTADOS_VIGENTES
+        + """SELECT v.*, CONCAT(p.nombre, ' ', p.apellido) AS nombre, p.cedula,
+                                     s.zona_horaria
+                              FROM estados_vigentes v
+                              JOIN usuarios u ON u.id = v.socio_id
+                              JOIN personas p ON p.id = u.persona_id
+                              JOIN sedes s ON s.id = v.sede_id
+                              WHERE v.abierta = TRUE
+                              ORDER BY v.registrada_en, v.entrada_id"""
+    )
+    return cursor.fetchall()
+
+
+def obtener_sede(cursor):
+    cursor.execute("SELECT id, aforo_maximo FROM sedes ORDER BY id LIMIT 1")
+    return cursor.fetchone()
+
+
+def listar_socios_activos(cursor):
+    cursor.execute(
+        """SELECT u.id, CONCAT(p.nombre, ' ', p.apellido) AS nombre, p.cedula
+           FROM usuarios u JOIN personas p ON p.id = u.persona_id
+           WHERE u.rol = 'socio' AND u.activo = TRUE ORDER BY p.nombre, p.apellido, u.id"""
+    )
+    return cursor.fetchall()
