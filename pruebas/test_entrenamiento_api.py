@@ -1,7 +1,10 @@
 """Propuesta real, programa intacto y alcance por rol/asignación sobre MySQL."""
 
+from concurrent.futures import ThreadPoolExecutor
 from decimal import Decimal
+from threading import Barrier, Event
 from types import SimpleNamespace
+from uuid import uuid4
 
 import pytest
 
@@ -221,3 +224,219 @@ def test_version_nueva_con_cardio_no_mezcla_hechos_de_version_anterior(entrenami
         "duracion": 120,
         "distancia": "1500.25",
     }
+
+
+def escribir(cliente, ruta, cuerpo, clave=None):
+    return cliente.post(ruta, json=cuerpo, headers={"X-Gimnasio": "1", "Idempotency-Key": clave or str(uuid4())})
+
+
+def iniciar(datos):
+    sesion_id = str(nuevo_id(datos.reloj))
+    respuesta = escribir(
+        datos.cliente(),
+        "/api/entrenamiento/sesiones",
+        {"id": sesion_id, "sesion_planificada_id": str(datos.sesiones[0])},
+    )
+    assert respuesta.status_code == 201
+    return sesion_id
+
+
+def cuerpo_serie(datos):
+    return {
+        "id": str(nuevo_id(datos.reloj)),
+        "ejercicio_planificado_id": str(datos.ejercicios[0][0]),
+        "repeticiones": 10,
+        "carga": "20.50",
+    }
+
+
+def cantidad(datos, tabla="series_realizadas"):
+    assert tabla in {"series_realizadas", "sesiones_realizadas", "solicitudes_idempotentes", "entradas"}
+    with datos.app.app_context(), transaccion() as cursor:
+        cursor.execute(f"SELECT COUNT(*) AS cantidad FROM {tabla}")
+        return cursor.fetchone()["cantidad"]
+
+
+def test_escritura_real_reintentos_y_lectura_parcial(entrenamiento_api):
+    datos = entrenamiento_api
+    sesion = iniciar(datos)
+    ruta = f"/api/entrenamiento/sesiones/{sesion}/series"
+    cliente, cuerpo, clave = datos.cliente(), cuerpo_serie(datos), str(uuid4())
+    assert cliente.post(ruta, json=cuerpo, headers={"X-Gimnasio": "1"}).status_code == 428
+    assert escribir(cliente, ruta, cuerpo, "no-es-uuid").status_code == 422
+    assert cliente.post(ruta, json=cuerpo, headers={"Idempotency-Key": clave}).status_code == 403
+    primera = escribir(cliente, ruta, cuerpo, clave)
+    assert primera.status_code == 201
+    assert primera.json["serie_realizada"]["autor_id"] == str(datos.usuarios["socio"])
+    assert escribir(cliente, ruta, cuerpo, clave).data == primera.data
+    assert escribir(cliente, ruta, cuerpo | {"carga": "99"}, clave).status_code == 422
+    assert escribir(cliente, ruta, cuerpo).json == primera.json
+    guardada = cliente.get(f"/api/entrenamiento/sesiones/{sesion}").json
+    assert guardada["series"] == [primera.json["serie_realizada"]]
+    assert guardada["ejercicios"][0]["pendiente"] == 1
+    assert guardada["series"][0]["carga"] == "20.50"
+    assert cantidad(datos) == 1
+    assert cantidad(datos, "entradas") == 0
+
+
+def test_ids_ajenos_no_filtran_ni_sobrescriben(entrenamiento_api):
+    datos = entrenamiento_api
+    sesion = iniciar(datos)
+    ruta = f"/api/entrenamiento/sesiones/{sesion}/series"
+    cuerpo = cuerpo_serie(datos)
+    assert escribir(datos.cliente(), ruta, cuerpo).status_code == 201
+    assert datos.cliente("ajeno").get(f"/api/entrenamiento/sesiones/{sesion}").status_code == 403
+    assert escribir(datos.cliente("ajeno"), ruta, cuerpo).status_code == 403
+    assert (
+        escribir(
+            datos.cliente("ajeno"),
+            "/api/entrenamiento/sesiones",
+            {"id": sesion, "sesion_planificada_id": str(datos.sesiones[0])},
+        ).status_code
+        == 403
+    )
+    otra = iniciar(datos)
+    assert escribir(datos.cliente(), f"/api/entrenamiento/sesiones/{otra}/series", cuerpo).status_code == 403
+    assert (
+        escribir(
+            datos.cliente(), ruta, cuerpo_serie(datos) | {"ejercicio_planificado_id": str(datos.ejercicios[1][0])}
+        ).status_code
+        == 422
+    )
+    assert (
+        escribir(
+            datos.cliente(), ruta, cuerpo_serie(datos) | {"ejercicio_planificado_id": str(nuevo_id(datos.reloj))}
+        ).status_code
+        == 404
+    )
+    assert datos.cliente().get(f"/api/entrenamiento/sesiones/{nuevo_id(datos.reloj)}").status_code == 404
+    assert cantidad(datos) == 1
+
+
+@pytest.mark.parametrize(
+    "cambios",
+    [
+        {"repeticiones": True},
+        {"repeticiones": 0},
+        {"repeticiones": 1.5},
+        {"carga": float("nan")},
+        {"carga": "Infinity"},
+        {"carga": "-1"},
+        {"carga": "1.001"},
+        {"duracion": 10},
+        {"autor_id": "arbitrario"},
+        {"socio_id": "arbitrario"},
+    ],
+)
+def test_api_rechaza_medidas_y_autor_arbitrarios(entrenamiento_api, cambios):
+    datos = entrenamiento_api
+    sesion = iniciar(datos)
+    assert (
+        escribir(
+            datos.cliente(), f"/api/entrenamiento/sesiones/{sesion}/series", cuerpo_serie(datos) | cambios
+        ).status_code
+        == 422
+    )
+    assert cantidad(datos) == 0
+
+
+def test_cardio_no_exige_medidas_de_fuerza(entrenamiento_api):
+    datos = entrenamiento_api
+    with datos.app.app_context(), transaccion() as cursor:
+        cursor.execute('UPDATE ejercicios SET medidas_aplicables=\'["duracion","distancia"]\'')
+        cursor.execute("UPDATE ejercicios_planificados SET repeticiones=NULL,carga=NULL,duracion=120,distancia=1500.25")
+    sesion = iniciar(datos)
+    cuerpo = {
+        "id": str(nuevo_id(datos.reloj)),
+        "ejercicio_planificado_id": str(datos.ejercicios[0][0]),
+        "duracion": 121,
+        "distancia": "1500.27",
+    }
+    respuesta = escribir(datos.cliente(), f"/api/entrenamiento/sesiones/{sesion}/series", cuerpo)
+    assert respuesta.status_code == 201
+    assert respuesta.json["serie_realizada"]["distancia"] == "1500.27"
+    assert respuesta.json["serie_realizada"]["repeticiones"] is None
+
+
+@pytest.mark.parametrize("rol", ["entrenador", "recepcion", "administracion"])
+def test_solo_socio_registra_y_lee_su_sesion(entrenamiento_api, rol):
+    datos = entrenamiento_api
+    sesion = iniciar(datos)
+    cliente = datos.cliente(rol)
+    assert (
+        escribir(
+            cliente,
+            "/api/entrenamiento/sesiones",
+            {"id": str(nuevo_id(datos.reloj)), "sesion_planificada_id": str(datos.sesiones[0])},
+        ).status_code
+        == 403
+    )
+    assert escribir(cliente, f"/api/entrenamiento/sesiones/{sesion}/series", cuerpo_serie(datos)).status_code == 403
+    assert cliente.get(f"/api/entrenamiento/sesiones/{sesion}").status_code == 403
+
+
+def test_fallo_antes_de_guardar_respuesta_revierte_serie_y_clave(entrenamiento_api):
+    from flask import request
+
+    datos = entrenamiento_api
+    estado = {"fallar": True}
+
+    @datos.app.after_request
+    def fallar(respuesta):
+        if request.path.endswith("/series") and respuesta.status_code == 201 and estado["fallar"]:
+            raise RuntimeError("fallo antes de guardar la respuesta")
+        return respuesta
+
+    sesion = iniciar(datos)
+    ruta, cuerpo, clave = f"/api/entrenamiento/sesiones/{sesion}/series", cuerpo_serie(datos), str(uuid4())
+    with pytest.raises(RuntimeError):
+        escribir(datos.cliente(), ruta, cuerpo, clave)
+    assert cantidad(datos) == 0
+    assert cantidad(datos, "solicitudes_idempotentes") == 1
+    estado["fallar"] = False
+    assert escribir(datos.cliente(), ruta, cuerpo, clave).status_code == 201
+
+
+def test_misma_clave_simultanea_sobre_serie_real(entrenamiento_api, monkeypatch):
+    datos = entrenamiento_api
+    sesion = iniciar(datos)
+    tomada, continuar = Event(), Event()
+    original = repositorio.insertar_serie
+
+    def insertar(*argumentos, **nombrados):
+        tomada.set()
+        assert continuar.wait(15)
+        return original(*argumentos, **nombrados)
+
+    monkeypatch.setattr(repositorio, "insertar_serie", insertar)
+    ruta, cuerpo, clave = f"/api/entrenamiento/sesiones/{sesion}/series", cuerpo_serie(datos), str(uuid4())
+    with ThreadPoolExecutor(max_workers=1) as hilos:
+        primera = hilos.submit(escribir, datos.cliente(), ruta, cuerpo, clave)
+        try:
+            assert tomada.wait(10)
+            assert escribir(datos.cliente(), ruta, cuerpo, clave).status_code == 409
+        finally:
+            continuar.set()
+        assert primera.result(timeout=15).status_code == 201
+    assert escribir(datos.cliente(), ruta, cuerpo, clave).status_code == 201
+    assert cantidad(datos) == 1
+
+
+def test_dos_claves_mismo_id_de_serie_devuelven_registro_existente(entrenamiento_api, monkeypatch):
+    datos = entrenamiento_api
+    sesion = iniciar(datos)
+    barrera = Barrier(2)
+    original = repositorio.insertar_serie
+
+    def insertar(*argumentos, **nombrados):
+        barrera.wait(timeout=10)
+        return original(*argumentos, **nombrados)
+
+    monkeypatch.setattr(repositorio, "insertar_serie", insertar)
+    ruta, cuerpo = f"/api/entrenamiento/sesiones/{sesion}/series", cuerpo_serie(datos)
+    with ThreadPoolExecutor(max_workers=2) as hilos:
+        respuestas = [hilos.submit(escribir, datos.cliente(), ruta, cuerpo) for _ in range(2)]
+        respuestas = [r.result(timeout=15) for r in respuestas]
+    assert [r.status_code for r in respuestas] == [201, 201]
+    assert respuestas[0].json == respuestas[1].json
+    assert cantidad(datos) == 1

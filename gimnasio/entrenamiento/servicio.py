@@ -1,6 +1,7 @@
 """Compone programa e historial vigente con el motor puro, sin ajustes ni salud."""
 
 from collections import Counter
+from datetime import UTC
 from zoneinfo import ZoneInfo
 
 from gimnasio.comun.bd import transaccion
@@ -129,3 +130,134 @@ def consultar_propuesta(socio_texto, usuario):
         for e in sesion["ejercicios_planificados"]
     ]
     return respuesta
+
+
+def sesion_publica(fila):
+    return {
+        "id": str(desde_bytes(fila["id"])),
+        "socio_id": str(desde_bytes(fila["socio_id"])),
+        "sesion_planificada_id": str(desde_bytes(fila["sesion_planificada_id"])),
+        "creada_en": fila["creada_en"].replace(tzinfo=UTC).isoformat(),
+    }
+
+
+def serie_publica(fila):
+    return {
+        "id": str(desde_bytes(fila["id"])),
+        "sesion_realizada_id": str(desde_bytes(fila["sesion_realizada_id"])),
+        "ejercicio_planificado_id": str(desde_bytes(fila["ejercicio_planificado_id"])),
+        **{m: fila[m] for m in repositorio.MEDIDAS},
+        "autor_id": str(desde_bytes(fila["autor_id"])),
+        "registrada_en": fila["registrada_en"].replace(tzinfo=UTC).isoformat(),
+    }
+
+
+def _sesion_propia(cursor, sesion_id, usuario):
+    fila = repositorio.obtener_sesion(cursor, sesion_id)
+    if fila is None:
+        raise ErrorDeDominio("sesion_inexistente", "La sesión realizada no existe.", 404)
+    _exigir_propiedad(fila, usuario)
+    return fila
+
+
+def _exigir_propiedad(fila, usuario):
+    if str(desde_bytes(fila["socio_id"])) != usuario["id"]:
+        raise ErrorDeDominio("sin_alcance", "No tenés acceso a esta sesión realizada.", 403)
+
+
+def _exigir_destino_serie(fila, sesion_id, ejercicio_id):
+    if (
+        desde_bytes(fila["sesion_realizada_id"]) != sesion_id
+        or desde_bytes(fila["ejercicio_planificado_id"]) != ejercicio_id
+    ):
+        raise ErrorDeDominio("id_ajeno", "El identificador corresponde a otra serie realizada.", 403)
+
+
+def crear_sesion(datos, usuario):
+    if not isinstance(datos, dict) or set(datos) != {"id", "sesion_planificada_id"}:
+        raise ErrorDeDominio("cuerpo_invalido", "Enviá id y sesion_planificada_id.", 422)
+    sesion_id, planificada_id = identificar(datos["id"]), identificar(datos["sesion_planificada_id"])
+    ahora = reloj_actual().ahora()
+    with transaccion() as cursor:
+        anterior = repositorio.obtener_sesion(cursor, sesion_id)
+        if anterior is not None:
+            _exigir_propiedad(anterior, usuario)
+            if desde_bytes(anterior["sesion_planificada_id"]) != planificada_id:
+                raise ErrorDeDominio("id_ajeno", "El identificador corresponde a otra sesión planificada.", 403)
+            return sesion_publica(anterior)
+        planificada = repositorio.obtener_planificada(cursor, planificada_id)
+        if planificada is None:
+            raise ErrorDeDominio("planificada_inexistente", "La sesión planificada no existe.", 404)
+        _exigir_propiedad(planificada, usuario)
+        repositorio.insertar_sesion(cursor, sesion_id, identificar(usuario["id"]), planificada_id, ahora)
+        # Tras un INSERT duplicado concurrente, leer el registro confirmado y validar su pertenencia.
+        fila = repositorio.obtener_sesion(cursor, sesion_id, actual=True)
+        _exigir_propiedad(fila, usuario)
+        if desde_bytes(fila["sesion_planificada_id"]) != planificada_id:
+            raise ErrorDeDominio("id_ajeno", "El identificador corresponde a otra sesión planificada.", 403)
+        return sesion_publica(fila)
+
+
+def registrar_serie(sesion_texto, datos, usuario):
+    campos = {"id", "ejercicio_planificado_id"}
+    if not isinstance(datos, dict) or not campos <= set(datos) or set(datos) - campos - set(repositorio.MEDIDAS):
+        raise ErrorDeDominio("cuerpo_invalido", "Enviá id, ejercicio_planificado_id y sus medidas aplicables.", 422)
+    sesion_id = identificar(sesion_texto)
+    serie_id, ejercicio_id = identificar(datos["id"]), identificar(datos["ejercicio_planificado_id"])
+    ahora = reloj_actual().ahora()
+    with transaccion() as cursor:
+        sesion = _sesion_propia(cursor, sesion_id, usuario)
+        anterior = repositorio.obtener_serie(cursor, serie_id)
+        if anterior is not None:
+            _exigir_destino_serie(anterior, sesion_id, ejercicio_id)
+            return serie_publica(anterior)
+        ejercicio = repositorio.obtener_ejercicio_planificado(cursor, ejercicio_id)
+        if ejercicio is None:
+            raise ErrorDeDominio("ejercicio_inexistente", "El ejercicio planificado no existe.", 404)
+        if ejercicio["sesion_planificada_id"] != sesion["sesion_planificada_id"]:
+            raise ErrorDeDominio("ejercicio_invalido", "El ejercicio no pertenece a esta sesión planificada.", 422)
+        try:
+            repositorio.insertar_serie(
+                cursor,
+                serie_id,
+                sesion_id,
+                ejercicio_id,
+                identificar(usuario["id"]),
+                ahora,
+                **{m: datos.get(m) for m in repositorio.MEDIDAS},
+            )
+        except ValueError as error:
+            raise ErrorDeDominio("medidas_invalidas", str(error), 422) from error
+        fila = repositorio.obtener_serie(cursor, serie_id, actual=True)
+        _exigir_destino_serie(fila, sesion_id, ejercicio_id)
+        return serie_publica(fila)
+
+
+def consultar_sesion(sesion_texto, usuario):
+    sesion_id = identificar(sesion_texto)
+    with transaccion() as cursor:
+        sesion = _sesion_propia(cursor, sesion_id, usuario)
+        filas = repositorio.listar_series_vigentes(cursor, identificar(usuario["id"]), sesion_id)
+    programas = listar_programas(identificar(usuario["id"]))
+    planificada = next(
+        s
+        for p in programas
+        for s in p["sesiones_planificadas"]
+        if s["id"] == str(desde_bytes(sesion["sesion_planificada_id"]))
+    )
+    cantidades = Counter(str(desde_bytes(f["ejercicio_planificado_id"])) for f in filas)
+    return {
+        "sesion_realizada": sesion_publica(sesion),
+        "series": [serie_publica(f) for f in filas],
+        "ejercicios": [
+            {
+                "id": e["id"],
+                "nombre": e["nombre"],
+                "medidas_aplicables": e["medidas_aplicables"],
+                "objetivos": {m: e[m] for m in ("series", *repositorio.MEDIDAS)},
+                "realizado": cantidades[e["id"]],
+                "pendiente": max(0, e["series"] - cantidades[e["id"]]),
+            }
+            for e in planificada["ejercicios_planificados"]
+        ],
+    }
