@@ -29,7 +29,7 @@ gimnasio/
   static/          PWA sin build: js/, estilos/, vendor/   (ADR 0007)
 migraciones/       NNNN_descripcion.sql, solo hacia adelante (ADR 0008)
 pruebas/           pytest; pruebas/e2e/ con Playwright
-scripts/           despachador, mapa de capacidades, resumen del CI
+scripts/           mapa de capacidades, resumen del CI, etiquetas de GitHub
 ```
 - `rutas.py` no ejecuta SQL. Un módulo no importa el `repositorio` de otro.
 - Tiempo: solo `reloj_actual()` en servicios; la fecha entra por parámetro en `reglas/` (ADR 0005).
@@ -39,7 +39,7 @@ scripts/           despachador, mapa de capacidades, resumen del CI
 
 ## Rutas sensibles
 `gimnasio/reglas/`, `migraciones/`, `gimnasio/comun/migrar.py`, `gimnasio/permisos/`, `gimnasio/salud/`.
-Todo PR que las toque necesita revisión independiente de Codex, igual que los demás PR. El dueño autorizó este reemplazo de Opus; ver `docs/protocolo-agentes.md`.
+Todo PR que las toque necesita, además de la revisión de Codex, la de Opus sobre el diff.
 
 ## Definición de terminado
 1. Hace lo que pide el issue, sin agregados no pedidos.
@@ -51,13 +51,13 @@ Todo PR que las toque necesita revisión independiente de Codex, igual que los d
 7. Revisión cruzada aprobada.
 
 ## Protocolo
-Trabajo desde un chat de la app de Codex, etiquetas, revisión y bloqueos: `docs/protocolo-agentes.md`. Leelo al retomar trabajo, planificar o escribir un issue. La ejecución y las fusiones se coordinan desde ese chat, un issue a la vez.
+Opus planifica, decide y escribe los issues; Codex los implementa desde la app, un issue a la vez. Roles, etiquetas, revisión y bloqueos: `docs/protocolo-agentes.md`. Leelo al retomar trabajo, planificar o escribir un issue.
 
 ## Lo que Codex no hace
-- Decidir producto, alcance o términos nuevos: etiqueta `necesita-criterio`, explica la duda en un comentario y se detiene.
+- Decidir diseño, producto, alcance o términos nuevos: etiqueta `necesita-criterio`, explica la duda en un comentario y se detiene; decide Opus.
 - Escribir ADR, cambiar `VISION.md`, `GLOSSARY.md` o los frenos de seguridad.
 - Crear migraciones que alteren tablas de hechos, o cambiar `reglas/` sin un issue que lo especifique.
-- Tocar `.github/workflows/`, `scripts/despachador*` o la configuración de presupuesto, salvo que el issue lo autorice por escrito.
+- Tocar `.github/workflows/`, salvo que el issue lo autorice por escrito.
 - Agregar dependencias que el issue no nombre.
 - Desactivar pruebas, bajar umbrales del CI o usar `# noqa` sin explicación.
 
