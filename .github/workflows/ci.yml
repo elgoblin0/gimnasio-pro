@@ -66,15 +66,19 @@ jobs:
       - run: pip install -r requirements-dev.txt
       - name: Migraciones sobre base vacía
         run: |
-          python -m gimnasio.comun.migrar
-          python -m gimnasio.comun.migrar --sin-pendientes
+          set -o pipefail
+          { python -m gimnasio.comun.migrar && python -m gimnasio.comun.migrar --sin-pendientes; } 2>&1 | tee registro-migraciones.txt
       - name: pytest
-        run: pytest --junitxml=reporte-pytest.xml -q
+        run: |
+          set -o pipefail
+          pytest --junitxml=reporte-pytest.xml -q 2>&1 | tee registro-pytest.txt
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: pruebas
-          path: reporte-pytest.xml
+          path: |
+            reporte-pytest.xml
+            registro-*.txt
 
   secretos:
     runs-on: ubuntu-latest

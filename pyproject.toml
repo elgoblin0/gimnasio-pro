@@ -21,6 +21,7 @@ select = ["E", "F", "W", "I", "UP", "B", "SIM"]
 
 [tool.pytest.ini_options]
 testpaths = ["pruebas"]
+pythonpath = ["."]
 addopts = "-ra --strict-markers"
 markers = [
     "bd: necesita MySQL (variables GIMNASIO_BD_*); se salta si no están",
