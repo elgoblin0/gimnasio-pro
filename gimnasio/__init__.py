@@ -35,6 +35,7 @@ def crear_app(config=None, reloj=None):
         TESTING=entorno == "prueba",
         SESSION_COOKIE_HTTPONLY=True,
         SESSION_COOKIE_SAMESITE="Lax",
+        # Secure solo en producción: el CI y el e2e corren sobre http://localhost (ADR 0006).
         SESSION_COOKIE_SECURE=entorno == "produccion",
     )
     app.json.ensure_ascii = False

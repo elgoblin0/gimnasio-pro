@@ -24,7 +24,8 @@ def importaciones(archivo, modulo):
                 partes = paquete.split(".")
                 partes = partes[: len(partes) - nodo.level + 1]
                 base = ".".join(partes + ([base] if base else []))
-            nombres += [base] + [f"{base}.{alias.name}" for alias in nodo.names]
+            # Solo el nombre completo: `from gimnasio.comun import tipos` importa gimnasio.comun.tipos.
+            nombres += [f"{base}.{alias.name}" for alias in nodo.names]
     return nombres
 
 
@@ -50,9 +51,10 @@ def violaciones(raiz, paquete="gimnasio"):
                     encontradas.append(f"{modulo}: reglas/ solo usa la biblioteca estándar, no {nombre}")
             if dueno == "comun" and raiz_import == paquete and not propio:
                 encontradas.append(f"{modulo}: comun/ no puede importar el dominio ({nombre})")
-            if raiz_import == paquete and nombre.endswith(".repositorio") and not propio:
+            usa_repositorio = "repositorio" in nombre.split(".")
+            if raiz_import == paquete and usa_repositorio and not propio:
                 encontradas.append(f"{modulo}: usa el repositorio de otro módulo ({nombre}); usá su servicio")
-            if partes[-1] == "rutas" and (nombre.endswith(".repositorio") or any(es_de(nombre, s) for s in SQL)):
+            if partes[-1] == "rutas" and (usa_repositorio or any(es_de(nombre, s) for s in SQL)):
                 encontradas.append(f"{modulo}: rutas.py no ejecuta SQL ({nombre})")
     return sorted(set(encontradas))
 
@@ -74,7 +76,10 @@ def test_detecta_cada_regla(tmp_path):
         tmp_path, "gimnasio/reglas/frenos.py", "from datetime import date\nfrom gimnasio.comun.tipos import Razon\n"
     )
     escribir(tmp_path, "gimnasio/comun/reloj.py", "from gimnasio.socios.servicio import algo\n")
-    escribir(tmp_path, "gimnasio/visitas/servicio.py", "from gimnasio.socios import repositorio\n")
+    escribir(tmp_path, "gimnasio/visitas/servicio.py", "from gimnasio.socios.repositorio import buscar\n")
+    escribir(
+        tmp_path, "gimnasio/reglas/sesion.py", "from gimnasio.comun import tipos\nfrom ..comun.tipos import Razon\n"
+    )
     escribir(tmp_path, "gimnasio/visitas/rutas.py", "from . import repositorio\nimport mysql.connector\n")
     escribir(tmp_path, "gimnasio/socios/servicio.py", "from .repositorio import buscar\n")
     resultado = "\n".join(violaciones(tmp_path))
@@ -86,4 +91,5 @@ def test_detecta_cada_regla(tmp_path):
     assert "rutas.py no ejecuta SQL (mysql.connector)" in resultado
     # Lo permitido no aparece: reglas/ con stdlib y comun.tipos, un servicio con su propio repositorio.
     assert "gimnasio.reglas.frenos:" not in resultado
+    assert "gimnasio.reglas.sesion:" not in resultado
     assert "gimnasio.socios.servicio:" not in resultado

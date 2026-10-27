@@ -16,7 +16,7 @@ Hay cuatro tipos de usuario con necesidades distintas, y los datos de salud son 
   - recepción ve la tarjeta contextual, sin el detalle de salud;
   - administración configura, pero no ve el detalle de salud.
 - La sesión usa la cookie firmada de Flask:
-  - con `HttpOnly`, `Secure` fuera de desarrollo y `SameSite=Lax`;
+  - con `HttpOnly`, `SameSite=Lax` y `Secure` en producción (las pruebas y el e2e corren sobre `http://localhost`, donde el cliente de pruebas no envía cookies `Secure`);
   - las contraseñas se guardan con `werkzeug.security` (scrypt);
   - las rutas que cambian algo exigen el encabezado `X-Gimnasio: 1`, como defensa CSRF junto con `SameSite`;
   - los intentos de inicio de sesión se limitan por IP y por usuario.
