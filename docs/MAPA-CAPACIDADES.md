@@ -37,7 +37,7 @@ Generado por `scripts/mapa_capacidades.py` desde `docs/capacidades.toml`. No edi
 
 | Capacidad | Etapa | Nivel | Prueba |
 |---|---|---|---|
-| PWA instalable en escritorio, con pantallas que se adaptan a tablet y celular | 1 | pendiente | — |
+| PWA instalable en escritorio, con pantallas que se adaptan a tablet y celular | 1 | pendiente | `pruebas/e2e/test_pwa.py` |
 | Cuerpo 3D muscular | 2 | pendiente | — |
 | Escena de ocupación | 3 | pendiente | — |
 | Recorrido guiado de dos minutos | 7 | pendiente | — |

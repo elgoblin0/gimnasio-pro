@@ -74,7 +74,7 @@ nombre = "PWA instalable en escritorio, con pantallas que se adaptan a tablet y 
 grupo = "Experiencia"
 etapa = 1
 nivel = "pendiente"
-prueba = ""
+prueba = "pruebas/e2e/test_pwa.py"
 
 [[capacidad]]
 id = "sesion-en-vivo"
