@@ -10,7 +10,10 @@ La cuota semanal de Claude es escasa y el saldo de Codex, amplio. Opus decide y 
 ## Decisión
 - `scripts/despachador.toml` define `presupuesto_semanal_opus` en tokens ponderados:
   - fórmula: `entrada + salida + creación de caché + 0,1 × lectura de caché`;
-  - los valores salen del `usage` de `claude -p --output-format json`.
+  - los valores salen del `usage` de `claude -p --output-format json`;
+  - también cuentan las sesiones interactivas de Claude Code en este repo y sus worktrees, leídas de
+    `~/.claude/projects/` (o `CLAUDE_CONFIG_DIR`). En la etapa 0, una sola sesión interactiva gastó 3,8 veces
+    el presupuesto sin que el despachador la viera.
 - La semana va de lunes a domingo en `America/Asuncion`. El registro está en `.despachador/registro.jsonl`, fuera del repo.
 - Al llegar al **80 %**, Opus solo toma issues `ejecutor:opus` que tocan rutas sensibles; los demás esperan o pasan a Codex.
 - Al llegar al **100 %**, Opus no toma nada:

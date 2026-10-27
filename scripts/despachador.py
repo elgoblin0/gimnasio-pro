@@ -1,11 +1,14 @@
-"""Despachador de issues hacia Codex y Opus (ver AGENTS.md y ADR 0011).
+"""Despachador de issues hacia Codex y Opus (ver docs/protocolo-agentes.md y ADR 0011).
 
 Cada vuelta:
 1. Revisa los PR abiertos de ramas `agente/issue-N`: espera el CI, pide correcciones si falla,
    lanza la revisión cruzada y fusiona con squash cuando todo aprueba.
 2. Toma issues `estado:listo` con dependencias cerradas, un solo issue activo por módulo,
    y los lanza en worktrees propios: hasta `max_codex` Codex y `max_claude` Claude a la vez.
-3. Registra los tokens de cada corrida en .despachador/registro.jsonl y aplica el presupuesto de Opus.
+3. Registra los tokens de cada corrida en .despachador/registro.jsonl y aplica el presupuesto de Opus,
+   que también cuenta las sesiones de Claude Code abiertas a mano en este repo.
+
+Corre en una terminal aparte, no desde una sesión de Claude: cada aviso volvería a leer todo su contexto.
 
 Uso:
     python scripts/despachador.py --una-vuelta [--simular] [--solo-codex]
@@ -142,13 +145,63 @@ def inicio_de_semana():
     return lunes.astimezone(UTC)
 
 
+def carpeta_sesiones_claude():
+    base = os.environ.get("CLAUDE_CONFIG_DIR") or Path.home() / ".claude"
+    return Path(base) / "projects"
+
+
+def consumo_interactivo(desde):
+    """Tokens ponderados de las sesiones de Claude Code de este repo y sus worktrees desde `desde` (ADR 0011).
+
+    Claude Code guarda cada sesión en projects/<ruta con todo lo que no es letra o número cambiado por "-">.
+    Las corridas de `claude -p` del despachador usan --no-session-persistence: no se cuentan dos veces.
+    """
+    carpeta = carpeta_sesiones_claude()
+    if not carpeta.is_dir():
+        return 0
+    prefijo = re.sub(r"[^A-Za-z0-9]", "-", str(RAIZ)).lower()
+    vistos, total = set(), 0
+    for proyecto in carpeta.iterdir():
+        if not proyecto.name.lower().startswith(prefijo):
+            continue
+        for archivo in proyecto.rglob("*.jsonl"):
+            if datetime.fromtimestamp(archivo.stat().st_mtime, UTC) < desde:
+                continue
+            with archivo.open(encoding="utf-8", errors="replace") as lineas:
+                for linea in lineas:
+                    if '"assistant"' not in linea:
+                        continue
+                    try:
+                        evento = json.loads(linea)
+                    except json.JSONDecodeError:
+                        continue
+                    mensaje = evento.get("message") or {}
+                    uso = mensaje.get("usage")
+                    # Un mismo mensaje se guarda en varias líneas (una por bloque) con el mismo uso.
+                    if evento.get("type") != "assistant" or not uso or mensaje.get("id") in vistos:
+                        continue
+                    if datetime.fromisoformat(evento["timestamp"].replace("Z", "+00:00")) < desde:
+                        continue
+                    vistos.add(mensaje.get("id"))
+                    total += tokens_ponderados(
+                        {
+                            "entrada": uso.get("input_tokens", 0),
+                            "salida": uso.get("output_tokens", 0),
+                            "creacion_cache": uso.get("cache_creation_input_tokens", 0),
+                            "lectura_cache": uso.get("cache_read_input_tokens", 0),
+                        }
+                    )
+    return total
+
+
 def consumo_semanal(ejecutor="opus"):
     desde = inicio_de_semana()
-    return sum(
+    registrado = sum(
         e.get("ponderados", 0)
         for e in leer_registro()
         if e.get("ejecutor") == ejecutor and datetime.fromisoformat(e["fecha"]) >= desde
     )
+    return registrado + (consumo_interactivo(desde) if ejecutor == "opus" else 0)
 
 
 def fraccion_presupuesto():
@@ -903,7 +956,11 @@ def informe():
         for clave, valor in entrada.get("uso", {}).items():
             datos["uso"][clave] = round(datos["uso"].get(clave, 0) + valor, 4)
     print(json.dumps(por_ejecutor, indent=2, ensure_ascii=False))
-    print(f"Opus esta semana: {consumo_semanal('opus'):,} ponderados ({fraccion_presupuesto():.1%})")
+    interactivo = consumo_interactivo(inicio_de_semana())
+    print(
+        f"Opus esta semana: {consumo_semanal('opus'):,} ponderados ({fraccion_presupuesto():.1%}), "
+        f"{interactivo:,} de sesiones interactivas"
+    )
     return 0
 
 
@@ -920,6 +977,13 @@ def main():
     argumentos = analizador.parse_args()
     if argumentos.informe:
         return informe()
+    if argumentos.hasta_vaciar and os.environ.get("CLAUDECODE"):
+        print(
+            "Corré el despachador en una terminal aparte: vigilarlo desde una sesión de Claude gasta todo su "
+            "contexto en cada aviso (docs/protocolo-agentes.md).",
+            file=sys.stderr,
+        )
+        return 2
     candado = None if argumentos.simular else tomar_candado_instancia()
     if not argumentos.simular and candado is None:
         print(f"Ya hay otro despachador corriendo ({CANDADO.relative_to(RAIZ)}).", file=sys.stderr)
