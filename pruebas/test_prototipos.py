@@ -78,5 +78,12 @@ def test_un_chequeo_desfavorable_nunca_sube(propuestas):
         assert all(p["delta"] <= 0 and p["freno"] for p in propuestas[caso]), caso
 
 
+def test_todo_freno_avisa_al_entrenador(propuestas):
+    # VISION.md, frenos de seguridad, punto 5.
+    frenadas = [p for caso, lista in propuestas.items() if caso != "zonas" for p in lista if p["freno"]]
+    assert frenadas
+    assert all("Avisamos a Marcos" in p["porque"] for p in frenadas)
+
+
 def test_sin_frenos_hay_subas_explicadas(propuestas):
     assert all(p["delta"] > 0 and not p["freno"] and p["porque"].startswith("Subís") for p in propuestas["bien"])

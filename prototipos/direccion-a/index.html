@@ -168,7 +168,7 @@ button:focus-visible { outline: 2px solid var(--foco); outline-offset: 2px; }
 
     <section class="tarjeta" aria-labelledby="t-sesion">
       <h2 id="t-sesion">Sesión propuesta</h2>
-      <div class="sesion-cabecera"><strong>Pierna A</strong><small>5 ejercicios · 52 min</small></div>
+      <div class="sesion-cabecera"><strong>Pierna A</strong><small>3 ejercicios · 35 min</small></div>
       <ul class="ejercicios" data-ejercicios></ul>
     </section>
 
@@ -220,7 +220,7 @@ button:focus-visible { outline: 2px solid var(--foco); outline-offset: 2px; }
     }
     if (chequeoDesfavorable(chequeo)) {
       return { nombre: ejercicio.nombre, prefijo, carga: ejercicio.carga, delta: 0, freno: "chequeo del día",
-        porque: `Tocaba subir ${numero(ejercicio.suba)} kg, pero hoy el chequeo no acompaña: se mantiene.` };
+        porque: `Tocaba subir ${numero(ejercicio.suba)} kg, pero hoy el chequeo no acompaña: se mantiene. Avisamos a Marcos.` };
     }
     return { nombre: ejercicio.nombre, prefijo, carga: ejercicio.carga + ejercicio.suba, delta: ejercicio.suba,
       freno: null, porque: `Subís: ${ejercicio.motivo}.` };
