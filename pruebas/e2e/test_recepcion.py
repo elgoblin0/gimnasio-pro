@@ -105,7 +105,8 @@ def test_membresia_aforo_y_acceso_del_socio(pagina_demo, demo_aislada):
         from gimnasio.comun.ids import a_bytes, desde_texto
 
         cursor.execute(
-            "UPDATE membresias SET hasta='2026-10-26' WHERE socio_id=%s", (a_bytes(desde_texto(socio["id"])),)
+            "UPDATE membresias SET desde='2026-09-27', hasta='2026-10-26' WHERE socio_id=%s",
+            (a_bytes(desde_texto(socio["id"])),),
         )
     pagina.get_by_role("button", name="Registrar entrada", exact=True).click()
     expect(pagina.get_by_role("alert")).to_contain_text("membresía vigente")
