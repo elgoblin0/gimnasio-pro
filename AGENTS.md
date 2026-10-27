@@ -29,7 +29,7 @@ gimnasio/
   static/          PWA sin build: js/, estilos/, vendor/   (ADR 0007)
 migraciones/       NNNN_descripcion.sql, solo hacia adelante (ADR 0008)
 pruebas/           pytest; pruebas/e2e/ con Playwright
-scripts/           despachador, mapa de capacidades, resumen del CI
+scripts/           mapa de capacidades, resumen del CI, etiquetas de GitHub
 ```
 - `rutas.py` no ejecuta SQL. Un módulo no importa el `repositorio` de otro.
 - Tiempo: solo `reloj_actual()` en servicios; la fecha entra por parámetro en `reglas/` (ADR 0005).
@@ -57,7 +57,7 @@ Trabajo desde un chat de la app de Codex, etiquetas, revisión y bloqueos: `docs
 - Decidir producto, alcance o términos nuevos: etiqueta `necesita-criterio`, explica la duda en un comentario y se detiene.
 - Escribir ADR, cambiar `VISION.md`, `GLOSSARY.md` o los frenos de seguridad.
 - Crear migraciones que alteren tablas de hechos, o cambiar `reglas/` sin un issue que lo especifique.
-- Tocar `.github/workflows/`, `scripts/despachador*` o la configuración de presupuesto, salvo que el issue lo autorice por escrito.
+- Tocar `.github/workflows/`, salvo que el issue lo autorice por escrito.
 - Agregar dependencias que el issue no nombre.
 - Desactivar pruebas, bajar umbrales del CI o usar `# noqa` sin explicación.
 

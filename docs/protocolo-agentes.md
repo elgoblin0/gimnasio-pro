@@ -4,7 +4,7 @@
 
 Por decisión del dueño del 27/10/2026, el trabajo se coordina desde un chat de la app de Codex. Este procedimiento reemplaza las instrucciones operativas anteriores sobre el despachador y las sesiones de Claude, incluidas las del ADR 0011. Los ADR de arquitectura y los frenos de seguridad conservan su vigencia.
 
-El despachador y su vigilancia automática quedan detenidos. Sus archivos se conservan como antecedentes; ejecutar sus comandos no forma parte del trabajo ni de la definición de terminado.
+El despachador se eliminó del repo el 27/10/2026; su último estado queda en el historial de git (commit `1aade43`).
 
 ## Ejecución
 
