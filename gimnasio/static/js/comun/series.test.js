@@ -18,3 +18,10 @@ test("medidas vacías, fraccionarias, no finitas o negativas se rechazan antes d
     assert.throws(() => prepararMedidas([medida], { [medida]: valor }));
   }
 });
+
+
+test("RIR opcional conserva cero y admite hasta diez", () => {
+  for (const rir of [0, 2, 5, 10]) assert.deepEqual(prepararMedidas([], { rir: String(rir) }), { rir });
+  assert.deepEqual(prepararMedidas([], { rir: "" }), {});
+  for (const rir of ["-1", "11", "1.5", "NaN"]) assert.throws(() => prepararMedidas([], { rir }));
+});

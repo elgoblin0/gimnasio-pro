@@ -130,14 +130,18 @@ def test_catalogo_y_rango_conserva_semilla_etapa_uno(tmp_path, bd_vacia, reloj_f
         cursor.execute("SELECT * FROM series_realizadas ORDER BY id")
         hechos = cursor.fetchall()
         conexion.commit()
-        assert aplicar(bd_vacia, salida=lambda _: None) == ["0010"]
+        assert aplicar(bd_vacia, salida=lambda _: None) == ["0010", "0011"]
         cursor.execute("SELECT id, repeticiones_minimas, repeticiones_maximas FROM ejercicios_planificados ORDER BY id")
         assert cursor.fetchall() == [
             {"id": f["id"], "repeticiones_minimas": f["repeticiones"], "repeticiones_maximas": f["repeticiones"]}
             for f in anteriores
         ]
         cursor.execute("SELECT * FROM series_realizadas ORDER BY id")
-        assert cursor.fetchall() == hechos
+        ampliados = cursor.fetchall()
+        assert [
+            {k: v for k, v in fila.items() if k not in {"rir", "ejercicio_hecho_id"}} for fila in ampliados
+        ] == hechos
+        assert all(fila["rir"] is None and fila["ejercicio_hecho_id"] is None for fila in ampliados)
         cursor.execute("SELECT patron_movimiento, equipo, incremento_carga FROM ejercicios")
         assert all(f == {"patron_movimiento": "", "equipo": "", "incremento_carga": None} for f in cursor.fetchall())
         conexion.commit()

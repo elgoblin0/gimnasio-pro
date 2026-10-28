@@ -515,3 +515,36 @@ def test_mysql_rechaza_rango_y_rir_invalidos(entrenamiento_api, valores):
 
     with entrenamiento_api.app.app_context(), transaccion() as cursor, pytest.raises(DatabaseError):
         cursor.execute("UPDATE ejercicios_planificados SET " + valores)
+
+
+@pytest.mark.parametrize("rir", [None, 0, 2, 5, 10])
+def test_serie_guarda_rir_y_resuelve_ejercicio_hecho(entrenamiento_api, rir):
+    datos = entrenamiento_api
+    sesion = iniciar(datos)
+    cuerpo = cuerpo_serie(datos)
+    if rir is not None:
+        cuerpo["rir"] = rir
+    respuesta = escribir(datos.cliente(), f"/api/entrenamiento/sesiones/{sesion}/series", cuerpo)
+    assert respuesta.status_code == 201
+    serie = respuesta.json["serie_realizada"]
+    assert serie["rir"] == rir
+    with datos.app.app_context(), transaccion() as cursor:
+        cursor.execute(
+            "SELECT ejercicio_id FROM ejercicios_planificados WHERE id = %s", (a_bytes(datos.ejercicios[0][0]),)
+        )
+        assert serie["ejercicio_hecho_id"] == str(desde_bytes(cursor.fetchone()["ejercicio_id"]))
+        cursor.execute(
+            "SELECT rir, ejercicio_hecho_id FROM series_realizadas WHERE id = %s", (a_bytes(desde_texto(cuerpo["id"])),)
+        )
+        assert cursor.fetchone() == {"rir": rir, "ejercicio_hecho_id": None}
+    lectura = datos.cliente().get(f"/api/entrenamiento/sesiones/{sesion}")
+    assert lectura.json["series"][0]["ejercicio_hecho_id"] == serie["ejercicio_hecho_id"]
+    assert lectura.json["series"][0]["rir"] == rir
+
+
+@pytest.mark.parametrize("rir", [-1, 11, 1.5, True, "2", [], {}])
+def test_serie_rechaza_rir_invalido(entrenamiento_api, rir):
+    datos = entrenamiento_api
+    sesion = iniciar(datos)
+    cuerpo = {**cuerpo_serie(datos), "rir": rir}
+    assert escribir(datos.cliente(), f"/api/entrenamiento/sesiones/{sesion}/series", cuerpo).status_code == 400

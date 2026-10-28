@@ -62,6 +62,8 @@ class SerieRealizada:
     vigente: bool = True
     duracion: int | None = None
     distancia: Decimal | None = None
+    rir: int | None = None
+    ejercicio_hecho_id: str | None = None
 
 
 @dataclass(frozen=True)
