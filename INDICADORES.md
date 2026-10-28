@@ -51,7 +51,7 @@ Guía para explicar el recorrido de etapa 1. Las referencias `archivo:línea` se
 2. El socio inicia sesión, recibe la primera sesión planificada pendiente y registra series con la prescripción propuesta y la explicación de cada ajuste.
 3. La recarga recupera sus hechos. Recepción registra la salida y la ocupación vuelve al valor inicial. Cerrar sesión de usuario es una operación diferente.
 
-El motor 2.0 agrega doble progresión con RIR y tope semanal (ADR 0012 y 0015), sin reiniciar la secuencia al cambiar de semana. Los vectores están en `pruebas/reglas/test_progresion.py:1`; el recorrido de la semilla, en `pruebas/e2e/test_progresion_demo.py:1`. Dolor, restricciones y chequeo del día quedan para los issues siguientes. El E2E comprueba además visita sin entrenamiento, sesión parcial, reingreso, aforo lleno y reintento sin duplicación.
+El motor 2.0 agrega doble progresión con RIR y tope semanal (ADR 0012, 0015 y 0016), sin reiniciar la secuencia al cambiar de semana. Los vectores están en `pruebas/reglas/test_progresion.py:1`; el recorrido de la semilla, en `pruebas/e2e/test_progresion_demo.py:1`. Dolor, restricciones y chequeo del día quedan para los issues siguientes. El E2E comprueba además visita sin entrenamiento, sesión parcial, reingreso, aforo lleno y reintento sin duplicación.
 
 ## Modificación solicitada (5 pts): puntos de cambio
 

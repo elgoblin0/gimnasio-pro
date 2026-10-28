@@ -14,7 +14,7 @@ def razon(regla, prescripcion, explicacion, **datos):
         regla,
         VERSION_REGLAS,
         (("ejercicio_id", prescripcion.ejercicio_id),)
-        + tuple((clave, str(valor)) for clave, valor in datos.items())
+        + tuple((clave, str(valor)) for clave, valor in datos.items() if valor is not None)
         + (("explicacion", explicacion),),
     )
 
@@ -26,13 +26,17 @@ def numero(valor):
 
 def subir_carga(prescripcion, ejercicio, ultima, piso):
     carga = prescripcion.carga + ejercicio.incremento_carga
+    esfuerzo = (
+        f" con RIR registrado igual o mayor que el objetivo {prescripcion.rir_objetivo}"
+        " o evaluado solo por repeticiones cuando falta RIR"
+        if prescripcion.rir_objetivo is not None
+        else ""
+    )
     return replace(prescripcion, carga=carga, repeticiones_minimas=piso), razon(
         "subir_carga",
         prescripcion,
         f"Subís {numero(ejercicio.incremento_carga)} kg en {ejercicio.nombre}: "
-        f"completaste {len(ultima.series)}×{prescripcion.repeticiones_maximas} "
-        f"con RIR registrado igual o mayor que el objetivo {prescripcion.rir_objetivo} "
-        "o evaluado solo por repeticiones cuando falta RIR. "
+        f"completaste {len(ultima.series)}×{prescripcion.repeticiones_maximas}{esfuerzo}. "
         f"La carga base usada es {numero(prescripcion.carga)} kg.",
         carga_base=prescripcion.carga,
         carga_anterior=prescripcion.carga,
@@ -41,7 +45,9 @@ def subir_carga(prescripcion, ejercicio, ultima, piso):
         repeticiones=prescripcion.repeticiones_maximas,
         series=len(ultima.series),
         rir_objetivo=prescripcion.rir_objetivo,
-        rir_registrados=tuple(s.rir for s in ultima.series),
+        rir_registrados=(
+            tuple(s.rir for s in ultima.series if s.rir is not None) if prescripcion.rir_objetivo is not None else None
+        ),
         fecha_local=ultima.fecha_local.isoformat(),
     )
 
@@ -53,7 +59,7 @@ def mantener_carga(prescripcion, ejercicio, ultima):
         "mantener_carga",
         prescripcion,
         f"Mantenés {numero(prescripcion.carga)} kg en {ejercicio.nombre}: "
-        f"todavía no completaste el tope en todas las series; buscás {repeticiones} repeticiones.",
+        f"todavía no completaste el tope en todas las series planificadas; buscás {repeticiones} repeticiones.",
         carga_base=prescripcion.carga,
         carga=prescripcion.carga,
         repeticiones_anteriores=tuple(s.repeticiones for s in ultima.series),
@@ -144,7 +150,7 @@ def aplicar_frenos(ajustada, anterior, ejercicio, entrada, hubo_suba):
     return frenada, (explicacion,), ("tope_semanal",)
 
 
-def ajustar_ejercicio(planificado, entrada):
+def ajustar_ejercicio(planificado, entrada, sesion_planificada_id):
     prescripcion = PrescripcionEjercicio(
         planificado.ejercicio_id,
         planificado.series,
@@ -158,7 +164,10 @@ def ajustar_ejercicio(planificado, entrada):
     historial = tuple(
         h
         for h in entrada.historial
-        if h.ejercicio_id == planificado.ejercicio_catalogo_id and h.fecha_local <= entrada.fecha_local and h.series
+        if h.ejercicio_id == planificado.ejercicio_catalogo_id
+        and h.fecha_local <= entrada.fecha_local
+        and h.series
+        and not (h.sesion_planificada_id == sesion_planificada_id and h.fecha_local >= entrada.semana_local)
     )
     if (
         ejercicio is None
@@ -194,7 +203,9 @@ def ajustar_ejercicio(planificado, entrada):
             (),
         )
     prescripcion = replace(prescripcion, carga=min(s.carga for s in ultima.series))
-    tope = all(s.repeticiones >= prescripcion.repeticiones_maximas for s in ultima.series)
+    tope = len(ultima.series) >= planificado.series and all(
+        s.repeticiones >= prescripcion.repeticiones_maximas for s in ultima.series
+    )
     dos_fallos = len(historial) >= 2 and all(
         series_bajo_piso(h, prescripcion.repeticiones_minimas) * 2 > len(h.series) for h in historial[-2:]
     )
@@ -215,7 +226,7 @@ def ajustar_ejercicio(planificado, entrada):
         ajustada, explicacion = mantener_carga(prescripcion, ejercicio, ultima)
         decisivas = (ultima,)
     razones = (explicacion,)
-    if any(s.rir is None for h in decisivas for s in h.series):
+    if prescripcion.rir_objetivo is not None and any(s.rir is None for h in decisivas for s in h.series):
         ajustada, explicacion_rir = sin_rir(ajustada, ejercicio, decisivas)
         razones += (explicacion_rir,)
     ajustada, razones_freno, frenos = aplicar_frenos(

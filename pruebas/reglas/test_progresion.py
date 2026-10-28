@@ -202,3 +202,62 @@ def test_carga_base_minima_tambien_al_mantener_y_bajar(repeticiones, rir, regla,
     assert propuesta.prescripcion[0].carga == Decimal(carga)
     datos = dict(next(r for r in propuesta.explicacion if r.regla == regla).datos)
     assert datos["carga_base"] == "35"
+
+
+@pytest.mark.parametrize(
+    "cantidad,rir,regla,carga",
+    [
+        (1, 2, "mantener_carga", "40"),
+        (1, 1, "mantener_carga", "40"),
+        (4, 2, "subir_carga", "42.5"),
+    ],
+)
+def test_subir_y_mantener_por_rir_exigen_series_planificadas(cantidad, rir, regla, carga):
+    ultima = historial((12,) * cantidad, (rir,) * cantidad)
+    propuesta = proponer_sesion(entrada((ultima,)))
+    assert propuesta.prescripcion[0].carga == Decimal(carga)
+    assert propuesta.explicacion[1].regla == regla
+
+
+@pytest.mark.parametrize(
+    "repeticiones,regla,carga",
+    [
+        ((12, 12, 12), "subir_carga", "42.5"),
+        ((10, 10, 10), "mantener_carga", "40"),
+    ],
+)
+def test_historial_excluye_solo_misma_planificada_de_semana_actual(repeticiones, regla, carga):
+    anterior = replace(historial(repeticiones), sesion_planificada_id="proxima")
+    actual = replace(
+        historial((10,) if regla == "subir_carga" else (12,), (2,), fecha=LUNES),
+        sesion_planificada_id="proxima",
+        sesion_realizada_id="actual",
+    )
+    propuesta = proponer_sesion(entrada((anterior, actual)))
+    assert propuesta.prescripcion[0].carga == Decimal(carga)
+    assert propuesta.explicacion[1].regla == regla
+    frenada = proponer_sesion(entrada((anterior, actual), subas=(SubaCarga("sentadilla", LUNES),)))
+    assert bool(frenada.frenos) is (regla == "subir_carga")
+
+
+@pytest.mark.parametrize("rir", [2, None])
+def test_sin_rir_objetivo_no_menciona_rir_ni_guarda_none(rir):
+    datos = entrada((historial(rir=(rir,) * 3),))
+    ejercicio = replace(EJERCICIO, rir_objetivo=None)
+    datos = replace(datos, programa=ProgramaEntrenamiento((SesionPlanificada("proxima", (ejercicio,)),)))
+    propuesta = proponer_sesion(datos)
+    assert propuesta.prescripcion[0].carga == Decimal("42.5")
+    for razon in propuesta.explicacion:
+        assert "RIR" not in dict(razon.datos)["explicacion"]
+        assert all("None" not in valor for _, valor in razon.datos)
+
+
+def test_prescripcion_estable_al_registrar_la_suba_propuesta():
+    anterior = replace(historial(), sesion_planificada_id="proxima")
+    anterior = replace(anterior, series=tuple(replace(s, carga=Decimal("20.5")) for s in anterior.series))
+    inicial = proponer_sesion(entrada((anterior,)))
+    assert inicial.prescripcion[0].carga == Decimal("23")
+    actual = replace(historial((12,), (2,), fecha=LUNES), sesion_planificada_id="proxima", sesion_realizada_id="actual")
+    actual = replace(actual, series=(replace(actual.series[0], carga=Decimal("23")),))
+    despues = proponer_sesion(entrada((anterior, actual), subas=(SubaCarga("sentadilla", LUNES),)))
+    assert despues.prescripcion == inicial.prescripcion

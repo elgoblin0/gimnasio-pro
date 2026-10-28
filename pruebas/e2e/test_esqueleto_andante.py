@@ -148,10 +148,7 @@ def test_recorrido_parcial_salida_reingreso_y_cierre(pagina_demo, demo_aislada, 
     assert repetida.json() == guardada.value.json()
     parcial = consulta(pagina, demo_aislada, "/api/entrenamiento/propuesta")
     assert parcial["sesion_planificada"] == antes["sesion_planificada"]
-    fuerza = next(e for e in parcial["ejercicios"] if e["nombre"] == "Sentadilla ficticia")
-    assert fuerza["objetivos"]["carga"] == "23.00"
-    assert fuerza["objetivos"]["repeticiones_minimas"] == 9
-    assert fuerza["explicacion"][0]["regla"] == "mantener_carga"
+    assert objetivos(parcial) == objetivos(antes)
     assert sum(e["realizado"] for e in parcial["ejercicios"]) == 1
     assert sum(e["pendiente"] for e in parcial["ejercicios"]) == sum(e["pendiente"] for e in antes["ejercicios"]) - 1
     pagina.reload()
