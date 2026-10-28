@@ -42,6 +42,16 @@ function agregarFormulario(tarjeta, ejercicio) {
     etiqueta.append(campo);
     formulario.append(etiqueta);
   }
+  const etiquetaRir = document.createElement("label");
+  etiquetaRir.textContent = `RIR opcional de ${ejercicio.nombre} (0 a 10)`;
+  const campoRir = document.createElement("input");
+  campoRir.type = "number";
+  campoRir.name = "rir";
+  campoRir.min = "0";
+  campoRir.max = "10";
+  campoRir.step = "1";
+  etiquetaRir.append(campoRir);
+  formulario.append(etiquetaRir);
   const guardar = document.createElement("button");
   guardar.type = "submit";
   guardar.textContent = "Registrar serie";
@@ -68,7 +78,7 @@ function dibujarRegistro() {
   for (const serie of sesionActual.series) {
     const ejercicio = sesionActual.ejercicios.find((e) => e.id === serie.ejercicio_planificado_id);
     const fila = document.createElement("li");
-    fila.textContent = `${ejercicio.nombre} · ${describirObjetivos({ series: 1, ...serie })}`;
+    fila.textContent = `${ejercicio.nombre} · ${describirObjetivos({ series: 1, ...serie })}${serie.rir === null ? "" : ` · RIR ${serie.rir}`}`;
     $("[data-series]").append(fila);
   }
 }

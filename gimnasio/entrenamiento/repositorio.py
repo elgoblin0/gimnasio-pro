@@ -93,7 +93,11 @@ def obtener_sesion(cursor, sesion_id, *, actual=False):
 
 def obtener_serie(cursor, serie_id, *, actual=False):
     cursor.execute(
-        "SELECT * FROM series_realizadas WHERE id = %s" + (" FOR SHARE" if actual else ""), (a_bytes(serie_id),)
+        """SELECT s.*, COALESCE(s.ejercicio_hecho_id, ep.ejercicio_id) AS ejercicio_hecho_resuelto_id
+           FROM series_realizadas s JOIN ejercicios_planificados ep ON ep.id = s.ejercicio_planificado_id
+           WHERE s.id = %s"""
+        + (" FOR SHARE" if actual else ""),
+        (a_bytes(serie_id),),
     )
     return cursor.fetchone()
 
@@ -129,6 +133,8 @@ def insertar_serie(
     corrige_a=None,
     motivo=None,
     anulada=False,
+    rir=None,
+    ejercicio_hecho_id=None,
 ):
     cursor.execute(
         """SELECT e.medidas_aplicables FROM sesiones_realizadas sr
@@ -139,6 +145,8 @@ def insertar_serie(
     ejercicio = cursor.fetchone()
     if ejercicio is None:
         raise ValueError("El ejercicio planificado no pertenece a la sesión realizada.")
+    if rir is not None and (type(rir) is not int or not 0 <= rir <= 10):
+        raise ValueError("El RIR debe ser un entero entre 0 y 10.")
     valores = validar_medidas(
         json.loads(ejercicio["medidas_aplicables"]),
         {
@@ -160,8 +168,8 @@ def insertar_serie(
         cursor,
         """INSERT INTO series_realizadas
            (id, sesion_realizada_id, ejercicio_planificado_id, repeticiones, carga, duracion, distancia,
-            autor_id, registrada_en, corrige_a, motivo, anulada)
-           VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)""",
+            autor_id, registrada_en, corrige_a, motivo, anulada, rir, ejercicio_hecho_id)
+           VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)""",
         (
             a_bytes(serie_id),
             a_bytes(sesion_realizada_id),
@@ -172,6 +180,8 @@ def insertar_serie(
             a_bytes(corrige_a) if corrige_a is not None else None,
             motivo,
             anulada,
+            rir,
+            a_bytes(ejercicio_hecho_id) if ejercicio_hecho_id is not None else None,
         ),
     )
 
@@ -198,7 +208,9 @@ def listar_series_vigentes(cursor, socio_id, sesion_realizada_id=None):
                       ) AS orden
                FROM historial h JOIN series_realizadas s ON s.id = h.id
            )
-           SELECT s.*, sr.sesion_planificada_id FROM ordenadas s
+           SELECT s.*, sr.sesion_planificada_id,
+                  COALESCE(s.ejercicio_hecho_id, ep.ejercicio_id) AS ejercicio_hecho_resuelto_id FROM ordenadas s
+           JOIN ejercicios_planificados ep ON ep.id = s.ejercicio_planificado_id
            JOIN sesiones_realizadas sr ON sr.id = s.sesion_realizada_id
            WHERE s.orden = 1 AND s.anulada = FALSE
            ORDER BY s.registrada_en, s.id""",

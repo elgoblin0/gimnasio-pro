@@ -15,5 +15,10 @@ export function prepararMedidas(medidas, valores) {
       resultado[medida] = texto;
     } else throw new Error("La medida del ejercicio no es válida.");
   }
+  const rir = String(valores.rir ?? "").trim();
+  if (rir) {
+    if (!/^\d+$/.test(rir) || Number(rir) > 10) throw new Error("El RIR debe ser un entero entre 0 y 10.");
+    resultado.rir = Number(rir);
+  }
   return resultado;
 }

@@ -84,6 +84,8 @@ def convertir_series(filas):
                 fila["carga"],
                 duracion=fila["duracion"],
                 distancia=fila["distancia"],
+                rir=fila["rir"],
+                ejercicio_hecho_id=str(desde_bytes(fila["ejercicio_hecho_resuelto_id"])),
             )
         )
     return tuple(series), cantidades
@@ -154,6 +156,8 @@ def serie_publica(fila):
         "sesion_realizada_id": str(desde_bytes(fila["sesion_realizada_id"])),
         "ejercicio_planificado_id": str(desde_bytes(fila["ejercicio_planificado_id"])),
         **{m: fila[m] for m in repositorio.MEDIDAS},
+        "rir": fila["rir"],
+        "ejercicio_hecho_id": str(desde_bytes(fila["ejercicio_hecho_resuelto_id"])),
         "autor_id": str(desde_bytes(fila["autor_id"])),
         "registrada_en": fila["registrada_en"].replace(tzinfo=UTC).isoformat(),
     }
@@ -207,8 +211,15 @@ def crear_sesion(datos, usuario):
 
 def registrar_serie(sesion_texto, datos, usuario):
     campos = {"id", "ejercicio_planificado_id"}
-    if not isinstance(datos, dict) or not campos <= set(datos) or set(datos) - campos - set(repositorio.MEDIDAS):
+    if (
+        not isinstance(datos, dict)
+        or not campos <= set(datos)
+        or set(datos) - campos - set(repositorio.MEDIDAS) - {"rir"}
+    ):
         raise ErrorDeDominio("cuerpo_invalido", "Enviá id, ejercicio_planificado_id y sus medidas aplicables.", 422)
+    rir = datos.get("rir")
+    if rir is not None and (type(rir) is not int or not 0 <= rir <= 10):
+        raise ErrorDeDominio("rir_invalido", "El RIR debe ser un entero entre 0 y 10.", 400)
     sesion_id = identificar(sesion_texto)
     serie_id, ejercicio_id = identificar(datos["id"]), identificar(datos["ejercicio_planificado_id"])
     ahora = reloj_actual().ahora()
@@ -231,6 +242,7 @@ def registrar_serie(sesion_texto, datos, usuario):
                 ejercicio_id,
                 identificar(usuario["id"]),
                 ahora,
+                rir=rir,
                 **{m: datos.get(m) for m in repositorio.MEDIDAS},
             )
         except ValueError as error:

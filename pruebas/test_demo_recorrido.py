@@ -194,7 +194,7 @@ def test_ids_dominio_y_hechos_de_semilla_se_reponen_iguales(recorrido, reloj_fij
             cursor.execute(f"SELECT COUNT(*) AS cantidad FROM {tabla}")
             assert cursor.fetchone()["cantidad"] == 0
         cursor.execute("SELECT COUNT(*) AS cantidad FROM migraciones_aplicadas")
-        assert cursor.fetchone()["cantidad"] == 10
+        assert cursor.fetchone()["cantidad"] == 11
 
 
 @pytest.mark.bd

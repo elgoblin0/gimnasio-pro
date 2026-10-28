@@ -5,10 +5,10 @@ from decimal import Decimal
 from types import SimpleNamespace
 
 import pytest
-from mysql.connector import IntegrityError
+from mysql.connector import DatabaseError, IntegrityError
 
 from gimnasio.comun.bd import transaccion
-from gimnasio.comun.ids import a_bytes, nuevo_id
+from gimnasio.comun.ids import a_bytes, desde_bytes, nuevo_id
 from gimnasio.demo import servicio as demo
 from gimnasio.entrenamiento import repositorio
 from gimnasio.permisos.servicio import crear_usuario
@@ -245,7 +245,7 @@ def test_reinicio_demo_borra_correcciones_y_sesiones_antes_del_programa(entrenam
         datos.cursor.execute(f"SELECT COUNT(*) AS cantidad FROM {tabla}")
         assert datos.cursor.fetchone()["cantidad"] == cantidad
     datos.cursor.execute("SELECT COUNT(*) AS cantidad FROM migraciones_aplicadas")
-    assert datos.cursor.fetchone()["cantidad"] == 10
+    assert datos.cursor.fetchone()["cantidad"] == 11
 
 
 @pytest.mark.parametrize(
@@ -278,3 +278,68 @@ def test_valida_medidas_de_fuerza_y_cardio_sin_perder_precision():
     assert repositorio.validar_medidas(["duracion", "distancia"], {"duracion": 120, "distancia": "1500.25"})[
         "distancia"
     ] == Decimal("1500.25")
+
+
+@pytest.mark.bd
+@pytest.mark.parametrize("nuevo_rir", [None, 2, 4])
+def test_correccion_conserva_hechos_y_cambia_rir(entrenamiento, nuevo_rir):
+    datos = entrenamiento
+    original = serie(datos, rir=2)
+    corregida = serie(
+        datos,
+        rir=nuevo_rir,
+        corrige_a=original,
+        motivo="RIR corregido",
+        registrada_en=datos.momento + timedelta(seconds=1),
+    )
+    assert repositorio.obtener_serie(datos.cursor, original)["rir"] == 2
+    vigente = repositorio.listar_series_vigentes(datos.cursor, datos.socio)
+    assert vigente[0]["id"] == a_bytes(corregida)
+    assert vigente[0]["rir"] == nuevo_rir
+
+
+@pytest.mark.bd
+def test_lectura_conserva_ejercicio_hecho_explicito(entrenamiento):
+    datos = entrenamiento
+    datos.cursor.execute("SELECT ejercicio_id FROM ejercicios_planificados WHERE id = %s", (a_bytes(datos.cardio),))
+    hecho = desde_bytes(datos.cursor.fetchone()["ejercicio_id"])
+    identificador = serie(datos, ejercicio_hecho_id=hecho)
+    assert repositorio.obtener_serie(datos.cursor, identificador)["ejercicio_hecho_resuelto_id"] == a_bytes(hecho)
+    assert repositorio.listar_series_vigentes(datos.cursor, datos.socio)[0]["ejercicio_hecho_resuelto_id"] == a_bytes(
+        hecho
+    )
+
+
+@pytest.mark.bd
+@pytest.mark.parametrize("rir", [-1, 11])
+def test_mysql_rechaza_rir_fuera_de_rango(entrenamiento, rir):
+    datos = entrenamiento
+    original = serie(datos)
+    with pytest.raises(DatabaseError) as error:
+        datos.cursor.execute(
+            """INSERT INTO series_realizadas
+               (id, sesion_realizada_id, ejercicio_planificado_id, repeticiones, carga, autor_id, registrada_en, rir)
+               SELECT %s, sesion_realizada_id, ejercicio_planificado_id, repeticiones, carga,
+                      autor_id, registrada_en, %s
+               FROM series_realizadas WHERE id = %s""",
+            (a_bytes(nuevo_id(datos.reloj)), rir, a_bytes(original)),
+        )
+    assert error.value.errno == 3819
+    assert "chk_series_rir" in str(error.value)
+
+
+@pytest.mark.bd
+def test_mysql_rechaza_ejercicio_hecho_inexistente(entrenamiento):
+    datos = entrenamiento
+    original = serie(datos)
+    with pytest.raises(IntegrityError) as error:
+        datos.cursor.execute(
+            """INSERT INTO series_realizadas
+               (id, sesion_realizada_id, ejercicio_planificado_id, repeticiones, carga,
+                autor_id, registrada_en, ejercicio_hecho_id)
+               SELECT %s, sesion_realizada_id, ejercicio_planificado_id, repeticiones, carga,
+                      autor_id, registrada_en, %s FROM series_realizadas WHERE id = %s""",
+            (a_bytes(nuevo_id(datos.reloj)), a_bytes(nuevo_id(datos.reloj)), a_bytes(original)),
+        )
+    assert error.value.errno == 1452
+    assert "fk_series_ejercicio_hecho" in str(error.value)

@@ -46,16 +46,21 @@ def test_fuerza_cardio_pendientes_y_recarga(pagina_demo, demo_aislada, programa_
     expect(pagina.get_by_label("Repeticiones de Sentadilla ficticia", exact=True)).to_have_value("8")
     pagina.get_by_label("Repeticiones de Sentadilla ficticia", exact=True).fill("11")
     pagina.get_by_label("Carga en kg de Sentadilla ficticia", exact=True).fill("22.75")
-    pagina.get_by_role("button", name="Registrar serie de Sentadilla ficticia", exact=True).click()
+    rir = pagina.get_by_label("RIR opcional de Sentadilla ficticia (0 a 10)", exact=True)
+    expect(rir).to_have_value("")
+    rir.fill("0")
+    rir.focus()
+    pagina.keyboard.press("Enter")
     expect(pagina.get_by_text("Serie guardada.", exact=True)).to_be_visible()
     tarjeta = pagina.locator(f'[data-ejercicio="{programa_demo.ejercicios[0]}"]')
     expect(tarjeta).to_contain_text("Series realizadas: 1 · Pendientes: 1")
     expect(pagina.locator("[data-series]")).to_contain_text("11 repeticiones · 22,75 kg")
     pagina.reload()
     expect(pagina.locator("[data-series]")).to_contain_text("11 repeticiones · 22,75 kg")
+    expect(pagina.locator("[data-series]")).to_contain_text("RIR 0")
     assert pagina.url == enlace
     cardio = pagina.locator(f'[data-ejercicio="{programa_demo.ejercicios[1]}"]')
-    assert cardio.locator("input").count() == 2
+    assert cardio.locator("input").count() == 3
     assert cardio.locator('[name="repeticiones"], [name="carga"]').count() == 0
     pagina.get_by_label("Duración en segundos de Caminata ficticia", exact=True).fill("121")
     pagina.get_by_label("Distancia en metros de Caminata ficticia", exact=True).fill("1500.27")
