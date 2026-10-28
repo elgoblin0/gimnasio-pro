@@ -1,0 +1,77 @@
+name: Cadena
+
+# Encadena Codex cloud, Opus y la fusión sin copiar y pegar (docs/protocolo-agentes.md).
+# Usa el token personal del dueño (CADENA_TOKEN): lo que hace el GITHUB_TOKEN no dispara
+# otros workflows, y Codex solo responde a menciones de una cuenta vinculada.
+
+on:
+  workflow_dispatch:
+  issues:
+    types: [closed, labeled]
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+  pull_request_review:
+    types: [submitted]
+  issue_comment:
+    types: [created]
+  pull_request:
+    types: [labeled]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cadena
+  cancel-in-progress: false
+
+env:
+  GH_TOKEN: ${{ secrets.CADENA_TOKEN }}
+  GITHUB_REPOSITORY: ${{ github.repository }}
+  BOT_CODEX: chatgpt-codex-connector[bot]
+
+jobs:
+  arrancar:
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'issues' && (github.event.action == 'closed' || github.event.label.name == 'estado:listo'))
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: python scripts/cadena.py arrancar
+
+  tras-ci:
+    if: github.event_name == 'workflow_run' && startsWith(github.event.workflow_run.head_branch, 'codex/issue-')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: python scripts/cadena.py tras-ci --rama "$RAMA" --resultado "$RESULTADO"
+        env:
+          RAMA: ${{ github.event.workflow_run.head_branch }}
+          RESULTADO: ${{ github.event.workflow_run.conclusion }}
+
+  revision:
+    if: >-
+      (github.event_name == 'pull_request_review' && github.event.review.user.login == 'chatgpt-codex-connector[bot]') ||
+      (github.event_name == 'issue_comment' && github.event.issue.pull_request && github.event.comment.user.login == 'chatgpt-codex-connector[bot]')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Guardar el texto de Codex
+        run: printf '%s' "$TEXTO" > texto-codex.txt
+        env:
+          TEXTO: ${{ github.event.review.body || github.event.comment.body }}
+      - run: python scripts/cadena.py revision --pr "$PR" --texto-archivo texto-codex.txt ${REVISION:+--revision "$REVISION"}
+        env:
+          PR: ${{ github.event.pull_request.number || github.event.issue.number }}
+          REVISION: ${{ github.event.review.id }}
+
+  etiqueta:
+    if: github.event_name == 'pull_request' && startsWith(github.event.pull_request.head.ref, 'codex/issue-')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: python scripts/cadena.py etiqueta --pr "$PR" --etiqueta "$ETIQUETA"
+        env:
+          PR: ${{ github.event.pull_request.number }}
+          ETIQUETA: ${{ github.event.label.name }}

@@ -6,6 +6,25 @@ Por decisión del dueño del 27/10/2026, el trabajo se coordina desde un chat de
 
 El despachador se eliminó del repo el 27/10/2026; su último estado queda en el historial de git (commit `1aade43`).
 
+## Cadena automática
+
+Desde el 28/10/2026, por decisión del dueño, GitHub hace de buzón y nadie copia salidas entre agentes. Corre en GitHub Actions y todo queda a la vista en los comentarios de cada PR y en la pestaña Actions.
+
+| Evento | Quién reacciona | Qué hace |
+|---|---|---|
+| Issue cerrado, `estado:listo` puesto o arranque manual | `cadena.yml` → `arrancar` | Si no hay otro en curso, toma el issue `estado:listo` + `ejecutor:codex` de número más bajo con dependencias cerradas, crea `codex/issue-N`, abre un PR borrador y comenta `@codex implementá…` con el issue. |
+| CI terminado en `codex/issue-N` | `cadena.yml` → `tras-ci` | Rojo: pide a Codex que lo arregle. Verde: marca el PR listo y comenta `@codex review`. |
+| Respuesta de Codex en el PR | `cadena.yml` → `revision` | `NECESITA-CRITERIO:` → la copia al issue y pone `necesita-criterio`. Revisión sin hallazgos → `revisado:codex`. Con hallazgos → `correccion-pendiente` y pide la corrección. |
+| `necesita-criterio` en un issue | `opus.yml` → `criterio` | Opus decide, comenta, abre un ADR provisional si hace falta y deja el issue `estado:listo`; la cadena reanuda el PR. |
+| `revisado:codex` en un PR sensible | `opus.yml` → `revisar` | Opus lee el diff: `revisado:opus` o hallazgos con `correccion-pendiente`. |
+| `revisado:codex` (y `revisado:opus` si es sensible) | `cadena.yml` → `etiqueta` | Activa la fusión automática con squash; el ruleset de main espera calidad, pruebas, e2e y secretos. |
+
+Frenos: un issue a la vez; como mucho tres pedidos de corrección por PR, después `bloqueado` para el dueño; Opus con tope de turnos por corrida; los trabajos que leen comentarios solo reaccionan a la cuenta de Codex.
+
+Requisitos (una vez, los hace el dueño): secretos `CADENA_TOKEN` (token personal *fine-grained* con Contents, Issues y Pull requests en escritura sobre este repo) y `CLAUDE_CODE_OAUTH_TOKEN` (`claude setup-token`); el repo conectado a Codex cloud con un entorno que corra ruff y pytest; «Allow auto-merge» activado en el repo.
+
+Para arrancar una etapa: Actions → Cadena → Run workflow. Para frenarla: deshabilitá el workflow Cadena.
+
 ## Roles
 
 - **Opus** (sesión corta de Claude Code) decide y especifica; no implementa:
@@ -13,8 +32,8 @@ El despachador se eliminó del repo el 27/10/2026; su último estado queda en el
   - decide diseño, dirección visual, modelo de datos, reglas, frenos, términos del glosario y ADR;
   - resuelve los `necesita-criterio`: decide, registra un ADR provisional si hace falta y deja el issue `estado:listo`;
   - revisa el diff de los PR que tocan rutas sensibles.
-- **Codex** (app de escritorio) implementa todos los issues, `tipo:patron` incluido, y revisa todos los PR.
-- **El dueño** elige cuándo abrir cada sesión, autoriza las fusiones y revisa los ADR provisionales al cierre de cada etapa.
+- **Codex** (Codex cloud, disparado por la cadena; o la app de escritorio a mano) implementa todos los issues, `tipo:patron` incluido, y revisa todos los PR.
+- **El dueño** arranca o frena la cadena, atiende los `bloqueado` y revisa los ADR provisionales al cierre de cada etapa. Su decisión del 28/10/2026 autoriza la fusión automática de los PR de la cadena.
 
 ## Planificar una etapa (Opus)
 
