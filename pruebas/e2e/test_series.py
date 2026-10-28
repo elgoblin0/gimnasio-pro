@@ -173,7 +173,8 @@ def test_sesion_parcial_conserva_pendientes_y_carga_anterior(pagina_demo, demo_a
             "UPDATE ejercicios_planificados SET carga=NULL WHERE id=%s", (a_bytes(programa_demo.ejercicios[0]),)
         )
     pagina.reload()
-    expect(pagina.get_by_label("Carga en kg de Sentadilla ficticia", exact=True)).to_have_value("17.50")
+    # La prescripción efectiva permanece aunque cambie la carga del programa.
+    expect(pagina.get_by_label("Carga en kg de Sentadilla ficticia", exact=True)).to_have_value("20.50")
     expect(pagina.get_by_label("Repeticiones de Sentadilla ficticia", exact=True)).to_have_value("8")
     pagina.get_by_role("button", name="Registrar serie de Sentadilla ficticia", exact=True).click()
     expect(tarjeta).to_contain_text("Series realizadas: 2 · Pendientes: 0")
