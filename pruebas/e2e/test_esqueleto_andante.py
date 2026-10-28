@@ -100,7 +100,8 @@ def resumen_bd(instancia, socio_id):
         resultado["salidas"] = cursor.fetchone()["cantidad"]
         cursor.execute(
             "SELECT COUNT(*) AS cantidad FROM series_realizadas s "
-            "JOIN sesiones_realizadas sr ON sr.id=s.sesion_realizada_id WHERE sr.socio_id=%s",
+            "JOIN sesiones_realizadas sr ON sr.id=s.sesion_realizada_id "
+            "WHERE sr.socio_id=%s AND sr.creada_en >= '2026-10-27'",
             (identificador,),
         )
         resultado["series"] = cursor.fetchone()["cantidad"]
@@ -120,7 +121,7 @@ def test_recorrido_parcial_salida_reingreso_y_cierre(pagina_demo, demo_aislada, 
     tiempo_de_recorrido(demo_aislada)
     ingresar(pagina, demo_aislada, "socio")
     antes = consulta(pagina, demo_aislada, "/api/entrenamiento/propuesta")
-    expect(pagina.locator("[data-explicacion]")).to_contain_text("sin ajustes")
+    expect(pagina.locator("[data-ajuste]").first).to_contain_text("Subís")
     assert pagina.request.get(demo_aislada.url + "/api/ocupacion").status == 403
     assert pagina.locator("[data-salida], [data-entrada]").count() == 0
     pagina.get_by_role("button", name="Iniciar sesión realizada", exact=True).click()
@@ -146,6 +147,7 @@ def test_recorrido_parcial_salida_reingreso_y_cierre(pagina_demo, demo_aislada, 
     assert repetida.status == 201
     assert repetida.json() == guardada.value.json()
     parcial = consulta(pagina, demo_aislada, "/api/entrenamiento/propuesta")
+    assert parcial["sesion_planificada"] == antes["sesion_planificada"]
     assert objetivos(parcial) == objetivos(antes)
     assert sum(e["realizado"] for e in parcial["ejercicios"]) == 1
     assert sum(e["pendiente"] for e in parcial["ejercicios"]) == sum(e["pendiente"] for e in antes["ejercicios"]) - 1
@@ -221,6 +223,8 @@ def test_secuencia_terminada_se_conserva_tras_recarga_y_otra_semana(pagina_demo,
             for _ in range(ejercicio["pendiente"]):
                 pagina.get_by_role("button", name=f"Registrar serie de {ejercicio['nombre']}", exact=True).click()
                 expect(pagina.get_by_text("Serie guardada.", exact=True)).to_be_visible()
+            # Representa el descanso entre ejercicios con el límite de la demo activo.
+            tiempo_de_recorrido(demo_aislada)
         tiempo_de_recorrido(demo_aislada, dias=1)
     assert sesiones[0] != sesiones[1]
     expect(pagina.get_by_role("heading", name="Secuencia realizada", exact=True)).to_be_visible()

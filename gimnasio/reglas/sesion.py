@@ -1,12 +1,11 @@
-"""Recorrido mínimo del programa, sin ajustes automáticos (issue #38)."""
+"""Primera sesión pendiente y doble progresión con frenos (issues #38 y #83)."""
 
 from gimnasio.comun.tipos import DatosPropuesta, PendienteEntrenamiento, PropuestaSesion, Razon
-
-VERSION_REGLAS = "1.0.0"
+from gimnasio.reglas.progresion import VERSION_REGLAS, ajustar_ejercicio
 
 
 def proponer_sesion(entrada: DatosPropuesta) -> PropuestaSesion:
-    """Elige la primera sesión con pendientes y conserva su prescripción completa.
+    """Elige la primera sesión con pendientes y compone su prescripción ajustada.
 
     Solo las series realizadas vigentes acreditan trabajo. Las entradas y salidas
     de visitas no forman parte de esta entrada. Ni el día ni el cambio de semana
@@ -50,6 +49,7 @@ def proponer_sesion(entrada: DatosPropuesta) -> PropuestaSesion:
             )
         )
         if pendientes:
+            ajustes = tuple(ajustar_ejercicio(e, entrada, sesion.id) for e in sesion.ejercicios)
             return PropuestaSesion(
                 sesion,
                 pendientes,
@@ -69,19 +69,11 @@ def proponer_sesion(entrada: DatosPropuesta) -> PropuestaSesion:
                             ),
                         ),
                     ),
-                    Razon(
-                        "respeto_programa_entrenador",
-                        VERSION_REGLAS,
-                        (
-                            (
-                                "explicacion",
-                                "Se respeta el plan del entrenador sin ajustes "
-                                "de carga, repeticiones, series ni volumen.",
-                            ),
-                        ),
-                    ),
+                    *(razon for _, razones, _ in ajustes for razon in razones),
                 ),
                 VERSION_REGLAS,
+                tuple(p for p, _, _ in ajustes),
+                tuple(dict.fromkeys(f for _, _, frenos in ajustes for f in frenos)),
             )
 
     return PropuestaSesion(

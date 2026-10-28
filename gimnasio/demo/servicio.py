@@ -125,6 +125,52 @@ def _cargar_programas(cursor, socios, siguiente_id, ahora):
             descanso=90,
             carga="25.00",
         )
+        if socio_id == socios[0]:
+            repositorio.insertar_ejercicio_planificado(
+                cursor,
+                siguiente_id(),
+                primera,
+                alternativa_fuerza,
+                3,
+                2,
+                repeticiones_minimas=8,
+                repeticiones_maximas=12,
+                rir_objetivo=2,
+                descanso=90,
+                carga="20.50",
+            )
+            # Tres semanas anteriores completas: no acreditan pendientes de las sesiones nuevas.
+            for semana, repeticiones in enumerate((10, 11, 12), start=1):
+                momento = ahora - timedelta(weeks=4 - semana)
+                planificada, realizada = siguiente_id(), siguiente_id()
+                repositorio.insertar_sesion_planificada(
+                    cursor, planificada, programa, semana - 4, "Fuerza ficticia anterior"
+                )
+                for posicion, ejercicio, reps in ((1, fuerza, repeticiones), (2, alternativa_fuerza, repeticiones - 2)):
+                    planificado = siguiente_id()
+                    repositorio.insertar_ejercicio_planificado(
+                        cursor,
+                        planificado,
+                        planificada,
+                        ejercicio,
+                        posicion,
+                        2,
+                        repeticiones_minimas=8,
+                        repeticiones_maximas=12,
+                        rir_objetivo=2,
+                        descanso=90,
+                        carga="20.50",
+                    )
+                    repositorio.insertar_historial(
+                        cursor,
+                        realizada,
+                        (siguiente_id(), siguiente_id()),
+                        socio_id,
+                        planificada,
+                        planificado,
+                        momento,
+                        reps,
+                    )
         if socio_id == socios[1]:
             repositorio.insertar_parcial(
                 cursor, siguiente_id(), siguiente_id(), socio_id, primera, ejercicio_fuerza, ahora

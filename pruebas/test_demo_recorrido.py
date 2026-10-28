@@ -114,6 +114,7 @@ def test_principal_pendiente_sin_visita_reingresa_y_respeta_plan(recorrido, relo
         == 201
     )
     parcial = con_socio.get("/api/entrenamiento/propuesta").json
+    assert parcial["sesion_planificada"] == propuesta["sesion_planificada"]
     assert [e["objetivos"] for e in parcial["ejercicios"]] == [e["objetivos"] for e in propuesta["ejercicios"]]
     assert (
         sum(e["pendiente"] for e in parcial["ejercicios"]) == sum(e["pendiente"] for e in propuesta["ejercicios"]) - 1
