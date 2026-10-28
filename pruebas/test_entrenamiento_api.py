@@ -622,8 +622,8 @@ def test_demo_propuesta_ajustada_e_historial_reproducible(entrenamiento_api):
     assert fuerza["objetivos"]["repeticiones_minimas"] == 8
     assert mantener["objetivos"]["carga"] == "20.50"
     assert mantener["objetivos"]["repeticiones_minimas"] == 11
-    assert [r["regla"] for r in fuerza["explicacion"]] == ["subir_carga"]
-    assert [r["regla"] for r in mantener["explicacion"]] == ["mantener_carga"]
+    assert [r["regla"] for r in fuerza["explicacion"]] == ["subir_carga", "sin_chequeo"]
+    assert [r["regla"] for r in mantener["explicacion"]] == ["mantener_carga", "sin_chequeo"]
     assert cardio["objetivos"]["duracion"] == 120
     assert primera == reiniciar_y_consultar()
     datos.reloj.avanzar(timedelta(days=9))
@@ -676,6 +676,7 @@ def test_api_tope_semanal_desde_prescripcion_y_liberado_el_lunes(entrenamiento_a
                             )
                         ),
                         "explicacion": [],
+                        "objetivos": {"series": 2},
                     }
                 ],
                 "explicacion": [{"regla": "subir_carga", "datos": {"ejercicio_id": str(datos.ejercicios[1][0])}}],
