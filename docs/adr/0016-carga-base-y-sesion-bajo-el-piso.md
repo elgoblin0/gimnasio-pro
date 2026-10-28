@@ -15,7 +15,7 @@ Se completa el ADR 0012 sin cambiar sus reglas:
 - **Subir, mantener por RIR y mantener:** las condiciones de tope y de RIR se evalúan sobre todas las series de la sesión, sin importar su carga. Si suben, la carga propuesta es la carga base más un incremento.
 - **Sesión bajo el piso:** una sesión cuenta como bajo el piso cuando **más de la mitad** de sus series tienen repeticiones menores al piso del rango (la mitad exacta no cuenta). Bajar exige dos sesiones seguidas del ejercicio en esa condición, como dice el ADR 0012.
 - **Series completas para subir:** «todas las series» del ADR 0012 son las **series planificadas** del ejercicio. Subir y mantener por RIR exigen que la última sesión tenga registradas al menos `series` series del ejercicio planificado, todas en el tope. Si hay menos, se mantiene la carga y se busca una repetición más. La regla de bajar cuenta la mayoría sobre las series registradas.
-- **Historial al proponer:** al proponer una sesión planificada, el historial de sus ejercicios **excluye** las sesiones realizadas de esa misma sesión planificada en la semana local actual (`fecha_local >= semana_local`), porque son las que acreditan sus pendientes. Las semanas anteriores de esa sesión planificada y las demás sesiones planificadas sí cuentan. Así, la prescripción no cambia mientras se entrena (ADR 0012: se fija al empezar la sesión). Las subas que usa el freno 3 se siguen derivando de todo el historial.
+- **Historial al proponer:** al proponer una sesión planificada, el historial de sus ejercicios **excluye** las sesiones realizadas de esa misma sesión planificada en la semana local actual (`fecha_local >= semana_local`), porque son las que acreditan sus pendientes. Las semanas anteriores de esa sesión planificada y las demás sesiones planificadas sí cuentan. Así, la prescripción no cambia mientras se entrena (ADR 0012: se fija al empezar la sesión). El freno 3 usa **el mismo historial**: las subas de las sesiones excluidas no cuentan como subas anteriores, porque son la suba que la propia sesión está realizando. Las subas de otras sesiones planificadas de la semana sí frenan.
 - La explicación indica la carga base usada y, al bajar, cuántas series quedaron bajo el piso. Si el ejercicio no tiene RIR objetivo, la explicación no menciona el RIR.
 - `VERSION_REGLAS` sigue en `"2.0.0"`: el motor 2.0 todavía no se publicó.
 
@@ -32,7 +32,9 @@ Se completa el ADR 0012 sin cambiar sus reglas:
   - Plan 3×8–12; última sesión (12, 12, 12, 12) con RIR ≥ objetivo: sube un incremento.
   - Semana anterior 12/12/12 con RIR 2 en la misma sesión planificada; esta semana, una serie de 10 en curso: sube desde la semana anterior.
   - Semana anterior 10/10/10; esta semana, una serie de 12 en curso: mantiene 40 kg.
-- Una sesión cortada no sube la carga, y la propuesta que el socio ve al empezar no cambia serie a serie.
+  - Semana anterior 3×12 con RIR 2 a 20,5 kg, incremento 2,5: propone 23 kg. Después de registrar la primera serie a 23 kg en esa misma sesión, la propuesta sigue en 23 kg, sin `tope_semanal`.
+  - El lunes, la sesión A sube el ejercicio de 20,5 a 23 kg. El jueves, la sesión B tiene el mismo ejercicio y su historial habilita otra suba: `tope_semanal` mantiene 23 kg.
+- Una sesión cortada no sube la carga, y la propuesta que el socio ve al empezar no cambia serie a serie, tampoco por el freno 3.
 - Es un ADR provisional: el dueño lo revisa al cierre de la etapa 2. Si lo cambia, exige una versión mayor del motor.
 
 ## Alternativas descartadas
@@ -42,3 +44,4 @@ Se completa el ADR 0012 sin cambiar sus reglas:
 - Contar las series registradas para subir: una sesión cortada con una serie al tope subiría la carga.
 - Incluir la sesión en curso en el historial: la carga cambia entre series del mismo día.
 - Excluir todo el historial de la sesión planificada que se propone: perdería las semanas anteriores, que son la base de la progresión.
+- Derivar las subas del freno 3 de todo el historial: la suba que la sesión está realizando se frena a sí misma y la carga baja en medio de la sesión (caso del PR #103).
