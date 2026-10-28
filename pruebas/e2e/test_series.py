@@ -27,7 +27,7 @@ def contar(instancia):
         cursor.execute(
             "SELECT COUNT(*) AS cantidad FROM series_realizadas s "
             "JOIN sesiones_realizadas sr ON sr.id=s.sesion_realizada_id "
-            "JOIN usuarios u ON u.id=sr.socio_id WHERE u.es_demo=TRUE"
+            "JOIN usuarios u ON u.id=sr.socio_id WHERE u.es_demo=TRUE AND sr.creada_en >= '2026-10-27'"
         )
         return cursor.fetchone()["cantidad"]
 

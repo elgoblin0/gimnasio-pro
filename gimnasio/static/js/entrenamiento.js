@@ -114,7 +114,7 @@ function dibujar(propuesta) {
   $("[data-contenido]").dataset.versionReglas = propuesta.version_reglas;
   $("[data-fecha]").textContent = formatearFecha(propuesta.fecha_local);
   $("[data-explicacion]").replaceChildren();
-  for (const razon of propuesta.explicacion) {
+  for (const razon of propuesta.explicacion.filter((r) => !r.datos.ejercicio_id)) {
     const texto = document.createElement("li");
     texto.textContent = razon.datos.explicacion;
     $("[data-explicacion]").append(texto);
@@ -140,6 +140,14 @@ function dibujar(propuesta) {
       ? `Carga anterior: ${ejercicio.carga_anterior.carga == null ? "sin carga" : formatearCarga(ejercicio.carga_anterior.carga)} · ${ejercicio.carga_anterior.repeticiones ?? "sin"} repeticiones · ${formatearFecha(ejercicio.carga_anterior.fecha_local)}`
       : "Sin carga anterior.";
     tarjeta.append(nombre, objetivos, anterior, pendiente);
+    const explicacion = document.createElement("ul");
+    explicacion.dataset.ajuste = ejercicio.id;
+    for (const razon of ejercicio.explicacion ?? []) {
+      const texto = document.createElement("li");
+      texto.textContent = razon.datos.explicacion;
+      explicacion.append(texto);
+    }
+    tarjeta.append(explicacion);
     if (coincide && ejercicio.pendiente > 0) agregarFormulario(tarjeta, ejercicio);
     $("[data-ejercicios]").append(tarjeta);
   }

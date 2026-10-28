@@ -120,7 +120,7 @@ def test_recorrido_parcial_salida_reingreso_y_cierre(pagina_demo, demo_aislada, 
     tiempo_de_recorrido(demo_aislada)
     ingresar(pagina, demo_aislada, "socio")
     antes = consulta(pagina, demo_aislada, "/api/entrenamiento/propuesta")
-    expect(pagina.locator("[data-explicacion]")).to_contain_text("sin ajustes")
+    expect(pagina.locator("[data-ajuste]").first).to_contain_text("Subís")
     assert pagina.request.get(demo_aislada.url + "/api/ocupacion").status == 403
     assert pagina.locator("[data-salida], [data-entrada]").count() == 0
     pagina.get_by_role("button", name="Iniciar sesión realizada", exact=True).click()

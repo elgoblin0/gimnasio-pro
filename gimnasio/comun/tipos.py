@@ -39,6 +39,7 @@ class EjercicioPlanificado:
     descanso: int | None = None
     duracion: int | None = None
     distancia: Decimal | None = None
+    ejercicio_catalogo_id: str | None = None
 
 
 @dataclass(frozen=True)
@@ -67,11 +68,37 @@ class SerieRealizada:
 
 
 @dataclass(frozen=True)
+class EjercicioCatalogo:
+    ejercicio_id: str
+    nombre: str
+    incremento_carga: Decimal | None
+
+
+@dataclass(frozen=True)
+class HistorialEjercicio:
+    ejercicio_id: str  # Del catálogo planificado: una alternativa acredita al original.
+    sesion_realizada_id: str
+    sesion_planificada_id: str
+    fecha_local: date
+    series: tuple[SerieRealizada, ...]
+
+
+@dataclass(frozen=True)
+class SubaCarga:
+    ejercicio_id: str
+    fecha_local: date
+    sesion_planificada_id: str | None = None
+
+
+@dataclass(frozen=True)
 class DatosPropuesta:
     programa: ProgramaEntrenamiento | None
     fecha_local: date
     semana_local: date  # Lunes de la semana local, calculado por quien llama.
     series_realizadas: tuple[SerieRealizada, ...] = ()
+    historial: tuple[HistorialEjercicio, ...] = ()
+    catalogo: tuple[EjercicioCatalogo, ...] = ()
+    subas: tuple[SubaCarga, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -90,8 +117,21 @@ class Razon:
 
 
 @dataclass(frozen=True)
+class PrescripcionEjercicio:
+    ejercicio_id: str  # Identificador del ejercicio planificado, igual que los pendientes.
+    series: int
+    repeticiones_minimas: int | None
+    repeticiones_maximas: int | None
+    carga: Decimal | None
+    rir_objetivo: int | None
+    descanso: int | None
+
+
+@dataclass(frozen=True)
 class PropuestaSesion:
     sesion_planificada: SesionPlanificada | None
     pendientes: tuple[PendienteEntrenamiento, ...]
     explicacion: tuple[Razon, ...]
     version: str
+    prescripcion: tuple[PrescripcionEjercicio, ...] = ()
+    frenos: tuple[str, ...] = ()

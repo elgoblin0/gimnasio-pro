@@ -2,5 +2,7 @@ id = "progresion-con-frenos"
 nombre = "Doble progresión + RPE/RIR con ajustes automáticos y frenos"
 grupo = "Entrenamiento"
 etapa = 2
-nivel = "pendiente"
-prueba = ""
+nivel = "esqueleto"
+prueba = "pruebas/e2e/test_progresion.py::test_demo_explica_subir_y_mantener"
+
+# Motor 2.0 y freno 3 en #83; chequeo, dolor, restricciones y avisos siguen pendientes.

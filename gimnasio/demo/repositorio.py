@@ -151,3 +151,17 @@ def insertar_parcial(cursor, sesion_id, serie_id, socio_id, planificada_id, ejer
         "VALUES (%s,%s,%s,10,20.50,%s,%s)",
         (a_bytes(serie_id), a_bytes(sesion_id), a_bytes(ejercicio_id), a_bytes(socio_id), momento),
     )
+
+
+def insertar_historial(cursor, sesion_id, series, socio_id, planificada_id, ejercicio_id, momento, repeticiones):
+    cursor.execute(
+        "INSERT IGNORE INTO sesiones_realizadas (id,socio_id,sesion_planificada_id,creada_en) VALUES (%s,%s,%s,%s)",
+        (a_bytes(sesion_id), a_bytes(socio_id), a_bytes(planificada_id), momento),
+    )
+    for serie_id in series:
+        cursor.execute(
+            "INSERT INTO series_realizadas "
+            "(id,sesion_realizada_id,ejercicio_planificado_id,repeticiones,carga,rir,autor_id,registrada_en) "
+            "VALUES (%s,%s,%s,%s,20.50,2,%s,%s)",
+            (a_bytes(serie_id), a_bytes(sesion_id), a_bytes(ejercicio_id), repeticiones, a_bytes(socio_id), momento),
+        )

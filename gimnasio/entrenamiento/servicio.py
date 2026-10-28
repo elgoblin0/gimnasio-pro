@@ -1,4 +1,4 @@
-"""Compone programa e historial vigente con el motor puro, sin ajustes ni salud."""
+"""Compone programa e historial vigente con el motor puro, con doble progresión."""
 
 from collections import Counter
 from datetime import UTC
@@ -10,10 +10,13 @@ from gimnasio.comun.ids import desde_bytes, desde_texto
 from gimnasio.comun.reloj import fecha_local, inicio_de_semana, reloj_actual
 from gimnasio.comun.tipos import (
     DatosPropuesta,
+    EjercicioCatalogo,
     EjercicioPlanificado,
+    HistorialEjercicio,
     ProgramaEntrenamiento,
     SerieRealizada,
     SesionPlanificada,
+    SubaCarga,
 )
 from gimnasio.entrenamiento import repositorio
 from gimnasio.permisos.servicio import tiene_asignacion_vigente
@@ -59,6 +62,7 @@ def convertir_programa(programa):
                         descanso=ejercicio["descanso"],
                         duracion=ejercicio["duracion"],
                         distancia=ejercicio["distancia"],
+                        ejercicio_catalogo_id=ejercicio["ejercicio_id"],
                     )
                     for ejercicio in sesion["ejercicios_planificados"]
                 ),
@@ -108,6 +112,64 @@ def cargas_anteriores(filas, zona, sesion=None):
     return resultado
 
 
+def preparar_historial(filas, zona, local):
+    """Agrupa hechos vigentes por sesión y ejercicio planificado del catálogo.
+
+    Una corrección no cambia la fecha de la sesión. Una alternativa acredita
+    al ejercicio del catálogo que estaba planificado (ADR 0012).
+    """
+    sesiones = {}
+    for fila in sorted(
+        filas, key=lambda f: (f["sesion_creada_en"], f["sesion_realizada_id"], f["registrada_en"], f["id"])
+    ):
+        fecha = fecha_local(fila["sesion_creada_en"].replace(tzinfo=UTC), zona)
+        if fecha > local:
+            continue
+        ejercicio_id = str(desde_bytes(fila["ejercicio_catalogo_id"]))
+        sesion_id = str(desde_bytes(fila["sesion_realizada_id"]))
+        clave = (sesion_id, ejercicio_id)
+        if clave not in sesiones:
+            sesiones[clave] = (str(desde_bytes(fila["sesion_planificada_id"])), fecha, [])
+        series = sesiones[clave][2]
+        series.append(
+            SerieRealizada(
+                sesiones[clave][0],
+                ejercicio_id,
+                len(series) + 1,
+                fila["repeticiones"],
+                fila["carga"],
+                rir=fila["rir"],
+                ejercicio_hecho_id=str(desde_bytes(fila["ejercicio_hecho_resuelto_id"])),
+            )
+        )
+    historial = tuple(
+        HistorialEjercicio(ejercicio, sesion, planificada, fecha, tuple(series))
+        for (sesion, ejercicio), (planificada, fecha, series) in sesiones.items()
+    )
+    subas = []
+    cargas = {}
+    for sesion in historial:
+        for serie in sesion.series:
+            if serie.carga is None:
+                continue
+            anterior = cargas.get(sesion.ejercicio_id)
+            if anterior is not None and serie.carga > anterior:
+                subas.append(SubaCarga(sesion.ejercicio_id, sesion.fecha_local, sesion.sesion_planificada_id))
+            cargas[sesion.ejercicio_id] = serie.carga
+    return historial, tuple(subas)
+
+
+def catalogo_programa(programa):
+    if programa is None:
+        return ()
+    ejercicios = {
+        e["ejercicio_id"]: EjercicioCatalogo(e["ejercicio_id"], e["nombre"], e["incremento_carga"])
+        for s in programa["sesiones_planificadas"]
+        for e in s["ejercicios_planificados"]
+    }
+    return tuple(ejercicios.values())
+
+
 def consultar_propuesta(socio_texto, usuario):
     socio_id = identificar(socio_texto)
     ahora = reloj_actual().ahora()
@@ -121,7 +183,18 @@ def consultar_propuesta(socio_texto, usuario):
     programa = programas[-1] if programas else None
     local = fecha_local(ahora, ZoneInfo(sede["zona_horaria"]))
     series, cantidades = convertir_series(filas)
-    propuesta = proponer_sesion(DatosPropuesta(convertir_programa(programa), local, inicio_de_semana(local), series))
+    historial, subas = preparar_historial(filas, ZoneInfo(sede["zona_horaria"]), local)
+    propuesta = proponer_sesion(
+        DatosPropuesta(
+            convertir_programa(programa),
+            local,
+            inicio_de_semana(local),
+            series,
+            historial,
+            catalogo_programa(programa),
+            subas,
+        )
+    )
     respuesta = {
         "sesion_planificada": None,
         "ejercicios": [],
@@ -132,6 +205,7 @@ def consultar_propuesta(socio_texto, usuario):
         "version_reglas": propuesta.version,
         "fecha_local": local.isoformat(),
         "semana_local": inicio_de_semana(local).isoformat(),
+        "frenos": list(propuesta.frenos),
     }
     if propuesta.sesion_planificada is None:
         return respuesta
@@ -139,6 +213,15 @@ def consultar_propuesta(socio_texto, usuario):
     respuesta["sesion_planificada"] = {"id": sesion["id"], "nombre": sesion["nombre"], "posicion": sesion["posicion"]}
     anteriores = cargas_anteriores(filas, ZoneInfo(sede["zona_horaria"]))
     pendientes = {p.ejercicio_id: len(p.series) for p in propuesta.pendientes}
+    prescripciones = {p.ejercicio_id: p for p in propuesta.prescripcion}
+    razones = {
+        e["id"]: [
+            {"regla": r.regla, "version": r.version, "datos": dict(r.datos)}
+            for r in propuesta.explicacion
+            if dict(r.datos).get("ejercicio_id") == e["id"]
+        ]
+        for e in sesion["ejercicios_planificados"]
+    }
     respuesta["ejercicios"] = [
         {
             "id": e["id"],
@@ -151,7 +234,21 @@ def consultar_propuesta(socio_texto, usuario):
                 campo: e[campo]
                 for campo in ("zonas", "patron_movimiento", "equipo", "incremento_carga", "alternativas")
             },
-            "objetivos": {m: e[m] for m in ("series", *OBJETIVOS)},
+            "objetivos": {
+                **{m: e[m] for m in ("series", *OBJETIVOS)},
+                **{
+                    m: getattr(prescripciones[e["id"]], m)
+                    for m in (
+                        "series",
+                        "repeticiones_minimas",
+                        "repeticiones_maximas",
+                        "carga",
+                        "rir_objetivo",
+                        "descanso",
+                    )
+                },
+            },
+            "explicacion": razones[e["id"]],
             "realizado": cantidades[sesion["id"], e["id"]],
             "pendiente": pendientes.get(e["id"], 0),
         }

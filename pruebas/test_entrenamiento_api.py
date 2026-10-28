@@ -122,7 +122,7 @@ def test_propuesta_conserva_plan_y_distingue_posiciones_del_mismo_ejercicio(entr
     assert [e["realizado"] for e in despues["ejercicios"]] == [1, 0]
     assert [e["pendiente"] for e in despues["ejercicios"]] == [1, 2]
     assert despues["ejercicios"][0]["objetivos"]["carga"] == "20.50"
-    assert despues["version_reglas"] == "1.0.0"
+    assert despues["version_reglas"] == "2.0.0"
     assert "sin ajustes" in despues["explicacion"][-1]["datos"]["explicacion"]
     assert despues == datos.cliente().get("/api/entrenamiento/propuesta").json
     with datos.app.app_context(), transaccion() as cursor:
@@ -465,14 +465,14 @@ def test_propuesta_devuelve_rango_y_catalogo_de_la_demo(entrenamiento_api):
         sesion["usuario_id"] = str(desde_bytes(socio))
     respuesta = cliente.get("/api/entrenamiento/propuesta")
     assert respuesta.status_code == 200
-    fuerza, cardio = respuesta.json["ejercicios"]
+    fuerza, cardio, mantener = respuesta.json["ejercicios"]
     assert fuerza["objetivos"] == {
         "series": 2,
         "repeticiones_minimas": 8,
         "repeticiones_maximas": 12,
         "rir_objetivo": 2,
         "descanso": 90,
-        "carga": "20.50",
+        "carga": "23.00",
         "duracion": None,
         "distancia": None,
     }
@@ -589,3 +589,74 @@ def test_carga_anterior_vigente_local_y_ajena_a_la_sesion_actual(entrenamiento_a
     # Una sesión creada después tampoco cambia la referencia de la sesión abierta.
     registrar(datos, 1, 0)
     assert cliente.get(ruta).json["ejercicios"][0]["carga_anterior"] == esperada
+
+
+def test_demo_propuesta_ajustada_e_historial_reproducible(entrenamiento_api):
+    from datetime import timedelta
+
+    from gimnasio.demo import servicio as demo
+
+    datos = entrenamiento_api
+    datos.app.config["MODO_DEMO"] = True
+
+    def reiniciar_y_consultar():
+        with datos.app.app_context():
+            demo.reiniciar()
+        cliente = datos.app.test_client()
+        assert cliente.post("/api/sesion/demo/socio", headers={"X-Gimnasio": "1"}).status_code == 200
+        respuesta = cliente.get("/api/entrenamiento/propuesta")
+        assert respuesta.status_code == 200
+        return respuesta.json
+
+    primera = reiniciar_y_consultar()
+    assert primera["version_reglas"] == "2.0.0"
+    assert primera["frenos"] == []
+    fuerza, cardio, mantener = primera["ejercicios"]
+    assert fuerza["objetivos"]["carga"] == "23.00"
+    assert fuerza["objetivos"]["repeticiones_minimas"] == 8
+    assert mantener["objetivos"]["carga"] == "20.50"
+    assert mantener["objetivos"]["repeticiones_minimas"] == 11
+    assert [r["regla"] for r in fuerza["explicacion"]] == ["subir_carga"]
+    assert [r["regla"] for r in mantener["explicacion"]] == ["mantener_carga"]
+    assert cardio["objetivos"]["duracion"] == 120
+    assert primera == reiniciar_y_consultar()
+    datos.reloj.avanzar(timedelta(days=9))
+    desplazada = reiniciar_y_consultar()
+    assert [e["objetivos"] for e in desplazada["ejercicios"]] == [e["objetivos"] for e in primera["ejercicios"]]
+
+
+def test_api_tope_semanal_derivado_de_cargas_y_liberado_el_lunes(entrenamiento_api):
+    from datetime import UTC, datetime, timedelta
+
+    datos = entrenamiento_api
+    with datos.app.app_context(), transaccion() as cursor:
+        cursor.execute("UPDATE ejercicios SET incremento_carga=2.5")
+        cursor.execute(
+            "UPDATE ejercicios_planificados SET repeticiones_minimas=8,repeticiones_maximas=12,rir_objetivo=2"
+        )
+        for fecha, carga in (
+            (datetime(2026, 10, 25, 12, tzinfo=UTC), "40"),
+            (datetime(2026, 10, 26, 12, tzinfo=UTC), "42.5"),
+        ):
+            realizada = nuevo_id(datos.reloj)
+            repositorio.insertar_sesion(cursor, realizada, datos.usuarios["socio"], datos.sesiones[1], fecha)
+            for _ in range(2):
+                repositorio.insertar_serie(
+                    cursor,
+                    nuevo_id(datos.reloj),
+                    realizada,
+                    datos.ejercicios[1][0],
+                    datos.usuarios["socio"],
+                    fecha,
+                    repeticiones=12,
+                    carga=carga,
+                    rir=2,
+                )
+    propuesta = datos.cliente().get("/api/entrenamiento/propuesta").json
+    assert propuesta["frenos"] == ["tope_semanal"]
+    assert all(e["objetivos"]["carga"] == "42.50" for e in propuesta["ejercicios"])
+    datos.reloj.avanzar(timedelta(days=6))
+    propuesta = datos.cliente().get("/api/entrenamiento/propuesta").json
+    assert propuesta["fecha_local"] == "2026-11-02"
+    assert propuesta["frenos"] == []
+    assert all(e["objetivos"]["carga"] == "45.00" for e in propuesta["ejercicios"])
