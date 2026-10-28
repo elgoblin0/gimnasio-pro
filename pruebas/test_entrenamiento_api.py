@@ -1003,3 +1003,30 @@ def test_fallo_prescripcion_revierte_sesion(entrenamiento_api, monkeypatch):
         )
     assert cantidad(datos, "sesiones_realizadas") == 0
     assert cantidad(datos, "prescripciones_efectivas") == 0
+
+
+def test_sesiones_de_semanas_distintas_cuentan_solo_sus_series(entrenamiento_api):
+    from datetime import timedelta
+
+    datos = entrenamiento_api
+    cliente = datos.cliente()
+    primera = iniciar(datos)
+    for ejercicio in datos.ejercicios[0]:
+        for _ in range(2):
+            cuerpo = cuerpo_serie(datos) | {"ejercicio_planificado_id": str(ejercicio)}
+            assert escribir(cliente, f"/api/entrenamiento/sesiones/{primera}/series", cuerpo).status_code == 201
+    datos.reloj.avanzar(timedelta(days=7))
+    segunda = iniciar(datos)
+    ruta = f"/api/entrenamiento/sesiones/{segunda}"
+    inicial = cliente.get(ruta).json
+    assert inicial["sesion_realizada"]["sesion_planificada_id"] == str(datos.sesiones[0])
+    assert inicial["prescripcion_efectiva"] is not None
+    assert [(e["realizado"], e["pendiente"]) for e in inicial["ejercicios"]] == [(0, 2), (0, 2)]
+    assert inicial["series"] == []
+
+    assert escribir(cliente, ruta + "/series", cuerpo_serie(datos)).status_code == 201
+    parcial = cliente.get(ruta).json
+    assert [(e["realizado"], e["pendiente"]) for e in parcial["ejercicios"]] == [(1, 1), (0, 2)]
+    assert parcial["prescripcion_efectiva"] == inicial["prescripcion_efectiva"]
+    anterior = cliente.get(f"/api/entrenamiento/sesiones/{primera}").json
+    assert [(e["realizado"], e["pendiente"]) for e in anterior["ejercicios"]] == [(2, 0), (2, 0)]
