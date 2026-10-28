@@ -1,0 +1,38 @@
+[
+  {
+    "version": "modelo",
+    "dispositivo": "escritorio",
+    "primer_cuadro_ms": 177,
+    "fps": 60,
+    "bytes_descargados": 3043618,
+    "llamadas": 17,
+    "navegador": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/156.0.8078.4 Safari/537.36"
+  },
+  {
+    "version": "modelo",
+    "dispositivo": "celular",
+    "primer_cuadro_ms": 155,
+    "fps": 60,
+    "bytes_descargados": 3043618,
+    "llamadas": 17,
+    "navegador": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/156.0.8078.4 Safari/537.36"
+  },
+  {
+    "version": "estilizado",
+    "dispositivo": "escritorio",
+    "primer_cuadro_ms": 84,
+    "fps": 60,
+    "bytes_descargados": 2135493,
+    "llamadas": 30,
+    "navegador": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/156.0.8078.4 Safari/537.36"
+  },
+  {
+    "version": "estilizado",
+    "dispositivo": "celular",
+    "primer_cuadro_ms": 83,
+    "fps": 60,
+    "bytes_descargados": 2135493,
+    "llamadas": 30,
+    "navegador": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/156.0.8078.4 Safari/537.36"
+  }
+]

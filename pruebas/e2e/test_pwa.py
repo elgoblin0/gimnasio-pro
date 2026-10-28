@@ -93,7 +93,13 @@ def test_controla_raiz_y_cachea_solo_la_lista_publica(contexto_pwa, servidor_pwa
         ].replace(",\n]", "\n]")
     )
     assert contenido_cache(pagina) == {"gimnasio-estaticos-1": sorted(lista)}
-    # Cada recurso actual de ejecución está en la lista inicial. Excluye HTML, SW, pruebas y documentación.
+    # Cada recurso de ejecución de la app está en la lista inicial. Three.js es
+    # exclusivo de los prototipos #81 y no debe descargarse al instalar la PWA.
+    solo_prototipos = ESTATICOS / "vendor/three@0.186.0"
+    for archivo in [ESTATICOS / "index.html", *ESTATICOS.glob("js/**/*.js")]:
+        assert "three@0.186.0" not in archivo.read_text(encoding="utf-8")
+    assert not any("three@0.186.0" in ruta for ruta in lista)
+    # Excluye HTML, SW, pruebas, documentación y la librería aislada de los prototipos.
     existentes = {
         "/" + archivo.relative_to(ESTATICOS).as_posix()
         for archivo in ESTATICOS.rglob("*")
@@ -101,6 +107,7 @@ def test_controla_raiz_y_cachea_solo_la_lista_publica(contexto_pwa, servidor_pwa
         and archivo.suffix in {".js", ".css", ".png", ".webmanifest"}
         and not archivo.name.endswith(".test.js")
         and archivo.name != "sw.js"
+        and not archivo.is_relative_to(solo_prototipos)
     }
     assert set(lista) == existentes
     pagina.evaluate("""async () => {

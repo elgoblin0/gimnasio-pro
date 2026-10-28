@@ -1,0 +1,22 @@
+@import url('../../gimnasio/static/estilos/tokens.css');
+* {box-sizing: border-box}
+body {margin: 0; background: var(--superficie); color: var(--texto); font: 16px var(--fuente-texto)}
+main {max-width: 1200px; margin: auto; padding: 24px}
+header {border-bottom: 1px solid var(--borde); padding-bottom: 20px}
+h1 {font: 42px var(--fuente-display); margin: 14px 0}
+p {color: var(--texto-suave); line-height: 1.5}
+a {color: var(--acento)}
+.comparacion {display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 32px; margin-top: 24px}
+canvas {width: 100%; height: 570px; display: block; border-radius: 8px; touch-action: none}
+button, select {font: inherit; padding: 10px; background: var(--superficie-elevada); color: var(--texto); border: 1px solid var(--borde); border-radius: 4px}
+button {cursor: pointer}
+button[aria-pressed=true] {border: 2px solid var(--foco); font-weight: bold}
+:focus-visible {outline: 3px solid var(--foco); outline-offset: 3px}
+#zonas {display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin: 16px 0}
+output {display: block; margin: 18px 0; padding: 12px; border-left: 3px solid var(--acento); overflow-wrap: anywhere}
+.leyenda {display: flex; gap: 24px; flex-wrap: wrap; margin: 12px 0}
+.trabajada {color: #1f5a43}.dolor {color: #b2452a}
+input[type=range] {width: 65%; vertical-align: middle}
+nav {display: flex; gap: 20px}
+@media(max-width: 700px) {main {padding: 16px} h1 {font-size: 32px}.comparacion {grid-template-columns: 1fr; gap: 12px}canvas {height: 470px}}
+@media(prefers-reduced-motion: reduce) {* {animation: none; transition: none}}
