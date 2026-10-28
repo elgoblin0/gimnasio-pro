@@ -11,8 +11,17 @@ def leer_por_socio(cursor, socio_id, version=None):
         """SELECT p.id AS programa_id, p.socio_id, p.version, p.creado_en,
                   s.id AS sesion_id, s.posicion AS sesion_posicion, s.nombre AS sesion_nombre,
                   ep.id AS planificado_id, ep.posicion AS ejercicio_posicion,
-                  ep.series, ep.repeticiones, ep.carga, ep.duracion, ep.distancia,
-                  e.id AS ejercicio_id, e.nombre AS ejercicio_nombre, e.medidas_aplicables
+                  ep.series, ep.repeticiones_minimas, ep.repeticiones_maximas, ep.rir_objetivo, ep.descanso,
+                  ep.carga, ep.duracion, ep.distancia,
+                  e.id AS ejercicio_id, e.nombre AS ejercicio_nombre, e.medidas_aplicables,
+                  e.patron_movimiento, e.equipo, e.incremento_carga,
+                  COALESCE((SELECT JSON_ARRAYAGG(z.zona) FROM zonas_ejercicio z
+                            WHERE z.ejercicio_id = e.id), JSON_ARRAY()) AS zonas,
+                  COALESCE((SELECT JSON_ARRAYAGG(JSON_OBJECT(
+                      'ejercicio_id', LOWER(BIN_TO_UUID(a.alternativa_id)), 'orden', a.orden,
+                      'nombre', alternativa.nombre, 'equipo', alternativa.equipo))
+                      FROM alternativas_ejercicio a JOIN ejercicios alternativa ON alternativa.id = a.alternativa_id
+                      WHERE a.ejercicio_id = e.id), JSON_ARRAY()) AS alternativas
            FROM programas_entrenamiento p
            LEFT JOIN sesiones_planificadas s ON s.programa_id = p.id
            LEFT JOIN ejercicios_planificados ep ON ep.sesion_planificada_id = s.id

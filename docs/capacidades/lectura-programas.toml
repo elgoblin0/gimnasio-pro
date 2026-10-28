@@ -1,5 +1,5 @@
 id = "lectura-programas"
-nombre = "Lectura del programa de entrenamiento y sus sesiones planificadas por socio y versión"
+nombre = "Lectura del programa de entrenamiento por socio y versión con catálogo y rango de repeticiones"
 grupo = "Entrenador"
 etapa = 1
 nivel = "funcional"

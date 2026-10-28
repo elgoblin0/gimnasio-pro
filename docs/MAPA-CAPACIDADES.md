@@ -30,7 +30,7 @@ Generado por `scripts/mapa_capacidades.py` desde `docs/capacidades/`. No editar 
 
 | Capacidad | Etapa | Nivel | Prueba |
 |---|---|---|---|
-| Semilla ficticia de Paraguay con recorrido reiniciable de entrenamiento y visitas | 0 | funcional | `pruebas/test_demo_recorrido.py` |
+| Semilla ficticia de Paraguay con catálogo, alternativas y recorrido reiniciable | 0 | funcional | `pruebas/test_demo_recorrido.py` |
 | Demo pública en hosting gratuito con límites de uso | 1 | funcional | `pruebas/test_demo_limites.py` |
 
 ## Operación
@@ -51,7 +51,7 @@ Generado por `scripts/mapa_capacidades.py` desde `docs/capacidades/`. No editar 
 | Persistencia de sesiones realizadas y series realizadas | 1 | funcional | `pruebas/test_entrenamiento_repositorio.py` |
 | Pantalla del socio con propuesta, explicación y pendientes | 1 | validada | `pruebas/e2e/test_entrenamiento.py` · https://github.com/elgoblin0/gimnasio-pro/issues/52 |
 | Registro idempotente de sesiones y series realizadas | 1 | validada | `pruebas/e2e/test_esqueleto_andante.py` · https://github.com/elgoblin0/gimnasio-pro/issues/52 |
-| Sesión propuesta según la secuencia del programa de entrenamiento | 1 | validada | `pruebas/e2e/test_esqueleto_andante.py` · https://github.com/elgoblin0/gimnasio-pro/issues/52 |
+| Sesión propuesta según la secuencia, con rango de repeticiones y catálogo | 1 | validada | `pruebas/e2e/test_esqueleto_andante.py` · https://github.com/elgoblin0/gimnasio-pro/issues/52 |
 | Chequeo del día | 2 | pendiente | — |
 | "Me duele" y "máquina ocupada" | 2 | pendiente | — |
 | Doble progresión + RPE/RIR con ajustes automáticos y frenos | 2 | pendiente | — |
@@ -77,7 +77,7 @@ Generado por `scripts/mapa_capacidades.py` desde `docs/capacidades/`. No editar 
 
 | Capacidad | Etapa | Nivel | Prueba |
 |---|---|---|---|
-| Lectura del programa de entrenamiento y sus sesiones planificadas por socio y versión | 1 | funcional | `pruebas/test_programas.py` |
+| Lectura del programa de entrenamiento por socio y versión con catálogo y rango de repeticiones | 1 | funcional | `pruebas/test_programas.py` |
 | Bandeja priorizada del entrenador | 4 | pendiente | — |
 | Equipos y alternativas | 4 | pendiente | — |
 | Programas desde plantillas | 4 | pendiente | — |

@@ -1,5 +1,5 @@
 id = "sesion-propuesta"
-nombre = "Sesión propuesta según la secuencia del programa de entrenamiento"
+nombre = "Sesión propuesta según la secuencia, con rango de repeticiones y catálogo"
 grupo = "Entrenamiento"
 etapa = 1
 nivel = "validada"

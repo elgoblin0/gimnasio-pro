@@ -38,7 +38,7 @@ function agregarFormulario(tarjeta, ejercicio) {
     campo.required = true;
     campo.step = ["repeticiones", "duracion"].includes(medida) ? "1" : "0.01";
     campo.min = medida === "carga" ? "0" : (["repeticiones", "duracion"].includes(medida) ? "1" : "0.01");
-    campo.value = String(ejercicio.objetivos[medida] ?? "");
+    campo.value = String((medida === "repeticiones" ? ejercicio.objetivos.repeticiones_minimas : ejercicio.objetivos[medida]) ?? "");
     etiqueta.append(campo);
     formulario.append(etiqueta);
   }
@@ -75,7 +75,8 @@ function dibujarRegistro() {
 
 function describirObjetivos(objetivos) {
   const partes = [`${objetivos.series} ${objetivos.series === 1 ? "serie" : "series"}`];
-  if (objetivos.repeticiones !== null) partes.push(`${objetivos.repeticiones} repeticiones`);
+  if (objetivos.repeticiones_minimas != null) partes.push(`${objetivos.repeticiones_minimas}–${objetivos.repeticiones_maximas} reps`);
+  if (objetivos.repeticiones != null) partes.push(`${objetivos.repeticiones} repeticiones`);
   if (objetivos.carga !== null) partes.push(formatearCarga(objetivos.carga));
   if (objetivos.duracion !== null) partes.push(`${objetivos.duracion} s`);
   if (objetivos.distancia !== null) partes.push(`${numero.format(Number(objetivos.distancia))} m`);

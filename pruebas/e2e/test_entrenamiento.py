@@ -25,7 +25,7 @@ def test_propuesta_explicacion_recarga_y_cierre(pagina_demo, demo_aislada, progr
     pagina.on("console", lambda mensaje: errores.append(mensaje.text) if mensaje.type == "error" else None)
     ingresar(pagina, demo_aislada)
     expect(pagina.get_by_role("heading", name="Fuerza y cardio", exact=True)).to_be_visible()
-    expect(pagina.get_by_text("2 series · 10 repeticiones · 20,50 kg", exact=True)).to_be_visible()
+    expect(pagina.get_by_text("2 series · 8–12 reps · 20,50 kg", exact=True)).to_be_visible()
     expect(pagina.get_by_text("1 serie · 120 s · 1.500,25 m", exact=True)).to_be_visible()
     expect(
         pagina.get_by_text(

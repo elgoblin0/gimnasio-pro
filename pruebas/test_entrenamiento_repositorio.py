@@ -66,7 +66,8 @@ def entrenamiento(app_con_bd, reloj_fijo):
                 ejercicio_id=a_bytes(ejercicio),
                 posicion=posicion,
                 series=2,
-                repeticiones=10 if posicion == 1 else None,
+                repeticiones_minimas=10 if posicion == 1 else None,
+                repeticiones_maximas=10 if posicion == 1 else None,
                 carga=Decimal("20.50") if posicion == 1 else None,
                 duracion=120 if posicion == 2 else None,
                 distancia=Decimal("1500.25") if posicion == 2 else None,
@@ -244,7 +245,7 @@ def test_reinicio_demo_borra_correcciones_y_sesiones_antes_del_programa(entrenam
         datos.cursor.execute(f"SELECT COUNT(*) AS cantidad FROM {tabla}")
         assert datos.cursor.fetchone()["cantidad"] == cantidad
     datos.cursor.execute("SELECT COUNT(*) AS cantidad FROM migraciones_aplicadas")
-    assert datos.cursor.fetchone()["cantidad"] == 9
+    assert datos.cursor.fetchone()["cantidad"] == 10
 
 
 @pytest.mark.parametrize(

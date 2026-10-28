@@ -48,7 +48,15 @@ def lectura_simulada(monkeypatch, reloj_fijo):
             "ejercicio_posicion": 1,
             "medidas_aplicables": '["repeticiones", "carga"]',
             "series": 3,
-            "repeticiones": 12,
+            "repeticiones_minimas": 12,
+            "repeticiones_maximas": 12,
+            "rir_objetivo": None,
+            "descanso": None,
+            "patron_movimiento": "sentadilla",
+            "equipo": "barra",
+            "incremento_carga": Decimal("2.50"),
+            "zonas": "[]",
+            "alternativas": "[]",
             "carga": Decimal("30.50"),
             "duracion": None,
             "distancia": None,
@@ -149,7 +157,8 @@ def programas_con_bd(app_con_bd, reloj_fijo):
                         ejercicio_id=ejercicio,
                         posicion=orden,
                         series=3,
-                        repeticiones=12 if ejercicio == fuerza else None,
+                        repeticiones_minimas=12 if ejercicio == fuerza else None,
+                        repeticiones_maximas=12 if ejercicio == fuerza else None,
                         carga=Decimal("30.50")
                         if ejercicio == fuerza and version == 2
                         else (Decimal("0.00") if ejercicio == fuerza else None),
@@ -178,11 +187,11 @@ def test_lee_la_version_del_socio_sin_mezclar_y_con_orden_estable(app_con_bd, pr
                 ejercicios = sesion["ejercicios_planificados"]
                 assert [ejercicio["posicion"] for ejercicio in ejercicios] == [1, 2]
                 fuerza, cardio = ejercicios
-                assert fuerza["repeticiones"] == 12
+                assert fuerza["repeticiones_minimas"] == 12
                 assert fuerza["carga"] == (Decimal("30.50") if programa["version"] == 2 else Decimal("0.00"))
                 assert fuerza["duracion"] is fuerza["distancia"] is None
                 assert fuerza["medidas_aplicables"] == ["repeticiones", "carga"]
-                assert cardio["repeticiones"] is cardio["carga"] is None
+                assert cardio["repeticiones_minimas"] is cardio["carga"] is None
                 assert cardio["duracion"] == 120
                 assert cardio["distancia"] == Decimal("1500.25")
                 assert cardio["medidas_aplicables"] == ["duracion", "distancia"]
@@ -267,8 +276,8 @@ def test_mysql_rechaza_medidas_fuera_de_rango(app_con_bd, programas_con_bd, relo
         for medida, valor in (
             ("series", 0),
             ("series", -1),
-            ("repeticiones", 0),
-            ("repeticiones", -1),
+            ("repeticiones_minimas", 0),
+            ("repeticiones_maximas", -1),
             ("carga", -1),
             ("duracion", 0),
             ("duracion", -1),
@@ -297,7 +306,7 @@ def test_reiniciar_demo_borra_programas_antes_de_los_socios(app_con_bd, programa
                 ("ejercicios_planificados", 6),
                 ("sesiones_planificadas", 4),
                 ("programas_entrenamiento", 2),
-                ("ejercicios", 2),
+                ("ejercicios", 4),
             ):
                 cursor.execute(f"SELECT COUNT(*) AS cantidad FROM {tabla}")
                 assert cursor.fetchone()["cantidad"] == cantidad
