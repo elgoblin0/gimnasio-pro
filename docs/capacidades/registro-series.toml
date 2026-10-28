@@ -2,5 +2,6 @@ id = "registro-series"
 nombre = "Registro idempotente de sesiones y series realizadas"
 grupo = "Entrenamiento"
 etapa = 1
-nivel = "esqueleto"
+nivel = "validada"
 prueba = "pruebas/e2e/test_esqueleto_andante.py"
+validacion = "https://github.com/elgoblin0/gimnasio-pro/issues/52"

@@ -2,5 +2,6 @@ id = "pantalla-recepcion"
 nombre = "Pantalla de recepción para entrada y salida"
 grupo = "Operación"
 etapa = 1
-nivel = "esqueleto"
+nivel = "validada"
 prueba = "pruebas/e2e/test_recepcion.py"
+validacion = "https://github.com/elgoblin0/gimnasio-pro/issues/52"

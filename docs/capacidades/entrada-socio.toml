@@ -2,5 +2,6 @@ id = "entrada-socio"
 nombre = "Entrada del socio por recepción con membresía y aforo"
 grupo = "Operación"
 etapa = 1
-nivel = "esqueleto"
+nivel = "validada"
 prueba = "pruebas/e2e/test_esqueleto_andante.py"
+validacion = "https://github.com/elgoblin0/gimnasio-pro/issues/52"
