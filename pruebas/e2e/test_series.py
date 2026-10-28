@@ -52,10 +52,28 @@ def test_fuerza_cardio_pendientes_y_recarga(pagina_demo, demo_aislada, programa_
     rir.focus()
     pagina.keyboard.press("Enter")
     expect(pagina.get_by_text("Serie guardada.", exact=True)).to_be_visible()
+    expect(pagina.locator("[data-descanso]")).to_be_visible()
+    expect(pagina.locator("[data-restantes]")).to_contain_text("s")
+    pagina.get_by_role("button", name="Saltear descanso", exact=True).click()
+    expect(pagina.locator("[data-descanso-anuncio]")).to_have_text("Descanso terminado.")
+    assert (
+        pagina.evaluate("""async () => {
+      let cambios = 0;
+      const observador = new MutationObserver(() => cambios++);
+      observador.observe(document.querySelector('[data-descanso-anuncio]'), { childList: true });
+      await new Promise(resolve => setTimeout(resolve, 600));
+      observador.disconnect();
+      return cambios;
+    }""")
+        == 0
+    )
+    pagina.get_by_role("button", name="Sumar 30 s", exact=True).click()
+    expect(pagina.locator("[data-descanso-anuncio]")).to_be_empty()
     tarjeta = pagina.locator(f'[data-ejercicio="{programa_demo.ejercicios[0]}"]')
     expect(tarjeta).to_contain_text("Series realizadas: 1 · Pendientes: 1")
     expect(pagina.locator("[data-series]")).to_contain_text("11 repeticiones · 22,75 kg")
     pagina.reload()
+    expect(pagina.locator("[data-descanso]")).to_be_hidden()
     expect(pagina.locator("[data-series]")).to_contain_text("11 repeticiones · 22,75 kg")
     expect(pagina.locator("[data-series]")).to_contain_text("RIR 0")
     assert pagina.url == enlace
@@ -124,3 +142,39 @@ def test_medidas_invalidas_tienen_error_inline_y_no_crean_hechos(pagina_demo, de
     expect(pagina.get_by_role("alert")).to_contain_text("Revisá las medidas")
     expect(entrada).to_be_focused()
     assert contar(demo_aislada) == 0
+
+
+def test_sesion_parcial_conserva_pendientes_y_carga_anterior(pagina_demo, demo_aislada, programa_demo):
+    from gimnasio.comun.ids import a_bytes, nuevo_id
+    from gimnasio.entrenamiento import repositorio
+
+    with demo_aislada.app.app_context(), transaccion() as cursor:
+        reloj = demo_aislada.app.extensions["reloj"]
+        anterior = nuevo_id(reloj)
+        repositorio.insertar_sesion(cursor, anterior, programa_demo.socio, programa_demo.planificada, reloj.ahora())
+        repositorio.insertar_serie(
+            cursor,
+            nuevo_id(reloj),
+            anterior,
+            programa_demo.ejercicios[0],
+            programa_demo.socio,
+            reloj.ahora(),
+            repeticiones=9,
+            carga="17.50",
+        )
+    pagina = pagina_demo
+    iniciar(pagina, demo_aislada)
+    tarjeta = pagina.locator(f'[data-ejercicio="{programa_demo.ejercicios[0]}"]')
+    expect(tarjeta).to_contain_text("Series realizadas: 1 · Pendientes: 1")
+    expect(tarjeta).to_contain_text("Carga anterior: 17,50 kg · 9 repeticiones")
+    expect(pagina.get_by_label("Carga en kg de Sentadilla ficticia", exact=True)).to_have_value("20.50")
+    with demo_aislada.app.app_context(), transaccion() as cursor:
+        cursor.execute(
+            "UPDATE ejercicios_planificados SET carga=NULL WHERE id=%s", (a_bytes(programa_demo.ejercicios[0]),)
+        )
+    pagina.reload()
+    expect(pagina.get_by_label("Carga en kg de Sentadilla ficticia", exact=True)).to_have_value("17.50")
+    expect(pagina.get_by_label("Repeticiones de Sentadilla ficticia", exact=True)).to_have_value("8")
+    pagina.get_by_role("button", name="Registrar serie de Sentadilla ficticia", exact=True).click()
+    expect(tarjeta).to_contain_text("Series realizadas: 2 · Pendientes: 0")
+    expect(tarjeta.get_by_role("button", name="Registrar serie de Sentadilla ficticia", exact=True)).to_have_count(0)

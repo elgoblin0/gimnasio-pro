@@ -91,6 +91,23 @@ def convertir_series(filas):
     return tuple(series), cantidades
 
 
+def cargas_anteriores(filas, zona, sesion=None):
+    """Última serie vigente por ejercicio realizado, excluyendo sesiones posteriores."""
+    resultado = {}
+    for fila in filas:
+        if sesion is not None and (fila["sesion_creada_en"], fila["sesion_realizada_id"]) >= (
+            sesion["creada_en"],
+            sesion["id"],
+        ):
+            continue
+        resultado[str(desde_bytes(fila["ejercicio_hecho_resuelto_id"]))] = {
+            "carga": fila["carga"],
+            "repeticiones": fila["repeticiones"],
+            "fecha_local": fecha_local(fila["registrada_en"].replace(tzinfo=UTC), zona).isoformat(),
+        }
+    return resultado
+
+
 def consultar_propuesta(socio_texto, usuario):
     socio_id = identificar(socio_texto)
     ahora = reloj_actual().ahora()
@@ -120,11 +137,13 @@ def consultar_propuesta(socio_texto, usuario):
         return respuesta
     sesion = next(s for s in programa["sesiones_planificadas"] if s["id"] == propuesta.sesion_planificada.id)
     respuesta["sesion_planificada"] = {"id": sesion["id"], "nombre": sesion["nombre"], "posicion": sesion["posicion"]}
+    anteriores = cargas_anteriores(filas, ZoneInfo(sede["zona_horaria"]))
     pendientes = {p.ejercicio_id: len(p.series) for p in propuesta.pendientes}
     respuesta["ejercicios"] = [
         {
             "id": e["id"],
             "ejercicio_id": e["ejercicio_id"],
+            "carga_anterior": anteriores.get(e["ejercicio_id"]),
             "nombre": e["nombre"],
             "posicion": e["posicion"],
             "medidas_aplicables": e["medidas_aplicables"],
@@ -257,6 +276,8 @@ def consultar_sesion(sesion_texto, usuario):
     with transaccion() as cursor:
         sesion = _sesion_propia(cursor, sesion_id, usuario)
         filas = repositorio.listar_series_vigentes(cursor, identificar(usuario["id"]), sesion_id)
+        historial = repositorio.listar_series_vigentes(cursor, identificar(usuario["id"]))
+        sede = repositorio.obtener_sede(cursor)
     programas = listar_programas(identificar(usuario["id"]))
     planificada = next(
         s
@@ -264,6 +285,7 @@ def consultar_sesion(sesion_texto, usuario):
         for s in p["sesiones_planificadas"]
         if s["id"] == str(desde_bytes(sesion["sesion_planificada_id"]))
     )
+    anteriores = cargas_anteriores(historial, ZoneInfo(sede["zona_horaria"]), sesion)
     cantidades = Counter(str(desde_bytes(f["ejercicio_planificado_id"])) for f in filas)
     return {
         "sesion_realizada": sesion_publica(sesion),
@@ -272,6 +294,7 @@ def consultar_sesion(sesion_texto, usuario):
             {
                 "id": e["id"],
                 "nombre": e["nombre"],
+                "carga_anterior": anteriores.get(e["ejercicio_id"]),
                 "medidas_aplicables": e["medidas_aplicables"],
                 **{
                     campo: e[campo]

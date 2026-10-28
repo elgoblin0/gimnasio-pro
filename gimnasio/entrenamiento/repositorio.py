@@ -208,7 +208,7 @@ def listar_series_vigentes(cursor, socio_id, sesion_realizada_id=None):
                       ) AS orden
                FROM historial h JOIN series_realizadas s ON s.id = h.id
            )
-           SELECT s.*, sr.sesion_planificada_id,
+           SELECT s.*, sr.sesion_planificada_id, sr.creada_en AS sesion_creada_en,
                   COALESCE(s.ejercicio_hecho_id, ep.ejercicio_id) AS ejercicio_hecho_resuelto_id FROM ordenadas s
            JOIN ejercicios_planificados ep ON ep.id = s.ejercicio_planificado_id
            JOIN sesiones_realizadas sr ON sr.id = s.sesion_realizada_id

@@ -56,7 +56,7 @@ Generado por `scripts/mapa_capacidades.py` desde `docs/capacidades/`. No editar 
 | "Me duele" y "máquina ocupada" | 2 | pendiente | — |
 | Doble progresión + RPE/RIR con ajustes automáticos y frenos | 2 | pendiente | — |
 | Récords y progreso | 2 | pendiente | — |
-| Sesión en vivo completa | 2 | pendiente | — |
+| Sesión en vivo completa | 2 | funcional | `pruebas/e2e/test_series.py` |
 
 ## Infraestructura
 

@@ -134,6 +134,7 @@ def programa_demo(demo_aislada):
                 repeticiones_minimas=8 if posicion == 1 else None,
                 repeticiones_maximas=12 if posicion == 1 else None,
                 carga="20.50" if posicion == 1 else None,
+                descanso=90 if posicion == 1 else None,
                 duracion=120 if posicion == 2 else None,
                 distancia="1500.25" if posicion == 2 else None,
             )
