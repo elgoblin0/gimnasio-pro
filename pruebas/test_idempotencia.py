@@ -228,7 +228,7 @@ def test_sesion_queda_excluida_incluso_con_clave_invalida(escritura):
 def test_migracion_sobre_esquema_anterior_conserva_datos(bd_vacia, tmp_path):
     for migracion in leer_migraciones():
         if migracion.version != "0005":
-            (tmp_path / migracion.nombre).write_text(migracion.sql)
+            (tmp_path / migracion.nombre).write_text(migracion.sql, encoding="utf-8", newline="\n")
     aplicar(bd_vacia, carpeta=tmp_path, salida=lambda _: None)
     # Un dato ficticio previo debe sobrevivir a la ampliación del esquema.
     with conectar(bd_vacia) as conexion, conexion.cursor() as cursor:

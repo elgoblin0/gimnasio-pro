@@ -9,3 +9,4 @@ __pycache__/
 .ruff_cache/
 reporte-*.xml
 resumen-ci.md
+.mysql-local/
