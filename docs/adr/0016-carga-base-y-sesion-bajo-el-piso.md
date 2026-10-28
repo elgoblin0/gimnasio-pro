@@ -6,7 +6,7 @@
 - Etiquetas: modulo:reglas; rutas sensibles: `gimnasio/reglas/`
 
 ## Contexto
-Al implementar el issue #83 (PR #103), la revisión de Codex encontró dos agregaciones que los ADR 0012 y 0015 no fijan: qué **carga** usar como base cuando las series de la última sesión tuvieron cargas distintas, y cuándo una sesión cuenta como «por debajo del piso» para la regla de bajar. El borrador tomaba la carga de la última serie y «alguna serie bajo el piso»; ambos criterios dependen del orden de las series o castigan un mal día aislado.
+Al implementar el issue #83 (PR #103), la revisión de Codex encontró dos agregaciones que los ADR 0012 y 0015 no fijan: qué **carga** usar como base cuando las series de la última sesión tuvieron cargas distintas, y cuándo una sesión cuenta como «por debajo del piso» para la regla de bajar. El borrador tomaba la carga de la última serie y «alguna serie bajo el piso»; ambos criterios dependen del orden de las series o castigan un mal día aislado. La revisión de Opus encontró dos más: qué cuenta como «todas las series» y si la sesión en curso entra al historial.
 
 ## Decisión
 Se completa el ADR 0012 sin cambiar sus reglas:
@@ -14,7 +14,9 @@ Se completa el ADR 0012 sin cambiar sus reglas:
 - **Carga base:** es la menor carga entre las series de la última sesión del ejercicio. No depende del orden de las series. Sobre esa carga se aplican subir, mantener y bajar.
 - **Subir, mantener por RIR y mantener:** las condiciones de tope y de RIR se evalúan sobre todas las series de la sesión, sin importar su carga. Si suben, la carga propuesta es la carga base más un incremento.
 - **Sesión bajo el piso:** una sesión cuenta como bajo el piso cuando **más de la mitad** de sus series tienen repeticiones menores al piso del rango (la mitad exacta no cuenta). Bajar exige dos sesiones seguidas del ejercicio en esa condición, como dice el ADR 0012.
-- La explicación indica la carga base usada y, al bajar, cuántas series quedaron bajo el piso.
+- **Series completas para subir:** «todas las series» del ADR 0012 son las **series planificadas** del ejercicio. Subir y mantener por RIR exigen que la última sesión tenga registradas al menos `series` series del ejercicio planificado, todas en el tope. Si hay menos, se mantiene la carga y se busca una repetición más. La regla de bajar cuenta la mayoría sobre las series registradas.
+- **Historial al proponer:** al proponer una sesión planificada, el historial de sus ejercicios **excluye** las sesiones realizadas de esa misma sesión planificada en la semana local actual (`fecha_local >= semana_local`), porque son las que acreditan sus pendientes. Las semanas anteriores de esa sesión planificada y las demás sesiones planificadas sí cuentan. Así, la prescripción no cambia mientras se entrena (ADR 0012: se fija al empezar la sesión). Las subas que usa el freno 3 se siguen derivando de todo el historial.
+- La explicación indica la carga base usada y, al bajar, cuántas series quedaron bajo el piso. Si el ejercicio no tiene RIR objetivo, la explicación no menciona el RIR.
 - `VERSION_REGLAS` sigue en `"2.0.0"`: el motor 2.0 todavía no se publicó.
 
 ## Consecuencias
@@ -26,9 +28,17 @@ Se completa el ADR 0012 sin cambiar sus reglas:
   - Dos sesiones seguidas con (7, 10, 10) y piso 8: no baja (1 de 3 bajo el piso).
   - Dos sesiones seguidas con (7, 7, 10) y piso 8: baja un incremento (2 de 3).
   - Dos sesiones seguidas con (7, 7, 10, 10): no baja (la mitad exacta no cuenta).
+  - Plan 3×8–12; última sesión con una sola serie de 12: mantiene 40 kg (`mantener_carga`).
+  - Plan 3×8–12; última sesión (12, 12, 12, 12) con RIR ≥ objetivo: sube un incremento.
+  - Semana anterior 12/12/12 con RIR 2 en la misma sesión planificada; esta semana, una serie de 10 en curso: sube desde la semana anterior.
+  - Semana anterior 10/10/10; esta semana, una serie de 12 en curso: mantiene 40 kg.
+- Una sesión cortada no sube la carga, y la propuesta que el socio ve al empezar no cambia serie a serie.
 - Es un ADR provisional: el dueño lo revisa al cierre de la etapa 2. Si lo cambia, exige una versión mayor del motor.
 
 ## Alternativas descartadas
 - Carga de la última serie: depende del orden.
 - Carga máxima o promedio: pueden proponer una carga que el socio no movió en todas las series, o cifras que no existen en los discos.
 - «Alguna serie bajo el piso» o «todas»: la primera castiga un mal día; la segunda casi nunca baja.
+- Contar las series registradas para subir: una sesión cortada con una serie al tope subiría la carga.
+- Incluir la sesión en curso en el historial: la carga cambia entre series del mismo día.
+- Excluir todo el historial de la sesión planificada que se propone: perdería las semanas anteriores, que son la base de la progresión.
