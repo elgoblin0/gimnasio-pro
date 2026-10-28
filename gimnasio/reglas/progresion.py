@@ -125,11 +125,18 @@ def sin_rir(prescripcion, ejercicio, sesiones):
     )
 
 
-def aplicar_frenos(ajustada, anterior, ejercicio, entrada, hubo_suba):
+def historial_para_sesion(historial, sesion_planificada_id, semana_local):
+    """Excluye solo la misma sesión planificada de esta semana (ADR 0016)."""
+    return tuple(
+        h for h in historial if not (h.sesion_planificada_id == sesion_planificada_id and h.fecha_local >= semana_local)
+    )
+
+
+def aplicar_frenos(ajustada, anterior, ejercicio, entrada, hubo_suba, sesion_planificada_id):
     """Paso final obligatorio: el freno 3 solo actúa ante una suba propuesta."""
     subas = tuple(
         s
-        for s in entrada.subas
+        for s in historial_para_sesion(entrada.subas, sesion_planificada_id, entrada.semana_local)
         if s.ejercicio_id == ejercicio.ejercicio_id
         and entrada.semana_local <= s.fecha_local < entrada.semana_local + timedelta(days=7)
         and s.fecha_local <= entrada.fecha_local
@@ -163,11 +170,8 @@ def ajustar_ejercicio(planificado, entrada, sesion_planificada_id):
     ejercicio = next((e for e in entrada.catalogo if e.ejercicio_id == planificado.ejercicio_catalogo_id), None)
     historial = tuple(
         h
-        for h in entrada.historial
-        if h.ejercicio_id == planificado.ejercicio_catalogo_id
-        and h.fecha_local <= entrada.fecha_local
-        and h.series
-        and not (h.sesion_planificada_id == sesion_planificada_id and h.fecha_local >= entrada.semana_local)
+        for h in historial_para_sesion(entrada.historial, sesion_planificada_id, entrada.semana_local)
+        if h.ejercicio_id == planificado.ejercicio_catalogo_id and h.fecha_local <= entrada.fecha_local and h.series
     )
     if (
         ejercicio is None
@@ -230,6 +234,6 @@ def ajustar_ejercicio(planificado, entrada, sesion_planificada_id):
         ajustada, explicacion_rir = sin_rir(ajustada, ejercicio, decisivas)
         razones += (explicacion_rir,)
     ajustada, razones_freno, frenos = aplicar_frenos(
-        ajustada, prescripcion, ejercicio, entrada, explicacion.regla == "subir_carga"
+        ajustada, prescripcion, ejercicio, entrada, explicacion.regla == "subir_carga", sesion_planificada_id
     )
     return ajustada, razones + razones_freno, frenos

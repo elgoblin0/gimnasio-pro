@@ -87,6 +87,7 @@ class HistorialEjercicio:
 class SubaCarga:
     ejercicio_id: str
     fecha_local: date
+    sesion_planificada_id: str | None = None
 
 
 @dataclass(frozen=True)

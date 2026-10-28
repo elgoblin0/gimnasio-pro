@@ -70,3 +70,33 @@ def test_subas_comparan_cargas_base_de_sesiones_y_no_el_orden_de_series(reloj_fi
         _, subas = preparar_historial(filas, ZoneInfo("America/Asuncion"), date(2026, 10, 26))
         assert len(subas) == 1
         assert subas[0].fecha_local == date(2026, 10, 26)
+
+
+def test_filtra_sesion_actual_antes_de_derivar_subas_de_otras_sesiones(reloj_fijo):
+    from gimnasio.comun.ids import desde_bytes
+
+    ids = [a_bytes(nuevo_id(reloj_fijo)) for _ in range(9)]
+    domingo = datetime(2026, 10, 25, 12)
+
+    def fila(numero, dias, planificada, carga):
+        return {
+            "id": ids[numero],
+            "sesion_realizada_id": ids[numero],
+            "sesion_planificada_id": ids[planificada],
+            "ejercicio_catalogo_id": ids[8],
+            "ejercicio_hecho_resuelto_id": ids[8],
+            "sesion_creada_en": domingo + timedelta(days=dias),
+            "registrada_en": domingo + timedelta(days=dias),
+            "repeticiones": 12,
+            "carga": Decimal(carga),
+            "rir": 2,
+        }
+
+    filas = [fila(0, 0, 3, "20.5"), fila(1, 1, 4, "23"), fila(2, 2, 5, "23")]
+    sesion_a, sesion_b = str(desde_bytes(ids[4])), str(desde_bytes(ids[5]))
+    for actual, otra in ((sesion_a, sesion_b), (sesion_b, sesion_a)):
+        historial, subas = preparar_historial(filas, ZoneInfo("America/Asuncion"), date(2026, 10, 29), actual)
+        assert len(historial) == 2
+        assert all(h.sesion_planificada_id != actual for h in historial)
+        assert len(subas) == 1
+        assert subas[0].sesion_planificada_id == otra

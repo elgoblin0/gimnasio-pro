@@ -660,3 +660,44 @@ def test_api_tope_semanal_derivado_de_cargas_y_liberado_el_lunes(entrenamiento_a
     assert propuesta["fecha_local"] == "2026-11-02"
     assert propuesta["frenos"] == []
     assert all(e["objetivos"]["carga"] == "45.00" for e in propuesta["ejercicios"])
+
+
+def test_demo_conserva_prescripcion_al_registrar_suba_actual(entrenamiento_api):
+    from gimnasio.demo import servicio as demo
+
+    datos = entrenamiento_api
+    datos.app.config["MODO_DEMO"] = True
+    with datos.app.app_context():
+        demo.reiniciar()
+    cliente = datos.app.test_client()
+    assert cliente.post("/api/sesion/demo/socio", headers={"X-Gimnasio": "1"}).status_code == 200
+    inicial = cliente.get("/api/entrenamiento/propuesta").json
+    fuerza = inicial["ejercicios"][0]
+    assert fuerza["objetivos"]["carga"] == "23.00"
+    sesion = escribir(
+        cliente,
+        "/api/entrenamiento/sesiones",
+        {
+            "id": str(nuevo_id(datos.reloj)),
+            "sesion_planificada_id": inicial["sesion_planificada"]["id"],
+        },
+    )
+    assert sesion.status_code == 201
+    ruta = f"/api/entrenamiento/sesiones/{sesion.json['sesion_realizada']['id']}/series"
+    assert (
+        escribir(
+            cliente,
+            ruta,
+            {
+                "id": str(nuevo_id(datos.reloj)),
+                "ejercicio_planificado_id": fuerza["id"],
+                "repeticiones": 12,
+                "carga": "23.00",
+                "rir": 2,
+            },
+        ).status_code
+        == 201
+    )
+    actual = cliente.get("/api/entrenamiento/propuesta").json
+    assert actual["frenos"] == []
+    assert [e["objetivos"] for e in actual["ejercicios"]] == [e["objetivos"] for e in inicial["ejercicios"]]

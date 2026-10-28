@@ -21,6 +21,7 @@ from gimnasio.comun.tipos import (
 from gimnasio.entrenamiento import repositorio
 from gimnasio.permisos.servicio import tiene_asignacion_vigente
 from gimnasio.programas.servicio import OBJETIVOS, listar_programas
+from gimnasio.reglas.progresion import historial_para_sesion
 from gimnasio.reglas.sesion import proponer_sesion
 
 
@@ -112,7 +113,7 @@ def cargas_anteriores(filas, zona, sesion=None):
     return resultado
 
 
-def preparar_historial(filas, zona, local):
+def preparar_historial(filas, zona, local, sesion_planificada_id=None):
     """Agrupa hechos vigentes por sesión y ejercicio planificado del catálogo.
 
     Una corrección no cambia la fecha de la sesión. Una alternativa acredita
@@ -146,6 +147,7 @@ def preparar_historial(filas, zona, local):
         HistorialEjercicio(ejercicio, sesion, planificada, fecha, tuple(series))
         for (sesion, ejercicio), (planificada, fecha, series) in sesiones.items()
     )
+    historial = historial_para_sesion(historial, sesion_planificada_id, inicio_de_semana(local))
     subas = []
     cargas = {}
     for sesion in historial:
@@ -155,7 +157,7 @@ def preparar_historial(filas, zona, local):
         carga_base = min(cargas_sesion)
         anterior = cargas.get(sesion.ejercicio_id)
         if anterior is not None and carga_base > anterior:
-            subas.append(SubaCarga(sesion.ejercicio_id, sesion.fecha_local))
+            subas.append(SubaCarga(sesion.ejercicio_id, sesion.fecha_local, sesion.sesion_planificada_id))
         cargas[sesion.ejercicio_id] = carga_base
     return historial, tuple(subas)
 
@@ -184,10 +186,18 @@ def consultar_propuesta(socio_texto, usuario):
     programa = programas[-1] if programas else None
     local = fecha_local(ahora, ZoneInfo(sede["zona_horaria"]))
     series, cantidades = convertir_series(filas)
-    historial, subas = preparar_historial(filas, ZoneInfo(sede["zona_horaria"]), local)
+    programa_motor = convertir_programa(programa)
+    # Primero identifica pendientes; aún no hay historial ni ajustes que exponer.
+    seleccion = proponer_sesion(DatosPropuesta(programa_motor, local, inicio_de_semana(local), series))
+    historial, subas = preparar_historial(
+        filas,
+        ZoneInfo(sede["zona_horaria"]),
+        local,
+        seleccion.sesion_planificada.id if seleccion.sesion_planificada else None,
+    )
     propuesta = proponer_sesion(
         DatosPropuesta(
-            convertir_programa(programa),
+            programa_motor,
             local,
             inicio_de_semana(local),
             series,

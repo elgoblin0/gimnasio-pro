@@ -259,5 +259,23 @@ def test_prescripcion_estable_al_registrar_la_suba_propuesta():
     assert inicial.prescripcion[0].carga == Decimal("23")
     actual = replace(historial((12,), (2,), fecha=LUNES), sesion_planificada_id="proxima", sesion_realizada_id="actual")
     actual = replace(actual, series=(replace(actual.series[0], carga=Decimal("23")),))
-    despues = proponer_sesion(entrada((anterior, actual), subas=(SubaCarga("sentadilla", LUNES),)))
+    despues = proponer_sesion(
+        entrada((anterior, actual), subas=(SubaCarga("sentadilla", LUNES, actual.sesion_planificada_id),))
+    )
     assert despues.prescripcion == inicial.prescripcion
+
+
+def test_suba_de_sesion_a_frena_sesion_b_en_la_misma_semana():
+    anterior = historial(fecha=LUNES - timedelta(days=7), identificador="anterior")
+    anterior = replace(anterior, series=tuple(replace(s, carga=Decimal("20.5")) for s in anterior.series))
+    sesion_a = replace(
+        historial(fecha=LUNES, identificador="sesion-a"),
+        series=tuple(replace(s, carga=Decimal("23")) for s in historial().series),
+    )
+    datos = entrada(
+        (anterior, sesion_a), fecha=LUNES + timedelta(days=3), subas=(SubaCarga("sentadilla", LUNES, "sesion-a"),)
+    )
+    propuesta = proponer_sesion(datos)
+    assert propuesta.prescripcion[0].carga == Decimal("23")
+    assert propuesta.frenos == ("tope_semanal",)
+    assert {r.regla for r in propuesta.explicacion} >= {"subir_carga", "tope_semanal"}
