@@ -564,3 +564,43 @@ def anteriores_hecho(historial, sede, sesion, sustitucion):
     return cargas_anteriores(historial, ZoneInfo(sede["zona_horaria"]), sesion).get(
         str(desde_bytes(sustitucion["ejercicio_hecho_id"]))
     )
+
+
+def consultar_progreso(socio_texto, usuario):
+    """Una marca máxima vigente por sesión realizada y ejercicio hecho."""
+    socio_id = identificar(socio_texto)
+    with transaccion() as cursor:
+        autorizar_socio(cursor, socio_id, usuario)
+        filas = repositorio.listar_series_vigentes(cursor, socio_id)
+        zona = ZoneInfo(repositorio.obtener_sede(cursor)["zona_horaria"])
+    ejercicios = {}
+    sesiones = {}
+    for fila in filas:
+        if fila["carga"] is None:
+            continue
+        ejercicio_id = str(desde_bytes(fila["ejercicio_hecho_resuelto_id"]))
+        ejercicios[ejercicio_id] = fila["ejercicio_hecho_nombre"]
+        clave = (ejercicio_id, fila["sesion_realizada_id"])
+        anterior = sesiones.get(clave)
+        if anterior is None or fila["carga"] > anterior["carga"]:
+            sesiones[clave] = fila
+    return {
+        "ejercicios": [
+            {
+                "id": ejercicio_id,
+                "nombre": nombre,
+                "puntos": [
+                    {
+                        "fecha_local": fecha_local(f["sesion_creada_en"].replace(tzinfo=UTC), zona).isoformat(),
+                        "carga": str(f["carga"]),
+                        "repeticiones": f["repeticiones"],
+                    }
+                    for (hecho_id, _), f in sorted(
+                        sesiones.items(), key=lambda elemento: (elemento[1]["sesion_creada_en"], elemento[0][1])
+                    )
+                    if hecho_id == ejercicio_id
+                ],
+            }
+            for ejercicio_id, nombre in sorted(ejercicios.items(), key=lambda elemento: (elemento[1], elemento[0]))
+        ]
+    }

@@ -51,3 +51,16 @@ def registrar_sustitucion(sesion_id):
     return jsonify(
         {"sustitucion": servicio.registrar_sustitucion(sesion_id, request.get_json(silent=True), usuario_actual())}
     ), 201
+
+
+@bp.get("/progreso")
+@requiere("entrenamiento.ver_propio")
+def progreso_propio():
+    usuario = usuario_actual()
+    return jsonify(servicio.consultar_progreso(usuario["id"], usuario))
+
+
+@bp.get("/socios/<socio_id>/progreso")
+@requiere("entrenamiento.ver_asignados")
+def progreso_socio(socio_id):
+    return jsonify(servicio.consultar_progreso(socio_id, usuario_actual()))

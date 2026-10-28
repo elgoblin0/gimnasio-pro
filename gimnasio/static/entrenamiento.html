@@ -54,6 +54,21 @@
     <p data-sin-series>Todavía no hay series guardadas en esta sesión realizada.</p>
     <ul class="lista" data-series></ul>
   </section>
+  <button type="button" data-ver-progreso hidden aria-expanded="false" aria-controls="vista-progreso">Ver progreso</button>
+  <section id="vista-progreso" data-progreso hidden aria-labelledby="titulo-progreso">
+    <p class="etiqueta">Tu cuaderno · Carga en kg</p>
+    <h2 id="titulo-progreso">Progreso</h2>
+    <label>Ejercicio <select aria-label="Ejercicio de progreso"></select></label>
+    <p role="status" aria-live="polite"></p>
+    <svg aria-hidden="true" focusable="false"></svg>
+    <div class="solo-lector">
+    <table>
+      <caption>Progreso de carga del ejercicio seleccionado</caption>
+      <thead><tr><th scope="col">Fecha</th><th scope="col">Carga máxima</th><th scope="col">Repeticiones</th></tr></thead>
+      <tbody></tbody>
+    </table>
+    </div>
+  </section>
 </main>
 </body>
 </html>
