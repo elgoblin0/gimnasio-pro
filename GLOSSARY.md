@@ -103,7 +103,18 @@ Aviso del socio de que el equipo de un ejercicio no está disponible en ese mome
 Máquina o implemento del gimnasio, con su estado (disponible o fuera de servicio).
 
 **Alternativa**:
-Ejercicio que puede reemplazar a otro porque comparte patrón de movimiento y grupos musculares con equipamiento distinto.
+Ejercicio que puede reemplazar a otro porque comparte patrón de movimiento y zonas del cuerpo con equipamiento distinto.
+
+**Zona del cuerpo**:
+Región muscular o articular de una lista fija, común al dolor reportado, las restricciones de salud, los ejercicios y el cuerpo 3D.
+_Evitar_: Grupo muscular, parte del cuerpo.
+
+**Incremento de carga**:
+Paso fijo en que sube o baja la carga de un ejercicio, según su equipamiento. El tope de suba semanal es un incremento por ejercicio.
+
+**Aviso al entrenador**:
+Registro que deja un freno de seguridad al actuar, con el socio, el freno y su explicación, para que el entrenador lo revise.
+_Evitar_: Alerta, notificación.
 
 **Explicación**:
 Lista de las reglas del motor que produjeron una propuesta o un ajuste, con los datos que usaron.
@@ -157,7 +168,7 @@ Cédula de identidad paraguaya. Se guarda solo con dígitos y se muestra con pun
 Configuración de la instancia pública: datos ficticios que se reinician solos, accesos rápidos "entrar como…" y límites de uso.
 
 **Cuerpo 3D muscular**:
-Modelo 3D que resalta los grupos musculares trabajados o con dolor reportado.
+Modelo 3D que resalta las zonas del cuerpo trabajadas o con dolor reportado.
 
 **Recorrido guiado**:
 Demostración paso a paso de unos dos minutos que muestra el producto a alguien sin conocimientos técnicos.
