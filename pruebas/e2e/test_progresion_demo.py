@@ -26,3 +26,20 @@ def test_demo_explica_subir_y_mantener(pagina_demo, demo_aislada, ancho):
     expect(mantener.locator("[data-ajuste]")).to_contain_text("Mantenés 20,5 kg")
     expect(mantener.locator("[data-ajuste]")).to_contain_text("buscás 11 repeticiones")
     assert pagina.evaluate("document.documentElement.scrollWidth <= innerWidth")
+
+
+@pytest.mark.parametrize("movimiento", ["reduce", "no-preference"])
+def test_lucia_celebra_record_de_la_prescripcion(pagina_demo, demo_aislada, movimiento):
+    pagina = pagina_demo
+    pagina.emulate_media(reduced_motion=movimiento)
+    pagina.goto(demo_aislada.url)
+    pagina.get_by_role("button", name="Entrar como socio", exact=True).click()
+    pagina.get_by_role("link", name="Ver mi entrenamiento", exact=True).click()
+    pagina.get_by_role("button", name="Iniciar sesión realizada", exact=True).click()
+    pagina.get_by_role("button", name="Registrar serie de Sentadilla ficticia", exact=True).click()
+    expect(pagina.locator("[data-record]")).to_have_text("Récord: 23,00 kg en Sentadilla ficticia")
+    expect(pagina.locator("[data-record]")).to_have_attribute("aria-live", "polite")
+    if movimiento == "reduce":
+        assert pagina.locator("[data-record]").evaluate("elemento => elemento.getAnimations().length") == 0
+    pagina.reload()
+    expect(pagina.locator("[data-record]")).to_be_empty()

@@ -190,6 +190,7 @@ async function enviar() {
   actualizarBotones();
   $("[data-error]").textContent = "";
   $("[data-estado]").textContent = "Registrando…";
+  $("[data-record]").textContent = "";
   try {
     const datos = await llamarApi(operacion.ruta, { metodo: "POST", cuerpo: operacion.cuerpo, clave: operacion.clave });
     if (datos.sesion_realizada) {
@@ -204,6 +205,18 @@ async function enviar() {
       if (ejercicio?.objetivos.descanso != null) {
         descanso = crearDescanso(ejercicio.objetivos.descanso, reloj.ahora());
         dibujarDescanso();
+      }
+    }
+    if (datos.records?.length) {
+      const anuncio = $("[data-record]");
+      anuncio.textContent = datos.records.map((record) => {
+        const marca = record.medida === "carga_maxima"
+          ? formatearCarga(record.marca)
+          : `${numero.format(record.marca)} repeticiones a ${formatearCarga(record.carga)}`;
+        return `Récord: ${marca} en ${record.ejercicio_hecho_nombre}`;
+      }).join(". ");
+      if (!matchMedia("(prefers-reduced-motion: reduce)").matches) {
+        anuncio.animate([{ opacity: 0, transform: "translateY(4px)" }, { opacity: 1, transform: "translateY(0)" }], { duration: 300 });
       }
     }
     control.finalizar();

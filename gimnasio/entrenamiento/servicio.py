@@ -24,6 +24,7 @@ from gimnasio.permisos.servicio import tiene_asignacion_vigente
 from gimnasio.programas.servicio import OBJETIVOS, listar_programas
 from gimnasio.reglas.alternativas import elegir_alternativas
 from gimnasio.reglas.progresion import historial_para_sesion
+from gimnasio.reglas.records import detectar_records
 from gimnasio.reglas.sesion import proponer_sesion
 
 
@@ -358,7 +359,7 @@ def registrar_serie(sesion_texto, datos, usuario):
         anterior = repositorio.obtener_serie(cursor, serie_id)
         if anterior is not None:
             _exigir_destino_serie(anterior, sesion_id, ejercicio_id)
-            return serie_publica(anterior)
+            return {"serie_realizada": serie_publica(anterior), "records": []}
         ejercicio = repositorio.obtener_ejercicio_planificado(cursor, ejercicio_id)
         if ejercicio is None:
             raise ErrorDeDominio("ejercicio_inexistente", "El ejercicio planificado no existe.", 404)
@@ -387,7 +388,36 @@ def registrar_serie(sesion_texto, datos, usuario):
             raise ErrorDeDominio("medidas_invalidas", str(error), 422) from error
         fila = repositorio.obtener_serie(cursor, serie_id, actual=True)
         _exigir_destino_serie(fila, sesion_id, ejercicio_id)
-        return serie_publica(fila)
+        historial = repositorio.listar_series_vigentes(cursor, identificar(usuario["id"]))
+        series, _ = convertir_series([f for f in historial if f["id"] != fila["id"]])
+        actual = SerieRealizada(
+            "",
+            str(desde_bytes(ejercicio["ejercicio_id"])),
+            1,
+            fila["repeticiones"],
+            fila["carga"],
+            ejercicio_hecho_id=str(desde_bytes(fila["ejercicio_hecho_resuelto_id"])),
+        )
+        records = detectar_records(actual, series)
+        return {
+            "serie_realizada": serie_publica(fila),
+            "records": [
+                {
+                    "medida": r.medida,
+                    "marca": r.marca,
+                    "marca_anterior": r.marca_anterior,
+                    "carga": r.carga,
+                    "ejercicio_hecho_id": actual.ejercicio_hecho_id,
+                    "ejercicio_hecho_nombre": fila["ejercicio_hecho_nombre"],
+                    "explicacion": {
+                        "regla": r.explicacion.regla,
+                        "version": r.explicacion.version,
+                        "datos": dict(r.explicacion.datos),
+                    },
+                }
+                for r in records
+            ],
+        }
 
 
 def consultar_sesion(sesion_texto, usuario):

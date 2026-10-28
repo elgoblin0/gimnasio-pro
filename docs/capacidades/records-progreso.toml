@@ -2,5 +2,5 @@ id = "records-progreso"
 nombre = "Récords y progreso"
 grupo = "Entrenamiento"
 etapa = 2
-nivel = "pendiente"
-prueba = ""
+nivel = "esqueleto"
+prueba = "pruebas/e2e/test_progresion_demo.py::test_lucia_celebra_record_de_la_prescripcion"

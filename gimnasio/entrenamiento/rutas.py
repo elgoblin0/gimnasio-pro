@@ -30,9 +30,7 @@ def crear_sesion():
 @bp.post("/sesiones/<sesion_id>/series")
 @requiere("entrenamiento.registrar_propio")
 def registrar_serie(sesion_id):
-    return jsonify(
-        {"serie_realizada": servicio.registrar_serie(sesion_id, request.get_json(silent=True), usuario_actual())}
-    ), 201
+    return jsonify(servicio.registrar_serie(sesion_id, request.get_json(silent=True), usuario_actual())), 201
 
 
 @bp.get("/sesiones/<sesion_id>")
