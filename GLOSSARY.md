@@ -19,6 +19,9 @@ _Evitar_: Rutina completada por el solo hecho de ingresar al gimnasio.
 **Serie realizada**:
 Ejecución registrada de una serie de un ejercicio, con sus medidas aplicables: repeticiones, carga, duración o distancia.
 
+**Ejercicio hecho**:
+Ejercicio del catálogo que el socio realmente ejecutó en una serie realizada. Si no se registró otro, es el del ejercicio planificado.
+
 **Pendiente de entrenamiento**:
 Trabajo planificado todavía no realizado, que puede requerir reprogramación, sustitución o revisión.
 _Evitar_: Deuda de ejercicio.
