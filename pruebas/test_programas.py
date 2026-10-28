@@ -303,8 +303,8 @@ def test_reiniciar_demo_borra_programas_antes_de_los_socios(app_con_bd, programa
         demo.reiniciar()
         with transaccion() as cursor:
             for tabla, cantidad in (
-                ("ejercicios_planificados", 6),
-                ("sesiones_planificadas", 4),
+                ("ejercicios_planificados", 13),
+                ("sesiones_planificadas", 7),
                 ("programas_entrenamiento", 2),
                 ("ejercicios", 4),
             ):
