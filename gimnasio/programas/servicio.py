@@ -1,6 +1,7 @@
 """Lectura por socio y versión para entrenamiento, sin rutas de edición."""
 
 import json
+from contextlib import nullcontext
 from datetime import UTC
 
 from gimnasio.comun.bd import transaccion
@@ -25,13 +26,13 @@ def validar_medidas_aplicables(medidas):
         raise ValueError("Las medidas aplicables deben ser una lista de repeticiones, carga, duracion o distancia.")
 
 
-def listar_programas(socio_id):
+def listar_programas(socio_id, *, cursor=None):
     """Devuelve todas las versiones del socio en orden ascendente, con sesiones y ejercicios por posición.
 
     Uso interno desde servicios de entrenamiento: el llamador controla el acceso al socio.
     Los identificadores se devuelven en texto, las fechas en UTC y los decimales sin redondear.
     """
-    return _leer(socio_id)
+    return _leer(socio_id, cursor=cursor)
 
 
 def obtener_programa(socio_id, version):
@@ -42,8 +43,8 @@ def obtener_programa(socio_id, version):
     return programas[0] if programas else None
 
 
-def _leer(socio_id, version=None):
-    with transaccion() as cursor:
+def _leer(socio_id, version=None, *, cursor=None):
+    with nullcontext(cursor) if cursor is not None else transaccion() as cursor:
         filas = repositorio.leer_por_socio(cursor, socio_id, version)
     programas = {}
     sesiones = {}

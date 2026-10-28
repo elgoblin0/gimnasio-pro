@@ -1,5 +1,5 @@
 id = "registro-series"
-nombre = "Registro idempotente de sesiones y series realizadas con RIR opcional"
+nombre = "Registro idempotente de sesiones y series realizadas con RIR opcional y prescripción efectiva guardada"
 grupo = "Entrenamiento"
 etapa = 1
 nivel = "validada"

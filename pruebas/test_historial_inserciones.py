@@ -7,7 +7,15 @@ from pathlib import Path
 import pytest
 
 RAIZ = Path(__file__).resolve().parent.parent
-HECHOS = {"consentimientos", "entradas", "salidas", "sesiones_realizadas", "series_realizadas", "sustituciones"}
+HECHOS = {
+    "prescripciones_efectivas",
+    "consentimientos",
+    "entradas",
+    "salidas",
+    "sesiones_realizadas",
+    "series_realizadas",
+    "sustituciones",
+}
 EXCEPCION = "gimnasio/demo/repositorio.py"
 DINAMICA = "__tabla_dinamica__"
 COMENTARIOS_Y_VALORES = re.compile(r"--[^\n]*|\#[^\n]*|/\*.*?\*/|'(?:''|\\.|[^'])*'|\"(?:\"\"|\\.|[^\"])*\"", re.S)

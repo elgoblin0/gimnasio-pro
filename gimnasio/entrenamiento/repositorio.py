@@ -11,8 +11,10 @@ from gimnasio.comun.ids import a_bytes
 MEDIDAS = ("repeticiones", "carga", "duracion", "distancia")
 
 
-def obtener_socio(cursor, socio_id):
-    cursor.execute("SELECT id, rol, activo FROM usuarios WHERE id = %s", (a_bytes(socio_id),))
+def obtener_socio(cursor, socio_id, *, bloquear=False):
+    cursor.execute(
+        "SELECT id, rol, activo FROM usuarios WHERE id = %s" + (" FOR UPDATE" if bloquear else ""), (a_bytes(socio_id),)
+    )
     return cursor.fetchone()
 
 
@@ -280,5 +282,39 @@ def listar_ejercicios_sesion(cursor, sesion_id):
            JOIN sesiones_realizadas sr ON sr.sesion_planificada_id=ep.sesion_planificada_id
            WHERE sr.id=%s ORDER BY ep.posicion""",
         (a_bytes(sesion_id),),
+    )
+    return cursor.fetchall()
+
+
+def insertar_prescripcion(cursor, prescripcion_id, sesion_id, propuesta, ahora):
+    cursor.execute(
+        """INSERT INTO prescripciones_efectivas
+           (id, sesion_realizada_id, version_reglas, creada_en, ejercicios, explicacion, frenos)
+           VALUES (%s,%s,%s,%s,%s,%s,%s)""",
+        (
+            a_bytes(prescripcion_id),
+            a_bytes(sesion_id),
+            propuesta["version_reglas"],
+            _fecha_utc(ahora),
+            *(
+                json.dumps(propuesta[c], default=str, ensure_ascii=False)
+                for c in ("ejercicios", "explicacion", "frenos")
+            ),
+        ),
+    )
+
+
+def obtener_prescripcion(cursor, sesion_id):
+    cursor.execute(
+        "SELECT * FROM prescripciones_efectivas WHERE sesion_realizada_id=%s FOR SHARE", (a_bytes(sesion_id),)
+    )
+    return cursor.fetchone()
+
+
+def listar_prescripciones(cursor, socio_id):
+    cursor.execute(
+        """SELECT p.*, s.sesion_planificada_id FROM prescripciones_efectivas p
+           JOIN sesiones_realizadas s ON s.id=p.sesion_realizada_id WHERE s.socio_id=%s""",
+        (a_bytes(socio_id),),
     )
     return cursor.fetchall()
