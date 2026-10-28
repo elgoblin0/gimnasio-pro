@@ -1,0 +1,9 @@
+[data-progreso] { margin-block-start: var(--espacio-5); }
+[data-progreso] select { font: inherit; color: var(--texto); background: var(--superficie); padding: var(--espacio-3); border: 1px solid var(--texto-suave); border-radius: var(--radio-1); width: 100%; }
+[data-progreso] svg { width: 100%; height: auto; }
+[data-progreso] svg[hidden] { display: none; }
+[data-progreso] text { fill: var(--texto-suave); font-family: var(--fuente-texto); font-size: 12px; }
+.progreso-guia { stroke: var(--texto-suave); stroke-width: 1; stroke-dasharray: 2 6; }
+.progreso-trazo { stroke: var(--acento); stroke-width: 3; fill: none; }
+.progreso-marca { fill: var(--acento); }
+.solo-lector { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }

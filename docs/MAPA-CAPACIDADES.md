@@ -55,7 +55,7 @@ Generado por `scripts/mapa_capacidades.py` desde `docs/capacidades/`. No editar 
 | Chequeo del día | 2 | pendiente | — |
 | "Me duele" y "máquina ocupada" | 2 | esqueleto | `pruebas/e2e/test_series.py::test_maquina_ocupada_con_teclado_y_recarga` |
 | Doble progresión + RPE/RIR con ajustes automáticos y frenos | 2 | esqueleto | `pruebas/e2e/test_progresion_demo.py::test_demo_explica_subir_y_mantener` |
-| Récords y progreso | 2 | esqueleto | `pruebas/e2e/test_progresion_demo.py::test_lucia_celebra_record_de_la_prescripcion` |
+| Récords y progreso | 2 | funcional | `pruebas/test_entrenamiento_api.py::test_progreso_carga_por_sesion_ignora_anuladas_y_usa_ejercicio_hecho` |
 | Sesión en vivo completa | 2 | funcional | `pruebas/e2e/test_series.py` |
 
 ## Infraestructura

@@ -1,5 +1,5 @@
 // ADR 0007: solo recursos públicos. Cada pantalla nueva actualiza la lista y VERSION.
-const VERSION = "11";
+const VERSION = "12";
 const PREFIJO_CACHE = "gimnasio-estaticos-";
 const CACHE = PREFIJO_CACHE + VERSION;
 const RECURSOS_ESTATICOS = [
@@ -12,6 +12,9 @@ const RECURSOS_ESTATICOS = [
   "/estilos/recorrido.css",
   "/js/recepcion.js",
   "/js/entrenamiento.js",
+  "/js/progreso.js",
+  "/js/comun/progreso.js",
+  "/estilos/progreso.css",
   "/js/comun/operaciones.js",
   "/js/comun/series.js",
   "/js/comun/descanso.js",

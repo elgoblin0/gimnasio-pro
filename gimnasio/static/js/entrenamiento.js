@@ -1,3 +1,4 @@
+import { prepararProgreso } from "./progreso.js";
 import { llamarApi } from "@comun/api.js";
 import { formatearCarga, formatearFecha } from "@comun/formatos.js";
 import { cerrarSesion, crearControlDeOperacion } from "@comun/operaciones.js";
@@ -8,6 +9,7 @@ import { crearDescanso } from "@comun/descanso.js";
 import { crearReloj } from "@comun/reloj.js";
 
 registrarPwa();
+const actualizarProgreso = prepararProgreso();
 const $ = (selector) => document.querySelector(selector);
 const reloj = crearReloj();
 let descanso = null;
@@ -171,6 +173,7 @@ async function actualizar(mensaje) {
     propuestaActual = propuesta;
     sesionActual = realizada;
     dibujar(propuesta);
+    await actualizarProgreso();
     $("[data-estado]").textContent = mensaje ?? "Propuesta actualizada.";
   } catch (error) {
     $("[data-error]").textContent = error.message;

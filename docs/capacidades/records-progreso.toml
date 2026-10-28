@@ -2,5 +2,5 @@ id = "records-progreso"
 nombre = "Récords y progreso"
 grupo = "Entrenamiento"
 etapa = 2
-nivel = "esqueleto"
-prueba = "pruebas/e2e/test_progresion_demo.py::test_lucia_celebra_record_de_la_prescripcion"
+nivel = "funcional"
+prueba = "pruebas/test_entrenamiento_api.py::test_progreso_carga_por_sesion_ignora_anuladas_y_usa_ejercicio_hecho"

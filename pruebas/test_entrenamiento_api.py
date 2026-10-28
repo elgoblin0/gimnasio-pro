@@ -850,3 +850,79 @@ def test_api_record_de_repeticiones_a_carga_mayor(entrenamiento_api):
     respuesta = escribir(datos.cliente(), ruta, cuerpo_serie(datos) | {"carga": "20", "repeticiones": 11})
     (record,) = respuesta.json["records"]
     assert (record["medida"], record["marca"], record["marca_anterior"]) == ("repeticiones_a_carga", 11, 10)
+
+
+@pytest.mark.parametrize(
+    "rol,estado", [("entrenador", 200), ("otro", 403), ("ajeno", 403), ("recepcion", 403), ("administracion", 403)]
+)
+def test_progreso_respeta_alcance(entrenamiento_api, rol, estado):
+    datos = entrenamiento_api
+    ruta = f"/api/entrenamiento/socios/{datos.usuarios['socio']}/progreso"
+    assert datos.cliente(rol).get(ruta).status_code == estado
+
+
+def test_progreso_carga_por_sesion_ignora_anuladas_y_usa_ejercicio_hecho(entrenamiento_api):
+    from datetime import UTC, datetime, timedelta
+
+    datos = entrenamiento_api
+    assert datos.cliente().get("/api/entrenamiento/progreso").json == {"ejercicios": []}
+    with datos.app.app_context(), transaccion() as cursor:
+        alternativa = nuevo_id(datos.reloj)
+        cursor.execute(
+            "INSERT INTO ejercicios (id,nombre,medidas_aplicables,actualizada_en) "
+            "VALUES (%s,'Alternativa ficticia','[\"repeticiones\",\"carga\"]',%s)",
+            (a_bytes(alternativa), datos.reloj.ahora()),
+        )
+        for dia in (1, 2):
+            momento = datetime(2026, 10, dia + 1, 1, tzinfo=UTC)
+            realizada = nuevo_id(datos.reloj)
+            repositorio.insertar_sesion(cursor, realizada, datos.usuarios["socio"], datos.sesiones[0], momento)
+            for indice, carga in enumerate((20, 30, 80)):
+                serie = nuevo_id(datos.reloj)
+                argumentos = dict(repeticiones=8 + indice, carga=carga, ejercicio_hecho_id=alternativa)
+                repositorio.insertar_serie(
+                    cursor, serie, realizada, datos.ejercicios[0][0], datos.usuarios["socio"], momento, **argumentos
+                )
+                if carga == 30:
+                    corregida = serie
+                if carga == 80:
+                    repositorio.insertar_serie(
+                        cursor,
+                        nuevo_id(datos.reloj),
+                        realizada,
+                        datos.ejercicios[0][0],
+                        datos.usuarios["socio"],
+                        momento + timedelta(seconds=1),
+                        corrige_a=serie,
+                        anulada=True,
+                        motivo="Anulada ficticia",
+                        **argumentos,
+                    )
+            # La corrección reemplaza la carga, sin modificar el hecho original.
+            repositorio.insertar_serie(
+                cursor,
+                nuevo_id(datos.reloj),
+                realizada,
+                datos.ejercicios[0][0],
+                datos.usuarios["socio"],
+                momento + timedelta(seconds=2),
+                corrige_a=corregida,
+                motivo="Carga corregida ficticia",
+                repeticiones=6,
+                carga=35 + dia,
+                ejercicio_hecho_id=alternativa,
+            )
+    respuesta = datos.cliente().get("/api/entrenamiento/progreso")
+    assert respuesta.status_code == 200
+    assert respuesta.json == {
+        "ejercicios": [
+            {
+                "id": str(alternativa),
+                "nombre": "Alternativa ficticia",
+                "puntos": [
+                    {"fecha_local": "2026-10-01", "carga": "36.00", "repeticiones": 6},
+                    {"fecha_local": "2026-10-02", "carga": "37.00", "repeticiones": 6},
+                ],
+            }
+        ]
+    }
