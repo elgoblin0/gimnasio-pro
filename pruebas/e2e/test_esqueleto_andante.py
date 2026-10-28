@@ -226,6 +226,8 @@ def test_secuencia_terminada_se_conserva_tras_recarga_y_otra_semana(pagina_demo,
             for _ in range(ejercicio["pendiente"]):
                 pagina.get_by_role("button", name=f"Registrar serie de {ejercicio['nombre']}", exact=True).click()
                 expect(pagina.get_by_text("Serie guardada.", exact=True)).to_be_visible()
+            # Representa el descanso entre ejercicios con el límite de la demo activo.
+            tiempo_de_recorrido(demo_aislada)
         tiempo_de_recorrido(demo_aislada, dias=1)
     assert sesiones[0] != sesiones[1]
     expect(pagina.get_by_role("heading", name="Secuencia realizada", exact=True)).to_be_visible()
