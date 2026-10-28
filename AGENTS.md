@@ -30,7 +30,7 @@ Invoke-Expression (.\scripts\bd_local.ps1 entorno)  # define GIMNASIO_BD_* en ES
 - Sin `GIMNASIO_BD_*` las pruebas con MySQL y los e2e se **saltan sin fallar**: un «skipped» no cuenta como verde. Pegá en el PR el conteo de `passed`/`skipped`.
 - Si falta `.mysql-local/mysql/bin/mysqld.exe`, no lo descargues vos: etiquetá `necesita-criterio` o pedíselo al dueño.
 - Al escribir archivos desde pruebas usá `encoding="utf-8", newline="\n"` (Windows usa cp1252).
-- No commitees `.mysql-local/`. Si no podés correr algo local, decilo en "Notas para el próximo agente" en vez de depender del CI.
+- No commitees `.mysql-local/`. Si no podés correr algo local, decilo en "Notas para el próximo agente"; anotarlo no vuelve el PR apto para fusionar: el CI en verde sigue siendo obligatorio.
 
 ## Estructura y dependencias (ADR 0001)
 ```

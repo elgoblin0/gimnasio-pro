@@ -3,8 +3,8 @@
 Reproduce el CI en la máquina para detectar fallos antes de subir el PR: Python, MySQL 8.4 y Chromium funcionando juntos.
 
 ## Una sola vez
-1. Python 3.13 y dependencias: `python -m venv .venv && .venv/Scripts/pip install -r requirements-dev.txt`.
-2. Chromium: `.venv/Scripts/playwright install chromium`.
+1. Python 3.13 y dependencias: `python -m venv .venv && .\.venv\Scripts\pip.exe install -r requirements-dev.txt`.
+2. Chromium: `.\.venv\Scripts\playwright.exe install chromium`.
 3. MySQL 8.4 portable (la misma versión que el CI, sin servicio ni administrador): descargar
    `mysql-8.4.x-winx64.zip` de <https://dev.mysql.com/downloads/mysql/> (archivo 8.4) y descomprimirlo en
    `.mysql-local/` de modo que quede `.mysql-local/mysql/bin/mysqld.exe`. La carpeta está en `.gitignore`.
@@ -17,12 +17,12 @@ Invoke-Expression (.\scripts\bd_local.ps1 entorno)  # define GIMNASIO_BD_* en es
 
 ## Lo que corre el CI, en el mismo orden
 ```powershell
-.\.venv\Scripts\ruff check . ; .\.venv\Scripts\ruff format --check .
-python scripts/mapa_capacidades.py --verificar
+.\.venv\Scripts\ruff.exe check . ; .\.venv\Scripts\ruff.exe format --check .
+.\.venv\Scripts\python.exe scripts/mapa_capacidades.py --verificar
 node --test "gimnasio/static/**/*.test.js"
-python -m gimnasio.comun.migrar ; python -m gimnasio.comun.migrar --sin-pendientes
-pytest                      # unitarias y con MySQL
-pytest -m e2e               # Chromium contra el servidor demo
+.\.venv\Scripts\python.exe -m gimnasio.comun.migrar ; .\.venv\Scripts\python.exe -m gimnasio.comun.migrar --sin-pendientes
+.\.venv\Scripts\python.exe -m pytest -q            # unitarias y con MySQL
+.\.venv\Scripts\python.exe -m pytest -m e2e -q -rs # Chromium contra el servidor demo
 ```
 `bd_local.ps1 detener` apaga el servidor. Sin `GIMNASIO_BD_*` las pruebas con MySQL y los e2e se saltan en silencio: si ves «skipped», revisá el entorno.
 
