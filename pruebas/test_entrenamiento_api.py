@@ -122,7 +122,7 @@ def test_propuesta_conserva_plan_y_distingue_posiciones_del_mismo_ejercicio(entr
     assert [e["realizado"] for e in despues["ejercicios"]] == [1, 0]
     assert [e["pendiente"] for e in despues["ejercicios"]] == [1, 2]
     assert despues["ejercicios"][0]["objetivos"]["carga"] == "20.50"
-    assert despues["version_reglas"] == "2.0.0"
+    assert despues["version_reglas"] == "2.1.0"
     assert "sin ajustes" in despues["explicacion"][-1]["datos"]["explicacion"]
     assert despues == datos.cliente().get("/api/entrenamiento/propuesta").json
     with datos.app.app_context(), transaccion() as cursor:
@@ -609,7 +609,7 @@ def test_demo_propuesta_ajustada_e_historial_reproducible(entrenamiento_api):
         return respuesta.json
 
     primera = reiniciar_y_consultar()
-    assert primera["version_reglas"] == "2.0.0"
+    assert primera["version_reglas"] == "2.1.0"
     assert primera["frenos"] == []
     fuerza, cardio, mantener = primera["ejercicios"]
     assert fuerza["objetivos"]["carga"] == "23.00"
@@ -701,3 +701,100 @@ def test_demo_conserva_prescripcion_al_registrar_suba_actual(entrenamiento_api):
     actual = cliente.get("/api/entrenamiento/propuesta").json
     assert actual["frenos"] == []
     assert [e["objetivos"] for e in actual["ejercicios"]] == [e["objetivos"] for e in inicial["ejercicios"]]
+
+
+@pytest.fixture
+def alternativas_api(entrenamiento_api):
+    datos = entrenamiento_api
+    with datos.app.app_context(), transaccion() as cursor:
+        cursor.execute("SELECT ejercicio_id FROM ejercicios_planificados LIMIT 1")
+        original = desde_bytes(cursor.fetchone()["ejercicio_id"])
+        cursor.execute("UPDATE ejercicios SET equipo='barra',patron_movimiento='sentadilla'")
+        datos.alternativas = []
+        for orden in (1, 2):
+            alternativa = nuevo_id(datos.reloj)
+            datos.alternativas.append(alternativa)
+            cursor.execute(
+                "INSERT INTO ejercicios (id,nombre,medidas_aplicables,actualizada_en,equipo,patron_movimiento) "
+                "VALUES (%s,%s,'[\"repeticiones\",\"carga\"]',%s,'mancuernas','sentadilla')",
+                (a_bytes(alternativa), f"Alternativa ficticia {orden}", datos.reloj.ahora()),
+            )
+            cursor.execute(
+                "INSERT INTO alternativas_ejercicio VALUES (%s,%s,%s)", (a_bytes(original), a_bytes(alternativa), orden)
+            )
+    return datos
+
+
+def test_sustitucion_idempotente_compatible_y_series_acreditadas(alternativas_api):
+    datos = alternativas_api
+    cliente = datos.cliente()
+    sesion = iniciar(datos)
+    ruta = f"/api/entrenamiento/sesiones/{sesion}"
+    ejercicio = str(datos.ejercicios[0][0])
+    alternativas = cliente.get(ruta + f"/ejercicios/{ejercicio}/alternativas")
+    assert alternativas.status_code == 200
+    assert [a["ejercicio_id"] for a in alternativas.json["alternativas"]] == list(map(str, datos.alternativas))
+    cuerpo = {
+        "id": str(nuevo_id(datos.reloj)),
+        "ejercicio_planificado_id": ejercicio,
+        "ejercicio_hecho_id": str(datos.alternativas[0]),
+    }
+    serie = cuerpo_serie(datos) | {"ejercicio_hecho_id": str(datos.alternativas[0])}
+    assert escribir(cliente, ruta + "/series", serie).status_code == 409
+    assert (
+        escribir(
+            cliente, ruta + "/sustituciones", cuerpo | {"ejercicio_hecho_id": str(nuevo_id(datos.reloj))}
+        ).status_code
+        == 422
+    )
+    clave = str(uuid4())
+    primera = escribir(cliente, ruta + "/sustituciones", cuerpo, clave)
+    assert primera.status_code == 201
+    assert escribir(cliente, ruta + "/sustituciones", cuerpo, clave).json == primera.json
+    assert escribir(cliente, ruta + "/sustituciones", cuerpo).json == primera.json
+    assert (
+        escribir(
+            cliente, ruta + "/sustituciones", cuerpo | {"ejercicio_hecho_id": str(datos.alternativas[1])}, clave
+        ).status_code
+        == 422
+    )
+    for _ in range(2):
+        assert escribir(cliente, ruta + "/series", serie | {"id": str(nuevo_id(datos.reloj))}).status_code == 201
+    lectura = cliente.get(ruta).json
+    assert lectura["ejercicios"][0]["pendiente"] == 0
+    assert lectura["sustituciones"][ejercicio]["sustitucion"] == primera.json["sustitucion"]
+    assert all(s["ejercicio_hecho_id"] == str(datos.alternativas[0]) for s in lectura["series"])
+    propuesta = cliente.get("/api/entrenamiento/propuesta").json
+    assert propuesta["ejercicios"][0]["pendiente"] == 0
+    with datos.app.app_context(), transaccion() as cursor:
+        cursor.execute("SELECT COUNT(*) AS cantidad FROM sustituciones")
+        assert cursor.fetchone()["cantidad"] == 1
+    assert datos.cliente("ajeno").get(ruta + f"/ejercicios/{ejercicio}/alternativas").status_code == 403
+    assert escribir(datos.cliente("ajeno"), ruta + "/sustituciones", cuerpo).status_code == 403
+    segunda = cuerpo | {"id": str(nuevo_id(datos.reloj)), "ejercicio_hecho_id": str(datos.alternativas[1])}
+    assert escribir(cliente, ruta + "/sustituciones", segunda).status_code == 201
+    assert escribir(cliente, ruta + "/series", serie | {"id": str(nuevo_id(datos.reloj))}).status_code == 409
+    assert (
+        escribir(
+            cliente,
+            ruta + "/series",
+            serie | {"id": str(nuevo_id(datos.reloj)), "ejercicio_hecho_id": str(datos.alternativas[1])},
+        ).status_code
+        == 201
+    )
+
+
+def test_sustitucion_exige_clave_y_ejercicio_de_sesion(alternativas_api):
+    datos = alternativas_api
+    sesion = iniciar(datos)
+    ruta = f"/api/entrenamiento/sesiones/{sesion}/sustituciones"
+    cuerpo = {
+        "id": str(nuevo_id(datos.reloj)),
+        "ejercicio_planificado_id": str(datos.ejercicios[0][0]),
+        "ejercicio_hecho_id": str(datos.alternativas[0]),
+    }
+    assert datos.cliente().post(ruta, json=cuerpo, headers={"X-Gimnasio": "1"}).status_code == 428
+    assert (
+        escribir(datos.cliente(), ruta, cuerpo | {"ejercicio_planificado_id": str(datos.ejercicios[1][0])}).status_code
+        == 422
+    )

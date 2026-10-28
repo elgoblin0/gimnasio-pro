@@ -245,7 +245,7 @@ def test_reinicio_demo_borra_correcciones_y_sesiones_antes_del_programa(entrenam
         datos.cursor.execute(f"SELECT COUNT(*) AS cantidad FROM {tabla}")
         assert datos.cursor.fetchone()["cantidad"] == cantidad
     datos.cursor.execute("SELECT COUNT(*) AS cantidad FROM migraciones_aplicadas")
-    assert datos.cursor.fetchone()["cantidad"] == 11
+    assert datos.cursor.fetchone()["cantidad"] == 12
 
 
 @pytest.mark.parametrize(
@@ -303,7 +303,14 @@ def test_lectura_conserva_ejercicio_hecho_explicito(entrenamiento):
     datos = entrenamiento
     datos.cursor.execute("SELECT ejercicio_id FROM ejercicios_planificados WHERE id = %s", (a_bytes(datos.cardio),))
     hecho = desde_bytes(datos.cursor.fetchone()["ejercicio_id"])
-    identificador = serie(datos, ejercicio_hecho_id=hecho)
+    identificador = serie(
+        datos,
+        ejercicio_hecho_id=hecho,
+        repeticiones=None,
+        carga=None,
+        duracion=120,
+        distancia=Decimal("1500.25"),
+    )
     assert repositorio.obtener_serie(datos.cursor, identificador)["ejercicio_hecho_resuelto_id"] == a_bytes(hecho)
     assert repositorio.listar_series_vigentes(datos.cursor, datos.socio)[0]["ejercicio_hecho_resuelto_id"] == a_bytes(
         hecho

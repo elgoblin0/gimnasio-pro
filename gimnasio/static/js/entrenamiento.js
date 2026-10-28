@@ -29,7 +29,7 @@ const control = crearControlDeOperacion();
 const numero = new Intl.NumberFormat("es-PY", { maximumFractionDigits: 2 });
 
 function actualizarBotones() {
-  for (const elemento of document.querySelectorAll("[data-iniciar], [data-serie] input, [data-serie] button")) {
+  for (const elemento of document.querySelectorAll("[data-iniciar], [data-serie] input, [data-serie] button, [data-sustitucion] button")) {
     elemento.disabled = Boolean(control.actual) || cargando;
   }
   $("[data-actualizar]").disabled = cargando || control.enCurso;
@@ -77,7 +77,7 @@ function agregarFormulario(tarjeta, ejercicio) {
     try {
       if (!formulario.reportValidity()) throw new Error("Revisá las medidas del ejercicio antes de registrar la serie.");
       const medidas = prepararMedidas(ejercicio.medidas_aplicables, Object.fromEntries(new FormData(formulario)));
-      control.preparar(`/api/entrenamiento/sesiones/${sesionId}/series`, { ejercicio_planificado_id: ejercicio.id, ...medidas });
+      control.preparar(`/api/entrenamiento/sesiones/${sesionId}/series`, { ejercicio_planificado_id: ejercicio.id, ...(ejercicio.sustitucion ? { ejercicio_hecho_id: ejercicio.sustitucion.ejercicio_hecho_id } : {}), ...medidas });
       enviar();
     } catch (error) { $("[data-error]").textContent = error.message; }
   });
@@ -90,9 +90,8 @@ function dibujarRegistro() {
   if (!sesionActual) return;
   $("[data-sin-series]").hidden = sesionActual.series.length !== 0;
   for (const serie of sesionActual.series) {
-    const ejercicio = sesionActual.ejercicios.find((e) => e.id === serie.ejercicio_planificado_id);
     const fila = document.createElement("li");
-    fila.textContent = `${ejercicio.nombre} · ${describirObjetivos({ series: 1, ...serie })}${serie.rir === null ? "" : ` · RIR ${serie.rir}`}`;
+    fila.textContent = `${serie.ejercicio_hecho_nombre} · ${describirObjetivos({ series: 1, ...serie })}${serie.rir === null ? "" : ` · RIR ${serie.rir}`}`;
     $("[data-series]").append(fila);
   }
 }
@@ -124,7 +123,7 @@ function dibujar(propuesta) {
     ?? (propuesta.explicacion[0]?.regla === "sin_programa" ? "Sin programa de entrenamiento" : "Secuencia realizada");
   for (const propuesto of propuesta.ejercicios) {
     const ejercicio = coincide
-      ? { ...propuesto, carga_anterior: sesionActual.ejercicios.find((e) => e.id === propuesto.id)?.carga_anterior ?? null }
+      ? { ...propuesto, carga_anterior: sesionActual.ejercicios.find((e) => e.id === propuesto.id)?.carga_anterior ?? null, ...sesionActual.sustituciones?.[propuesto.id] }
       : propuesto;
     const tarjeta = document.createElement("li");
     tarjeta.className = "tarjeta";
@@ -148,7 +147,10 @@ function dibujar(propuesta) {
       explicacion.append(texto);
     }
     tarjeta.append(explicacion);
-    if (coincide && ejercicio.pendiente > 0) agregarFormulario(tarjeta, ejercicio);
+    if (coincide && ejercicio.pendiente > 0) {
+      agregarSustitucion(tarjeta, ejercicio);
+      agregarFormulario(tarjeta, ejercicio);
+    }
     $("[data-ejercicios]").append(tarjeta);
   }
   $("[data-contenido]").hidden = false;
@@ -205,7 +207,7 @@ async function enviar() {
       }
     }
     control.finalizar();
-    await actualizar(datos.sesion_realizada ? "Sesión realizada iniciada." : "Serie guardada.");
+    await actualizar(datos.sesion_realizada ? "Sesión realizada iniciada." : (datos.sustitucion ? "Sustitución guardada." : "Serie guardada."));
     const foco = document.querySelector("[data-serie] input") ?? $("[data-actualizar]");
     foco.focus();
   } catch (error) {
@@ -255,3 +257,46 @@ $("[data-cerrar]").addEventListener("click", async () => {
 $("[data-saltear]").addEventListener("click", () => { descanso?.saltear(reloj.ahora()); dibujarDescanso(); });
 $("[data-sumar-descanso]").addEventListener("click", () => { descanso?.sumar30(reloj.ahora()); dibujarDescanso(); });
 iniciar();
+
+
+function agregarSustitucion(tarjeta, ejercicio) {
+  const contenedor = document.createElement("div");
+  contenedor.dataset.sustitucion = ejercicio.id;
+  const boton = document.createElement("button");
+  boton.type = "button";
+  boton.textContent = "Máquina ocupada";
+  boton.setAttribute("aria-label", `Máquina ocupada de ${ejercicio.nombre}`);
+  boton.addEventListener("click", async () => {
+    if (cargando || control.actual) return;
+    boton.disabled = true;
+    try {
+      const datos = await llamarApi(`/api/entrenamiento/sesiones/${sesionId}/ejercicios/${ejercicio.id}/alternativas`);
+      const lista = document.createElement("div");
+      lista.setAttribute("role", "group");
+      lista.setAttribute("aria-label", `Alternativas de ${ejercicio.nombre}`);
+      const explicacion = document.createElement("p");
+      explicacion.setAttribute("role", "status");
+      explicacion.textContent = datos.explicacion?.datos.explicacion ?? "No hay alternativas compatibles.";
+      lista.append(explicacion);
+      for (const [indice, alternativa] of datos.alternativas.entries()) {
+        const elegir = document.createElement("button");
+        elegir.type = "button";
+        elegir.textContent = `${indice === 0 ? "Propuesta: " : ""}${alternativa.nombre} · ${alternativa.equipo}`;
+        if (indice === 0) elegir.className = "primario";
+        elegir.addEventListener("click", () => {
+          if (cargando || control.actual) return;
+          control.preparar(`/api/entrenamiento/sesiones/${sesionId}/sustituciones`, {
+            ejercicio_planificado_id: ejercicio.id, ejercicio_hecho_id: alternativa.ejercicio_id,
+          });
+          enviar();
+        });
+        lista.append(elegir);
+      }
+      contenedor.replaceChildren(boton, lista);
+      lista.querySelector("button")?.focus();
+    } catch (error) { $("[data-error]").textContent = error.message; }
+    finally { actualizarBotones(); }
+  });
+  contenedor.append(boton);
+  tarjeta.append(contenedor);
+}

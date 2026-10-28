@@ -6,7 +6,7 @@ from decimal import Decimal
 
 from gimnasio.comun.tipos import PrescripcionEjercicio, Razon
 
-VERSION_REGLAS = "2.0.0"
+VERSION_REGLAS = "2.1.0"
 
 
 def razon(regla, prescripcion, explicacion, **datos):
