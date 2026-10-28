@@ -21,7 +21,7 @@ def test_demo_explica_subir_y_mantener(pagina_demo, demo_aislada, ancho):
     mantener = pagina.locator("[data-ejercicio]").filter(
         has=pagina.get_by_role("heading", name="Sentadilla con mancuernas ficticia", exact=True)
     )
-    expect(subir).to_contain_text("23 kg")
+    expect(subir).to_contain_text("23,00 kg")
     expect(subir.locator("[data-ajuste]")).to_contain_text("Subís 2,5 kg")
     expect(mantener.locator("[data-ajuste]")).to_contain_text("Mantenés 20,5 kg")
     expect(mantener.locator("[data-ajuste]")).to_contain_text("buscás 11 repeticiones")
