@@ -477,6 +477,8 @@ def consultar_sesion(sesion_texto, usuario):
     anteriores = cargas_anteriores(historial, ZoneInfo(sede["zona_horaria"]), sesion)
     cantidades = Counter(str(desde_bytes(f["ejercicio_planificado_id"])) for f in filas)
     ejercicios = json.loads(efectiva["ejercicios"]) if efectiva else None
+    if efectiva:
+        cantidades = Counter(str(desde_bytes(f["ejercicio_planificado_id"])) for f in historial)
     return {
         "prescripcion_efectiva": (
             {campo: json.loads(efectiva[campo]) for campo in ("ejercicios", "explicacion", "frenos")}

@@ -179,16 +179,13 @@ async function actualizar(mensaje) {
     ]);
     propuestaActual = propuesta;
     sesionActual = realizada;
-    const efectiva = realizada?.sesion_realizada.sesion_planificada_id === propuesta.sesion_planificada?.id
+    const efectiva = realizada?.ejercicios.some((e) => e.pendiente > 0)
       ? realizada.prescripcion_efectiva : null;
     dibujar(efectiva ? {
       ...propuesta,
       ...efectiva,
-      sesion_planificada: { id: realizada.sesion_realizada.sesion_planificada_id, nombre: realizada.sesion_planificada.nombre },
-      ejercicios: realizada.ejercicios.map((ejercicio) => {
-        const pendiente = propuesta.ejercicios.find((e) => e.id === ejercicio.id);
-        return { ...ejercicio, realizado: pendiente?.realizado ?? ejercicio.realizado, pendiente: Math.max(0, ejercicio.objetivos.series - (pendiente?.realizado ?? ejercicio.realizado)) };
-      }),
+      sesion_planificada: realizada.sesion_planificada,
+      ejercicios: realizada.ejercicios,
     } : propuesta);
     if (progresoVisible) actualizarProgreso();
     $("[data-estado]").textContent = mensaje ?? "Propuesta actualizada.";
