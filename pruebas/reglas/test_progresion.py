@@ -1,4 +1,4 @@
-"""Vectores del motor 2.0: ADR 0012 y ADR 0015, sin base ni reloj."""
+"""Vectores del motor 2.0: ADR 0012, 0015 y 0016, sin base ni reloj."""
 
 from dataclasses import replace
 from datetime import UTC, date, datetime, timedelta
@@ -141,3 +141,64 @@ def test_evalua_historial_de_la_misma_sesion_planificada():
     assert propuesta.prescripcion[0].carga == Decimal("40")
     assert propuesta.frenos == ("tope_semanal",)
     assert {r.regla for r in propuesta.explicacion} >= {"subir_carga", "tope_semanal"}
+
+
+@pytest.mark.parametrize("cargas", [("40", "45", "35"), ("35", "45", "40"), ("45", "40", "35")])
+def test_carga_base_minima_no_depende_del_orden(cargas):
+    ultima = historial()
+    ultima = replace(
+        ultima,
+        series=tuple(replace(serie, carga=Decimal(carga)) for serie, carga in zip(ultima.series, cargas, strict=True)),
+    )
+    propuesta = proponer_sesion(entrada((ultima,)))
+    assert propuesta.prescripcion[0].carga == Decimal("37.5")
+    razon = next(r for r in propuesta.explicacion if r.regla == "subir_carga")
+    assert dict(razon.datos)["carga_base"] == "35"
+    assert "35 kg" in dict(razon.datos)["explicacion"]
+    assert propuesta.version == "2.0.0"
+
+
+@pytest.mark.parametrize(
+    "repeticiones,baja,cantidad",
+    [
+        ((7, 10, 10), False, 1),
+        ((7, 7, 10), True, 2),
+        ((7, 7, 10, 10), False, 2),
+    ],
+)
+def test_bajar_exige_mayoria_estricta_en_dos_sesiones(repeticiones, baja, cantidad):
+    rir = (2,) * len(repeticiones)
+    anterior = historial(repeticiones, rir, identificador="primera", fecha=LUNES - timedelta(days=7))
+    ultima = historial(repeticiones, rir)
+    propuesta = proponer_sesion(entrada((anterior, ultima)))
+    assert propuesta.prescripcion[0].carga == Decimal("37.5" if baja else "40")
+    reglas = {r.regla for r in propuesta.explicacion}
+    assert ("bajar_carga" in reglas) is baja
+    if baja:
+        datos = dict(next(r for r in propuesta.explicacion if r.regla == "bajar_carga").datos)
+        assert datos["carga_base"] == "40"
+        assert datos["series_bajo_piso"] == str((cantidad, cantidad))
+        assert "2 de 3" in datos["explicacion"]
+
+
+@pytest.mark.parametrize(
+    "repeticiones,rir,regla,carga",
+    [
+        ((10, 10, 10), (2, 2, 2), "mantener_carga", "35"),
+        ((12, 12, 12), (1, 1, 1), "mantener_por_rir", "35"),
+        ((7, 7, 10), (2, 2, 2), "bajar_carga", "32.5"),
+    ],
+)
+def test_carga_base_minima_tambien_al_mantener_y_bajar(repeticiones, rir, regla, carga):
+    ultima = historial(repeticiones, rir)
+    ultima = replace(
+        ultima,
+        series=tuple(
+            replace(serie, carga=Decimal(valor)) for serie, valor in zip(ultima.series, ("40", "35", "45"), strict=True)
+        ),
+    )
+    anterior = replace(ultima, sesion_realizada_id="primera", fecha_local=LUNES - timedelta(days=7))
+    propuesta = proponer_sesion(entrada((anterior, ultima)))
+    assert propuesta.prescripcion[0].carga == Decimal(carga)
+    datos = dict(next(r for r in propuesta.explicacion if r.regla == regla).datos)
+    assert datos["carga_base"] == "35"

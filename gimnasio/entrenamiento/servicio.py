@@ -149,13 +149,14 @@ def preparar_historial(filas, zona, local):
     subas = []
     cargas = {}
     for sesion in historial:
-        for serie in sesion.series:
-            if serie.carga is None:
-                continue
-            anterior = cargas.get(sesion.ejercicio_id)
-            if anterior is not None and serie.carga > anterior:
-                subas.append(SubaCarga(sesion.ejercicio_id, sesion.fecha_local))
-            cargas[sesion.ejercicio_id] = serie.carga
+        cargas_sesion = tuple(serie.carga for serie in sesion.series if serie.carga is not None)
+        if not cargas_sesion:
+            continue
+        carga_base = min(cargas_sesion)
+        anterior = cargas.get(sesion.ejercicio_id)
+        if anterior is not None and carga_base > anterior:
+            subas.append(SubaCarga(sesion.ejercicio_id, sesion.fecha_local))
+        cargas[sesion.ejercicio_id] = carga_base
     return historial, tuple(subas)
 
 

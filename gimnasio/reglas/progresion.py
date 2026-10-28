@@ -1,4 +1,4 @@
-"""Doble progresión pura y explicable, según los ADR 0012 y 0015."""
+"""Doble progresión pura y explicable, según los ADR 0012, 0015 y 0016."""
 
 from dataclasses import replace
 from datetime import timedelta
@@ -32,7 +32,9 @@ def subir_carga(prescripcion, ejercicio, ultima, piso):
         f"Subís {numero(ejercicio.incremento_carga)} kg en {ejercicio.nombre}: "
         f"completaste {len(ultima.series)}×{prescripcion.repeticiones_maximas} "
         f"con RIR registrado igual o mayor que el objetivo {prescripcion.rir_objetivo} "
-        "o evaluado solo por repeticiones cuando falta RIR.",
+        "o evaluado solo por repeticiones cuando falta RIR. "
+        f"La carga base usada es {numero(prescripcion.carga)} kg.",
+        carga_base=prescripcion.carga,
         carga_anterior=prescripcion.carga,
         carga=carga,
         incremento_carga=ejercicio.incremento_carga,
@@ -52,6 +54,7 @@ def mantener_carga(prescripcion, ejercicio, ultima):
         prescripcion,
         f"Mantenés {numero(prescripcion.carga)} kg en {ejercicio.nombre}: "
         f"todavía no completaste el tope en todas las series; buscás {repeticiones} repeticiones.",
+        carga_base=prescripcion.carga,
         carga=prescripcion.carga,
         repeticiones_anteriores=tuple(s.repeticiones for s in ultima.series),
         repeticiones=repeticiones,
@@ -60,17 +63,30 @@ def mantener_carga(prescripcion, ejercicio, ultima):
     )
 
 
+def series_bajo_piso(sesion, piso):
+    return sum(s.repeticiones is not None and s.repeticiones < piso for s in sesion.series)
+
+
 def bajar_carga(prescripcion, ejercicio, historial):
     carga = max(Decimal(0), prescripcion.carga - ejercicio.incremento_carga)
+    cantidades = tuple(series_bajo_piso(h, prescripcion.repeticiones_minimas) for h in historial[-2:])
+    detalle = " y ".join(
+        f"{cantidad} de {len(h.series)}" for cantidad, h in zip(cantidades, historial[-2:], strict=True)
+    )
     return replace(prescripcion, carga=carga), razon(
         "bajar_carga",
         prescripcion,
         f"Bajás a {numero(carga)} kg en {ejercicio.nombre}: "
-        f"quedaste por debajo de {prescripcion.repeticiones_minimas} repeticiones en dos sesiones seguidas.",
+        f"quedaron bajo el piso de {prescripcion.repeticiones_minimas} repeticiones "
+        f"{detalle} series en las dos últimas sesiones (más de la mitad en ambas). "
+        f"La carga base usada es {numero(prescripcion.carga)} kg.",
+        carga_base=prescripcion.carga,
         carga_anterior=prescripcion.carga,
         carga=carga,
         incremento_carga=ejercicio.incremento_carga,
         piso=prescripcion.repeticiones_minimas,
+        series_bajo_piso=cantidades,
+        series_por_sesion=tuple(len(h.series) for h in historial[-2:]),
         repeticiones_anteriores=tuple(tuple(s.repeticiones for s in h.series) for h in historial[-2:]),
         fechas=tuple(h.fecha_local.isoformat() for h in historial[-2:]),
     )
@@ -84,6 +100,7 @@ def mantener_por_rir(prescripcion, ejercicio, ultima):
         f"Mantenés {numero(prescripcion.carga)} kg en {ejercicio.nombre}: "
         f"llegaste a {prescripcion.repeticiones_maximas} repeticiones, "
         f"pero con RIR {rir} y el objetivo es {prescripcion.rir_objetivo}.",
+        carga_base=prescripcion.carga,
         carga=prescripcion.carga,
         repeticiones=prescripcion.repeticiones_maximas,
         rir_minimo=rir,
@@ -176,11 +193,10 @@ def ajustar_ejercicio(planificado, entrada):
             ),
             (),
         )
-    prescripcion = replace(prescripcion, carga=ultima.series[-1].carga)
+    prescripcion = replace(prescripcion, carga=min(s.carga for s in ultima.series))
     tope = all(s.repeticiones >= prescripcion.repeticiones_maximas for s in ultima.series)
     dos_fallos = len(historial) >= 2 and all(
-        any(s.repeticiones is not None and s.repeticiones < prescripcion.repeticiones_minimas for s in h.series)
-        for h in historial[-2:]
+        series_bajo_piso(h, prescripcion.repeticiones_minimas) * 2 > len(h.series) for h in historial[-2:]
     )
     if dos_fallos:
         ajustada, explicacion = bajar_carga(prescripcion, ejercicio, historial)
