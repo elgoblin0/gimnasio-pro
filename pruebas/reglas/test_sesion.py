@@ -164,8 +164,8 @@ def test_sin_salud_restricciones_dolor_ni_consentimiento_propone_sin_ajustes():
     # La entrada mínima no pide ni consulta datos de salud ni consentimiento.
     propuesta = proponer_sesion(datos())
     assert propuesta.sesion_planificada is PRIMERA
-    razon = propuesta.explicacion[-1]
-    assert razon.regla == "respeto_programa_entrenador"
+    razon = next(r for r in propuesta.explicacion if r.regla == "respeto_programa_entrenador")
+    assert "sin_chequeo" in {r.regla for r in propuesta.explicacion}
     assert dict(razon.datos)["explicacion"] == (
         "Se respeta el plan del entrenador sin ajustes de carga, repeticiones, series ni volumen."
     )
@@ -256,4 +256,4 @@ def test_motor_conserva_rango_rir_y_descanso_sin_ajustes():
     propuesta = proponer_sesion(datos(programa=ProgramaEntrenamiento((sesion,))))
     assert propuesta.sesion_planificada is sesion
     assert propuesta.sesion_planificada.ejercicios == (ejercicio,)
-    assert propuesta.version == "2.1.0"
+    assert propuesta.version == "2.2.0"

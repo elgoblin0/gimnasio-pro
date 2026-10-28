@@ -122,8 +122,8 @@ def test_propuesta_conserva_plan_y_distingue_posiciones_del_mismo_ejercicio(entr
     assert [e["realizado"] for e in despues["ejercicios"]] == [1, 0]
     assert [e["pendiente"] for e in despues["ejercicios"]] == [1, 2]
     assert despues["ejercicios"][0]["objetivos"]["carga"] == "20.50"
-    assert despues["version_reglas"] == "2.1.0"
-    assert "sin ajustes" in despues["explicacion"][-1]["datos"]["explicacion"]
+    assert despues["version_reglas"] == "2.2.0"
+    assert any("sin ajustes" in r["datos"]["explicacion"] for r in despues["explicacion"])
     assert despues == datos.cliente().get("/api/entrenamiento/propuesta").json
     with datos.app.app_context(), transaccion() as cursor:
         cursor.execute("SELECT COUNT(*) AS cantidad FROM series_realizadas")
@@ -615,7 +615,7 @@ def test_demo_propuesta_ajustada_e_historial_reproducible(entrenamiento_api):
         return respuesta.json
 
     primera = reiniciar_y_consultar()
-    assert primera["version_reglas"] == "2.1.0"
+    assert primera["version_reglas"] == "2.2.0"
     assert primera["frenos"] == []
     fuerza, cardio, mantener = primera["ejercicios"]
     assert fuerza["objetivos"]["carga"] == "23.00"
@@ -969,7 +969,7 @@ def test_prescripcion_efectiva_guardada_idempotente_y_estable(entrenamiento_api,
     respuesta = escribir(cliente, "/api/entrenamiento/sesiones", cuerpo, clave)
     assert respuesta.status_code == 201
     inicial = cliente.get(f"/api/entrenamiento/sesiones/{sesion}").json
-    assert inicial["prescripcion_efectiva"]["version_reglas"] == "2.1.0"
+    assert inicial["prescripcion_efectiva"]["version_reglas"] == "2.2.0"
     assert escribir(cliente, "/api/entrenamiento/sesiones", cuerpo, clave).data == respuesta.data
     assert escribir(cliente, "/api/entrenamiento/sesiones", cuerpo).json == respuesta.json
     assert cantidad(datos, "prescripciones_efectivas") == 1
@@ -1030,3 +1030,130 @@ def test_sesiones_de_semanas_distintas_cuentan_solo_sus_series(entrenamiento_api
     assert parcial["prescripcion_efectiva"] == inicial["prescripcion_efectiva"]
     anterior = cliente.get(f"/api/entrenamiento/sesiones/{primera}").json
     assert [(e["realizado"], e["pendiente"]) for e in anterior["ejercicios"]] == [(2, 0), (2, 0)]
+
+
+@pytest.mark.parametrize("sin_entrenador", [False, True])
+def test_freno_5_aviso_por_cada_freno(entrenamiento_api, monkeypatch, sin_entrenador):
+    from gimnasio.entrenamiento import servicio
+
+    datos = entrenamiento_api
+    cliente = datos.cliente()
+    propuesta = cliente.get("/api/entrenamiento/propuesta").json
+    # Incluye un freno futuro: el patrón no depende del catálogo actual.
+    propuesta["frenos"] = ["tope_semanal", "chequeo_desfavorable", "dolor_reportado", "restriccion_salud"]
+    monkeypatch.setattr(servicio, "consultar_propuesta", lambda *a, **k: propuesta)
+    if sin_entrenador:
+        with datos.app.app_context(), transaccion() as cursor:
+            cursor.execute("UPDATE asignaciones_entrenador SET hasta=%s", (datos.reloj.ahora(),))
+    cuerpo = {"id": str(nuevo_id(datos.reloj)), "sesion_planificada_id": str(datos.sesiones[0])}
+    insertar = repositorio.insertar_avisos
+
+    def fallar(*args):
+        insertar(*args)
+        raise ValueError("fallo después de insertar avisos")
+
+    monkeypatch.setattr(repositorio, "insertar_avisos", fallar)
+    datos.app.config["TESTING"] = True
+    with pytest.raises(ValueError):
+        escribir(cliente, "/api/entrenamiento/sesiones", cuerpo)
+    with datos.app.app_context(), transaccion() as cursor:
+        for tabla in ("avisos_entrenador", "prescripciones_efectivas", "sesiones_realizadas"):
+            cursor.execute(f"SELECT COUNT(*) AS cantidad FROM {tabla}")
+            assert cursor.fetchone()["cantidad"] == 0
+    monkeypatch.setattr(repositorio, "insertar_avisos", insertar)
+    assert escribir(cliente, "/api/entrenamiento/sesiones", cuerpo).status_code == 201
+    assert escribir(cliente, "/api/entrenamiento/sesiones", cuerpo).status_code == 201
+    with datos.app.app_context(), transaccion() as cursor:
+        cursor.execute("SELECT * FROM avisos_entrenador")
+        avisos = cursor.fetchall()
+        assert {a["freno"] for a in avisos} == set(propuesta["frenos"])
+        assert len(avisos) == 4
+        assert all(
+            a["entrenador_id"] == (None if sin_entrenador else a_bytes(datos.usuarios["entrenador"])) for a in avisos
+        )
+
+
+def test_chequeo_idempotente_propio_y_ultimo_local(entrenamiento_api):
+    datos = entrenamiento_api
+    cliente = datos.cliente()
+    ruta = "/api/entrenamiento/chequeos"
+    cuerpo = {"id": str(nuevo_id(datos.reloj)), "sueno": 1, "energia": 5}
+    clave = str(uuid4())
+    primera = escribir(cliente, ruta, cuerpo, clave)
+    assert primera.status_code == 201
+    assert escribir(cliente, ruta, cuerpo, clave).json == primera.json
+    assert escribir(cliente, ruta, cuerpo | {"energia": 4}, clave).status_code == 422
+    assert escribir(datos.cliente("ajeno"), ruta, cuerpo).status_code == 403
+    assert escribir(cliente, ruta, cuerpo | {"socio_id": str(datos.usuarios["ajeno"])}).status_code == 422
+    assert "chequeo_desfavorable" in cliente.get("/api/entrenamiento/propuesta").json["frenos"]
+    assert escribir(cliente, ruta, {"id": str(nuevo_id(datos.reloj)), "sueno": 5, "energia": 5}).status_code == 201
+    assert "chequeo_desfavorable" not in cliente.get("/api/entrenamiento/propuesta").json["frenos"]
+    for valor in (True, 0, 6, 2.5, "2", None):
+        assert (
+            escribir(cliente, ruta, {"id": str(nuevo_id(datos.reloj)), "sueno": valor, "energia": 5}).status_code == 422
+        )
+
+
+def test_chequeo_completar_prescripcion_no_recupera_serie_quitada(entrenamiento_api):
+    datos = entrenamiento_api
+    cliente = datos.cliente()
+    assert (
+        escribir(
+            cliente, "/api/entrenamiento/chequeos", {"id": str(nuevo_id(datos.reloj)), "sueno": 1, "energia": 5}
+        ).status_code
+        == 201
+    )
+    propuesta = cliente.get("/api/entrenamiento/propuesta").json
+    assert all(e["pendiente"] == e["objetivos"]["series"] == 1 for e in propuesta["ejercicios"])
+    sesion = str(nuevo_id(datos.reloj))
+    assert (
+        escribir(
+            cliente, "/api/entrenamiento/sesiones", {"id": sesion, "sesion_planificada_id": str(datos.sesiones[0])}
+        ).status_code
+        == 201
+    )
+    for ejercicio in datos.ejercicios[0]:
+        assert (
+            escribir(
+                cliente,
+                f"/api/entrenamiento/sesiones/{sesion}/series",
+                {
+                    "id": str(nuevo_id(datos.reloj)),
+                    "ejercicio_planificado_id": str(ejercicio),
+                    "repeticiones": 10,
+                    "carga": 20.5,
+                },
+            ).status_code
+            == 201
+        )
+    # Un chequeo posterior neutro tampoco recupera el trabajo quitado al iniciar.
+    assert (
+        escribir(
+            cliente, "/api/entrenamiento/chequeos", {"id": str(nuevo_id(datos.reloj)), "sueno": 5, "energia": 5}
+        ).status_code
+        == 201
+    )
+    siguiente = cliente.get("/api/entrenamiento/propuesta").json
+    assert siguiente["sesion_planificada"]["id"] == str(datos.sesiones[1])
+
+
+def test_prescripcion_de_programa_anterior_no_interfiere(entrenamiento_api):
+    datos = entrenamiento_api
+    cliente = datos.cliente()
+    sesion = str(nuevo_id(datos.reloj))
+    assert (
+        escribir(
+            cliente, "/api/entrenamiento/sesiones", {"id": sesion, "sesion_planificada_id": str(datos.sesiones[0])}
+        ).status_code
+        == 201
+    )
+    # El programa nuevo no contiene los ejercicios de la prescripción anterior.
+    with datos.app.app_context(), transaccion() as cursor:
+        programa = nuevo_id(datos.reloj)
+        cursor.execute(
+            "INSERT INTO programas_entrenamiento (id,socio_id,version,creado_en) VALUES (%s,%s,2,%s)",
+            (a_bytes(programa), a_bytes(datos.usuarios["socio"]), datos.reloj.ahora()),
+        )
+    respuesta = cliente.get("/api/entrenamiento/propuesta")
+    assert respuesta.status_code == 200
+    assert respuesta.json["sesion_planificada"] is None

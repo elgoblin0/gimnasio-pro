@@ -11,6 +11,7 @@ from gimnasio.comun.errores import ErrorDeDominio
 from gimnasio.comun.ids import desde_bytes, desde_texto, nuevo_id
 from gimnasio.comun.reloj import fecha_local, inicio_de_semana, reloj_actual
 from gimnasio.comun.tipos import (
+    Chequeo,
     DatosPropuesta,
     EjercicioCatalogo,
     EjercicioPlanificado,
@@ -167,7 +168,7 @@ def preparar_subas(efectivas, zona, local):
             if (
                 razon["regla"] == "subir_carga"
                 and ejercicio
-                and "tope_semanal" not in {r["regla"] for r in ejercicio["explicacion"]}
+                and not {"tope_semanal", "chequeo_desfavorable"} & {r["regla"] for r in ejercicio["explicacion"]}
             ):
                 subas.append(
                     SubaCarga(ejercicio["ejercicio_id"], fecha, str(desde_bytes(efectiva["sesion_planificada_id"])))
@@ -196,6 +197,7 @@ def consultar_propuesta(socio_texto, usuario, planificada_id=None, *, cursor=Non
             raise ErrorDeDominio("sede_inexistente", "La sede no existe.", 404)
         filas = repositorio.listar_series_vigentes(lectura, socio_id)
         efectivas = repositorio.listar_prescripciones(lectura, socio_id)
+        chequeo = repositorio.obtener_chequeo(lectura, socio_id, fecha_local(ahora, ZoneInfo(sede["zona_horaria"])))
     programas = listar_programas(socio_id, cursor=cursor)
     programa = programas[-1] if programas else None
     if planificada_id is not None:
@@ -209,6 +211,25 @@ def consultar_propuesta(socio_texto, usuario, planificada_id=None, *, cursor=Non
     if planificada_id is not None:
         series = ()
     programa_motor = convertir_programa(programa)
+    if programa_motor is not None and planificada_id is None:
+        # Las series que una prescripción efectiva quitó ya no son trabajo pendiente.
+        # Conservamos cantidades reales para la pantalla y acreditamos solo ante el motor.
+        originales = {e.ejercicio_id: e.series for s in programa_motor.sesiones for e in s.ejercicios}
+        quitadas = {}
+        for efectiva in efectivas:
+            planificada = str(desde_bytes(efectiva["sesion_planificada_id"]))
+            for ejercicio in json.loads(efectiva["ejercicios"]):
+                if ejercicio["id"] not in originales:
+                    continue
+                clave = (planificada, ejercicio["id"])
+                quitadas[clave] = max(
+                    quitadas.get(clave, 0), originales.get(ejercicio["id"], 0) - ejercicio["objetivos"]["series"]
+                )
+        series += tuple(
+            SerieRealizada(sesion, ejercicio, numero, None, None)
+            for (sesion, ejercicio), cantidad in quitadas.items()
+            for numero in range(originales[ejercicio] - cantidad + 1, originales[ejercicio] + 1)
+        )
     # Primero identifica pendientes; aún no hay historial ni ajustes que exponer.
     seleccion = proponer_sesion(DatosPropuesta(programa_motor, local, inicio_de_semana(local), series))
     historial = preparar_historial(
@@ -227,6 +248,7 @@ def consultar_propuesta(socio_texto, usuario, planificada_id=None, *, cursor=Non
             historial,
             catalogo_programa(programa),
             subas,
+            Chequeo(chequeo["sueno"], chequeo["energia"]) if chequeo else None,
         )
     )
     respuesta = {
@@ -246,7 +268,6 @@ def consultar_propuesta(socio_texto, usuario, planificada_id=None, *, cursor=Non
     sesion = next(s for s in programa["sesiones_planificadas"] if s["id"] == propuesta.sesion_planificada.id)
     respuesta["sesion_planificada"] = {"id": sesion["id"], "nombre": sesion["nombre"], "posicion": sesion["posicion"]}
     anteriores = cargas_anteriores(filas, ZoneInfo(sede["zona_horaria"]))
-    pendientes = {p.ejercicio_id: len(p.series) for p in propuesta.pendientes}
     prescripciones = {p.ejercicio_id: p for p in propuesta.prescripcion}
     razones = {
         e["id"]: [
@@ -284,7 +305,7 @@ def consultar_propuesta(socio_texto, usuario, planificada_id=None, *, cursor=Non
             },
             "explicacion": razones[e["id"]],
             "realizado": cantidades[sesion["id"], e["id"]],
-            "pendiente": pendientes.get(e["id"], 0),
+            "pendiente": max(0, prescripciones[e["id"]].series - cantidades[sesion["id"], e["id"]]),
         }
         for e in sesion["ejercicios_planificados"]
     ]
@@ -362,6 +383,7 @@ def crear_sesion(datos, usuario):
             raise ErrorDeDominio("id_ajeno", "El identificador corresponde a otra sesión planificada.", 403)
         if repositorio.obtener_prescripcion(cursor, sesion_id) is None:
             repositorio.insertar_prescripcion(cursor, nuevo_id(), sesion_id, propuesta, ahora)
+            repositorio.insertar_avisos(cursor, identificar(usuario["id"]), sesion_id, propuesta, ahora)
         return sesion_publica(fila)
 
 
@@ -643,3 +665,24 @@ def consultar_progreso(socio_texto, usuario):
             for ejercicio_id, nombre in sorted(ejercicios.items(), key=lambda elemento: (elemento[1], elemento[0]))
         ]
     }
+
+
+def registrar_chequeo(datos, usuario):
+    if not isinstance(datos, dict) or set(datos) != {"id", "sueno", "energia"}:
+        raise ErrorDeDominio("cuerpo_invalido", "Enviá id, sueno y energia.", 422)
+    if any(type(datos[c]) is not int or not 1 <= datos[c] <= 5 for c in ("sueno", "energia")):
+        raise ErrorDeDominio("chequeo_invalido", "Sueño y energía deben ser enteros entre 1 y 5.", 422)
+    chequeo_id = identificar(datos["id"])
+    socio_id = identificar(usuario["id"])
+    ahora = reloj_actual().ahora()
+    with transaccion() as cursor:
+        repositorio.obtener_socio(cursor, socio_id, bloquear=True)
+        anterior = repositorio.obtener_chequeo_por_id(cursor, chequeo_id)
+        if anterior:
+            if anterior["socio_id"] != socio_id.bytes:
+                raise ErrorDeDominio("sin_alcance", "El chequeo del día pertenece a otro socio.", 403)
+            return {"id": str(chequeo_id), "fecha_local": anterior["fecha_local"].isoformat()}
+        sede = repositorio.obtener_sede(cursor)
+        local = fecha_local(ahora, ZoneInfo(sede["zona_horaria"]))
+        repositorio.insertar_chequeo(cursor, chequeo_id, socio_id, local, datos["sueno"], datos["energia"], ahora)
+    return {"id": str(chequeo_id), "fecha_local": local.isoformat()}

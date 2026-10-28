@@ -27,6 +27,17 @@
     <button type="button" data-descartar>Descartar reintento</button>
   </div>
   <button type="button" data-actualizar>Actualizar propuesta</button>
+  <section data-chequeo hidden aria-labelledby="titulo-chequeo">
+    <h2 id="titulo-chequeo">Chequeo del día</h2>
+    <form data-formulario-chequeo>
+      <p>Antes de entrenar, contanos cómo estás: 1 es muy bajo y 5 es muy bueno.</p>
+      <label for="chequeo-sueno">Sueño</label><select id="chequeo-sueno" name="sueno" required><option value="">Elegí de 1 a 5</option><option>1</option><option>2</option><option>3</option><option>4</option><option>5</option></select>
+      <label for="chequeo-energia">Energía</label><select id="chequeo-energia" name="energia" required><option value="">Elegí de 1 a 5</option><option>1</option><option>2</option><option>3</option><option>4</option><option>5</option></select>
+      <button type="submit">Guardar chequeo del día</button>
+      <button type="button" data-saltear-chequeo>Saltear</button>
+    </form>
+    <p>Un chequeo desfavorable reduce las series y anula las subas del día.</p>
+  </section>
   <div data-contenido hidden>
     <p data-fecha></p>
     <div class="grilla">

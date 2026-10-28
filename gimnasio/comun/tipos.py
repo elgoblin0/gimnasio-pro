@@ -95,6 +95,12 @@ class SubaCarga:
 
 
 @dataclass(frozen=True)
+class Chequeo:
+    sueno: int
+    energia: int
+
+
+@dataclass(frozen=True)
 class DatosPropuesta:
     programa: ProgramaEntrenamiento | None
     fecha_local: date
@@ -103,6 +109,7 @@ class DatosPropuesta:
     historial: tuple[HistorialEjercicio, ...] = ()
     catalogo: tuple[EjercicioCatalogo, ...] = ()
     subas: tuple[SubaCarga, ...] = ()
+    chequeo: Chequeo | None = None
 
 
 @dataclass(frozen=True)

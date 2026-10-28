@@ -318,3 +318,55 @@ def listar_prescripciones(cursor, socio_id):
         (a_bytes(socio_id),),
     )
     return cursor.fetchall()
+
+
+def obtener_chequeo(cursor, socio_id, fecha):
+    cursor.execute(
+        """SELECT * FROM chequeos_dia WHERE socio_id=%s AND fecha_local=%s
+           ORDER BY registrado_en DESC, id DESC LIMIT 1""",
+        (a_bytes(socio_id), fecha),
+    )
+    return cursor.fetchone()
+
+
+def insertar_chequeo(cursor, chequeo_id, socio_id, fecha, sueno, energia, ahora):
+    cursor.execute(
+        """INSERT INTO chequeos_dia (id,socio_id,fecha_local,sueno,energia,registrado_en)
+           VALUES (%s,%s,%s,%s,%s,%s)""",
+        (a_bytes(chequeo_id), a_bytes(socio_id), fecha, sueno, energia, _fecha_utc(ahora)),
+    )
+
+
+def insertar_avisos(cursor, socio_id, sesion_id, propuesta, ahora):
+    """Un aviso por freno, sin catálogo de reglas ni ramas específicas por freno.
+
+    El llamador comparte la transacción de la prescripción efectiva.
+    """
+    from gimnasio.comun.ids import nuevo_id
+
+    cursor.execute(
+        """SELECT entrenador_id FROM asignaciones_entrenador
+           WHERE socio_id=%s AND hasta IS NULL ORDER BY desde DESC,id DESC LIMIT 1""",
+        (a_bytes(socio_id),),
+    )
+    asignacion = cursor.fetchone()
+    for freno in dict.fromkeys(propuesta["frenos"]):
+        cursor.execute(
+            """INSERT INTO avisos_entrenador
+               (id,socio_id,entrenador_id,sesion_realizada_id,freno,explicacion,creado_en)
+               VALUES (%s,%s,%s,%s,%s,%s,%s)""",
+            (
+                a_bytes(nuevo_id()),
+                a_bytes(socio_id),
+                asignacion["entrenador_id"] if asignacion else None,
+                a_bytes(sesion_id),
+                freno,
+                json.dumps(propuesta["explicacion"], ensure_ascii=False, default=str),
+                _fecha_utc(ahora),
+            ),
+        )
+
+
+def obtener_chequeo_por_id(cursor, chequeo_id):
+    cursor.execute("SELECT * FROM chequeos_dia WHERE id=%s FOR SHARE", (a_bytes(chequeo_id),))
+    return cursor.fetchone()
