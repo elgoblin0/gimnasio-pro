@@ -10,13 +10,33 @@ from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal
 
+ZONAS_CUERPO = (
+    "pecho",
+    "espalda_alta",
+    "dorsales",
+    "hombros",
+    "biceps",
+    "triceps",
+    "abdomen",
+    "gluteos",
+    "cuadriceps",
+    "isquiotibiales",
+    "pantorrillas",
+    "zona_lumbar",
+    "rodillas",
+    "cuello",
+)
+
 
 @dataclass(frozen=True)
 class EjercicioPlanificado:
     ejercicio_id: str
     series: int
-    repeticiones: int | None
+    repeticiones_minimas: int | None
+    repeticiones_maximas: int | None
     carga: Decimal | None
+    rir_objetivo: int | None = None
+    descanso: int | None = None
     duracion: int | None = None
     distancia: Decimal | None = None
 

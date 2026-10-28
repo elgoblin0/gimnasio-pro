@@ -194,7 +194,7 @@ def test_ids_dominio_y_hechos_de_semilla_se_reponen_iguales(recorrido, reloj_fij
             cursor.execute(f"SELECT COUNT(*) AS cantidad FROM {tabla}")
             assert cursor.fetchone()["cantidad"] == 0
         cursor.execute("SELECT COUNT(*) AS cantidad FROM migraciones_aplicadas")
-        assert cursor.fetchone()["cantidad"] == 9
+        assert cursor.fetchone()["cantidad"] == 10
 
 
 @pytest.mark.bd
@@ -275,7 +275,10 @@ def test_completar_secuencia_de_semilla_no_reinicia_sola(recorrido, reloj_fijo):
                 cuerpo = {
                     "id": str(nuevo_id(reloj_fijo)),
                     "ejercicio_planificado_id": ejercicio["id"],
-                    **{m: ejercicio["objetivos"][m] for m in ejercicio["medidas_aplicables"]},
+                    **{
+                        m: ejercicio["objetivos"]["repeticiones_minimas" if m == "repeticiones" else m]
+                        for m in ejercicio["medidas_aplicables"]
+                    },
                 }
                 assert escribir(con_socio, f"/api/entrenamiento/sesiones/{sesion}/series", cuerpo).status_code == 201
     assert len(set(planificadas)) == 2

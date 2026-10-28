@@ -43,6 +43,7 @@ def test_fuerza_cardio_pendientes_y_recarga(pagina_demo, demo_aislada, programa_
     expect(pagina).to_have_url(re.compile(r"\?sesion=[0-9a-f-]{36}$"))
     assert set(parse_qs(urlparse(pagina.url).query)) == {"sesion"}
     enlace = pagina.url
+    expect(pagina.get_by_label("Repeticiones de Sentadilla ficticia", exact=True)).to_have_value("8")
     pagina.get_by_label("Repeticiones de Sentadilla ficticia", exact=True).fill("11")
     pagina.get_by_label("Carga en kg de Sentadilla ficticia", exact=True).fill("22.75")
     pagina.get_by_role("button", name="Registrar serie de Sentadilla ficticia", exact=True).click()

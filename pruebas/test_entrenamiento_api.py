@@ -9,7 +9,7 @@ from uuid import uuid4
 import pytest
 
 from gimnasio.comun.bd import transaccion
-from gimnasio.comun.ids import a_bytes, nuevo_id
+from gimnasio.comun.ids import a_bytes, desde_bytes, desde_texto, nuevo_id
 from gimnasio.entrenamiento import repositorio
 from gimnasio.permisos.servicio import crear_usuario
 
@@ -73,8 +73,9 @@ def entrenamiento_api(app_con_bd, reloj_fijo):
                 ejercicios.append(ejercicio)
                 cursor.execute(
                     "INSERT INTO ejercicios_planificados "
-                    "(id,sesion_planificada_id,ejercicio_id,posicion,series,repeticiones,carga) "
-                    "VALUES (%s,%s,%s,%s,2,10,20.50)",
+                    "(id,sesion_planificada_id,ejercicio_id,posicion,series,"
+                    "repeticiones_minimas,repeticiones_maximas,carga) "
+                    "VALUES (%s,%s,%s,%s,2,10,10,20.50)",
                     (a_bytes(ejercicio), a_bytes(sesion), a_bytes(catalogo), orden),
                 )
             datos.ejercicios.append(ejercicios)
@@ -219,7 +220,10 @@ def test_version_nueva_con_cardio_no_mezcla_hechos_de_version_anterior(entrenami
     assert ejercicio["pendiente"] == 1
     assert ejercicio["objetivos"] == {
         "series": 1,
-        "repeticiones": None,
+        "repeticiones_minimas": None,
+        "repeticiones_maximas": None,
+        "rir_objetivo": None,
+        "descanso": None,
         "carga": None,
         "duracion": 120,
         "distancia": "1500.25",
@@ -344,7 +348,10 @@ def test_cardio_no_exige_medidas_de_fuerza(entrenamiento_api):
     datos = entrenamiento_api
     with datos.app.app_context(), transaccion() as cursor:
         cursor.execute('UPDATE ejercicios SET medidas_aplicables=\'["duracion","distancia"]\'')
-        cursor.execute("UPDATE ejercicios_planificados SET repeticiones=NULL,carga=NULL,duracion=120,distancia=1500.25")
+        cursor.execute(
+            "UPDATE ejercicios_planificados SET repeticiones_minimas=NULL,repeticiones_maximas=NULL,"
+            "carga=NULL,duracion=120,distancia=1500.25"
+        )
     sesion = iniciar(datos)
     cuerpo = {
         "id": str(nuevo_id(datos.reloj)),
@@ -440,3 +447,71 @@ def test_dos_claves_mismo_id_de_serie_devuelven_registro_existente(entrenamiento
     assert [r.status_code for r in respuestas] == [201, 201]
     assert respuestas[0].json == respuestas[1].json
     assert cantidad(datos) == 1
+
+
+def test_propuesta_devuelve_rango_y_catalogo_de_la_demo(entrenamiento_api):
+    from gimnasio.comun.tipos import ZONAS_CUERPO
+    from gimnasio.demo import servicio as demo
+
+    datos = entrenamiento_api
+    datos.app.config["MODO_DEMO"] = True
+    with datos.app.app_context():
+        demo.reiniciar()
+        with transaccion() as cursor:
+            cursor.execute("SELECT id FROM usuarios WHERE es_demo=TRUE AND rol='socio'")
+            socio = cursor.fetchone()["id"]
+    cliente = datos.app.test_client()
+    with cliente.session_transaction() as sesion:
+        sesion["usuario_id"] = str(desde_bytes(socio))
+    respuesta = cliente.get("/api/entrenamiento/propuesta")
+    assert respuesta.status_code == 200
+    fuerza, cardio = respuesta.json["ejercicios"]
+    assert fuerza["objetivos"] == {
+        "series": 2,
+        "repeticiones_minimas": 8,
+        "repeticiones_maximas": 12,
+        "rir_objetivo": 2,
+        "descanso": 90,
+        "carga": "20.50",
+        "duracion": None,
+        "distancia": None,
+    }
+    assert fuerza["incremento_carga"] == "2.50"
+    assert cardio["incremento_carga"] is None
+    assert cardio["objetivos"]["repeticiones_minimas"] is cardio["objetivos"]["repeticiones_maximas"] is None
+    for ejercicio in (fuerza, cardio):
+        assert ejercicio["zonas"] and set(ejercicio["zonas"]) <= set(ZONAS_CUERPO)
+        assert ejercicio["patron_movimiento"] and ejercicio["equipo"]
+        assert ejercicio["alternativas"]
+        with datos.app.app_context(), transaccion() as cursor:
+            cursor.execute(
+                "SELECT e.id, e.equipo, e.patron_movimiento, z.zona FROM ejercicios e "
+                "JOIN zonas_ejercicio z ON z.ejercicio_id=e.id WHERE e.id=%s",
+                (a_bytes(desde_texto(ejercicio["alternativas"][0]["ejercicio_id"])),),
+            )
+            alternativa = cursor.fetchall()
+        assert alternativa[0]["equipo"] != ejercicio["equipo"]
+        assert alternativa[0]["patron_movimiento"] == ejercicio["patron_movimiento"]
+        assert {f["zona"] for f in alternativa} == set(ejercicio["zonas"])
+
+
+@pytest.mark.parametrize("zona", ["otra", "Pecho", "bíceps"])
+def test_mysql_rechaza_zonas_fuera_del_catalogo(entrenamiento_api, zona):
+    from mysql.connector import DatabaseError
+
+    datos = entrenamiento_api
+    with datos.app.app_context(), transaccion() as cursor:
+        cursor.execute("SELECT ejercicio_id FROM ejercicios_planificados LIMIT 1")
+        ejercicio = cursor.fetchone()["ejercicio_id"]
+        with pytest.raises(DatabaseError):
+            cursor.execute("INSERT INTO zonas_ejercicio (ejercicio_id,zona) VALUES (%s,%s)", (ejercicio, zona))
+
+
+@pytest.mark.parametrize(
+    "valores", ["repeticiones_minimas=13,repeticiones_maximas=12", "rir_objetivo=-1", "rir_objetivo=6"]
+)
+def test_mysql_rechaza_rango_y_rir_invalidos(entrenamiento_api, valores):
+    from mysql.connector import DatabaseError
+
+    with entrenamiento_api.app.app_context(), transaccion() as cursor, pytest.raises(DatabaseError):
+        cursor.execute("UPDATE ejercicios_planificados SET " + valores)

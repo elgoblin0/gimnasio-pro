@@ -15,6 +15,7 @@ from gimnasio.comun.errores import ErrorDeDominio
 from gimnasio.comun.formatos import normalizar_cedula, normalizar_telefono
 from gimnasio.comun.ids import desde_texto
 from gimnasio.comun.reloj import fecha_local, reloj_actual
+from gimnasio.comun.tipos import ZONAS_CUERPO
 from gimnasio.demo import repositorio
 from gimnasio.demo.nombres import APELLIDOS, NOMBRES
 from gimnasio.permisos import servicio as permisos
@@ -45,8 +46,41 @@ def id_ficticio(numero, momento):
 
 def _cargar_programas(cursor, socios, siguiente_id, ahora):
     fuerza, cardio = siguiente_id(), siguiente_id()
-    repositorio.insertar_ejercicio(cursor, fuerza, "Sentadilla ficticia", ["repeticiones", "carga"], ahora)
-    repositorio.insertar_ejercicio(cursor, cardio, "Caminata ficticia", ["duracion", "distancia"], ahora)
+    alternativa_fuerza, alternativa_cardio = siguiente_id(), siguiente_id()
+    zonas_fuerza = tuple(z for z in ZONAS_CUERPO if z in {"gluteos", "cuadriceps", "rodillas"})
+    zonas_cardio = tuple(z for z in ZONAS_CUERPO if z in {"cuadriceps", "pantorrillas"})
+    for identificador, nombre, equipo in (
+        (fuerza, "Sentadilla ficticia", "barra"),
+        (alternativa_fuerza, "Sentadilla con mancuernas ficticia", "mancuernas"),
+    ):
+        repositorio.insertar_ejercicio(
+            cursor,
+            identificador,
+            nombre,
+            ["repeticiones", "carga"],
+            ahora,
+            patron_movimiento="sentadilla",
+            equipo=equipo,
+            incremento_carga="2.50",
+            zonas=zonas_fuerza,
+        )
+    for identificador, nombre, equipo in (
+        (cardio, "Caminata ficticia", "cinta"),
+        (alternativa_cardio, "Caminata sin cinta ficticia", "sin equipo"),
+    ):
+        repositorio.insertar_ejercicio(
+            cursor,
+            identificador,
+            nombre,
+            ["duracion", "distancia"],
+            ahora,
+            patron_movimiento="marcha",
+            equipo=equipo,
+            zonas=zonas_cardio,
+        )
+    for original, alternativa in ((fuerza, alternativa_fuerza), (cardio, alternativa_cardio)):
+        repositorio.insertar_alternativa(cursor, original, alternativa, 1)
+        repositorio.insertar_alternativa(cursor, alternativa, original, 1)
     for socio_id in socios[:2]:
         programa, primera, segunda = siguiente_id(), siguiente_id(), siguiente_id()
         repositorio.insertar_programa(cursor, programa, socio_id, ahora)
@@ -54,13 +88,42 @@ def _cargar_programas(cursor, socios, siguiente_id, ahora):
         repositorio.insertar_sesion_planificada(cursor, segunda, programa, 2, "Fuerza")
         ejercicio_fuerza = siguiente_id()
         repositorio.insertar_ejercicio_planificado(
-            cursor, ejercicio_fuerza, primera, fuerza, 1, 2, repeticiones=10, carga="20.50"
+            cursor,
+            ejercicio_fuerza,
+            primera,
+            fuerza,
+            1,
+            2,
+            repeticiones_minimas=8,
+            repeticiones_maximas=12,
+            rir_objetivo=2,
+            descanso=90,
+            carga="20.50",
         )
         repositorio.insertar_ejercicio_planificado(
-            cursor, siguiente_id(), primera, cardio, 2, 1, duracion=120, distancia="1500.25"
+            cursor,
+            siguiente_id(),
+            primera,
+            cardio,
+            2,
+            1,
+            rir_objetivo=2,
+            descanso=60,
+            duracion=120,
+            distancia="1500.25",
         )
         repositorio.insertar_ejercicio_planificado(
-            cursor, siguiente_id(), segunda, fuerza, 1, 2, repeticiones=8, carga="25.00"
+            cursor,
+            siguiente_id(),
+            segunda,
+            fuerza,
+            1,
+            2,
+            repeticiones_minimas=8,
+            repeticiones_maximas=12,
+            rir_objetivo=2,
+            descanso=90,
+            carga="25.00",
         )
         if socio_id == socios[1]:
             repositorio.insertar_parcial(

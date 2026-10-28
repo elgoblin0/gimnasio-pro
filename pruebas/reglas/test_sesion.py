@@ -21,18 +21,18 @@ LUNES = date(2026, 10, 26)
 PRIMERA = SesionPlanificada(
     "sesion-b",
     (
-        EjercicioPlanificado("sentadilla", 3, 10, Decimal("42.5")),
-        EjercicioPlanificado("remo", 2, 12, Decimal("20")),
+        EjercicioPlanificado("sentadilla", 3, 10, 10, Decimal("42.5")),
+        EjercicioPlanificado("remo", 2, 12, 12, Decimal("20")),
     ),
 )
-SEGUNDA = SesionPlanificada("sesion-a", (EjercicioPlanificado("sentadilla", 2, 8, Decimal("45")),))
-TERCERA = SesionPlanificada("sesion-c", (EjercicioPlanificado("remo", 1, 15, Decimal("15")),))
+SEGUNDA = SesionPlanificada("sesion-a", (EjercicioPlanificado("sentadilla", 2, 8, 8, Decimal("45")),))
+TERCERA = SesionPlanificada("sesion-c", (EjercicioPlanificado("remo", 1, 15, 15, Decimal("15")),))
 PROGRAMA = ProgramaEntrenamiento((PRIMERA, SEGUNDA, TERCERA))
 
 
 def realizadas(sesion):
     return tuple(
-        SerieRealizada(sesion.id, ejercicio.ejercicio_id, numero, ejercicio.repeticiones, ejercicio.carga)
+        SerieRealizada(sesion.id, ejercicio.ejercicio_id, numero, ejercicio.repeticiones_minimas, ejercicio.carga)
         for ejercicio in sesion.ejercicios
         for numero in range(1, ejercicio.series + 1)
     )
@@ -124,11 +124,11 @@ def test_parcial_conserva_la_prescripcion_y_solo_reduce_pendientes(cantidad):
     propuesta = proponer_sesion(datos(realizadas(PRIMERA)[:cantidad]))
     assert propuesta.sesion_planificada is PRIMERA
     assert propuesta.sesion_planificada.ejercicios == PRIMERA.ejercicios
-    assert tuple((e.series, e.repeticiones, e.carga) for e in propuesta.sesion_planificada.ejercicios) == (
+    assert tuple((e.series, e.repeticiones_minimas, e.carga) for e in propuesta.sesion_planificada.ejercicios) == (
         (3, 10, Decimal("42.5")),
         (2, 12, Decimal("20")),
     )
-    assert sum(e.series * e.repeticiones for e in propuesta.sesion_planificada.ejercicios) == 54
+    assert sum(e.series * e.repeticiones_minimas for e in propuesta.sesion_planificada.ejercicios) == 54
     assert sum(len(p.series) for p in propuesta.pendientes) == 5 - cantidad
 
 
@@ -137,7 +137,7 @@ def test_las_medidas_realizadas_no_ajustan_la_prescripcion(repeticiones, carga):
     serie = replace(realizadas(PRIMERA)[0], repeticiones=repeticiones, carga=carga)
     propuesta = proponer_sesion(datos((serie,)))
     assert propuesta.sesion_planificada is PRIMERA
-    assert propuesta.sesion_planificada.ejercicios[0] == EjercicioPlanificado("sentadilla", 3, 10, Decimal("42.5"))
+    assert propuesta.sesion_planificada.ejercicios[0] == EjercicioPlanificado("sentadilla", 3, 10, 10, Decimal("42.5"))
     assert propuesta.pendientes[0].series == (2, 3)
 
 
@@ -237,7 +237,7 @@ def test_programa_sin_sesiones_no_propone_trabajo():
 
 
 def test_cardio_conserva_duracion_distancia_y_medidas_no_aplicables():
-    ejercicio = EjercicioPlanificado("carrera", 2, None, None, duracion=120, distancia=Decimal("1500.25"))
+    ejercicio = EjercicioPlanificado("carrera", 2, None, None, None, duracion=120, distancia=Decimal("1500.25"))
     sesion = SesionPlanificada("cardio", (ejercicio,))
     serie = SerieRealizada("cardio", "carrera", 1, None, None, duracion=100, distancia=Decimal("1200.50"))
     entrada = DatosPropuesta(ProgramaEntrenamiento((sesion,)), LUNES, LUNES, (serie,))
@@ -247,4 +247,13 @@ def test_cardio_conserva_duracion_distancia_y_medidas_no_aplicables():
     assert propuesta.pendientes == (PendienteEntrenamiento("carrera", (2,)),)
     assert ejercicio.duracion == 120
     assert ejercicio.distancia == Decimal("1500.25")
-    assert ejercicio.repeticiones is ejercicio.carga is None
+    assert ejercicio.repeticiones_minimas is ejercicio.carga is None
+
+
+def test_motor_conserva_rango_rir_y_descanso_sin_ajustes():
+    ejercicio = EjercicioPlanificado("sentadilla", 3, 8, 12, Decimal("20"), rir_objetivo=2, descanso=90)
+    sesion = SesionPlanificada("fuerza", (ejercicio,))
+    propuesta = proponer_sesion(datos(programa=ProgramaEntrenamiento((sesion,))))
+    assert propuesta.sesion_planificada is sesion
+    assert propuesta.sesion_planificada.ejercicios == (ejercicio,)
+    assert propuesta.version == "1.0.0"

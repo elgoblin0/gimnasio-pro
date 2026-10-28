@@ -17,7 +17,7 @@ from gimnasio.comun.tipos import (
 )
 from gimnasio.entrenamiento import repositorio
 from gimnasio.permisos.servicio import tiene_asignacion_vigente
-from gimnasio.programas.servicio import listar_programas
+from gimnasio.programas.servicio import OBJETIVOS, listar_programas
 from gimnasio.reglas.sesion import proponer_sesion
 
 
@@ -52,10 +52,13 @@ def convertir_programa(programa):
                     EjercicioPlanificado(
                         ejercicio["id"],
                         ejercicio["series"],
-                        ejercicio["repeticiones"],
-                        ejercicio["carga"],
-                        ejercicio["duracion"],
-                        ejercicio["distancia"],
+                        repeticiones_minimas=ejercicio["repeticiones_minimas"],
+                        repeticiones_maximas=ejercicio["repeticiones_maximas"],
+                        carga=ejercicio["carga"],
+                        rir_objetivo=ejercicio["rir_objetivo"],
+                        descanso=ejercicio["descanso"],
+                        duracion=ejercicio["duracion"],
+                        distancia=ejercicio["distancia"],
                     )
                     for ejercicio in sesion["ejercicios_planificados"]
                 ),
@@ -123,7 +126,11 @@ def consultar_propuesta(socio_texto, usuario):
             "nombre": e["nombre"],
             "posicion": e["posicion"],
             "medidas_aplicables": e["medidas_aplicables"],
-            "objetivos": {m: e[m] for m in ("series", "repeticiones", "carga", "duracion", "distancia")},
+            **{
+                campo: e[campo]
+                for campo in ("zonas", "patron_movimiento", "equipo", "incremento_carga", "alternativas")
+            },
+            "objetivos": {m: e[m] for m in ("series", *OBJETIVOS)},
             "realizado": cantidades[sesion["id"], e["id"]],
             "pendiente": pendientes.get(e["id"], 0),
         }
@@ -254,7 +261,11 @@ def consultar_sesion(sesion_texto, usuario):
                 "id": e["id"],
                 "nombre": e["nombre"],
                 "medidas_aplicables": e["medidas_aplicables"],
-                "objetivos": {m: e[m] for m in ("series", *repositorio.MEDIDAS)},
+                **{
+                    campo: e[campo]
+                    for campo in ("zonas", "patron_movimiento", "equipo", "incremento_carga", "alternativas")
+                },
+                "objetivos": {m: e[m] for m in ("series", *OBJETIVOS)},
                 "realizado": cantidades[e["id"]],
                 "pendiente": max(0, e["series"] - cantidades[e["id"]]),
             }

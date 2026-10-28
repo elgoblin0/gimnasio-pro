@@ -21,6 +21,8 @@ def vaciar_datos(cursor):
     cursor.execute("DELETE FROM ejercicios_planificados")
     cursor.execute("DELETE FROM sesiones_planificadas")
     cursor.execute("DELETE FROM programas_entrenamiento")
+    cursor.execute("DELETE FROM alternativas_ejercicio")
+    cursor.execute("DELETE FROM zonas_ejercicio")
     cursor.execute("DELETE FROM ejercicios")
     cursor.execute("DELETE FROM intentos_de_ingreso")
     # Las autorreferencias exigen borrar primero las correcciones sin sucesoras.
@@ -66,10 +68,23 @@ def insertar_membresia(cursor, membresia_id, socio_id, desde, hasta, momento):
     )
 
 
-def insertar_ejercicio(cursor, ejercicio_id, nombre, medidas, momento):
+def insertar_ejercicio(
+    cursor, ejercicio_id, nombre, medidas, momento, *, patron_movimiento="", equipo="", incremento_carga=None, zonas=()
+):
     cursor.execute(
-        "INSERT INTO ejercicios (id,nombre,medidas_aplicables,actualizada_en) VALUES (%s,%s,%s,%s)",
-        (a_bytes(ejercicio_id), nombre, json.dumps(medidas), momento),
+        "INSERT INTO ejercicios (id,nombre,medidas_aplicables,actualizada_en,"
+        "patron_movimiento,equipo,incremento_carga) VALUES (%s,%s,%s,%s,%s,%s,%s)",
+        (a_bytes(ejercicio_id), nombre, json.dumps(medidas), momento, patron_movimiento, equipo, incremento_carga),
+    )
+
+    for zona in zonas:
+        cursor.execute("INSERT INTO zonas_ejercicio (ejercicio_id,zona) VALUES (%s,%s)", (a_bytes(ejercicio_id), zona))
+
+
+def insertar_alternativa(cursor, ejercicio_id, alternativa_id, orden):
+    cursor.execute(
+        "INSERT INTO alternativas_ejercicio (ejercicio_id,alternativa_id,orden) VALUES (%s,%s,%s)",
+        (a_bytes(ejercicio_id), a_bytes(alternativa_id), orden),
     )
 
 
@@ -95,22 +110,29 @@ def insertar_ejercicio_planificado(
     posicion,
     series,
     *,
-    repeticiones=None,
+    repeticiones_minimas=None,
+    repeticiones_maximas=None,
+    rir_objetivo=None,
+    descanso=None,
     carga=None,
     duracion=None,
     distancia=None,
 ):
     cursor.execute(
         "INSERT INTO ejercicios_planificados "
-        "(id,sesion_planificada_id,ejercicio_id,posicion,series,repeticiones,carga,duracion,distancia) "
-        "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)",
+        "(id,sesion_planificada_id,ejercicio_id,posicion,series,repeticiones_minimas,"
+        "repeticiones_maximas,rir_objetivo,descanso,carga,duracion,distancia) "
+        "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
         (
             a_bytes(planificado_id),
             a_bytes(sesion_id),
             a_bytes(ejercicio_id),
             posicion,
             series,
-            repeticiones,
+            repeticiones_minimas,
+            repeticiones_maximas,
+            rir_objetivo,
+            descanso,
             carga,
             duracion,
             distancia,

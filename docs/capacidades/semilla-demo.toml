@@ -1,5 +1,5 @@
 id = "semilla-demo"
-nombre = "Semilla ficticia de Paraguay con recorrido reiniciable de entrenamiento y visitas"
+nombre = "Semilla ficticia de Paraguay con catálogo, alternativas y recorrido reiniciable"
 grupo = "Demo"
 etapa = 0
 nivel = "funcional"

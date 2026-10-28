@@ -8,6 +8,15 @@ from gimnasio.comun.ids import desde_bytes
 from gimnasio.programas import repositorio
 
 MEDIDAS = ("repeticiones", "carga", "duracion", "distancia")
+OBJETIVOS = (
+    "repeticiones_minimas",
+    "repeticiones_maximas",
+    "rir_objetivo",
+    "descanso",
+    "carga",
+    "duracion",
+    "distancia",
+)
 
 
 def validar_medidas_aplicables(medidas):
@@ -63,7 +72,12 @@ def _leer(socio_id, version=None):
             continue
         medidas = json.loads(fila["medidas_aplicables"])
         validar_medidas_aplicables(medidas)
-        if any(fila[medida] is not None for medida in MEDIDAS if medida not in medidas):
+        if any(
+            fila[campo] is not None
+            for medida in MEDIDAS
+            if medida not in medidas
+            for campo in (("repeticiones_minimas", "repeticiones_maximas") if medida == "repeticiones" else (medida,))
+        ):
             raise ValueError("Las medidas no aplicables del ejercicio planificado deben ser NULL.")
         sesiones[sesion_id]["ejercicios_planificados"].append(
             {
@@ -73,7 +87,12 @@ def _leer(socio_id, version=None):
                 "posicion": fila["ejercicio_posicion"],
                 "medidas_aplicables": medidas,
                 "series": fila["series"],
-                **{medida: fila[medida] for medida in MEDIDAS},
+                **{medida: fila[medida] for medida in OBJETIVOS},
+                "patron_movimiento": fila["patron_movimiento"],
+                "equipo": fila["equipo"],
+                "incremento_carga": fila["incremento_carga"],
+                "zonas": sorted(json.loads(fila["zonas"])),
+                "alternativas": sorted(json.loads(fila["alternativas"]), key=lambda a: (a["orden"], a["ejercicio_id"])),
             }
         )
     return list(programas.values())
