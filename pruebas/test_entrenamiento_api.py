@@ -798,3 +798,55 @@ def test_sustitucion_exige_clave_y_ejercicio_de_sesion(alternativas_api):
         escribir(datos.cliente(), ruta, cuerpo | {"ejercicio_planificado_id": str(datos.ejercicios[1][0])}).status_code
         == 422
     )
+
+
+def test_api_devuelve_records_con_marca_anterior_y_no_celebra_empate(entrenamiento_api):
+    datos = entrenamiento_api
+    registrar(datos, 0, 0)
+    sesion = iniciar(datos)
+    ruta = f"/api/entrenamiento/sesiones/{sesion}/series"
+    cuerpo = cuerpo_serie(datos)
+    primera = escribir(datos.cliente(), ruta, cuerpo)
+    assert primera.status_code == 201
+    (record,) = primera.json["records"]
+    assert record["medida"] == "carga_maxima"
+    assert record["marca_anterior"] == "15.25"
+    assert record["marca"] == "20.50"
+    assert record["ejercicio_hecho_nombre"] == "Sentadilla ficticia"
+    assert escribir(datos.cliente(), ruta, cuerpo_serie(datos)).json["records"] == []
+    assert escribir(datos.cliente(), ruta, cuerpo).json["records"] == []
+
+
+@pytest.mark.parametrize("anulada", [False, True])
+def test_record_ignora_marca_corregida_o_anulada(entrenamiento_api, anulada):
+    datos = entrenamiento_api
+    sesion = iniciar(datos)
+    with datos.app.app_context(), transaccion() as cursor:
+        anterior = nuevo_id(datos.reloj)
+        for identificador, carga, corrige_a in ((anterior, "100", None), (nuevo_id(datos.reloj), "15.25", anterior)):
+            repositorio.insertar_serie(
+                cursor,
+                identificador,
+                desde_texto(sesion),
+                datos.ejercicios[0][0],
+                datos.usuarios["socio"],
+                datos.reloj.ahora(),
+                repeticiones=8,
+                carga=carga,
+                corrige_a=corrige_a,
+                motivo="Corrección ficticia" if corrige_a else None,
+                anulada=anulada if corrige_a else False,
+            )
+    respuesta = escribir(datos.cliente(), f"/api/entrenamiento/sesiones/{sesion}/series", cuerpo_serie(datos))
+    assert respuesta.status_code == 201
+    assert [r["medida"] for r in respuesta.json["records"]] == ([] if anulada else ["carga_maxima"])
+
+
+def test_api_record_de_repeticiones_a_carga_mayor(entrenamiento_api):
+    datos = entrenamiento_api
+    sesion = iniciar(datos)
+    ruta = f"/api/entrenamiento/sesiones/{sesion}/series"
+    assert escribir(datos.cliente(), ruta, cuerpo_serie(datos)).json["records"] == []
+    respuesta = escribir(datos.cliente(), ruta, cuerpo_serie(datos) | {"carga": "20", "repeticiones": 11})
+    (record,) = respuesta.json["records"]
+    assert (record["medida"], record["marca"], record["marca_anterior"]) == ("repeticiones_a_carga", 11, 10)

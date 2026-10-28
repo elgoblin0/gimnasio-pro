@@ -139,3 +139,12 @@ class PropuestaSesion:
     version: str
     prescripcion: tuple[PrescripcionEjercicio, ...] = ()
     frenos: tuple[str, ...] = ()
+
+
+@dataclass(frozen=True)
+class RecordPersonal:
+    medida: str
+    marca: Decimal | int
+    marca_anterior: Decimal | int
+    carga: Decimal
+    explicacion: Razon
