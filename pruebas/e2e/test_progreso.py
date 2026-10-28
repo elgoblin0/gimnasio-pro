@@ -46,6 +46,7 @@ def test_progreso_selector_tabla_y_vacio(pagina_demo, demo_aislada, ancho):
     })();""".replace("DATOS", json.dumps(datos))
     )
     ingresar(pagina, demo_aislada)
+    pagina.get_by_role("button", name="Ver progreso", exact=True).click()
     seccion = pagina.locator("[data-progreso]")
     expect(seccion.locator("circle")).to_have_count(2)
     expect(seccion.locator("tbody tr")).to_have_count(2)
