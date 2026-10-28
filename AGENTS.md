@@ -19,6 +19,19 @@ python scripts/mapa_capacidades.py --verificar
 ```
 Variables de base: `GIMNASIO_BD_HOST`, `GIMNASIO_BD_PUERTO`, `GIMNASIO_BD_USUARIO`, `GIMNASIO_BD_CLAVE`, `GIMNASIO_BD_NOMBRE`.
 
+## Entorno local (Windows): corré todo antes de subir el PR
+MySQL 8.4 portable + Chromium + `.venv`, igual al CI. Detalle en `docs/entorno-local.md`.
+```powershell
+.\scripts\bd_local.ps1 iniciar                      # MySQL en 127.0.0.1:3306 (root / solo-ci); si `estado` dice activo, no hace falta
+Invoke-Expression (.\scripts\bd_local.ps1 entorno)  # define GIMNASIO_BD_* en ESTA terminal; repetir en cada terminal nueva
+.\.venv\Scripts\python.exe -m pytest -q             # unitarias + MySQL
+.\.venv\Scripts\python.exe -m pytest -m e2e -q -rs  # Chromium contra el servidor demo
+```
+- Sin `GIMNASIO_BD_*` las pruebas con MySQL y los e2e se **saltan sin fallar**: un «skipped» no cuenta como verde. Pegá en el PR el conteo de `passed`/`skipped`.
+- Si falta `.mysql-local/mysql/bin/mysqld.exe`, no lo descargues vos: etiquetá `necesita-criterio` o pedíselo al dueño.
+- Al escribir archivos desde pruebas usá `encoding="utf-8", newline="\n"` (Windows usa cp1252).
+- No commitees `.mysql-local/`. Si no podés correr algo local, decilo en "Notas para el próximo agente"; anotarlo no vuelve el PR apto para fusionar: el CI en verde sigue siendo obligatorio.
+
 ## Estructura y dependencias (ADR 0001)
 ```
 gimnasio/
