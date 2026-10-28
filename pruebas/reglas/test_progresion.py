@@ -133,3 +133,11 @@ def test_sin_historial_conserva_programa_y_no_reinicia_pendientes():
     assert propuesta.prescripcion[0].repeticiones_minimas == 8
     assert propuesta.pendientes[0].series == (1, 2, 3)
     assert proponer_sesion(entrada(())) == propuesta
+
+
+def test_evalua_historial_de_la_misma_sesion_planificada():
+    anterior = replace(historial(), sesion_planificada_id="proxima")
+    propuesta = proponer_sesion(entrada((anterior,), subas=(SubaCarga("sentadilla", LUNES),)))
+    assert propuesta.prescripcion[0].carga == Decimal("40")
+    assert propuesta.frenos == ("tope_semanal",)
+    assert {r.regla for r in propuesta.explicacion} >= {"subir_carga", "tope_semanal"}

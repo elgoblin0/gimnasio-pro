@@ -102,13 +102,12 @@ def sin_rir(prescripcion, ejercicio, sesiones):
     )
 
 
-def aplicar_frenos(ajustada, anterior, ejercicio, entrada, hubo_suba, sesion_id):
+def aplicar_frenos(ajustada, anterior, ejercicio, entrada, hubo_suba):
     """Paso final obligatorio: el freno 3 solo actúa ante una suba propuesta."""
     subas = tuple(
         s
         for s in entrada.subas
         if s.ejercicio_id == ejercicio.ejercicio_id
-        and s.sesion_planificada_id != sesion_id
         and entrada.semana_local <= s.fecha_local < entrada.semana_local + timedelta(days=7)
         and s.fecha_local <= entrada.fecha_local
     )
@@ -128,7 +127,7 @@ def aplicar_frenos(ajustada, anterior, ejercicio, entrada, hubo_suba, sesion_id)
     return frenada, (explicacion,), ("tope_semanal",)
 
 
-def ajustar_ejercicio(planificado, sesion_id, entrada):
+def ajustar_ejercicio(planificado, entrada):
     prescripcion = PrescripcionEjercicio(
         planificado.ejercicio_id,
         planificado.series,
@@ -142,10 +141,7 @@ def ajustar_ejercicio(planificado, sesion_id, entrada):
     historial = tuple(
         h
         for h in entrada.historial
-        if h.ejercicio_id == planificado.ejercicio_catalogo_id
-        and h.sesion_planificada_id != sesion_id
-        and h.fecha_local <= entrada.fecha_local
-        and h.series
+        if h.ejercicio_id == planificado.ejercicio_catalogo_id and h.fecha_local <= entrada.fecha_local and h.series
     )
     if (
         ejercicio is None
@@ -207,6 +203,6 @@ def ajustar_ejercicio(planificado, sesion_id, entrada):
         ajustada, explicacion_rir = sin_rir(ajustada, ejercicio, decisivas)
         razones += (explicacion_rir,)
     ajustada, razones_freno, frenos = aplicar_frenos(
-        ajustada, prescripcion, ejercicio, entrada, explicacion.regla == "subir_carga", sesion_id
+        ajustada, prescripcion, ejercicio, entrada, explicacion.regla == "subir_carga"
     )
     return ajustada, razones + razones_freno, frenos

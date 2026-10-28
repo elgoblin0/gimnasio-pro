@@ -49,7 +49,7 @@ def proponer_sesion(entrada: DatosPropuesta) -> PropuestaSesion:
             )
         )
         if pendientes:
-            ajustes = tuple(ajustar_ejercicio(e, sesion.id, entrada) for e in sesion.ejercicios)
+            ajustes = tuple(ajustar_ejercicio(e, entrada) for e in sesion.ejercicios)
             return PropuestaSesion(
                 sesion,
                 pendientes,

@@ -54,7 +54,7 @@ Generado por `scripts/mapa_capacidades.py` desde `docs/capacidades/`. No editar 
 | Sesión propuesta según la secuencia, con rango de repeticiones y catálogo | 1 | validada | `pruebas/e2e/test_esqueleto_andante.py` · https://github.com/elgoblin0/gimnasio-pro/issues/52 |
 | Chequeo del día | 2 | pendiente | — |
 | "Me duele" y "máquina ocupada" | 2 | pendiente | — |
-| Doble progresión + RPE/RIR con ajustes automáticos y frenos | 2 | esqueleto | `pruebas/e2e/test_progresion.py::test_demo_explica_subir_y_mantener` |
+| Doble progresión + RPE/RIR con ajustes automáticos y frenos | 2 | esqueleto | `pruebas/e2e/test_progresion_demo.py::test_demo_explica_subir_y_mantener` |
 | Récords y progreso | 2 | pendiente | — |
 | Sesión en vivo completa | 2 | funcional | `pruebas/e2e/test_series.py` |
 

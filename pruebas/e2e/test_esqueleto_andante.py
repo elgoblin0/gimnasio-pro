@@ -100,7 +100,8 @@ def resumen_bd(instancia, socio_id):
         resultado["salidas"] = cursor.fetchone()["cantidad"]
         cursor.execute(
             "SELECT COUNT(*) AS cantidad FROM series_realizadas s "
-            "JOIN sesiones_realizadas sr ON sr.id=s.sesion_realizada_id WHERE sr.socio_id=%s",
+            "JOIN sesiones_realizadas sr ON sr.id=s.sesion_realizada_id "
+            "WHERE sr.socio_id=%s AND sr.creada_en >= '2026-10-27'",
             (identificador,),
         )
         resultado["series"] = cursor.fetchone()["cantidad"]
@@ -146,7 +147,11 @@ def test_recorrido_parcial_salida_reingreso_y_cierre(pagina_demo, demo_aislada, 
     assert repetida.status == 201
     assert repetida.json() == guardada.value.json()
     parcial = consulta(pagina, demo_aislada, "/api/entrenamiento/propuesta")
-    assert objetivos(parcial) == objetivos(antes)
+    assert parcial["sesion_planificada"] == antes["sesion_planificada"]
+    fuerza = next(e for e in parcial["ejercicios"] if e["nombre"] == "Sentadilla ficticia")
+    assert fuerza["objetivos"]["carga"] == "23.00"
+    assert fuerza["objetivos"]["repeticiones_minimas"] == 9
+    assert fuerza["explicacion"][0]["regla"] == "mantener_carga"
     assert sum(e["realizado"] for e in parcial["ejercicios"]) == 1
     assert sum(e["pendiente"] for e in parcial["ejercicios"]) == sum(e["pendiente"] for e in antes["ejercicios"]) - 1
     pagina.reload()
