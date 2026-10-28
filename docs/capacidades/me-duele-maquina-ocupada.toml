@@ -2,5 +2,7 @@ id = "me-duele-maquina-ocupada"
 nombre = "\"Me duele\" y \"máquina ocupada\""
 grupo = "Entrenamiento"
 etapa = 2
-nivel = "pendiente"
-prueba = ""
+nivel = "esqueleto"
+prueba = "pruebas/e2e/test_series.py::test_maquina_ocupada_con_teclado_y_recarga"
+
+# Máquina ocupada disponible; dolor reportado queda pendiente para su issue.

@@ -39,3 +39,17 @@ def registrar_serie(sesion_id):
 @requiere("entrenamiento.ver_propio")
 def consultar_sesion(sesion_id):
     return jsonify(servicio.consultar_sesion(sesion_id, usuario_actual()))
+
+
+@bp.get("/sesiones/<sesion_id>/ejercicios/<ejercicio_id>/alternativas")
+@requiere("entrenamiento.ver_propio")
+def consultar_alternativas(sesion_id, ejercicio_id):
+    return jsonify(servicio.consultar_alternativas(sesion_id, ejercicio_id, usuario_actual()))
+
+
+@bp.post("/sesiones/<sesion_id>/sustituciones")
+@requiere("entrenamiento.registrar_propio")
+def registrar_sustitucion(sesion_id):
+    return jsonify(
+        {"sustitucion": servicio.registrar_sustitucion(sesion_id, request.get_json(silent=True), usuario_actual())}
+    ), 201

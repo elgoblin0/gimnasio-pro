@@ -1,5 +1,6 @@
 """Compone programa e historial vigente con el motor puro, con doble progresión."""
 
+import json
 from collections import Counter
 from datetime import UTC
 from zoneinfo import ZoneInfo
@@ -21,6 +22,7 @@ from gimnasio.comun.tipos import (
 from gimnasio.entrenamiento import repositorio
 from gimnasio.permisos.servicio import tiene_asignacion_vigente
 from gimnasio.programas.servicio import OBJETIVOS, listar_programas
+from gimnasio.reglas.alternativas import elegir_alternativas
 from gimnasio.reglas.progresion import historial_para_sesion
 from gimnasio.reglas.sesion import proponer_sesion
 
@@ -284,6 +286,7 @@ def serie_publica(fila):
         "ejercicio_planificado_id": str(desde_bytes(fila["ejercicio_planificado_id"])),
         **{m: fila[m] for m in repositorio.MEDIDAS},
         "rir": fila["rir"],
+        "ejercicio_hecho_nombre": fila["ejercicio_hecho_nombre"],
         "ejercicio_hecho_id": str(desde_bytes(fila["ejercicio_hecho_resuelto_id"])),
         "autor_id": str(desde_bytes(fila["autor_id"])),
         "registrada_en": fila["registrada_en"].replace(tzinfo=UTC).isoformat(),
@@ -341,7 +344,7 @@ def registrar_serie(sesion_texto, datos, usuario):
     if (
         not isinstance(datos, dict)
         or not campos <= set(datos)
-        or set(datos) - campos - set(repositorio.MEDIDAS) - {"rir"}
+        or set(datos) - campos - set(repositorio.MEDIDAS) - {"rir", "ejercicio_hecho_id"}
     ):
         raise ErrorDeDominio("cuerpo_invalido", "Enviá id, ejercicio_planificado_id y sus medidas aplicables.", 422)
     rir = datos.get("rir")
@@ -361,6 +364,13 @@ def registrar_serie(sesion_texto, datos, usuario):
             raise ErrorDeDominio("ejercicio_inexistente", "El ejercicio planificado no existe.", 404)
         if ejercicio["sesion_planificada_id"] != sesion["sesion_planificada_id"]:
             raise ErrorDeDominio("ejercicio_invalido", "El ejercicio no pertenece a esta sesión planificada.", 422)
+        hecho_id = identificar(datos["ejercicio_hecho_id"]) if "ejercicio_hecho_id" in datos else None
+        if hecho_id is not None:
+            vigente = repositorio.sustitucion_vigente(cursor, sesion_id, ejercicio_id)
+            if vigente is None or desde_bytes(vigente["ejercicio_hecho_id"]) != hecho_id:
+                raise ErrorDeDominio(
+                    "sustitucion_inexistente", "El ejercicio hecho exige una sustitución vigente.", 409
+                )
         try:
             repositorio.insertar_serie(
                 cursor,
@@ -370,6 +380,7 @@ def registrar_serie(sesion_texto, datos, usuario):
                 identificar(usuario["id"]),
                 ahora,
                 rir=rir,
+                ejercicio_hecho_id=hecho_id,
                 **{m: datos.get(m) for m in repositorio.MEDIDAS},
             )
         except ValueError as error:
@@ -386,6 +397,20 @@ def consultar_sesion(sesion_texto, usuario):
         filas = repositorio.listar_series_vigentes(cursor, identificar(usuario["id"]), sesion_id)
         historial = repositorio.listar_series_vigentes(cursor, identificar(usuario["id"]))
         sede = repositorio.obtener_sede(cursor)
+        sustituciones = {}
+        # Se consultan también ejercicios sin series, para recuperar la sustitución al recargar.
+        cursor_ejercicios = repositorio.listar_ejercicios_sesion(cursor, sesion_id)
+        for ejercicio in cursor_ejercicios:
+            vigente = repositorio.sustitucion_vigente(cursor, sesion_id, desde_bytes(ejercicio["id"]))
+            if vigente:
+                catalogo = repositorio.listar_catalogo(cursor, desde_bytes(ejercicio["ejercicio_id"]))
+                hecho = next(f for f in catalogo if f["id"] == vigente["ejercicio_hecho_id"])
+                sustituciones[str(desde_bytes(ejercicio["id"]))] = {
+                    "sustitucion": sustitucion_publica(vigente),
+                    "nombre": hecho["nombre"],
+                    "medidas_aplicables": json.loads(hecho["medidas_aplicables"]),
+                    "carga_anterior": anteriores_hecho(historial, sede, sesion, vigente),
+                }
     programas = listar_programas(identificar(usuario["id"]))
     planificada = next(
         s
@@ -397,6 +422,7 @@ def consultar_sesion(sesion_texto, usuario):
     cantidades = Counter(str(desde_bytes(f["ejercicio_planificado_id"])) for f in filas)
     return {
         "sesion_realizada": sesion_publica(sesion),
+        "sustituciones": sustituciones,
         "series": [serie_publica(f) for f in filas],
         "ejercicios": [
             {
@@ -415,3 +441,96 @@ def consultar_sesion(sesion_texto, usuario):
             for e in planificada["ejercicios_planificados"]
         ],
     }
+
+
+def _ejercicio_de_sesion(cursor, sesion_id, ejercicio_id, usuario):
+    sesion = _sesion_propia(cursor, sesion_id, usuario)
+    ejercicio = repositorio.obtener_ejercicio_planificado(cursor, ejercicio_id)
+    if ejercicio is None:
+        raise ErrorDeDominio("ejercicio_inexistente", "El ejercicio planificado no existe.", 404)
+    if ejercicio["sesion_planificada_id"] != sesion["sesion_planificada_id"]:
+        raise ErrorDeDominio("ejercicio_invalido", "El ejercicio no pertenece a esta sesión planificada.", 422)
+    return ejercicio
+
+
+def _alternativas(cursor, ejercicio):
+    filas = repositorio.listar_catalogo(cursor, desde_bytes(ejercicio["ejercicio_id"]))
+    ids = tuple(str(desde_bytes(f["id"])) for f in filas[1:])
+    catalogo = tuple(
+        EjercicioCatalogo(
+            str(desde_bytes(f["id"])),
+            f["nombre"],
+            f["incremento_carga"],
+            f["equipo"],
+            f["patron_movimiento"],
+            tuple(json.loads(f["zonas"])),
+            ids if i == 0 else (),
+        )
+        for i, f in enumerate(filas)
+    )
+    alternativas, razon = elegir_alternativas(str(desde_bytes(ejercicio["ejercicio_id"])), catalogo)
+    return [
+        {
+            "ejercicio_id": e.ejercicio_id,
+            "nombre": e.nombre,
+            "equipo": e.equipo,
+            "medidas_aplicables": json.loads(
+                next(f["medidas_aplicables"] for f in filas if str(desde_bytes(f["id"])) == e.ejercicio_id)
+            ),
+        }
+        for e in alternativas
+    ], razon
+
+
+def consultar_alternativas(sesion_texto, ejercicio_texto, usuario):
+    with transaccion() as cursor:
+        ejercicio = _ejercicio_de_sesion(cursor, identificar(sesion_texto), identificar(ejercicio_texto), usuario)
+        alternativas, razon = _alternativas(cursor, ejercicio)
+    return {
+        "alternativas": alternativas,
+        "explicacion": (
+            {"regla": razon.regla, "version": razon.version, "datos": dict(razon.datos)} if razon else None
+        ),
+    }
+
+
+def sustitucion_publica(fila):
+    return {
+        **{
+            campo: str(desde_bytes(fila[campo]))
+            for campo in ("id", "sesion_realizada_id", "ejercicio_planificado_id", "ejercicio_hecho_id", "autor_id")
+        },
+        "motivo": fila["motivo"],
+        "registrada_en": fila["registrada_en"].replace(tzinfo=UTC).isoformat(),
+    }
+
+
+def registrar_sustitucion(sesion_texto, datos, usuario):
+    if not isinstance(datos, dict) or set(datos) != {"id", "ejercicio_planificado_id", "ejercicio_hecho_id"}:
+        raise ErrorDeDominio("cuerpo_invalido", "Enviá id, ejercicio_planificado_id y ejercicio_hecho_id.", 422)
+    sesion_id = identificar(sesion_texto)
+    sustitucion_id, ejercicio_id, hecho_id = (
+        identificar(datos[c]) for c in ("id", "ejercicio_planificado_id", "ejercicio_hecho_id")
+    )
+    ahora = reloj_actual().ahora()
+    with transaccion() as cursor:
+        ejercicio = _ejercicio_de_sesion(cursor, sesion_id, ejercicio_id, usuario)
+        anterior = repositorio.obtener_sustitucion(cursor, sustitucion_id)
+        if anterior is not None:
+            _exigir_destino_serie(anterior, sesion_id, ejercicio_id)
+            return sustitucion_publica(anterior)
+        alternativas, _ = _alternativas(cursor, ejercicio)
+        if str(hecho_id) not in {e["ejercicio_id"] for e in alternativas}:
+            raise ErrorDeDominio("alternativa_incompatible", "Elegí una alternativa compatible.", 422)
+        repositorio.insertar_sustitucion(
+            cursor, sustitucion_id, sesion_id, ejercicio_id, hecho_id, identificar(usuario["id"]), ahora
+        )
+        fila = repositorio.obtener_sustitucion(cursor, sustitucion_id)
+        _exigir_destino_serie(fila, sesion_id, ejercicio_id)
+        return sustitucion_publica(fila)
+
+
+def anteriores_hecho(historial, sede, sesion, sustitucion):
+    return cargas_anteriores(historial, ZoneInfo(sede["zona_horaria"]), sesion).get(
+        str(desde_bytes(sustitucion["ejercicio_hecho_id"]))
+    )

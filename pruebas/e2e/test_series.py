@@ -178,3 +178,37 @@ def test_sesion_parcial_conserva_pendientes_y_carga_anterior(pagina_demo, demo_a
     pagina.get_by_role("button", name="Registrar serie de Sentadilla ficticia", exact=True).click()
     expect(tarjeta).to_contain_text("Series realizadas: 2 · Pendientes: 0")
     expect(tarjeta.get_by_role("button", name="Registrar serie de Sentadilla ficticia", exact=True)).to_have_count(0)
+
+
+@pytest.mark.parametrize("ancho,alto", [(1440, 900), (390, 844)])
+def test_maquina_ocupada_con_teclado_y_recarga(pagina_demo, demo_aislada, ancho, alto):
+    pagina = pagina_demo
+    pagina.set_viewport_size({"width": ancho, "height": alto})
+    iniciar(pagina, demo_aislada)
+    boton = pagina.get_by_role("button", name="Máquina ocupada de Sentadilla ficticia", exact=True)
+    tarjeta_id = boton.locator("xpath=ancestor::li").get_attribute("data-ejercicio")
+    boton.focus()
+    pagina.keyboard.press("Enter")
+    propuesta = pagina.get_by_role("button", name=re.compile("Propuesta:.*"))
+    expect(propuesta).to_be_focused()
+    nombre = propuesta.inner_text().removeprefix("Propuesta: ").split(" · ")[0]
+    pagina.keyboard.press("Enter")
+    expect(pagina.get_by_text("Sustitución guardada.", exact=True)).to_be_visible()
+    pagina.reload()
+    registrar = pagina.locator(f'[data-ejercicio="{tarjeta_id}"]').get_by_role(
+        "button", name=f"Registrar serie de {nombre}", exact=True
+    )
+    expect(registrar).to_be_visible()
+    registrar.focus()
+    pagina.keyboard.press("Enter")
+    expect(pagina.get_by_text("Serie guardada.", exact=True)).to_be_visible()
+    with demo_aislada.app.app_context(), transaccion() as cursor:
+        cursor.execute(
+            "SELECT s.ejercicio_hecho_id, ep.ejercicio_id FROM series_realizadas s "
+            "JOIN ejercicios_planificados ep ON ep.id=s.ejercicio_planificado_id "
+            "WHERE s.ejercicio_hecho_id IS NOT NULL"
+        )
+        series = cursor.fetchall()
+        assert len(series) == 1
+        assert series[0]["ejercicio_hecho_id"] != series[0]["ejercicio_id"]
+    assert pagina.evaluate("document.documentElement.scrollWidth <= innerWidth")

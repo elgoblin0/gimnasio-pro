@@ -17,6 +17,7 @@
   .tarjeta h3 { margin-block: 0 var(--espacio-2); }
   .tarjeta p { margin-block: var(--espacio-1); }
   .tarjeta button { margin-block-start: var(--espacio-3); }
+  [data-sustitucion] .primario { background: var(--acento); color: var(--superficie); font-weight: 700; }
   [data-estado] { min-height: 1.5em; }
   [data-actualizar] { margin-block: var(--espacio-3); }
   @media (max-width: 48rem) { .grilla { grid-template-columns: minmax(0, 1fr); gap: var(--espacio-4); } }

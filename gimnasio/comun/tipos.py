@@ -72,6 +72,10 @@ class EjercicioCatalogo:
     ejercicio_id: str
     nombre: str
     incremento_carga: Decimal | None
+    equipo: str = ""
+    patron_movimiento: str = ""
+    zonas: tuple[str, ...] = ()
+    alternativas: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)

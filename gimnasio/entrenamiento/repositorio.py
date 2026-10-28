@@ -93,8 +93,10 @@ def obtener_sesion(cursor, sesion_id, *, actual=False):
 
 def obtener_serie(cursor, serie_id, *, actual=False):
     cursor.execute(
-        """SELECT s.*, COALESCE(s.ejercicio_hecho_id, ep.ejercicio_id) AS ejercicio_hecho_resuelto_id
+        """SELECT s.*, e.nombre AS ejercicio_hecho_nombre,
+                  COALESCE(s.ejercicio_hecho_id, ep.ejercicio_id) AS ejercicio_hecho_resuelto_id
            FROM series_realizadas s JOIN ejercicios_planificados ep ON ep.id = s.ejercicio_planificado_id
+           JOIN ejercicios e ON e.id = COALESCE(s.ejercicio_hecho_id, ep.ejercicio_id)
            WHERE s.id = %s"""
         + (" FOR SHARE" if actual else ""),
         (a_bytes(serie_id),),
@@ -113,7 +115,8 @@ def obtener_planificada(cursor, planificada_id):
 
 def obtener_ejercicio_planificado(cursor, ejercicio_id):
     cursor.execute(
-        "SELECT id, sesion_planificada_id FROM ejercicios_planificados WHERE id = %s", (a_bytes(ejercicio_id),)
+        "SELECT id, sesion_planificada_id, ejercicio_id FROM ejercicios_planificados WHERE id = %s",
+        (a_bytes(ejercicio_id),),
     )
     return cursor.fetchone()
 
@@ -139,8 +142,12 @@ def insertar_serie(
     cursor.execute(
         """SELECT e.medidas_aplicables FROM sesiones_realizadas sr
            JOIN ejercicios_planificados ep ON ep.sesion_planificada_id = sr.sesion_planificada_id
-           JOIN ejercicios e ON e.id = ep.ejercicio_id WHERE sr.id = %s AND ep.id = %s""",
-        (a_bytes(sesion_realizada_id), a_bytes(ejercicio_planificado_id)),
+           JOIN ejercicios e ON e.id = COALESCE(%s, ep.ejercicio_id) WHERE sr.id = %s AND ep.id = %s""",
+        (
+            a_bytes(ejercicio_hecho_id) if ejercicio_hecho_id else None,
+            a_bytes(sesion_realizada_id),
+            a_bytes(ejercicio_planificado_id),
+        ),
     )
     ejercicio = cursor.fetchone()
     if ejercicio is None:
@@ -208,13 +215,70 @@ def listar_series_vigentes(cursor, socio_id, sesion_realizada_id=None):
                       ) AS orden
                FROM historial h JOIN series_realizadas s ON s.id = h.id
            )
-           SELECT s.*, sr.sesion_planificada_id, sr.creada_en AS sesion_creada_en,
+           SELECT s.*, e.nombre AS ejercicio_hecho_nombre,
+                  sr.sesion_planificada_id, sr.creada_en AS sesion_creada_en,
                   ep.ejercicio_id AS ejercicio_catalogo_id,
                   COALESCE(s.ejercicio_hecho_id, ep.ejercicio_id) AS ejercicio_hecho_resuelto_id FROM ordenadas s
            JOIN ejercicios_planificados ep ON ep.id = s.ejercicio_planificado_id
            JOIN sesiones_realizadas sr ON sr.id = s.sesion_realizada_id
+           JOIN ejercicios e ON e.id = COALESCE(s.ejercicio_hecho_id, ep.ejercicio_id)
            WHERE s.orden = 1 AND s.anulada = FALSE
            ORDER BY s.registrada_en, s.id""",
         parametros,
+    )
+    return cursor.fetchall()
+
+
+def listar_catalogo(cursor, ejercicio_id):
+    """El original seguido de sus alternativas en el orden declarado del catálogo."""
+    cursor.execute(
+        """SELECT e.*, COALESCE((SELECT JSON_ARRAYAGG(z.zona) FROM zonas_ejercicio z
+           WHERE z.ejercicio_id=e.id), JSON_ARRAY()) AS zonas
+           FROM ejercicios e LEFT JOIN alternativas_ejercicio a
+           ON a.alternativa_id=e.id AND a.ejercicio_id=%s
+           WHERE e.id=%s OR a.ejercicio_id=%s
+           ORDER BY CASE WHEN e.id=%s THEN 0 ELSE 1 END, a.orden, e.id""",
+        (a_bytes(ejercicio_id),) * 4,
+    )
+    return cursor.fetchall()
+
+
+def obtener_sustitucion(cursor, sustitucion_id):
+    cursor.execute("SELECT * FROM sustituciones WHERE id=%s FOR SHARE", (a_bytes(sustitucion_id),))
+    return cursor.fetchone()
+
+
+def sustitucion_vigente(cursor, sesion_id, ejercicio_id):
+    cursor.execute(
+        """SELECT * FROM sustituciones WHERE sesion_realizada_id=%s AND ejercicio_planificado_id=%s
+           ORDER BY registrada_en DESC, id DESC LIMIT 1 FOR SHARE""",
+        (a_bytes(sesion_id), a_bytes(ejercicio_id)),
+    )
+    return cursor.fetchone()
+
+
+def insertar_sustitucion(cursor, sustitucion_id, sesion_id, ejercicio_id, hecho_id, autor_id, ahora):
+    _insertar(
+        cursor,
+        """INSERT INTO sustituciones
+           (id,sesion_realizada_id,ejercicio_planificado_id,ejercicio_hecho_id,motivo,autor_id,registrada_en)
+           VALUES (%s,%s,%s,%s,'maquina_ocupada',%s,%s)""",
+        (
+            a_bytes(sustitucion_id),
+            a_bytes(sesion_id),
+            a_bytes(ejercicio_id),
+            a_bytes(hecho_id),
+            a_bytes(autor_id),
+            _fecha_utc(ahora),
+        ),
+    )
+
+
+def listar_ejercicios_sesion(cursor, sesion_id):
+    cursor.execute(
+        """SELECT ep.id, ep.ejercicio_id FROM ejercicios_planificados ep
+           JOIN sesiones_realizadas sr ON sr.sesion_planificada_id=ep.sesion_planificada_id
+           WHERE sr.id=%s ORDER BY ep.posicion""",
+        (a_bytes(sesion_id),),
     )
     return cursor.fetchall()
