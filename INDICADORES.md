@@ -24,9 +24,9 @@ Guía para explicar el recorrido de etapa 1. Las referencias `archivo:línea` se
 
 | Indicador | Evidencia vigente |
 |---|---|
-| Iteradores y condicionales | Renderizado de visitas: `gimnasio/static/js/recepcion.js:22`. Formularios según medidas aplicables: `gimnasio/static/js/entrenamiento.js:27`. Explicación y ejercicios: `gimnasio/static/js/entrenamiento.js:97`. |
-| Comunicación y errores | Cliente fetch común, encabezados de escritura y lectura JSON: `gimnasio/static/js/comun/api.js:17`. Actualización de recepción: `gimnasio/static/js/recepcion.js:47`. Actualización del entrenamiento: `gimnasio/static/js/entrenamiento.js:130`. |
-| Persistencia y reintentos | Operaciones con cuerpo, identificador y clave conservados: `gimnasio/static/js/comun/operaciones.js:4`. Recuperación de sesión realizada desde la URL: `gimnasio/static/js/entrenamiento.js:130`. Cerrar sesión solo borra la sesión de usuario: `gimnasio/static/js/comun/operaciones.js:31`. |
+| Iteradores y condicionales | Renderizado de visitas: `gimnasio/static/js/recepcion.js:22`. Formularios según medidas aplicables: `gimnasio/static/js/entrenamiento.js:27`. Explicación y ejercicios: `gimnasio/static/js/entrenamiento.js:96`. |
+| Comunicación y errores | Cliente fetch común, encabezados de escritura y lectura JSON: `gimnasio/static/js/comun/api.js:17`. Actualización de recepción: `gimnasio/static/js/recepcion.js:47`. Actualización del entrenamiento: `gimnasio/static/js/entrenamiento.js:129`. |
+| Persistencia y reintentos | Operaciones con cuerpo, identificador y clave conservados: `gimnasio/static/js/comun/operaciones.js:4`. Recuperación de sesión realizada desde la URL: `gimnasio/static/js/entrenamiento.js:129`. Cerrar sesión solo borra la sesión de usuario: `gimnasio/static/js/comun/operaciones.js:31`. |
 
 ## HTML (5 pts)
 
@@ -60,7 +60,7 @@ La propuesta no exige datos de dolor ni restricciones en etapa 1, no modifica ca
 | Una regla de propuesta | Motor puro `gimnasio/reglas/sesion.py:8`, con issue explícito y revisión independiente. |
 | Un cambio en entrada o salida | `gimnasio/visitas/rutas.py:12` → `gimnasio/visitas/servicio.py:39` → `gimnasio/visitas/repositorio.py:72`. |
 | Un campo persistido | Nueva migración hacia adelante, servicio/repositorio del módulo y pruebas; conservar los hechos existentes. |
-| Una acción de entrenamiento | `gimnasio/entrenamiento/rutas.py:24`, `gimnasio/static/js/entrenamiento.js:156` y pantalla correspondiente. |
+| Una acción de entrenamiento | `gimnasio/entrenamiento/rutas.py:24`, `gimnasio/static/js/entrenamiento.js:155` y pantalla correspondiente. |
 | Un cambio visual | Tokens y estilos compartidos en `gimnasio/static/estilos/`, manteniendo la dirección B. |
 
 ## Límites y referencia histórica

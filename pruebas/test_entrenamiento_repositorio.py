@@ -5,10 +5,10 @@ from decimal import Decimal
 from types import SimpleNamespace
 
 import pytest
-from mysql.connector import IntegrityError
+from mysql.connector import DatabaseError, IntegrityError
 
 from gimnasio.comun.bd import transaccion
-from gimnasio.comun.ids import a_bytes, nuevo_id
+from gimnasio.comun.ids import a_bytes, desde_bytes, nuevo_id
 from gimnasio.demo import servicio as demo
 from gimnasio.entrenamiento import repositorio
 from gimnasio.permisos.servicio import crear_usuario
@@ -302,11 +302,44 @@ def test_correccion_conserva_hechos_y_cambia_rir(entrenamiento, nuevo_rir):
 def test_lectura_conserva_ejercicio_hecho_explicito(entrenamiento):
     datos = entrenamiento
     datos.cursor.execute("SELECT ejercicio_id FROM ejercicios_planificados WHERE id = %s", (a_bytes(datos.cardio),))
-    from gimnasio.comun.ids import desde_bytes
-
     hecho = desde_bytes(datos.cursor.fetchone()["ejercicio_id"])
     identificador = serie(datos, ejercicio_hecho_id=hecho)
     assert repositorio.obtener_serie(datos.cursor, identificador)["ejercicio_hecho_resuelto_id"] == a_bytes(hecho)
     assert repositorio.listar_series_vigentes(datos.cursor, datos.socio)[0]["ejercicio_hecho_resuelto_id"] == a_bytes(
         hecho
     )
+
+
+@pytest.mark.bd
+@pytest.mark.parametrize("rir", [-1, 11])
+def test_mysql_rechaza_rir_fuera_de_rango(entrenamiento, rir):
+    datos = entrenamiento
+    original = serie(datos)
+    with pytest.raises(DatabaseError) as error:
+        datos.cursor.execute(
+            """INSERT INTO series_realizadas
+               (id, sesion_realizada_id, ejercicio_planificado_id, repeticiones, carga, autor_id, registrada_en, rir)
+               SELECT %s, sesion_realizada_id, ejercicio_planificado_id, repeticiones, carga,
+                      autor_id, registrada_en, %s
+               FROM series_realizadas WHERE id = %s""",
+            (a_bytes(nuevo_id(datos.reloj)), rir, a_bytes(original)),
+        )
+    assert error.value.errno == 3819
+    assert "chk_series_rir" in str(error.value)
+
+
+@pytest.mark.bd
+def test_mysql_rechaza_ejercicio_hecho_inexistente(entrenamiento):
+    datos = entrenamiento
+    original = serie(datos)
+    with pytest.raises(IntegrityError) as error:
+        datos.cursor.execute(
+            """INSERT INTO series_realizadas
+               (id, sesion_realizada_id, ejercicio_planificado_id, repeticiones, carga,
+                autor_id, registrada_en, ejercicio_hecho_id)
+               SELECT %s, sesion_realizada_id, ejercicio_planificado_id, repeticiones, carga,
+                      autor_id, registrada_en, %s FROM series_realizadas WHERE id = %s""",
+            (a_bytes(nuevo_id(datos.reloj)), a_bytes(nuevo_id(datos.reloj)), a_bytes(original)),
+        )
+    assert error.value.errno == 1452
+    assert "fk_series_ejercicio_hecho" in str(error.value)
