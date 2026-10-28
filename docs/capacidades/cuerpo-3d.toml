@@ -3,4 +3,5 @@ nombre = "Cuerpo 3D muscular"
 grupo = "Experiencia"
 etapa = 2
 nivel = "pendiente"
+# #81 compara dos prototipos aislados; la capacidad sigue sin integrarse en la app.
 prueba = ""

@@ -2,6 +2,7 @@
 
 import json
 import re
+import runpy
 import shutil
 import subprocess
 from pathlib import Path
@@ -10,6 +11,7 @@ import pytest
 
 PROTOTIPOS = Path(__file__).resolve().parent.parent / "prototipos"
 DIRECCIONES = sorted(PROTOTIPOS.glob("direccion-*/index.html"))
+CUERPOS = sorted(PROTOTIPOS.glob("cuerpo-3d/*/index.html"))
 CASOS = """
 const chequeo = (sueno, energia, dolor) => ({ sueno, energia, dolor });
 console.log(JSON.stringify({
@@ -44,12 +46,34 @@ def test_permanece_b_y_se_retiro_a():
     assert {"--superficie", "--texto", "--acento", "--freno", "--foco"} <= tokens_semanticos(b)
 
 
-@pytest.mark.parametrize("archivo", DIRECCIONES, ids=lambda d: d.parent.name)
+@pytest.mark.parametrize("archivo", DIRECCIONES + CUERPOS, ids=lambda d: d.parent.name)
 def test_sin_recursos_externos_y_con_movimiento_reducido(archivo):
     html = leer(archivo)
     assert not re.search(r"""(src|href)=["']https?:|url\(["']?https?:""", html)
-    assert "prefers-reduced-motion: reduce" in html
+    assert "prefers-reduced-motion: reduce" in html or (
+        archivo in CUERPOS and "prefers-reduced-motion: reduce" in leer(PROTOTIPOS / "cuerpo-3d/cuerpo.css")
+    )
     assert "Demo · datos ficticios" in html
+
+
+def test_cuerpo_3d_tiene_dos_versiones_y_las_zonas_del_catalogo():
+    from gimnasio.comun.tipos import ZONAS_CUERPO
+
+    assert {p.parent.name for p in CUERPOS} == {"modelo", "estilizado"}
+    codigo = leer(PROTOTIPOS / "cuerpo-3d/cuerpo.js")
+    declaradas = re.search(r"export const zonas = (\[.*?\]);", codigo).group(1)
+    assert json.loads(declaradas.replace("'", '"')) == list(ZONAS_CUERPO)
+    assert "zona-seleccionada" in codigo
+    assert (PROTOTIPOS / "cuerpo-3d/recursos/cuerpo.glb").read_bytes()[:4] == b"glTF"
+    assert "CC0" in leer(PROTOTIPOS / "cuerpo-3d/recursos/LICENCIA.txt")
+
+
+@pytest.mark.e2e
+def test_cuerpo_3d_carga_y_emite_zonas_en_chromium(tmp_path, playwright):
+    if not Path(playwright.chromium.executable_path).is_file():
+        pytest.skip("sin Chromium: ejecutá playwright install chromium")
+    verificar = runpy.run_path(str(PROTOTIPOS / "cuerpo-3d/verificar.py"))["verificar"]
+    verificar(tmp_path, playwright)
 
 
 @pytest.fixture(scope="module")

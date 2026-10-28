@@ -1,0 +1,15 @@
+<!doctype html>
+<html lang="es" data-direccion="b"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>B · Cuerpo estilizado · Prototipo del cuerpo 3D</title><link rel="icon" href="data:,"><link rel="stylesheet" href="../cuerpo.css">
+<script type="importmap">{"imports":{"three":"../../../gimnasio/static/vendor/three@0.186.0/three.module.js"}}</script>
+<body data-modelo="b"><main><header><small>Demo · datos ficticios · Prototipo descartable #81</small><h1>B · Cuerpo estilizado</h1>
+<p>Compará las dos versiones del cuerpo 3D muscular. La elección queda pendiente del dueño.</p>
+<nav aria-label="Versiones"><a href="../modelo/">A · Modelo glTF</a><a href="../estilizado/">B · Cuerpo estilizado</a></nav></header>
+<div class="comparacion"><section aria-label="Cuerpo 3D muscular"><canvas aria-label="Cuerpo 3D: arrastrá para rotar. Selección alternativa en los botones de zonas."></canvas>
+<p id="carga" role="status">Cargando cuerpo 3D…</p><label for="girar">Rotación</label> <input id="girar" type="range" min="-180" max="180" value="0"><button id="frente">Frente</button>
+<div class="leyenda"><span class="trabajada">● Trabajada</span><span class="dolor">● Con dolor</span><span>○ Sin marcar</span></div></section>
+<aside><h2>Zona del cuerpo</h2><p>Tocá el cuerpo o elegí una zona. Probá ambos estados con cualquier zona.</p><div id="zonas" aria-label="Zonas del cuerpo"></div>
+<label for="estado">Estado de la zona seleccionada</label><select id="estado"><option value="sin_marcar">Sin marcar</option><option value="trabajada">Trabajada</option><option value="con_dolor">Con dolor</option></select>
+<output aria-live="polite"></output><p>La selección emite <code>zona-seleccionada</code> con <code>detail.zona</code>. No registra dolor ni cambia una sesión.</p></aside></div>
+<footer><p>Modelo A: Quaternius · CC0. Segmentación geométrica aproximada para comparar interacción; no representa límites anatómicos clínicos. <a href="../recursos/FUENTE.md">Fuente y licencia</a>.</p></footer></main>
+<script type="module" src="../cuerpo.js"></script></body></html>
