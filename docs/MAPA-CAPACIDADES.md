@@ -37,9 +37,9 @@ Generado por `scripts/mapa_capacidades.py` desde `docs/capacidades/`. No editar 
 
 | Capacidad | Etapa | Nivel | Prueba |
 |---|---|---|---|
-| Entrada del socio por recepción con membresía y aforo | 1 | esqueleto | `pruebas/e2e/test_esqueleto_andante.py` |
-| Pantalla de recepción para entrada y salida | 1 | esqueleto | `pruebas/e2e/test_recepcion.py` |
-| Salida confirmada del socio y lecturas para recepción | 1 | esqueleto | `pruebas/e2e/test_esqueleto_andante.py` |
+| Entrada del socio por recepción con membresía y aforo | 1 | validada | `pruebas/e2e/test_esqueleto_andante.py` · https://github.com/elgoblin0/gimnasio-pro/issues/52 |
+| Pantalla de recepción para entrada y salida | 1 | validada | `pruebas/e2e/test_recepcion.py` · https://github.com/elgoblin0/gimnasio-pro/issues/52 |
+| Salida confirmada del socio y lecturas para recepción | 1 | validada | `pruebas/e2e/test_esqueleto_andante.py` · https://github.com/elgoblin0/gimnasio-pro/issues/52 |
 | Clases y reservas con lista de espera | 5 | pendiente | — |
 | Ficha completa con salud y consentimientos | 5 | pendiente | — |
 | Registro de pagos en guaraníes | 5 | pendiente | — |
@@ -49,9 +49,9 @@ Generado por `scripts/mapa_capacidades.py` desde `docs/capacidades/`. No editar 
 | Capacidad | Etapa | Nivel | Prueba |
 |---|---|---|---|
 | Persistencia de sesiones realizadas y series realizadas | 1 | funcional | `pruebas/test_entrenamiento_repositorio.py` |
-| Pantalla del socio con propuesta, explicación y pendientes | 1 | esqueleto | `pruebas/e2e/test_entrenamiento.py` |
-| Registro idempotente de sesiones y series realizadas | 1 | esqueleto | `pruebas/e2e/test_esqueleto_andante.py` |
-| Sesión propuesta según la secuencia del programa de entrenamiento | 1 | esqueleto | `pruebas/e2e/test_esqueleto_andante.py` |
+| Pantalla del socio con propuesta, explicación y pendientes | 1 | validada | `pruebas/e2e/test_entrenamiento.py` · https://github.com/elgoblin0/gimnasio-pro/issues/52 |
+| Registro idempotente de sesiones y series realizadas | 1 | validada | `pruebas/e2e/test_esqueleto_andante.py` · https://github.com/elgoblin0/gimnasio-pro/issues/52 |
+| Sesión propuesta según la secuencia del programa de entrenamiento | 1 | validada | `pruebas/e2e/test_esqueleto_andante.py` · https://github.com/elgoblin0/gimnasio-pro/issues/52 |
 | Chequeo del día | 2 | pendiente | — |
 | "Me duele" y "máquina ocupada" | 2 | pendiente | — |
 | Doble progresión + RPE/RIR con ajustes automáticos y frenos | 2 | pendiente | — |
@@ -86,7 +86,7 @@ Generado por `scripts/mapa_capacidades.py` desde `docs/capacidades/`. No editar 
 
 | Capacidad | Etapa | Nivel | Prueba |
 |---|---|---|---|
-| PWA instalable en escritorio, con pantallas que se adaptan a tablet y celular | 1 | esqueleto | `pruebas/e2e/test_pwa.py` |
+| PWA instalable en escritorio, con pantallas que se adaptan a tablet y celular | 1 | validada | `pruebas/e2e/test_pwa.py` · https://github.com/elgoblin0/gimnasio-pro/issues/52 |
 | Cuerpo 3D muscular | 2 | pendiente | — |
 | Escena de ocupación | 3 | pendiente | — |
 | Movimiento cuidado y alternativa sin efectos | 7 | pendiente | — |
