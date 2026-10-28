@@ -4,8 +4,22 @@ import { cerrarSesion, crearControlDeOperacion } from "@comun/operaciones.js";
 import { prepararMedidas } from "@comun/series.js";
 import { registrarPwa } from "@comun/pwa.js";
 
+import { crearDescanso } from "@comun/descanso.js";
+import { crearReloj } from "@comun/reloj.js";
+
 registrarPwa();
 const $ = (selector) => document.querySelector(selector);
+const reloj = crearReloj();
+let descanso = null;
+function dibujarDescanso() {
+  if (!descanso) return;
+  const estado = descanso.consultar(reloj.ahora());
+  $("[data-descanso]").hidden = false;
+  $("[data-restantes]").textContent = `${estado.restantes} s`;
+  const anuncio = estado.terminado ? "Descanso terminado." : "";
+  if ($("[data-descanso-anuncio]").textContent !== anuncio) $("[data-descanso-anuncio]").textContent = anuncio;
+}
+setInterval(dibujarDescanso, 250);
 let autorizada = false;
 let cargando = false;
 let propuestaActual = null;
@@ -38,7 +52,7 @@ function agregarFormulario(tarjeta, ejercicio) {
     campo.required = true;
     campo.step = ["repeticiones", "duracion"].includes(medida) ? "1" : "0.01";
     campo.min = medida === "carga" ? "0" : (["repeticiones", "duracion"].includes(medida) ? "1" : "0.01");
-    campo.value = String((medida === "repeticiones" ? ejercicio.objetivos.repeticiones_minimas : ejercicio.objetivos[medida]) ?? "");
+    campo.value = String((medida === "repeticiones" ? ejercicio.objetivos.repeticiones_minimas : (ejercicio.objetivos[medida] ?? (medida === "carga" ? ejercicio.carga_anterior?.carga : null))) ?? "");
     etiqueta.append(campo);
     formulario.append(etiqueta);
   }
@@ -108,7 +122,10 @@ function dibujar(propuesta) {
   $("[data-ejercicios]").replaceChildren();
   $("[data-titulo-sesion]").textContent = propuesta.sesion_planificada?.nombre
     ?? (propuesta.explicacion[0]?.regla === "sin_programa" ? "Sin programa de entrenamiento" : "Secuencia realizada");
-  for (const ejercicio of propuesta.ejercicios) {
+  for (const propuesto of propuesta.ejercicios) {
+    const ejercicio = coincide
+      ? { ...propuesto, carga_anterior: sesionActual.ejercicios.find((e) => e.id === propuesto.id)?.carga_anterior ?? null }
+      : propuesto;
     const tarjeta = document.createElement("li");
     tarjeta.className = "tarjeta";
     tarjeta.dataset.ejercicio = ejercicio.id;
@@ -118,7 +135,11 @@ function dibujar(propuesta) {
     objetivos.textContent = describirObjetivos(ejercicio.objetivos);
     const pendiente = document.createElement("p");
     pendiente.textContent = `Series realizadas: ${ejercicio.realizado} · Pendientes: ${ejercicio.pendiente}`;
-    tarjeta.append(nombre, objetivos, pendiente);
+    const anterior = document.createElement("p");
+    anterior.textContent = ejercicio.carga_anterior
+      ? `Carga anterior: ${ejercicio.carga_anterior.carga == null ? "sin carga" : formatearCarga(ejercicio.carga_anterior.carga)} · ${ejercicio.carga_anterior.repeticiones ?? "sin"} repeticiones · ${formatearFecha(ejercicio.carga_anterior.fecha_local)}`
+      : "Sin carga anterior.";
+    tarjeta.append(nombre, objetivos, anterior, pendiente);
     if (coincide && ejercicio.pendiente > 0) agregarFormulario(tarjeta, ejercicio);
     $("[data-ejercicios]").append(tarjeta);
   }
@@ -168,6 +189,13 @@ async function enviar() {
       enlace.searchParams.set("sesion", sesionId);
       history.replaceState(null, "", enlace);
     }
+    if (datos.serie_realizada) {
+      const ejercicio = sesionActual?.ejercicios.find((e) => e.id === datos.serie_realizada.ejercicio_planificado_id);
+      if (ejercicio?.objetivos.descanso != null) {
+        descanso = crearDescanso(ejercicio.objetivos.descanso, reloj.ahora());
+        dibujarDescanso();
+      }
+    }
     control.finalizar();
     await actualizar(datos.sesion_realizada ? "Sesión realizada iniciada." : "Serie guardada.");
     const foco = document.querySelector("[data-serie] input") ?? $("[data-actualizar]");
@@ -216,4 +244,6 @@ $("[data-cerrar]").addEventListener("click", async () => {
   try { await cerrarSesion(llamarApi); location.assign("/"); }
   catch (error) { $("[data-error]").textContent = error.message; }
 });
+$("[data-saltear]").addEventListener("click", () => { descanso?.saltear(reloj.ahora()); dibujarDescanso(); });
+$("[data-sumar-descanso]").addEventListener("click", () => { descanso?.sumar30(reloj.ahora()); dibujarDescanso(); });
 iniciar();

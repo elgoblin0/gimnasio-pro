@@ -548,3 +548,44 @@ def test_serie_rechaza_rir_invalido(entrenamiento_api, rir):
     sesion = iniciar(datos)
     cuerpo = {**cuerpo_serie(datos), "rir": rir}
     assert escribir(datos.cliente(), f"/api/entrenamiento/sesiones/{sesion}/series", cuerpo).status_code == 400
+
+
+def test_carga_anterior_vigente_local_y_ajena_a_la_sesion_actual(entrenamiento_api):
+    from datetime import UTC, datetime, timedelta
+
+    datos = entrenamiento_api
+    cliente = datos.cliente()
+    assert all(e["carga_anterior"] is None for e in cliente.get("/api/entrenamiento/propuesta").json["ejercicios"])
+    momento = datetime(2026, 10, 26, 2, tzinfo=UTC)
+    with datos.app.app_context(), transaccion() as cursor:
+        anterior = nuevo_id(datos.reloj)
+        repositorio.insertar_sesion(cursor, anterior, datos.usuarios["socio"], datos.sesiones[1], momento)
+        original, corregida, anulada = (nuevo_id(datos.reloj) for _ in range(3))
+        for identificador, corrige, carga, minutos, anular in (
+            (original, None, "15", 0, False),
+            (corregida, original, "17.50", 1, False),
+            (anulada, None, "99", 2, False),
+            (nuevo_id(datos.reloj), anulada, "99", 3, True),
+        ):
+            repositorio.insertar_serie(
+                cursor,
+                identificador,
+                anterior,
+                datos.ejercicios[1][0],
+                datos.usuarios["socio"],
+                momento + timedelta(minutes=minutos),
+                repeticiones=9,
+                carga=Decimal(carga),
+                corrige_a=corrige,
+                motivo="Corrección ficticia" if corrige else None,
+                anulada=anular,
+            )
+    esperada = {"carga": "17.50", "repeticiones": 9, "fecha_local": "2026-10-25"}
+    assert cliente.get("/api/entrenamiento/propuesta").json["ejercicios"][0]["carga_anterior"] == esperada
+    actual = iniciar(datos)
+    ruta = f"/api/entrenamiento/sesiones/{actual}"
+    assert escribir(cliente, ruta + "/series", cuerpo_serie(datos)).status_code == 201
+    assert cliente.get(ruta).json["ejercicios"][0]["carga_anterior"] == esperada
+    # Una sesión creada después tampoco cambia la referencia de la sesión abierta.
+    registrar(datos, 1, 0)
+    assert cliente.get(ruta).json["ejercicios"][0]["carga_anterior"] == esperada
