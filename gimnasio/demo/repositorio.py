@@ -18,6 +18,7 @@ def vaciar_datos(cursor):
         if cursor.rowcount == 0:
             break
     cursor.execute("DELETE FROM sustituciones")
+    cursor.execute("DELETE FROM prescripciones_efectivas")
     cursor.execute("DELETE FROM sesiones_realizadas")
     cursor.execute("DELETE FROM ejercicios_planificados")
     cursor.execute("DELETE FROM sesiones_planificadas")

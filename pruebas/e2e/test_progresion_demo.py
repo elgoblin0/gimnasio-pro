@@ -43,3 +43,24 @@ def test_lucia_celebra_record_de_la_prescripcion(pagina_demo, demo_aislada, movi
         assert pagina.locator("[data-record]").evaluate("elemento => elemento.getAnimations().length") == 0
     pagina.reload()
     expect(pagina.locator("[data-record]")).to_be_empty()
+
+
+def test_sesion_en_vivo_conserva_objetivos_guardados(pagina_demo, demo_aislada):
+    from gimnasio.comun.bd import transaccion
+
+    pagina = pagina_demo
+    pagina.goto(demo_aislada.url)
+    pagina.get_by_role("button", name="Entrar como socio", exact=True).click()
+    pagina.get_by_role("link", name="Ver mi entrenamiento", exact=True).click()
+    pagina.get_by_role("button", name="Iniciar sesión realizada", exact=True).click()
+    expect(pagina.locator("[data-sesion-actual]")).to_be_visible()
+    with demo_aislada.app.app_context(), transaccion() as cursor:
+        cursor.execute("UPDATE ejercicios_planificados SET carga=99,series=8 WHERE carga IS NOT NULL")
+    pagina.reload()
+    sentadilla = pagina.locator("[data-ejercicio]").filter(
+        has=pagina.get_by_role("heading", name="Sentadilla ficticia", exact=True)
+    )
+    expect(sentadilla).to_contain_text("2 series")
+    expect(sentadilla).to_contain_text("Pendientes: 2")
+    expect(sentadilla).to_contain_text("23,00 kg")
+    expect(sentadilla.locator("[data-ajuste]")).to_contain_text("Subís 2,5 kg")

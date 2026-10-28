@@ -179,7 +179,14 @@ async function actualizar(mensaje) {
     ]);
     propuestaActual = propuesta;
     sesionActual = realizada;
-    dibujar(propuesta);
+    const efectiva = realizada?.ejercicios.some((e) => e.pendiente > 0)
+      ? realizada.prescripcion_efectiva : null;
+    dibujar(efectiva ? {
+      ...propuesta,
+      ...efectiva,
+      sesion_planificada: realizada.sesion_planificada,
+      ejercicios: realizada.ejercicios,
+    } : propuesta);
     if (progresoVisible) actualizarProgreso();
     $("[data-estado]").textContent = mensaje ?? "Propuesta actualizada.";
   } catch (error) {

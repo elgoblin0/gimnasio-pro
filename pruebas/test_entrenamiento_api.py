@@ -255,7 +255,13 @@ def cuerpo_serie(datos):
 
 
 def cantidad(datos, tabla="series_realizadas"):
-    assert tabla in {"series_realizadas", "sesiones_realizadas", "solicitudes_idempotentes", "entradas"}
+    assert tabla in {
+        "series_realizadas",
+        "sesiones_realizadas",
+        "solicitudes_idempotentes",
+        "entradas",
+        "prescripciones_efectivas",
+    }
     with datos.app.app_context(), transaccion() as cursor:
         cursor.execute(f"SELECT COUNT(*) AS cantidad FROM {tabla}")
         return cursor.fetchone()["cantidad"]
@@ -625,7 +631,7 @@ def test_demo_propuesta_ajustada_e_historial_reproducible(entrenamiento_api):
     assert [e["objetivos"] for e in desplazada["ejercicios"]] == [e["objetivos"] for e in primera["ejercicios"]]
 
 
-def test_api_tope_semanal_derivado_de_cargas_y_liberado_el_lunes(entrenamiento_api):
+def test_api_tope_semanal_desde_prescripcion_y_liberado_el_lunes(entrenamiento_api):
     from datetime import UTC, datetime, timedelta
 
     datos = entrenamiento_api
@@ -652,6 +658,30 @@ def test_api_tope_semanal_derivado_de_cargas_y_liberado_el_lunes(entrenamiento_a
                     carga=carga,
                     rir=2,
                 )
+        repositorio.insertar_prescripcion(
+            cursor,
+            nuevo_id(datos.reloj),
+            realizada,
+            {
+                "version_reglas": "2.0.0",
+                "frenos": [],
+                "ejercicios": [
+                    {
+                        "id": str(datos.ejercicios[1][0]),
+                        "ejercicio_id": str(
+                            desde_bytes(
+                                repositorio.obtener_ejercicio_planificado(cursor, datos.ejercicios[1][0])[
+                                    "ejercicio_id"
+                                ]
+                            )
+                        ),
+                        "explicacion": [],
+                    }
+                ],
+                "explicacion": [{"regla": "subir_carga", "datos": {"ejercicio_id": str(datos.ejercicios[1][0])}}],
+            },
+            fecha,
+        )
     propuesta = datos.cliente().get("/api/entrenamiento/propuesta").json
     assert propuesta["frenos"] == ["tope_semanal"]
     assert all(e["objetivos"]["carga"] == "42.50" for e in propuesta["ejercicios"])
@@ -926,3 +956,77 @@ def test_progreso_carga_por_sesion_ignora_anuladas_y_usa_ejercicio_hecho(entrena
             }
         ]
     }
+
+
+def test_prescripcion_efectiva_guardada_idempotente_y_estable(entrenamiento_api, monkeypatch):
+    from gimnasio.entrenamiento import servicio
+
+    datos = entrenamiento_api
+    cliente = datos.cliente()
+    sesion = str(nuevo_id(datos.reloj))
+    cuerpo = {"id": sesion, "sesion_planificada_id": str(datos.sesiones[0])}
+    clave = str(uuid4())
+    respuesta = escribir(cliente, "/api/entrenamiento/sesiones", cuerpo, clave)
+    assert respuesta.status_code == 201
+    inicial = cliente.get(f"/api/entrenamiento/sesiones/{sesion}").json
+    assert inicial["prescripcion_efectiva"]["version_reglas"] == "2.1.0"
+    assert escribir(cliente, "/api/entrenamiento/sesiones", cuerpo, clave).data == respuesta.data
+    assert escribir(cliente, "/api/entrenamiento/sesiones", cuerpo).json == respuesta.json
+    assert cantidad(datos, "prescripciones_efectivas") == 1
+
+    def motor_no_disponible(*args, **kwargs):
+        raise AssertionError("La lectura no debe ejecutar el motor.")
+
+    monkeypatch.setattr(servicio, "proponer_sesion", motor_no_disponible)
+    with datos.app.app_context(), transaccion() as cursor:
+        cursor.execute("UPDATE ejercicios_planificados SET carga=99,series=8")
+    guardada = cliente.get(f"/api/entrenamiento/sesiones/{sesion}").json
+    assert guardada == inicial
+    assert guardada["ejercicios"][0]["objetivos"]["carga"] == "20.50"
+
+
+def test_fallo_prescripcion_revierte_sesion(entrenamiento_api, monkeypatch):
+    datos = entrenamiento_api
+
+    def fallar(*args, **kwargs):
+        raise RuntimeError("Fallo simulado al insertar la prescripción.")
+
+    monkeypatch.setattr(repositorio, "insertar_prescripcion", fallar)
+    with pytest.raises(RuntimeError, match="Fallo simulado"):
+        escribir(
+            datos.cliente(),
+            "/api/entrenamiento/sesiones",
+            {
+                "id": str(nuevo_id(datos.reloj)),
+                "sesion_planificada_id": str(datos.sesiones[0]),
+            },
+        )
+    assert cantidad(datos, "sesiones_realizadas") == 0
+    assert cantidad(datos, "prescripciones_efectivas") == 0
+
+
+def test_sesiones_de_semanas_distintas_cuentan_solo_sus_series(entrenamiento_api):
+    from datetime import timedelta
+
+    datos = entrenamiento_api
+    cliente = datos.cliente()
+    primera = iniciar(datos)
+    for ejercicio in datos.ejercicios[0]:
+        for _ in range(2):
+            cuerpo = cuerpo_serie(datos) | {"ejercicio_planificado_id": str(ejercicio)}
+            assert escribir(cliente, f"/api/entrenamiento/sesiones/{primera}/series", cuerpo).status_code == 201
+    datos.reloj.avanzar(timedelta(days=7))
+    segunda = iniciar(datos)
+    ruta = f"/api/entrenamiento/sesiones/{segunda}"
+    inicial = cliente.get(ruta).json
+    assert inicial["sesion_realizada"]["sesion_planificada_id"] == str(datos.sesiones[0])
+    assert inicial["prescripcion_efectiva"] is not None
+    assert [(e["realizado"], e["pendiente"]) for e in inicial["ejercicios"]] == [(0, 2), (0, 2)]
+    assert inicial["series"] == []
+
+    assert escribir(cliente, ruta + "/series", cuerpo_serie(datos)).status_code == 201
+    parcial = cliente.get(ruta).json
+    assert [(e["realizado"], e["pendiente"]) for e in parcial["ejercicios"]] == [(1, 1), (0, 2)]
+    assert parcial["prescripcion_efectiva"] == inicial["prescripcion_efectiva"]
+    anterior = cliente.get(f"/api/entrenamiento/sesiones/{primera}").json
+    assert [(e["realizado"], e["pendiente"]) for e in anterior["ejercicios"]] == [(2, 0), (2, 0)]

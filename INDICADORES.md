@@ -7,7 +7,7 @@ Guía para explicar el recorrido de etapa 1. Las referencias `archivo:línea` se
 | Indicador | Evidencia vigente |
 |---|---|
 | Implementación | Sedes y personas: `migraciones/0001_sedes_y_personas.sql:2`. Usuarios y asignaciones: `migraciones/0002_usuarios_y_asignaciones.sql:2`. Membresías: `migraciones/0006_membresias.sql:2`. Programa versionado: `migraciones/0007_programas_entrenamiento.sql:11`. Entradas y salidas con claves foráneas: `migraciones/0008_entradas_y_salidas.sql:2`. Sesiones y series realizadas: `migraciones/0009_sesiones_y_series_realizadas.sql:2`. |
-| C.R.U.D. | Creación y lectura del recorrido: `gimnasio/visitas/repositorio.py:72`, `gimnasio/visitas/repositorio.py:165`, `gimnasio/entrenamiento/repositorio.py:122`, `gimnasio/entrenamiento/repositorio.py:194`. Los hechos solo se insertan: no se presenta un CRUD destructivo sobre visitas o series. La interfaz de etapa 1 no ofrece edición o eliminación general de socios. |
+| C.R.U.D. | Creación y lectura del recorrido: `gimnasio/visitas/repositorio.py:72`, `gimnasio/visitas/repositorio.py:165`, `gimnasio/entrenamiento/repositorio.py:126`, `gimnasio/entrenamiento/repositorio.py:198`. Los hechos solo se insertan: no se presenta un CRUD destructivo sobre visitas o series. La interfaz de etapa 1 no ofrece edición o eliminación general de socios. |
 | Conexión desde Python | Parámetros desde el entorno: `gimnasio/comun/bd.py:13`. Conexión UTC: `gimnasio/comun/bd.py:29`. Transacción: `gimnasio/comun/bd.py:49`. SQL parametrizado: `gimnasio/visitas/repositorio.py:78`. |
 | Migraciones y datos ficticios | Aplicador con versiones y sumas: `gimnasio/comun/migrar.py:48`. Semilla demo: `gimnasio/demo/servicio.py:230`. El SQL heredado no forma parte de este esquema. |
 
@@ -17,7 +17,7 @@ Guía para explicar el recorrido de etapa 1. Las referencias `archivo:línea` se
 |---|---|
 | Manejo de rutas | Fábrica y blueprints: `gimnasio/__init__.py:25`. Entradas, salidas y consultas: `gimnasio/visitas/rutas.py:12`. Propuesta: `gimnasio/entrenamiento/rutas.py:11`. Inicio de sesión realizada y series: `gimnasio/entrenamiento/rutas.py:24`. |
 | Conexión y paso de información con el cliente | Las rutas reciben JSON y responden JSON con códigos HTTP: `gimnasio/visitas/rutas.py:14`, `gimnasio/entrenamiento/rutas.py:26`. Errores JSON: `gimnasio/comun/errores.py:17`. La fábrica sirve los estáticos de `gimnasio/static/`. |
-| Iteradores y condicionales | Selección de primera sesión pendiente y composición de doble progresión: `gimnasio/reglas/sesion.py:7`. Vigencia, visita abierta y aforo: `gimnasio/visitas/servicio.py:39`. Serialización de programa: `gimnasio/entrenamiento/servicio.py:51`. |
+| Iteradores y condicionales | Selección de primera sesión pendiente y composición de doble progresión: `gimnasio/reglas/sesion.py:7`. Vigencia, visita abierta y aforo: `gimnasio/visitas/servicio.py:39`. Serialización de programa: `gimnasio/entrenamiento/servicio.py:52`. |
 | Comportamiento comprobado | E2E integrado con MySQL real y ambos anchos: `pruebas/e2e/test_esqueleto_andante.py:110`. Comprobación de solo inserciones: `pruebas/test_historial_inserciones.py:1`. Los resultados concretos se verifican en los checks del PR; las pruebas omitidas no acreditan el recorrido. |
 
 ## JavaScript (5 pts)

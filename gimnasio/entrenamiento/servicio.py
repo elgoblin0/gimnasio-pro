@@ -2,12 +2,13 @@
 
 import json
 from collections import Counter
+from contextlib import nullcontext
 from datetime import UTC
 from zoneinfo import ZoneInfo
 
 from gimnasio.comun.bd import transaccion
 from gimnasio.comun.errores import ErrorDeDominio
-from gimnasio.comun.ids import desde_bytes, desde_texto
+from gimnasio.comun.ids import desde_bytes, desde_texto, nuevo_id
 from gimnasio.comun.reloj import fecha_local, inicio_de_semana, reloj_actual
 from gimnasio.comun.tipos import (
     DatosPropuesta,
@@ -151,18 +152,27 @@ def preparar_historial(filas, zona, local, sesion_planificada_id=None):
         for (sesion, ejercicio), (planificada, fecha, series) in sesiones.items()
     )
     historial = historial_para_sesion(historial, sesion_planificada_id, inicio_de_semana(local))
+    return historial
+
+
+def preparar_subas(efectivas, zona, local):
     subas = []
-    cargas = {}
-    for sesion in historial:
-        cargas_sesion = tuple(serie.carga for serie in sesion.series if serie.carga is not None)
-        if not cargas_sesion:
+    for efectiva in efectivas:
+        fecha = fecha_local(efectiva["creada_en"].replace(tzinfo=UTC), zona)
+        if not inicio_de_semana(local) <= fecha <= local:
             continue
-        carga_base = min(cargas_sesion)
-        anterior = cargas.get(sesion.ejercicio_id)
-        if anterior is not None and carga_base > anterior:
-            subas.append(SubaCarga(sesion.ejercicio_id, sesion.fecha_local, sesion.sesion_planificada_id))
-        cargas[sesion.ejercicio_id] = carga_base
-    return historial, tuple(subas)
+        ejercicios = {e["id"]: e for e in json.loads(efectiva["ejercicios"])}
+        for razon in json.loads(efectiva["explicacion"]):
+            ejercicio = ejercicios.get(razon["datos"].get("ejercicio_id"))
+            if (
+                razon["regla"] == "subir_carga"
+                and ejercicio
+                and "tope_semanal" not in {r["regla"] for r in ejercicio["explicacion"]}
+            ):
+                subas.append(
+                    SubaCarga(ejercicio["ejercicio_id"], fecha, str(desde_bytes(efectiva["sesion_planificada_id"])))
+                )
+    return tuple(subas)
 
 
 def catalogo_programa(programa):
@@ -176,28 +186,38 @@ def catalogo_programa(programa):
     return tuple(ejercicios.values())
 
 
-def consultar_propuesta(socio_texto, usuario):
+def consultar_propuesta(socio_texto, usuario, planificada_id=None, *, cursor=None):
     socio_id = identificar(socio_texto)
     ahora = reloj_actual().ahora()
-    with transaccion() as cursor:
-        autorizar_socio(cursor, socio_id, usuario)
-        sede = repositorio.obtener_sede(cursor)
+    with nullcontext(cursor) if cursor is not None else transaccion() as lectura:
+        autorizar_socio(lectura, socio_id, usuario)
+        sede = repositorio.obtener_sede(lectura)
         if sede is None:
             raise ErrorDeDominio("sede_inexistente", "La sede no existe.", 404)
-        filas = repositorio.listar_series_vigentes(cursor, socio_id)
-    programas = listar_programas(socio_id)
+        filas = repositorio.listar_series_vigentes(lectura, socio_id)
+        efectivas = repositorio.listar_prescripciones(lectura, socio_id)
+    programas = listar_programas(socio_id, cursor=cursor)
     programa = programas[-1] if programas else None
+    if planificada_id is not None:
+        programa = next(p for p in programas if any(s["id"] == str(planificada_id) for s in p["sesiones_planificadas"]))
+        programa = {
+            **programa,
+            "sesiones_planificadas": [s for s in programa["sesiones_planificadas"] if s["id"] == str(planificada_id)],
+        }
     local = fecha_local(ahora, ZoneInfo(sede["zona_horaria"]))
     series, cantidades = convertir_series(filas)
+    if planificada_id is not None:
+        series = ()
     programa_motor = convertir_programa(programa)
     # Primero identifica pendientes; aún no hay historial ni ajustes que exponer.
     seleccion = proponer_sesion(DatosPropuesta(programa_motor, local, inicio_de_semana(local), series))
-    historial, subas = preparar_historial(
+    historial = preparar_historial(
         filas,
         ZoneInfo(sede["zona_horaria"]),
         local,
         seleccion.sesion_planificada.id if seleccion.sesion_planificada else None,
     )
+    subas = preparar_subas(efectivas, ZoneInfo(sede["zona_horaria"]), local)
     propuesta = proponer_sesion(
         DatosPropuesta(
             programa_motor,
@@ -321,6 +341,8 @@ def crear_sesion(datos, usuario):
     sesion_id, planificada_id = identificar(datos["id"]), identificar(datos["sesion_planificada_id"])
     ahora = reloj_actual().ahora()
     with transaccion() as cursor:
+        # Serializa el inicio por socio antes de abrir la lectura del historial y las subas.
+        repositorio.obtener_socio(cursor, identificar(usuario["id"]), bloquear=True)
         anterior = repositorio.obtener_sesion(cursor, sesion_id)
         if anterior is not None:
             _exigir_propiedad(anterior, usuario)
@@ -331,12 +353,15 @@ def crear_sesion(datos, usuario):
         if planificada is None:
             raise ErrorDeDominio("planificada_inexistente", "La sesión planificada no existe.", 404)
         _exigir_propiedad(planificada, usuario)
+        propuesta = consultar_propuesta(usuario["id"], usuario, planificada_id, cursor=cursor)
         repositorio.insertar_sesion(cursor, sesion_id, identificar(usuario["id"]), planificada_id, ahora)
         # Tras un INSERT duplicado concurrente, leer el registro confirmado y validar su pertenencia.
         fila = repositorio.obtener_sesion(cursor, sesion_id, actual=True)
         _exigir_propiedad(fila, usuario)
         if desde_bytes(fila["sesion_planificada_id"]) != planificada_id:
             raise ErrorDeDominio("id_ajeno", "El identificador corresponde a otra sesión planificada.", 403)
+        if repositorio.obtener_prescripcion(cursor, sesion_id) is None:
+            repositorio.insertar_prescripcion(cursor, nuevo_id(), sesion_id, propuesta, ahora)
         return sesion_publica(fila)
 
 
@@ -424,6 +449,7 @@ def consultar_sesion(sesion_texto, usuario):
     sesion_id = identificar(sesion_texto)
     with transaccion() as cursor:
         sesion = _sesion_propia(cursor, sesion_id, usuario)
+        efectiva = repositorio.obtener_prescripcion(cursor, sesion_id)
         filas = repositorio.listar_series_vigentes(cursor, identificar(usuario["id"]), sesion_id)
         historial = repositorio.listar_series_vigentes(cursor, identificar(usuario["id"]))
         sede = repositorio.obtener_sede(cursor)
@@ -450,11 +476,24 @@ def consultar_sesion(sesion_texto, usuario):
     )
     anteriores = cargas_anteriores(historial, ZoneInfo(sede["zona_horaria"]), sesion)
     cantidades = Counter(str(desde_bytes(f["ejercicio_planificado_id"])) for f in filas)
+    ejercicios = json.loads(efectiva["ejercicios"]) if efectiva else None
     return {
+        "prescripcion_efectiva": (
+            {campo: json.loads(efectiva[campo]) for campo in ("ejercicios", "explicacion", "frenos")}
+            | {"version_reglas": efectiva["version_reglas"]}
+        )
+        if efectiva
+        else None,
+        "sesion_planificada": {"id": planificada["id"], "nombre": planificada["nombre"]},
         "sesion_realizada": sesion_publica(sesion),
         "sustituciones": sustituciones,
         "series": [serie_publica(f) for f in filas],
         "ejercicios": [
+            {**e, "realizado": cantidades[e["id"]], "pendiente": max(0, e["objetivos"]["series"] - cantidades[e["id"]])}
+            for e in ejercicios
+        ]
+        if ejercicios is not None
+        else [
             {
                 "id": e["id"],
                 "nombre": e["nombre"],

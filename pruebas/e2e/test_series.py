@@ -165,7 +165,7 @@ def test_sesion_parcial_conserva_pendientes_y_carga_anterior(pagina_demo, demo_a
     pagina = pagina_demo
     iniciar(pagina, demo_aislada)
     tarjeta = pagina.locator(f'[data-ejercicio="{programa_demo.ejercicios[0]}"]')
-    expect(tarjeta).to_contain_text("Series realizadas: 1 · Pendientes: 1")
+    expect(tarjeta).to_contain_text("Series realizadas: 0 · Pendientes: 2")
     expect(tarjeta).to_contain_text("Carga anterior: 17,50 kg · 9 repeticiones")
     expect(pagina.get_by_label("Carga en kg de Sentadilla ficticia", exact=True)).to_have_value("20.50")
     with demo_aislada.app.app_context(), transaccion() as cursor:
@@ -173,8 +173,11 @@ def test_sesion_parcial_conserva_pendientes_y_carga_anterior(pagina_demo, demo_a
             "UPDATE ejercicios_planificados SET carga=NULL WHERE id=%s", (a_bytes(programa_demo.ejercicios[0]),)
         )
     pagina.reload()
-    expect(pagina.get_by_label("Carga en kg de Sentadilla ficticia", exact=True)).to_have_value("17.50")
+    # La prescripción efectiva permanece aunque cambie la carga del programa.
+    expect(pagina.get_by_label("Carga en kg de Sentadilla ficticia", exact=True)).to_have_value("20.50")
     expect(pagina.get_by_label("Repeticiones de Sentadilla ficticia", exact=True)).to_have_value("8")
+    pagina.get_by_role("button", name="Registrar serie de Sentadilla ficticia", exact=True).click()
+    expect(tarjeta).to_contain_text("Series realizadas: 1 · Pendientes: 1")
     pagina.get_by_role("button", name="Registrar serie de Sentadilla ficticia", exact=True).click()
     expect(tarjeta).to_contain_text("Series realizadas: 2 · Pendientes: 0")
     expect(tarjeta.get_by_role("button", name="Registrar serie de Sentadilla ficticia", exact=True)).to_have_count(0)

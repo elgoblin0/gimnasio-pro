@@ -130,7 +130,7 @@ def test_catalogo_y_rango_conserva_semilla_etapa_uno(tmp_path, bd_vacia, reloj_f
         cursor.execute("SELECT * FROM series_realizadas ORDER BY id")
         hechos = cursor.fetchall()
         conexion.commit()
-        assert aplicar(bd_vacia, salida=lambda _: None) == ["0010", "0011", "0012"]
+        assert aplicar(bd_vacia, salida=lambda _: None) == ["0010", "0011", "0012", "0013"]
         cursor.execute("SELECT id, repeticiones_minimas, repeticiones_maximas FROM ejercicios_planificados ORDER BY id")
         assert cursor.fetchall() == [
             {"id": f["id"], "repeticiones_minimas": f["repeticiones"], "repeticiones_maximas": f["repeticiones"]}

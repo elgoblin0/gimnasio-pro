@@ -50,7 +50,7 @@ Generado por `scripts/mapa_capacidades.py` desde `docs/capacidades/`. No editar 
 |---|---|---|---|
 | Persistencia de sesiones realizadas y series realizadas | 1 | funcional | `pruebas/test_entrenamiento_repositorio.py` |
 | Pantalla del socio con propuesta, explicación y pendientes | 1 | validada | `pruebas/e2e/test_entrenamiento.py` · https://github.com/elgoblin0/gimnasio-pro/issues/52 |
-| Registro idempotente de sesiones y series realizadas con RIR opcional | 1 | validada | `pruebas/e2e/test_esqueleto_andante.py` · https://github.com/elgoblin0/gimnasio-pro/issues/52 |
+| Registro idempotente de sesiones y series realizadas con RIR opcional y prescripción efectiva guardada | 1 | validada | `pruebas/e2e/test_esqueleto_andante.py` · https://github.com/elgoblin0/gimnasio-pro/issues/52 |
 | Sesión propuesta según la secuencia, con rango de repeticiones y catálogo | 1 | validada | `pruebas/e2e/test_esqueleto_andante.py` · https://github.com/elgoblin0/gimnasio-pro/issues/52 |
 | Chequeo del día | 2 | pendiente | — |
 | "Me duele" y "máquina ocupada" | 2 | esqueleto | `pruebas/e2e/test_series.py::test_maquina_ocupada_con_teclado_y_recarga` |
