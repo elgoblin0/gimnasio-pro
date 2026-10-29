@@ -29,6 +29,7 @@ function dibujarDescanso() {
   if ($("[data-descanso-anuncio]").textContent !== anuncio) $("[data-descanso-anuncio]").textContent = anuncio;
 }
 setInterval(dibujarDescanso, 250);
+let chequeoResuelto = Boolean(new URL(location.href).searchParams.get("sesion"));
 let autorizada = false;
 let cargando = false;
 let propuestaActual = null;
@@ -38,8 +39,8 @@ const control = crearControlDeOperacion();
 const numero = new Intl.NumberFormat("es-PY", { maximumFractionDigits: 2 });
 
 function actualizarBotones() {
-  for (const elemento of document.querySelectorAll("[data-iniciar], [data-serie] input, [data-serie] button, [data-sustitucion] button")) {
-    elemento.disabled = Boolean(control.actual) || cargando;
+  for (const elemento of document.querySelectorAll("[data-formulario-chequeo] select, [data-formulario-chequeo] button, [data-iniciar], [data-serie] input, [data-serie] button, [data-sustitucion] button")) {
+    elemento.disabled = Boolean(control.actual) || cargando || (elemento.matches("[data-iniciar]") && !chequeoResuelto);
   }
   $("[data-actualizar]").disabled = cargando || control.enCurso;
   $("[data-reintento]").hidden = !control.actual || control.enCurso;
@@ -164,6 +165,7 @@ function dibujar(propuesta) {
   }
   $("[data-contenido]").hidden = false;
   dibujarRegistro();
+  actualizarBotones();
 }
 
 async function actualizar(mensaje) {
@@ -210,6 +212,10 @@ async function enviar() {
   $("[data-record]").textContent = "";
   try {
     const datos = await llamarApi(operacion.ruta, { metodo: "POST", cuerpo: operacion.cuerpo, clave: operacion.clave });
+    if (datos.chequeo) {
+      chequeoResuelto = true;
+      $("[data-chequeo]").hidden = true;
+    }
     if (datos.sesion_realizada) {
       sesionId = datos.sesion_realizada.id;
       const enlace = new URL(location.href);
@@ -258,6 +264,7 @@ async function iniciar() {
       return;
     }
     autorizada = true;
+    $("[data-chequeo]").hidden = chequeoResuelto;
     $("[data-ver-progreso]").hidden = false;
     await actualizar();
   } catch (error) {
@@ -270,6 +277,19 @@ $("[data-iniciar]").addEventListener("click", () => {
   if (cargando || control.actual || !propuestaActual?.sesion_planificada) return;
   control.preparar("/api/entrenamiento/sesiones", { sesion_planificada_id: propuestaActual.sesion_planificada.id });
   enviar();
+});
+$("[data-formulario-chequeo]").addEventListener("submit", (evento) => {
+  evento.preventDefault();
+  if (cargando || control.actual || !autorizada) return;
+  const datos = new FormData(evento.currentTarget);
+  control.preparar("/api/entrenamiento/chequeos", { sueno: Number(datos.get("sueno")), energia: Number(datos.get("energia")) });
+  enviar();
+});
+$("[data-saltear-chequeo]").addEventListener("click", () => {
+  if (cargando || control.actual) return;
+  chequeoResuelto = true;
+  $("[data-chequeo]").hidden = true;
+  if (propuestaActual) dibujar(propuestaActual);
 });
 $("[data-reintentar]").addEventListener("click", enviar);
 $("[data-descartar]").addEventListener("click", () => {

@@ -31,7 +31,7 @@ def test_propuesta_explicacion_recarga_y_cierre(pagina_demo, demo_aislada, progr
         "Se respeta el plan del entrenador sin ajustes de carga, repeticiones, series ni volumen."
     )
     expect(pagina.get_by_text("27/10/2026", exact=True)).to_be_visible()
-    expect(pagina.locator("[data-contenido]")).to_have_attribute("data-version-reglas", "2.1.0")
+    expect(pagina.locator("[data-contenido]")).to_have_attribute("data-version-reglas", "2.2.0")
     assert pagina.evaluate("document.documentElement.scrollWidth <= innerWidth")
     pagina.get_by_role("button", name="Actualizar propuesta", exact=True).focus()
     pagina.keyboard.press("Enter")
@@ -59,8 +59,8 @@ def test_estados_vacios_con_respuesta_controlada(pagina_demo, demo_aislada, regl
     datos = {
         "sesion_planificada": None,
         "ejercicios": [],
-        "explicacion": [{"regla": regla, "version": "2.1.0", "datos": {"explicacion": mensaje}}],
-        "version_reglas": "2.1.0",
+        "explicacion": [{"regla": regla, "version": "2.2.0", "datos": {"explicacion": mensaje}}],
+        "version_reglas": "2.2.0",
         "fecha_local": "2026-10-27",
         "semana_local": "2026-10-26",
     }
@@ -99,3 +99,28 @@ def test_error_legible_y_reintento_recupera_propuesta_real(pagina_demo, demo_ais
     pagina_demo.get_by_role("button", name="Actualizar propuesta", exact=True).click()
     expect(pagina_demo.get_by_role("heading", name="Fuerza y cardio", exact=True)).to_be_visible()
     expect(pagina_demo.get_by_role("alert")).to_be_empty()
+
+
+@pytest.mark.parametrize("ancho", [1440, 390])
+def test_chequeo_del_dia_teclado_y_prescripcion_guardada(pagina_demo, demo_aislada, programa_demo, ancho):
+    pagina = pagina_demo
+    pagina.set_viewport_size({"width": ancho, "height": 900})
+    ingresar(pagina, demo_aislada)
+    expect(pagina.get_by_role("heading", name="Chequeo del día", exact=True)).to_be_visible()
+    iniciar = pagina.get_by_role("button", name="Iniciar sesión realizada", exact=True)
+    expect(iniciar).to_be_disabled()
+    sueno = pagina.get_by_label("Sueño", exact=True)
+    sueno.focus()
+    pagina.keyboard.press("Home")
+    pagina.keyboard.press("ArrowDown")
+    expect(sueno).to_have_value("1")
+    pagina.get_by_label("Energía", exact=True).select_option("5")
+    pagina.get_by_role("button", name="Guardar chequeo del día", exact=True).click()
+    expect(pagina.locator("[data-chequeo]")).to_be_hidden()
+    expect(iniciar).to_be_enabled()
+    expect(pagina.locator("[data-ajuste]").first).to_contain_text("Chequeo del día desfavorable")
+    assert pagina.evaluate("document.documentElement.scrollWidth <= innerWidth")
+    iniciar.click()
+    expect(pagina.get_by_text("Sesión realizada iniciada.", exact=True)).to_be_visible()
+    pagina.reload()
+    expect(pagina.locator("[data-ajuste]").first).to_contain_text("Chequeo del día desfavorable")

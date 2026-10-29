@@ -64,3 +64,9 @@ def progreso_propio():
 @requiere("entrenamiento.ver_asignados")
 def progreso_socio(socio_id):
     return jsonify(servicio.consultar_progreso(socio_id, usuario_actual()))
+
+
+@bp.post("/chequeos")
+@requiere("entrenamiento.registrar_propio")
+def registrar_chequeo():
+    return jsonify({"chequeo": servicio.registrar_chequeo(request.get_json(silent=True), usuario_actual())}), 201

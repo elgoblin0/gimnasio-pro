@@ -124,6 +124,8 @@ def test_recorrido_parcial_salida_reingreso_y_cierre(pagina_demo, demo_aislada, 
     expect(pagina.locator("[data-ajuste]").first).to_contain_text("Subís")
     assert pagina.request.get(demo_aislada.url + "/api/ocupacion").status == 403
     assert pagina.locator("[data-salida], [data-entrada]").count() == 0
+    if pagina.locator("[data-chequeo]").is_visible():
+        pagina.get_by_role("button", name="Saltear", exact=True).click()
     pagina.get_by_role("button", name="Iniciar sesión realizada", exact=True).click()
     expect(pagina.get_by_text("Sesión realizada iniciada.", exact=True)).to_be_visible()
     enlace = pagina.url
@@ -216,6 +218,8 @@ def test_secuencia_terminada_se_conserva_tras_recarga_y_otra_semana(pagina_demo,
     for _ in range(2):
         propuesta = consulta(pagina, demo_aislada, "/api/entrenamiento/propuesta")
         assert propuesta["sesion_planificada"] is not None
+        if pagina.locator("[data-chequeo]").is_visible():
+            pagina.get_by_role("button", name="Saltear", exact=True).click()
         pagina.get_by_role("button", name="Iniciar sesión realizada", exact=True).click()
         expect(pagina.get_by_text("Sesión realizada iniciada.", exact=True)).to_be_visible()
         sesiones.append(pagina.url)

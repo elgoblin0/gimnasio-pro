@@ -6,7 +6,7 @@ from decimal import Decimal
 
 from gimnasio.comun.tipos import PrescripcionEjercicio, Razon
 
-VERSION_REGLAS = "2.1.0"
+VERSION_REGLAS = "2.2.0"
 
 
 def razon(regla, prescripcion, explicacion, **datos):
@@ -157,7 +157,7 @@ def aplicar_frenos(ajustada, anterior, ejercicio, entrada, hubo_suba, sesion_pla
     return frenada, (explicacion,), ("tope_semanal",)
 
 
-def ajustar_ejercicio(planificado, entrada, sesion_planificada_id):
+def _ajustar_ejercicio(planificado, entrada, sesion_planificada_id):
     prescripcion = PrescripcionEjercicio(
         planificado.ejercicio_id,
         planificado.series,
@@ -237,3 +237,35 @@ def ajustar_ejercicio(planificado, entrada, sesion_planificada_id):
         ajustada, prescripcion, ejercicio, entrada, explicacion.regla == "subir_carga", sesion_planificada_id
     )
     return ajustada, razones + razones_freno, frenos
+
+
+def ajustar_ejercicio(planificado, entrada, sesion_planificada_id):
+    ajustada, razones, frenos = _ajustar_ejercicio(planificado, entrada, sesion_planificada_id)
+    chequeo = entrada.chequeo
+    if chequeo is None:
+        return (
+            ajustada,
+            razones + (razon("sin_chequeo", ajustada, "Sin chequeo del día: se toma como neutro."),),
+            frenos,
+        )
+    if chequeo.sueno > 2 and chequeo.energia > 2:
+        return ajustada, razones, frenos
+    suba = next((r for r in razones if r.regla == "subir_carga"), None)
+    if suba is not None:
+        ajustada = replace(
+            ajustada,
+            carga=Decimal(dict(suba.datos)["carga_base"]),
+            repeticiones_minimas=planificado.repeticiones_maximas,
+        )
+    ajustada = replace(ajustada, series=max(1, ajustada.series - 1))
+    explicacion = razon(
+        "chequeo_desfavorable",
+        ajustada,
+        "Chequeo del día desfavorable: una serie menos (mínimo una) y se anulan las subas de hoy. "
+        "Se deja un aviso al entrenador al iniciar la sesión.",
+        sueno=chequeo.sueno,
+        energia=chequeo.energia,
+        series=ajustada.series,
+        suba_anulada=suba is not None,
+    )
+    return ajustada, razones + (explicacion,), frenos + ("chequeo_desfavorable",)

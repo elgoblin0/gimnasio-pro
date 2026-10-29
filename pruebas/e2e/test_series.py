@@ -15,6 +15,7 @@ def iniciar(pagina, instancia):
     pagina.goto(instancia.url)
     pagina.get_by_role("button", name="Entrar como socio", exact=True).click()
     pagina.get_by_role("link", name="Ver mi entrenamiento", exact=True).click()
+    pagina.get_by_role("button", name="Saltear", exact=True).click()
     boton = pagina.get_by_role("button", name="Iniciar sesión realizada", exact=True)
     expect(boton).to_be_visible()
     boton.focus()
