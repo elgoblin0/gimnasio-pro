@@ -32,7 +32,7 @@ python scripts/implementador.py            # atiende lo pendiente y termina
 python scripts/implementador.py --esperar  # repite cada 60 segundos
 ```
 
-Necesita `gh` autenticado y `codex.exe` (lo busca en `GIMNASIO_CODEX_BIN`, el PATH y `%LOCALAPPDATA%\OpenAI\Codexin`). Un issue a la vez, como la cadena.
+Necesita `gh` autenticado y `codex.exe` (lo busca en `GIMNASIO_CODEX_BIN`, el PATH y `%LOCALAPPDATA%\OpenAI\Codex\bin`). Un issue a la vez, como la cadena.
 
 Para arrancar una etapa: Actions → Cadena → Run workflow. Para frenarla: deshabilitá el workflow Cadena.
 
