@@ -121,15 +121,16 @@ def correr_codex(carpeta, prompt):
 
 
 def subir_cambios(carpeta, rama, titulo):
-    """Commit y push de lo que dejó Codex; False si no hay nada que subir."""
-    git("add", "-A", cwd=carpeta)
-    hay_cambios = git("diff", "--cached", "--quiet", cwd=carpeta, chequear=False).returncode != 0
+    """Commit y push de lo que dejó Codex; False si no tocó nada.
+
+    La fusión limpia con main que hace `preparar_worktree` no cuenta: sin trabajo de Codex no hay nada que subir.
+    """
+    sucio = git("status", "--porcelain", cwd=carpeta).stdout.strip() != ""
     en_fusion = git("rev-parse", "-q", "--verify", "MERGE_HEAD", cwd=carpeta, chequear=False).returncode == 0
-    adelantada = git("rev-list", "--count", f"origin/{rama}..HEAD", cwd=carpeta).stdout.strip() != "0"
-    if hay_cambios or en_fusion:
-        git("commit", "-m", titulo, cwd=carpeta)
-    elif not adelantada:
+    if not (sucio or en_fusion):
         return False
+    git("add", "-A", cwd=carpeta)
+    git("commit", "-m", titulo, cwd=carpeta)
     git("push", "origin", f"HEAD:{rama}", cwd=carpeta)
     return True
 
