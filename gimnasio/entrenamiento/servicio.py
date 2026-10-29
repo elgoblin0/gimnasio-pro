@@ -647,12 +647,11 @@ def consultar_sesion(sesion_texto, usuario):
         historial = repositorio.listar_series_vigentes(cursor, identificar(usuario["id"]))
         sede = repositorio.obtener_sede(cursor)
         sustituciones = {}
-        # Se leen también ejercicios sin series, para recuperar la sustitución al recargar. El ejercicio hecho se
-        # toma de `ejercicios`: la sustitución es un hecho y sigue válida aunque el catálogo ya no la proponga.
+        # Se consultan también ejercicios sin series, para recuperar la sustitución al recargar.
         for vigente in repositorio.listar_sustituciones_vigentes(cursor, sesion_id):
             sustituciones[str(desde_bytes(vigente["ejercicio_planificado_id"]))] = {
                 "sustitucion": sustitucion_publica(vigente),
-                "nombre": vigente["ejercicio_hecho_nombre"],
+                "nombre": vigente["nombre"],
                 "medidas_aplicables": json.loads(vigente["medidas_aplicables"]),
                 "carga_anterior": anteriores_hecho(historial, sede, sesion, vigente),
             }

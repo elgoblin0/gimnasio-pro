@@ -280,14 +280,17 @@ def sustitucion_vigente(cursor, sesion_id, ejercicio_id):
 
 
 def listar_sustituciones_vigentes(cursor, sesion_id):
-    """La última sustitución de cada ejercicio planificado, con el ejercicio hecho tal como está en `ejercicios`."""
+    """Resuelve el ejercicio hecho aunque ya no sea una alternativa del planificado."""
     cursor.execute(
-        """SELECT s.*, e.nombre AS ejercicio_hecho_nombre, e.medidas_aplicables
-           FROM (SELECT x.*, ROW_NUMBER() OVER (
-                     PARTITION BY x.ejercicio_planificado_id ORDER BY x.registrada_en DESC, x.id DESC
-                 ) AS orden
-                 FROM sustituciones x WHERE x.sesion_realizada_id=%s) s
-           JOIN ejercicios e ON e.id=s.ejercicio_hecho_id WHERE s.orden=1""",
+        """WITH ordenadas AS (
+               SELECT s.*, ROW_NUMBER() OVER (
+                   PARTITION BY ejercicio_planificado_id ORDER BY registrada_en DESC, id DESC
+               ) AS orden
+               FROM sustituciones s WHERE sesion_realizada_id=%s
+           )
+           SELECT s.*, e.nombre, e.medidas_aplicables
+           FROM ordenadas s JOIN ejercicios e ON e.id=s.ejercicio_hecho_id
+           WHERE s.orden=1""",
         (a_bytes(sesion_id),),
     )
     return cursor.fetchall()

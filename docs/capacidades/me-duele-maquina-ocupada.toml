@@ -14,3 +14,6 @@ validacion = "https://github.com/elgoblin0/gimnasio-pro/issues/136"
 # Cada dolor en vivo deja su aviso sin duplicarlo al reintentar; las alternativas
 # con zonas excluidas explican y guardan el motivo dolor_reportado. La propuesta
 # lee los dolores en conjunto y no agrega consultas por cada sesión del historial.
+# La recarga conserva nombre, medidas y series de la sustitución vigente aunque
+# su alternativa salga del catálogo; las sustituciones se leen en una sola consulta
+# (test_recarga_sustitucion_sin_alternativa_en_catalogo en pruebas/test_entrenamiento_api.py).

@@ -947,6 +947,59 @@ def test_sustitucion_idempotente_compatible_y_series_acreditadas(alternativas_ap
     )
 
 
+@pytest.mark.parametrize("con_series", [False, True])
+def test_recarga_sustitucion_sin_alternativa_en_catalogo(alternativas_api, con_series):
+    datos = alternativas_api
+    cliente = datos.cliente()
+    sesion = iniciar(datos)
+    ruta = f"/api/entrenamiento/sesiones/{sesion}"
+    ejercicio = str(datos.ejercicios[0][0])
+    # La última sustitución debe prevalecer incluso si la anterior sigue en el catálogo.
+    for alternativa in datos.alternativas:
+        respuesta = escribir(
+            cliente,
+            ruta + "/sustituciones",
+            {
+                "id": str(nuevo_id(datos.reloj)),
+                "ejercicio_planificado_id": ejercicio,
+                "ejercicio_hecho_id": str(alternativa),
+            },
+        )
+        assert respuesta.status_code == 201
+    if con_series:
+        serie = escribir(
+            cliente,
+            ruta + "/series",
+            cuerpo_serie(datos) | {"ejercicio_hecho_id": str(datos.alternativas[-1])},
+        )
+        assert serie.status_code == 201
+    with datos.app.app_context(), transaccion() as cursor:
+        cursor.execute(
+            "DELETE FROM alternativas_ejercicio WHERE alternativa_id=%s",
+            (a_bytes(datos.alternativas[-1]),),
+        )
+    lectura = cliente.get(ruta)
+    assert lectura.status_code == 200
+    vigente = lectura.json["sustituciones"][ejercicio]
+    assert vigente["sustitucion"] == respuesta.json["sustitucion"]
+    assert vigente["nombre"] == "Alternativa ficticia 2"
+    assert vigente["medidas_aplicables"] == ["repeticiones", "carga"]
+    assert len(lectura.json["series"]) == int(con_series)
+    if con_series:
+        assert lectura.json["series"][0] == serie.json["serie_realizada"]
+    # Una elección nueva conserva la validación de alternativas vigentes.
+    rechazo = escribir(
+        cliente,
+        ruta + "/sustituciones",
+        {
+            "id": str(nuevo_id(datos.reloj)),
+            "ejercicio_planificado_id": ejercicio,
+            "ejercicio_hecho_id": str(datos.alternativas[-1]),
+        },
+    )
+    assert rechazo.status_code == 422
+
+
 def test_sustitucion_exige_clave_y_ejercicio_de_sesion(alternativas_api):
     datos = alternativas_api
     sesion = iniciar(datos)
