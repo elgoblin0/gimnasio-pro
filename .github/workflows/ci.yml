@@ -69,6 +69,9 @@ jobs:
           cache: pip
           cache-dependency-path: requirements-dev.txt
       - run: pip install -r requirements-dev.txt
+      - name: MySQL sin fsync (solo CI)
+        run: |
+          mysql -h 127.0.0.1 -uroot -psolo-ci -e "SET GLOBAL innodb_flush_log_at_trx_commit=0; SET GLOBAL sync_binlog=0; SET GLOBAL innodb_doublewrite=OFF;"
       - name: Migraciones sobre base vacía
         run: |
           set -o pipefail
@@ -76,7 +79,7 @@ jobs:
       - name: pytest
         run: |
           set -o pipefail
-          pytest -n auto -m "not e2e" --junitxml=reporte-pytest.xml -q 2>&1 | tee registro-pytest.txt
+          pytest -n auto -m "not e2e" --durations=15 --junitxml=reporte-pytest.xml -q 2>&1 | tee registro-pytest.txt
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -112,6 +115,9 @@ jobs:
           cache-dependency-path: requirements-dev.txt
       - run: pip install -r requirements-dev.txt
       - run: playwright install --with-deps chromium
+      - name: MySQL sin fsync (solo CI)
+        run: |
+          mysql -h 127.0.0.1 -uroot -psolo-ci -e "SET GLOBAL innodb_flush_log_at_trx_commit=0; SET GLOBAL sync_binlog=0; SET GLOBAL innodb_doublewrite=OFF;"
       - name: Migraciones sobre base vacía
         run: |
           set -o pipefail
@@ -119,7 +125,7 @@ jobs:
       - name: pytest
         run: |
           set -o pipefail
-          pytest -n auto -m e2e --junitxml=reporte-pytest.xml -q 2>&1 | tee registro-pytest.txt
+          pytest -n auto -m e2e --durations=15 --junitxml=reporte-pytest.xml -q 2>&1 | tee registro-pytest.txt
       - uses: actions/upload-artifact@v4
         if: always()
         with:
