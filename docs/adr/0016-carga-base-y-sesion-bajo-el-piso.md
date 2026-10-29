@@ -1,6 +1,6 @@
 # 0016. Carga base con cargas mixtas y cuándo una sesión queda bajo el piso
 
-- Estado: provisional
+- Estado: aceptado el 2026-10-29 por el dueño en el cierre de etapa 2 (#136)
 - Fecha: 2026-10-28
 - Decide: Opus
 - Etiquetas: modulo:reglas; rutas sensibles: `gimnasio/reglas/`
