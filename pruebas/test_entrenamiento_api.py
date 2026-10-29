@@ -1224,6 +1224,62 @@ def test_dolor_sustitucion_aviso_atomicos_e_idempotentes(dolor_api):
     assert respuesta.json["serie_realizada"]["ejercicio_hecho_nombre"] == "Sentadilla en cajón ficticia"
 
 
+@pytest.mark.parametrize("revocado", [False, True], ids=["nunca-otorgado", "revocado"])
+@pytest.mark.parametrize("origen", ["chequeo", "sesion"])
+def test_dolor_exige_consentimiento_de_salud(entrenamiento_api, origen, revocado):
+    from gimnasio.permisos.servicio import registrar_consentimiento
+
+    datos = entrenamiento_api
+    cliente = datos.cliente()
+    sesion = iniciar(datos)
+    if revocado:
+        with datos.app.app_context(), transaccion() as cursor:
+            socio = datos.usuarios["socio"]
+            for otorgado in (True, False):
+                registrar_consentimiento(cursor, socio, "salud", otorgado, "1", socio)
+    if origen == "chequeo":
+        ruta = "/api/entrenamiento/chequeos"
+        cuerpo = {"id": str(nuevo_id(datos.reloj)), "sueno": 5, "energia": 5, "zonas": ["rodillas"]}
+    else:
+        ruta = f"/api/entrenamiento/sesiones/{sesion}/dolores"
+        cuerpo = {
+            "id": str(nuevo_id(datos.reloj)),
+            "ejercicio_planificado_id": str(datos.ejercicios[0][0]),
+            "zonas": ["rodillas"],
+        }
+    respuesta = escribir(cliente, ruta, cuerpo)
+    assert respuesta.status_code == 403
+    assert respuesta.json["error"]["codigo"] == "sin_consentimiento"
+    with datos.app.app_context(), transaccion() as cursor:
+        for tabla in ("chequeos_dia", "dolores_reportados", "sustituciones", "avisos_entrenador"):
+            cursor.execute(f"SELECT COUNT(*) AS cantidad FROM {tabla}")
+            assert cursor.fetchone()["cantidad"] == 0
+
+
+def test_maquina_ocupada_con_dolor_ajeno_conserva_zonas(dolor_api):
+    datos = dolor_api
+    cliente, ruta = datos.cliente_dolor, datos.ruta_dolor
+    assert escribir(cliente, ruta + "/dolores", datos.cuerpo_dolor | {"zonas": ["cuello"]}).status_code == 201
+    ejercicio = datos.cuerpo_dolor["ejercicio_planificado_id"]
+    respuesta = cliente.get(ruta + f"/ejercicios/{ejercicio}/alternativas")
+    assert respuesta.status_code == 200
+    assert [a["nombre"] for a in respuesta.json["alternativas"]] == ["Sentadilla con mancuernas ficticia"]
+    assert respuesta.json["explicacion"]["regla"] == "maquina_ocupada"
+    with datos.app.app_context(), transaccion() as cursor:
+        cursor.execute("SELECT id FROM ejercicios WHERE nombre='Sentadilla en cajón ficticia'")
+        cajon = str(desde_bytes(cursor.fetchone()["id"]))
+    cuerpo = {
+        "id": str(nuevo_id(datos.reloj)),
+        "ejercicio_planificado_id": ejercicio,
+        "ejercicio_hecho_id": cajon,
+    }
+    rechazo = escribir(cliente, ruta + "/sustituciones", cuerpo)
+    assert rechazo.status_code == 422
+    assert rechazo.json["error"]["codigo"] == "alternativa_incompatible"
+    cuerpo["ejercicio_hecho_id"] = respuesta.json["alternativas"][0]["ejercicio_id"]
+    assert escribir(cliente, ruta + "/sustituciones", cuerpo).status_code == 201
+
+
 def test_fallo_aviso_revierte_dolor_y_sustitucion(dolor_api, monkeypatch):
     datos = dolor_api
     insertar = repositorio.insertar_avisos

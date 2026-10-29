@@ -25,7 +25,7 @@ from gimnasio.comun.tipos import (
     SubaCarga,
 )
 from gimnasio.entrenamiento import repositorio
-from gimnasio.permisos.servicio import tiene_asignacion_vigente
+from gimnasio.permisos.servicio import tiene_asignacion_vigente, tiene_consentimiento
 from gimnasio.programas.servicio import OBJETIVOS, listar_programas
 from gimnasio.reglas.alternativas import elegir_alternativas
 from gimnasio.reglas.dolor import aplicar_dolor
@@ -621,6 +621,7 @@ def catalogo_ejercicio(cursor, ejercicio):
 def _alternativas(cursor, ejercicio, zonas_excluidas=()):
     filas = repositorio.listar_catalogo(cursor, desde_bytes(ejercicio["ejercicio_id"]))
     catalogo = catalogo_ejercicio(cursor, ejercicio)
+    zonas_excluidas = tuple(zona for zona in zonas_excluidas if zona in catalogo[0].zonas)
     alternativas, razon = elegir_alternativas(
         str(desde_bytes(ejercicio["ejercicio_id"])), catalogo, zonas_excluidas=zonas_excluidas
     )
@@ -756,6 +757,10 @@ def registrar_chequeo(datos, usuario):
             if anterior["socio_id"] != socio_id.bytes:
                 raise ErrorDeDominio("sin_alcance", "El chequeo del día pertenece a otro socio.", 403)
             return {"id": str(chequeo_id), "fecha_local": anterior["fecha_local"].isoformat()}
+        if zonas and not tiene_consentimiento(cursor, socio_id, "salud"):
+            raise ErrorDeDominio(
+                "sin_consentimiento", "Para guardar dolores necesitás el consentimiento de salud.", 403
+            )
         sede = repositorio.obtener_sede(cursor)
         local = fecha_local(ahora, ZoneInfo(sede["zona_horaria"]))
         repositorio.insertar_chequeo(cursor, chequeo_id, socio_id, local, datos["sueno"], datos["energia"], ahora)
@@ -847,6 +852,10 @@ def registrar_dolor(sesion_texto, datos, usuario):
             if anterior["socio_id"] != socio_id.bytes or anterior["sesion_realizada_id"] != sesion_id.bytes:
                 raise ErrorDeDominio("id_ajeno", "El dolor reportado pertenece a otra sesión realizada.", 403)
             return {"dolor_reportado": {"id": str(dolor_id)}}
+        if not tiene_consentimiento(cursor, socio_id, "salud"):
+            raise ErrorDeDominio(
+                "sin_consentimiento", "Para guardar dolores necesitás el consentimiento de salud.", 403
+            )
         efectiva = repositorio.obtener_prescripcion(cursor, sesion_id)
         if efectiva is None:
             raise ErrorDeDominio("sesion_sin_prescripcion", "La sesión realizada no tiene prescripción efectiva.", 409)

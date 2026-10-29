@@ -6,3 +6,5 @@ nivel = "funcional"
 prueba = "pruebas/e2e/test_series.py::test_me_duele_rodillas_sustituye_y_explica"
 
 # Dolor reportado y máquina ocupada con sustituciones, explicación y recarga.
+# Exige consentimiento de salud para guardar dolores; un dolor ajeno al ejercicio
+# conserva la equivalencia de zonas por máquina ocupada (pruebas/test_entrenamiento_api.py).
