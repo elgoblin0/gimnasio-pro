@@ -17,6 +17,8 @@ pytestmark = pytest.mark.e2e
 @pytest.mark.parametrize("ancho,alto,sin_webgl", [(1440, 900, False), (390, 844, False), (1440, 900, True)])
 def test_recorrido_lucia_etapa_2(pagina_demo, demo_aislada, ancho, alto, sin_webgl):
     pagina = pagina_demo
+    # Chromium solicita este icono aunque la demo no lo declare; no pertenece al recorrido.
+    pagina.route(f"{demo_aislada.url}/favicon.ico", lambda ruta: ruta.fulfill(status=204))
     errores = preparar(pagina, ancho, alto)
     pagina.emulate_media(reduced_motion="no-preference")
     if sin_webgl:
