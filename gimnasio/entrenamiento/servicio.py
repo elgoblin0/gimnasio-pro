@@ -4,6 +4,7 @@ import json
 from bisect import bisect_right
 from collections import Counter, defaultdict
 from contextlib import nullcontext
+from dataclasses import asdict
 from datetime import UTC
 from decimal import Decimal
 from zoneinfo import ZoneInfo
@@ -19,6 +20,7 @@ from gimnasio.comun.tipos import (
     EjercicioCatalogo,
     EjercicioPlanificado,
     HistorialEjercicio,
+    PendienteEntrenamiento,
     PrescripcionEjercicio,
     ProgramaEntrenamiento,
     Razon,
@@ -43,6 +45,67 @@ def identificar(texto):
         return desde_texto(texto)
     except (ValueError, AttributeError) as error:
         raise ErrorDeDominio("id_invalido", "El identificador debe ser un UUIDv7.", 422) from error
+
+
+def consultar_resumen(sesion_texto, usuario, *, socio_texto=None):
+    """Lectura de hechos vigentes: terminar no cierra ni completa la sesión."""
+    sesion_id = identificar(sesion_texto)
+    with transaccion() as cursor:
+        sesion = repositorio.obtener_sesion(cursor, sesion_id)
+        if sesion is None:
+            raise ErrorDeDominio("sesion_inexistente", "La sesión realizada no existe.", 404)
+        socio_id = desde_bytes(sesion["socio_id"])
+        if socio_texto is not None and identificar(socio_texto) != socio_id:
+            raise ErrorDeDominio("sin_alcance", "La sesión realizada pertenece a otro socio.", 403)
+        autorizar_socio(cursor, socio_id, usuario)
+        zonas = repositorio.listar_zonas_trabajadas(cursor, socio_id, sesion_id)
+        dolores = dolores_de_sesion(cursor, sesion, repositorio.obtener_sede(cursor))
+        sustituciones = repositorio.listar_sustituciones_sesion(cursor, sesion_id)
+        historial = repositorio.listar_series_vigentes(cursor, socio_id)
+    programas = listar_programas(socio_id)
+    planificada = next(
+        s
+        for p in programas
+        for s in p["sesiones_planificadas"]
+        if s["id"] == str(desde_bytes(sesion["sesion_planificada_id"]))
+    )
+    filas = [f for f in historial if f["sesion_realizada_id"] == sesion_id.bytes]
+    cantidades = Counter(str(desde_bytes(f["ejercicio_planificado_id"])) for f in filas)
+    pendientes = [
+        PendienteEntrenamiento(e["id"], tuple(range(cantidades[e["id"]] + 1, e["series"] + 1)))
+        for e in planificada["ejercicios_planificados"]
+        if cantidades[e["id"]] < e["series"]
+    ]
+    records = []
+    anteriores = []
+    for fila in sorted(historial, key=lambda f: (f["registrada_en"], f["id"])):
+        actual = convertir_series([fila])[0][0]
+        if fila["sesion_realizada_id"] == sesion_id.bytes:
+            for record in detectar_records(actual, anteriores):
+                records.append(
+                    {
+                        **asdict(record),
+                        "ejercicio_hecho_id": actual.ejercicio_hecho_id,
+                        "ejercicio_hecho_nombre": fila["ejercicio_hecho_nombre"],
+                    }
+                )
+        anteriores.append(actual)
+    return {
+        "sesion_realizada": sesion_publica(sesion),
+        "zonas_trabajadas": zonas,
+        "zonas_con_dolor": sorted(dolores),
+        "records": records,
+        "sustituciones": [
+            sustitucion_publica(f)
+            | {
+                "ejercicio_hecho_nombre": f["ejercicio_hecho_nombre"],
+                "ejercicio_planificado_nombre": f["ejercicio_planificado_nombre"],
+            }
+            for f in sustituciones
+        ],
+        "pendientes": [asdict(p) for p in pendientes],
+        "ejercicios": [{"id": e["id"], "nombre": e["nombre"]} for e in planificada["ejercicios_planificados"]],
+    }
 
 
 def autorizar_socio(cursor, socio_id, usuario):

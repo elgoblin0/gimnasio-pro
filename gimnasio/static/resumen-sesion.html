@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="es" data-direccion="b">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Resumen de la sesión · Gimnasio Pro</title>
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="stylesheet" href="/estilos/tokens.css">
+  <link rel="stylesheet" href="/estilos/base.css">
+  <link rel="stylesheet" href="/estilos/recorrido.css">
+  <script type="importmap">{"imports":{"@comun/":"/js/comun/"}}</script>
+  <script type="module" src="/js/resumen-sesion.js"></script>
+</head>
+<body>
+<main>
+  <header class="barra"><a href="/">Gimnasio Pro</a><a href="/entrenamiento.html">Mi entrenamiento</a></header>
+  <h1>Resumen de la sesión</h1>
+  <p data-demo hidden>Datos ficticios que se reinician cada día. Requiere conexión.</p>
+  <p>Una sesión parcial acredita solo las series guardadas.</p>
+  <p data-estado role="status" aria-live="polite">Cargando resumen…</p>
+  <p data-error role="alert"></p>
+  <button type="button" data-actualizar>Actualizar resumen</button>
+  <div data-resumen hidden>
+    <section aria-labelledby="titulo-zonas">
+      <h2 id="titulo-zonas">Zonas del cuerpo</h2>
+      <p>Relleno: zona trabajada. Borde discontinuo: zona con dolor. Una zona puede tener ambos estados.</p>
+      <div data-zonas-resumen></div>
+      <ul data-zonas-texto></ul>
+    </section>
+    <div class="grilla">
+      <section aria-labelledby="titulo-records"><h2 id="titulo-records">Récords personales</h2><ul data-records></ul></section>
+      <section aria-labelledby="titulo-sustituciones"><h2 id="titulo-sustituciones">Sustituciones</h2><ul data-sustituciones></ul></section>
+    </div>
+    <section aria-labelledby="titulo-pendientes"><h2 id="titulo-pendientes">Pendientes</h2><ul data-pendientes></ul></section>
+  </div>
+</main>
+</body>
+</html>

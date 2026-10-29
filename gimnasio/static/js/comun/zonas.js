@@ -67,3 +67,25 @@ export function crearSelectorZonas(contenedor) {
     },
   };
 }
+
+export function crearResumenZonas(contenedor, trabajadas, dolores) {
+  crearSelectorZonas(contenedor);
+  const original = contenedor.querySelector("svg");
+  const svg = original.cloneNode(true);
+  original.replaceWith(svg);
+  svg.setAttribute("role", "img");
+  svg.setAttribute("aria-label", "Zonas trabajadas y con dolor de la sesión");
+  for (const control of svg.querySelectorAll("[data-zona]")) {
+    const trabajada = trabajadas.includes(control.dataset.zona);
+    const dolor = dolores.includes(control.dataset.zona);
+    control.removeAttribute("role");
+    control.removeAttribute("tabindex");
+    control.removeAttribute("aria-checked");
+    control.removeAttribute("aria-label");
+    control.dataset.trabajada = String(trabajada);
+    control.dataset.dolor = String(dolor);
+    const nombre = control.querySelector("text");
+    nombre.textContent += `${trabajada ? " · trabajada" : ""}${dolor ? " · con dolor" : ""}`;
+  }
+  svg.setAttribute("viewBox", "0 0 700 400");
+}
