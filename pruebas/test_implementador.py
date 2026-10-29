@@ -88,3 +88,214 @@ def test_el_esfuerzo_de_codex_es_bajo_salvo_que_se_pida_otro(monkeypatch):
     assert implementador.esfuerzo() == "low"
     monkeypatch.setenv("GIMNASIO_CODEX_ESFUERZO", "high")
     assert implementador.esfuerzo() == "high"
+
+
+# --- Ejecución de Codex, bloqueo y aviso (con un Codex falso) ------------------------------------------------
+
+
+import pytest  # noqa: E402
+
+
+@pytest.fixture
+def entorno(tmp_path, monkeypatch):
+    """Registro y bloqueo en una carpeta temporal, sin avisos de Windows ni esperas reales."""
+    monkeypatch.setattr(implementador, "CARPETA_TRABAJO", tmp_path / "trabajo")
+    monkeypatch.setattr(implementador, "REGISTRO", tmp_path / "trabajo" / "registro.log")
+    monkeypatch.setattr(implementador, "BLOQUEO", tmp_path / "trabajo" / "bloqueo.pid")
+    monkeypatch.setattr(implementador, "SONDEO_SEGUNDOS", 0.05)
+    avisos = []
+    monkeypatch.setattr(implementador, "avisar", lambda titulo, mensaje: avisos.append(mensaje))
+    monkeypatch.setattr(implementador, "binario_codex", lambda: sys.executable)
+    return avisos
+
+
+def _codex_falso(monkeypatch, tmp_path, guion):
+    archivo = tmp_path / "codex_falso.py"
+    archivo.write_text(guion, encoding="utf-8", newline="\n")
+    monkeypatch.setattr(
+        implementador, "comando_codex", lambda binario, carpeta, salida: [binario, str(archivo), str(salida)]
+    )
+    carpeta = tmp_path / "arbol"
+    carpeta.mkdir()
+    return carpeta
+
+
+def test_muestra_la_salida_de_codex_y_lee_su_respuesta(entorno, tmp_path, monkeypatch, capsys):
+    carpeta = _codex_falso(
+        monkeypatch,
+        tmp_path,
+        "import sys\nprint('pensando')\nprint(sys.stdin.read().strip())\nprint('tokens used\\n1,234')\n"
+        "open(sys.argv[1], 'w').write('respuesta final')\n",
+    )
+    codigo, texto, tokens = implementador.correr_codex(carpeta, "el pedido")
+    assert (codigo, texto, tokens) == (0, "respuesta final", 1234)
+    salida = capsys.readouterr().out
+    assert "│ pensando" in salida and "│ el pedido" in salida
+    assert "pensando" in implementador.REGISTRO.read_text(encoding="utf-8")
+
+
+def test_detecta_la_falta_de_cupo(entorno, tmp_path, monkeypatch):
+    carpeta = _codex_falso(
+        monkeypatch, tmp_path, "import sys\nprint('You hit your usage limit. Volvé mañana')\nsys.exit(1)\n"
+    )
+    with pytest.raises(implementador.SinCupo, match="usage limit"):
+        implementador.correr_codex(carpeta, "x")
+
+
+def test_corta_a_codex_si_se_queda_mudo_y_avisa(entorno, tmp_path, monkeypatch):
+    monkeypatch.setattr(implementador, "INACTIVIDAD_AVISO_MINUTOS", 0.001)
+    monkeypatch.setattr(implementador, "INACTIVIDAD_CORTE_MINUTOS", 0.003)
+    carpeta = _codex_falso(monkeypatch, tmp_path, "import time\ntime.sleep(60)\n")
+    with pytest.raises(RuntimeError, match="sin dar señales"):
+        implementador.correr_codex(carpeta, "x")
+    assert any("sin dar señales" in aviso for aviso in entorno)
+
+
+def test_corta_a_codex_al_pasar_el_limite_total(entorno, tmp_path, monkeypatch):
+    monkeypatch.setattr(implementador, "LIMITE_MINUTOS", 0.002)
+    carpeta = _codex_falso(
+        monkeypatch, tmp_path, "import time\nwhile True:\n    print('sigo', flush=True)\n    time.sleep(0.05)\n"
+    )
+    with pytest.raises(RuntimeError, match="límite"):
+        implementador.correr_codex(carpeta, "x")
+
+
+def test_no_deja_correr_dos_implementadores(entorno):
+    implementador.tomar_bloqueo()
+    assert implementador.BLOQUEO.read_text(encoding="utf-8") == str(implementador.os.getpid())
+    implementador.soltar_bloqueo()
+    assert not implementador.BLOQUEO.exists()
+
+
+def test_rechaza_el_bloqueo_de_un_proceso_vivo(entorno, monkeypatch):
+    implementador.CARPETA_TRABAJO.mkdir()
+    implementador.BLOQUEO.write_text("4242", encoding="utf-8")
+    monkeypatch.setattr(implementador, "proceso_vivo", lambda pid: True)
+    with pytest.raises(SystemExit, match="4242"):
+        implementador.tomar_bloqueo()
+
+
+def test_ignora_un_bloqueo_viejo(entorno, monkeypatch):
+    implementador.CARPETA_TRABAJO.mkdir()
+    implementador.BLOQUEO.write_text("4242", encoding="utf-8")
+    monkeypatch.setattr(implementador, "proceso_vivo", lambda pid: False)
+    implementador.tomar_bloqueo()
+    assert implementador.BLOQUEO.read_text(encoding="utf-8") == str(implementador.os.getpid())
+
+
+def test_reconoce_procesos_vivos_y_muertos():
+    assert implementador.proceso_vivo(implementador.os.getpid())
+    proceso = implementador.subprocess.Popen([sys.executable, "-c", "pass"])
+    proceso.wait()
+    assert not implementador.proceso_vivo(proceso.pid)
+
+
+def test_simular_no_toca_nada(entorno, monkeypatch, capsys):
+    pr = {"number": 7, "headRefName": "codex/issue-3", "labels": [], "title": "t"}
+    monkeypatch.setattr(implementador.cadena, "prs_de_codex", lambda: [pr, {**pr, "number": 8}])
+    monkeypatch.setattr(
+        implementador.cadena, "comentarios_del_pr", lambda n: ["@codex implementá #3"] if n == 7 else []
+    )
+    monkeypatch.setattr(implementador, "atender", lambda *a: pytest.fail("no debe atender"))
+    assert implementador.una_vuelta(simular=True) is False
+    salida = capsys.readouterr().out
+    assert "PR #7: atendería" in salida and "PR #8: sin pedidos" in salida
+
+
+def test_pr_filtra_el_pedido_a_atender(entorno, monkeypatch):
+    atendidos = []
+    prs = [{"number": n, "headRefName": f"codex/issue-{n}", "labels": [], "title": "t"} for n in (7, 8)]
+    monkeypatch.setattr(implementador.cadena, "prs_de_codex", lambda: prs)
+    monkeypatch.setattr(implementador.cadena, "comentarios_del_pr", lambda n: ["@codex implementá"])
+    monkeypatch.setattr(implementador, "atender", lambda pr, pedido: atendidos.append(pr["number"]))
+    assert implementador.una_vuelta(solo_pr=8) is True
+    assert atendidos == [8]
+
+
+# --- Verificación propia, estado y resumen (lógica pura) -----------------------------------------------------
+
+
+def test_lee_los_tokens_que_informa_codex():
+    assert implementador.tokens_de("trabajo\ntokens used\n22,704\nlisto") == 22704
+    assert implementador.tokens_de("tokens used\n1.200\n...tokens used\n3.400") == 3400
+    assert implementador.tokens_de("sin cifra") == 0
+
+
+def test_elige_las_pruebas_de_lo_cambiado():
+    existentes = {"pruebas/test_visitas_api.py", "pruebas/test_visitas_repo.py", "pruebas/test_reglas_cupo.py"}
+    assert implementador.tests_a_correr(["gimnasio/visitas/servicio.py"], existentes) == [
+        "pruebas/test_visitas_api.py",
+        "pruebas/test_visitas_repo.py",
+    ]
+    assert implementador.tests_a_correr(["pruebas/test_reglas_cupo.py", "README.md"], existentes) == [
+        "pruebas/test_reglas_cupo.py"
+    ]
+    assert implementador.tests_a_correr(["gimnasio/static/js/a.js", "docs/x.md"], existentes) == []
+
+
+def test_cuenta_el_resumen_de_pytest():
+    assert implementador.contar_pruebas("....\n1 failed, 67 passed, 2 skipped in 45.45s") == {
+        "failed": 1,
+        "passed": 67,
+        "skipped": 2,
+    }
+    assert implementador.contar_pruebas("ERROR collecting\n1 error in 0.30s") == {"error": 1}
+    assert implementador.contar_pruebas("nada") == {}
+
+
+def test_pide_subir_la_cache_solo_si_toca_recursos_sin_el_service_worker():
+    sw = implementador.SERVICE_WORKER
+    assert implementador.necesita_subir_cache(["gimnasio/static/js/recepcion.js"])
+    assert not implementador.necesita_subir_cache(["gimnasio/static/js/recepcion.js", sw])
+    assert not implementador.necesita_subir_cache(["gimnasio/static/js/modulo.test.js"])
+    assert not implementador.necesita_subir_cache(["gimnasio/visitas/servicio.py"])
+
+
+def test_sube_la_version_del_service_worker():
+    codigo = 'const VERSION = "16";\nconst CACHE = P + VERSION;\n'
+    assert implementador.subir_version_sw(codigo) == 'const VERSION = "17";\nconst CACHE = P + VERSION;\n'
+    assert implementador.subir_version_sw("sin constante") is None
+
+
+def test_etapa_de_cada_pr():
+    verde = [{"status": "COMPLETED", "conclusion": "SUCCESS"}]
+    etapa = implementador.etapa_del_pr
+    assert "bloqueado" in etapa({"bloqueado"}, False, verde, False)
+    assert "pedido pendiente" in etapa(set(), True, verde, False)
+    assert "esperando el CI" in etapa(set(), False, [{"status": "IN_PROGRESS"}], False)
+    assert "CI en rojo" in etapa(set(), False, [{"status": "COMPLETED", "conclusion": "FAILURE"}], False)
+    assert "corrección pendiente" in etapa({"correccion-pendiente"}, False, verde, False)
+    assert "revisión de Codex" in etapa(set(), False, verde, False)
+    assert "Opus" in etapa({"revisado:codex"}, False, verde, True)
+    assert "lista" in etapa({"revisado:codex", "revisado:opus"}, False, verde, True)
+    assert "lista" in etapa({"revisado:codex"}, False, verde, False)
+
+
+def test_resumen_de_la_corrida():
+    sesion = {
+        "inicio": 0,
+        "atendidos": [
+            {"pr": 150, "resultado": "listo", "minutos": 1.3, "tokens": 22704},
+            {"pr": 155, "resultado": "duda", "minutos": 3.8, "tokens": 50000},
+        ],
+        "fallos": [160],
+        "sin_cupo": 1,
+    }
+    texto = implementador.formatear_resumen(sesion, [150], 600)
+    assert "10 min en marcha" in texto and "PR #155: duda" in texto
+    assert "Atendidos: 2 · Fallos: 1 · Veces sin cupo: 1" in texto
+    assert "72,704 tokens" in texto and "#150" in texto
+
+
+def test_reconoce_los_pedidos_de_la_cadena_sin_mencion():
+    issue = {"number": 7, "title": "Alta", "body": "X"}
+    assert implementador.es_pedido(implementador.cadena.prompt_implementar(issue))
+    assert implementador.es_pedido(implementador.cadena.prompt_corregir("el CI falló."))
+    assert not implementador.es_pedido("Pedido para el implementador local: sin marca de la cadena")
+
+
+def test_el_prompt_para_codex_no_lleva_el_encabezado_local():
+    pedido = implementador.cadena.prompt_corregir("el CI falló: arreglalo.")
+    prompt = implementador.prompt_para_codex(pedido)
+    assert "el CI falló: arreglalo." in prompt
+    assert implementador.cadena.ENCABEZADO_LOCAL not in prompt and "<!--" not in prompt
