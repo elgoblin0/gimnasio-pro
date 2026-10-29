@@ -88,11 +88,16 @@ def git(*argumentos, cwd=RAIZ, chequear=True):
 
 
 def preparar_worktree(rama, numero):
-    carpeta = CARPETA_TRABAJO / f"issue-{numero}"
     git("fetch", "origin", "--prune")
-    if carpeta.exists():
-        git("worktree", "remove", "--force", str(carpeta), chequear=False)
-        shutil.rmtree(carpeta, ignore_errors=True)
+    carpeta = CARPETA_TRABAJO / f"issue-{numero}"
+    for intento in range(1, 10):
+        if carpeta.exists():
+            git("worktree", "remove", "--force", str(carpeta), chequear=False)
+            shutil.rmtree(carpeta, ignore_errors=True)
+        if not carpeta.exists():
+            break
+        # El sandbox de Codex a veces deja carpetas (.pytest_cache) que el usuario no puede borrar: se usa otra.
+        carpeta = CARPETA_TRABAJO / f"issue-{numero}-{intento}"
     git("worktree", "prune")
     git("worktree", "add", "-B", rama, str(carpeta), f"origin/{rama}")
     # Si hay conflictos con main, quedan en el árbol para que Codex los resuelva.
