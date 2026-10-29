@@ -229,12 +229,33 @@ def test_salida_cierra_visita_y_lectura_calcula_duracion_sin_escribir(visitas_ap
     assert visitas[0]["duracion"] == 2700
     assert visitas[0]["entrada"].endswith("+00:00")
     assert visitas[0]["entrada_local"].endswith("-03:00")
-    assert set(visitas[0]) == {"id", "socio_id", "nombre", "cedula", "entrada", "entrada_local", "duracion"}
+    assert set(visitas[0]) == {
+        "id",
+        "socio_id",
+        "nombre",
+        "cedula",
+        "entrada",
+        "entrada_local",
+        "duracion",
+        "minutos",
+        "permanencia_habitual",
+        "por_conciliar",
+    }
+    assert visitas[0]["minutos"] == 45
+    assert visitas[0]["permanencia_habitual"] == {
+        "suficiente": False,
+        "observaciones": 0,
+        "mediana": None,
+        "p25": None,
+        "p75": None,
+    }
+    assert visitas[0]["por_conciliar"] is False
     assert cliente.get("/api/visitas?abiertas=1").json["visitas"] == visitas
     assert cliente.get("/api/ocupacion").json == {
         "sede_id": str(datos.sede),
         "ocupacion_registrada": 1,
         "aforo_maximo": 1,
+        "por_conciliar": 0,
     }
     respuesta = enviar_salida(cliente, {"id": str(nuevo_id(datos.reloj)), "entrada_id": entrada_id})
     assert respuesta.status_code == 201
@@ -327,3 +348,103 @@ def test_fallo_revierte_salida_y_su_clave(visitas_api, monkeypatch):
     assert contar(datos, "solicitudes_idempotentes") == 1  # Solo la entrada confirmada.
     monkeypatch.setattr(repositorio, "insertar_salida", original)
     assert enviar_salida(datos.cliente(), cuerpo, clave).status_code == 201
+
+
+def test_visita_de_cinco_horas_sin_historial_por_conciliar_primero(visitas_api):
+    from datetime import timedelta
+
+    datos = visitas_api
+    ahora = datos.reloj.ahora()
+    prolongada, reciente = nuevo_id(datos.reloj), nuevo_id(datos.reloj)
+    with datos.app.app_context(), transaccion() as cursor:
+        for entrada, socio, minutos in ((reciente, datos.socios[0], 30), (prolongada, datos.socios[1], 300)):
+            repositorio.insertar_entrada(
+                cursor, entrada, socio, datos.sede, datos.usuarios["recepcion"], ahora - timedelta(minutes=minutos)
+            )
+    visitas = datos.cliente().get("/api/visitas?abiertas=1").json["visitas"]
+    assert [visita["id"] for visita in visitas] == [str(prolongada), str(reciente)]
+    assert [visita["por_conciliar"] for visita in visitas] == [True, False]
+    assert visitas[0]["minutos"] == 300
+    assert visitas[0]["permanencia_habitual"]["observaciones"] == 0
+    assert datos.cliente().get("/api/ocupacion").json["por_conciliar"] == 1
+    assert contar(datos, "salidas") == 0
+
+
+@pytest.mark.parametrize("caso", ["confirmada", "corregida", "salida_anulada", "entrada_anulada", "antigua"])
+def test_duraciones_confiables_respetan_estado_vigente_y_ocho_semanas(visitas_api, caso):
+    from datetime import timedelta
+
+    datos = visitas_api
+    ahora = datos.reloj.ahora()
+    entrada, salida = nuevo_id(datos.reloj), nuevo_id(datos.reloj)
+    momento = ahora - timedelta(weeks=9 if caso == "antigua" else 1)
+    autor = datos.usuarios["recepcion"]
+    with datos.app.app_context(), transaccion() as cursor:
+        repositorio.insertar_entrada(cursor, entrada, datos.socios[0], datos.sede, autor, momento)
+        repositorio.insertar_salida(cursor, salida, entrada, autor, momento + timedelta(minutes=60))
+        if caso in ("corregida", "salida_anulada"):
+            repositorio.insertar_salida(
+                cursor,
+                nuevo_id(datos.reloj),
+                entrada,
+                autor,
+                momento + timedelta(minutes=90),
+                corrige_a=salida,
+                motivo="Corrección ficticia",
+                anulada=caso == "salida_anulada",
+            )
+        if caso == "entrada_anulada":
+            repositorio.insertar_entrada(
+                cursor,
+                nuevo_id(datos.reloj),
+                datos.socios[0],
+                datos.sede,
+                autor,
+                momento + timedelta(minutes=1),
+                corrige_a=entrada,
+                motivo="Anulación ficticia",
+                anulada=True,
+            )
+        filas = repositorio.listar_duraciones_confiables(
+            cursor, datos.sede, ahora - timedelta(weeks=8), ahora, datos.socios[0]
+        )
+        assert [fila["minutos"] for fila in filas] == (
+            [90] if caso == "corregida" else [60] if caso == "confirmada" else []
+        )
+        assert (
+            repositorio.listar_duraciones_confiables(
+                cursor, datos.sede, ahora - timedelta(weeks=8), ahora, datos.socios[1]
+            )
+            == []
+        )
+
+
+def test_permanencia_del_socio_y_umbral_de_la_sede(visitas_api):
+    from datetime import timedelta
+
+    datos = visitas_api
+    ahora = datos.reloj.ahora()
+    autor = datos.usuarios["recepcion"]
+    with datos.app.app_context(), transaccion() as cursor:
+        for socio, minutos in ((datos.socios[0], 60), (datos.socios[1], 300)):
+            for dia in range(1, 6):
+                entrada = nuevo_id(datos.reloj)
+                momento = ahora - timedelta(days=dia)
+                repositorio.insertar_entrada(cursor, entrada, socio, datos.sede, autor, momento)
+                repositorio.insertar_salida(
+                    cursor, nuevo_id(datos.reloj), entrada, autor, momento + timedelta(minutes=minutos)
+                )
+        repositorio.insertar_entrada(
+            cursor, nuevo_id(datos.reloj), datos.socios[0], datos.sede, autor, ahora - timedelta(minutes=300)
+        )
+    visita = datos.cliente().get("/api/visitas?abiertas=1").json["visitas"][0]
+    assert visita["permanencia_habitual"] == {
+        "suficiente": True,
+        "observaciones": 5,
+        "mediana": 60,
+        "p25": 60,
+        "p75": 60,
+    }
+    # La sede tiene mediana de 180: umbral de 360, aunque el socio suele quedarse 60.
+    assert visita["por_conciliar"] is False
+    assert datos.cliente().get("/api/ocupacion").json["por_conciliar"] == 0

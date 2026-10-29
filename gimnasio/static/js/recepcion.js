@@ -28,7 +28,11 @@ function dibujarVisitas(visitas) {
     const titulo = document.createElement("h3");
     titulo.textContent = visita.nombre;
     const detalle = document.createElement("p");
-    detalle.textContent = `Cédula ${formatearCedula(visita.cedula)} · Entrada ${formatearFechaHora(visita.entrada)} · ${Math.floor(visita.duracion / 60)} min`;
+    const habitual = visita.permanencia_habitual;
+    const permanencia = habitual.suficiente
+      ? `suele quedarse ${habitual.mediana} min`
+      : `datos insuficientes (${habitual.observaciones} visitas)`;
+    detalle.textContent = `Cédula ${formatearCedula(visita.cedula)} · Entrada ${formatearFechaHora(visita.entrada)} · lleva ${visita.minutos} min · ${permanencia}`;
     const boton = document.createElement("button");
     boton.type = "button";
     boton.dataset.salida = visita.id;
@@ -39,7 +43,14 @@ function dibujarVisitas(visitas) {
       control.preparar("/api/salidas", { entrada_id: visita.id });
       enviar();
     });
-    tarjeta.append(titulo, detalle, boton);
+    tarjeta.append(titulo, detalle);
+    if (visita.por_conciliar) {
+      const marca = document.createElement("strong");
+      marca.className = "por-conciliar";
+      marca.textContent = "por conciliar";
+      tarjeta.append(marca);
+    }
+    tarjeta.append(boton);
     $("[data-visitas]").append(tarjeta);
   }
 }

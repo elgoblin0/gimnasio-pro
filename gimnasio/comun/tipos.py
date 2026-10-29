@@ -167,3 +167,12 @@ class RecordPersonal:
     marca_anterior: Decimal | int
     carga: Decimal
     explicacion: Razon
+
+
+@dataclass(frozen=True)
+class PermanenciaHabitual:
+    suficiente: bool
+    observaciones: int
+    mediana: int | None = None
+    p25: int | None = None
+    p75: int | None = None
