@@ -81,3 +81,10 @@ def test_reconoce_la_falta_de_cupo_de_codex():
     assert implementador.es_falta_de_cupo("ERROR: You've hit your usage limit. Upgrade to Pro")
     assert not implementador.es_falta_de_cupo("Codex terminó con código 1")
     assert not implementador.es_falta_de_cupo(None)
+
+
+def test_el_esfuerzo_de_codex_es_bajo_salvo_que_se_pida_otro(monkeypatch):
+    monkeypatch.delenv("GIMNASIO_CODEX_ESFUERZO", raising=False)
+    assert implementador.esfuerzo() == "low"
+    monkeypatch.setenv("GIMNASIO_CODEX_ESFUERZO", "high")
+    assert implementador.esfuerzo() == "high"
