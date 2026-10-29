@@ -648,18 +648,13 @@ def consultar_sesion(sesion_texto, usuario):
         sede = repositorio.obtener_sede(cursor)
         sustituciones = {}
         # Se consultan también ejercicios sin series, para recuperar la sustitución al recargar.
-        cursor_ejercicios = repositorio.listar_ejercicios_sesion(cursor, sesion_id)
-        for ejercicio in cursor_ejercicios:
-            vigente = repositorio.sustitucion_vigente(cursor, sesion_id, desde_bytes(ejercicio["id"]))
-            if vigente:
-                catalogo = repositorio.listar_catalogo(cursor, desde_bytes(ejercicio["ejercicio_id"]))
-                hecho = next(f for f in catalogo if f["id"] == vigente["ejercicio_hecho_id"])
-                sustituciones[str(desde_bytes(ejercicio["id"]))] = {
-                    "sustitucion": sustitucion_publica(vigente),
-                    "nombre": hecho["nombre"],
-                    "medidas_aplicables": json.loads(hecho["medidas_aplicables"]),
-                    "carga_anterior": anteriores_hecho(historial, sede, sesion, vigente),
-                }
+        for vigente in repositorio.listar_sustituciones_vigentes(cursor, sesion_id):
+            sustituciones[str(desde_bytes(vigente["ejercicio_planificado_id"]))] = {
+                "sustitucion": sustitucion_publica(vigente),
+                "nombre": vigente["nombre"],
+                "medidas_aplicables": json.loads(vigente["medidas_aplicables"]),
+                "carga_anterior": anteriores_hecho(historial, sede, sesion, vigente),
+            }
     programas = listar_programas(identificar(usuario["id"]))
     planificada = next(
         s
