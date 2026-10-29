@@ -1,5 +1,6 @@
 import { llamarApi } from "@comun/api.js";
 import { formatearCarga } from "@comun/formatos.js";
+import { textoMotivoSustitucion } from "@comun/sustituciones.js";
 import { crearResumenZonas, ZONAS_CUERPO } from "@comun/zonas.js";
 
 const $ = (selector) => document.querySelector(selector);
@@ -28,7 +29,7 @@ async function actualizar() {
     lista("[data-zonas-texto]", ZONAS_CUERPO.filter((z) => datos.zonas_trabajadas.includes(z.id) || datos.zonas_con_dolor.includes(z.id)).map((z) =>
       `${z.nombre}: ${[datos.zonas_trabajadas.includes(z.id) ? "trabajada" : "", datos.zonas_con_dolor.includes(z.id) ? "con dolor" : ""].filter(Boolean).join(" y ")}`), "Sin zonas trabajadas ni dolor reportado.");
     lista("[data-records]", datos.records.map((r) => `${r.ejercicio_hecho_nombre}: ${r.medida === "carga_maxima" ? formatearCarga(r.marca) : `${r.marca} repeticiones a ${formatearCarga(r.carga)}`}`), "Sin récords batidos en esta sesión.");
-    lista("[data-sustituciones]", datos.sustituciones.map((s) => `${s.ejercicio_planificado_nombre} → ${s.ejercicio_hecho_nombre}: ${s.motivo === "dolor_reportado" ? "dolor reportado" : "máquina ocupada"}`), "Sin sustituciones en esta sesión.");
+    lista("[data-sustituciones]", datos.sustituciones.map((s) => `${s.ejercicio_planificado_nombre} → ${s.ejercicio_hecho_nombre}: ${textoMotivoSustitucion(s.motivo)}`), "Sin sustituciones en esta sesión.");
     lista("[data-pendientes]", datos.pendientes.map((p) => `${datos.ejercicios.find((e) => e.id === p.ejercicio_id)?.nombre}: series ${p.series.join(", ")}`), "Sin series pendientes.");
     $("[data-resumen]").hidden = false;
     $("[data-estado]").textContent = "Resumen actualizado.";
