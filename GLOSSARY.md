@@ -106,7 +106,7 @@ Aviso del socio de que el equipo de un ejercicio no está disponible en ese mome
 Máquina o implemento del gimnasio, con su estado (disponible o fuera de servicio).
 
 **Alternativa**:
-Ejercicio que puede reemplazar a otro porque comparte patrón de movimiento y zonas del cuerpo con equipamiento distinto.
+Ejercicio que puede reemplazar a otro porque comparte patrón de movimiento con equipamiento distinto. Por máquina ocupada tiene las mismas zonas del cuerpo; por dolor reportado involucra solo zonas del original, sin las zonas con dolor (ADR 0017).
 
 **Zona del cuerpo**:
 Región muscular o articular de una lista fija, común al dolor reportado, las restricciones de salud, los ejercicios y el cuerpo 3D.
