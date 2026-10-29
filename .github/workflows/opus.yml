@@ -93,4 +93,5 @@ jobs:
         # La acción sale en verde sin revisar si el workflow del PR difiere del de main; sin dictamen, que falle.
         run: |
           gh pr view "$PR" --repo "${{ github.repository }}" --json labels --jq '.labels[].name' \
-            | grep -qxE 'revisado:opus|correccion-pendiente' \n            || { echo "Opus no dejó dictamen (ni revisado:opus ni correccion-pendiente)."; exit 1; }
+            | grep -qxE 'revisado:opus|correccion-pendiente' \
+            || { echo "Opus no dejó dictamen (ni revisado:opus ni correccion-pendiente)."; exit 1; }
