@@ -181,8 +181,27 @@ def pedir_correccion(numero, motivo):
 # --- Pasos -----------------------------------------------------------------
 
 
+ETIQUETAS_DE_ESTADO = ("estado:listo", "estado:en-curso", "estado:revision")
+
+
+def etiquetas_de_estado_a_quitar(etiquetas):
+    """Un issue cerrado ya no está listo, en curso ni en revisión: esas etiquetas confunden al leer el tablero."""
+    return [e for e in ETIQUETAS_DE_ESTADO if e in etiquetas]
+
+
+def limpiar_issues_cerrados():
+    """Quita las etiquetas de estado de los issues cerrados (GitHub cierra el issue con `Closes #N` y no las toca)."""
+    cerrados = gh_json("issue", "list", "--state", "closed", "--limit", "100", "--json", "number,labels")
+    for issue in cerrados:
+        sobran = etiquetas_de_estado_a_quitar({e["name"] for e in issue["labels"]})
+        if sobran:
+            etiquetar(issue["number"], quitar=sobran, tipo="issue")
+            print(f"Issue #{issue['number']} cerrado: quité {', '.join(sobran)}.")
+
+
 def arrancar():
     """Lanza el siguiente issue listo, o reanuda el PR en curso si Opus resolvió su duda."""
+    limpiar_issues_cerrados()
     for pr in prs_de_codex():
         numero_issue = numero_de_rama(pr["headRefName"])
         issue = gh_json("issue", "view", str(numero_issue), "--json", "number,title,body,labels")

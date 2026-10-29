@@ -83,3 +83,11 @@ def test_un_pr_de_adr_solo_toca_docs_adr_y_glosario():
     assert cadena.es_solo_adr(["docs/adr/0017-tema.md", "GLOSSARY.md"])
     assert not cadena.es_solo_adr(["docs/adr/0017-tema.md", "gimnasio/reglas/progresion.py"])
     assert not cadena.es_solo_adr([])
+
+
+def test_un_issue_cerrado_pierde_las_etiquetas_de_estado():
+    assert cadena.etiquetas_de_estado_a_quitar({"estado:en-curso", "agente:codex", "estado:revision"}) == [
+        "estado:en-curso",
+        "estado:revision",
+    ]
+    assert cadena.etiquetas_de_estado_a_quitar({"tipo:funcion", "modulo:visitas"}) == []

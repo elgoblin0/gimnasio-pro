@@ -31,9 +31,22 @@ Codex cloud responde `@codex review` pero rechaza los demás pedidos desde GitHu
 ```bash
 python scripts/implementador.py            # atiende lo pendiente y termina
 python scripts/implementador.py --esperar  # repite cada 60 segundos
+python scripts/implementador.py --pr 150   # atiende solo ese PR
+python scripts/implementador.py --simular  # dice qué haría, sin tocar nada
+python scripts/implementador.py --estado   # en qué paso está cada PR de Codex y qué espera
 ```
 
-Necesita `gh` autenticado y `codex.exe` (lo busca en `GIMNASIO_CODEX_BIN`, el PATH y `%LOCALAPPDATA%\OpenAI\Codex\bin`). Un issue a la vez, como la cadena.
+En Windows alcanza con hacer doble clic en `lanzar-implementador.cmd` (corre `--esperar`).
+
+Necesita `gh` autenticado y `codex.exe` (lo busca en `GIMNASIO_CODEX_BIN`, el PATH y `%LOCALAPPDATA%\OpenAI\Codex\bin`). Un issue a la vez, como la cadena: `.implementador/bloqueo.pid` impide una segunda instancia.
+
+Qué hace además de llamar a Codex:
+- Muestra cada paso con hora y la salida de Codex en vivo, y lo guarda en `.implementador/registro.log`. Avisa con pitido y globo de Windows al terminar, fallar, quedar `bloqueado` o quedarse sin cupo.
+- Corta a Codex si pasa 60 minutos o 20 sin escribir nada (cuenta como fallo del pedido).
+- Antes de subir verifica fuera del sandbox de Codex: `ruff format` de lo tocado, `ruff check` y las pruebas del módulo cambiado, y sube `VERSION` en `gimnasio/static/sw.js` si Codex tocó recursos de la PWA sin hacerlo. El resultado va en el comentario «hecho»; no frena la subida, el CI sigue siendo la puerta. Con pruebas saltadas por falta de `GIMNASIO_BD_*` lo avisa.
+- Al terminar imprime un resumen: PR atendidos, fallos, minutos y tokens de Codex y PR fusionados desde que arrancó.
+
+Para que el sandbox de Codex pueda correr `pytest` con el `.venv`, el grupo `CodexSandboxUsers` necesita lectura sobre el Python base del `.venv` (ver `docs/entorno-local.md`).
 
 Para arrancar una etapa: Actions → Cadena → Run workflow. Para frenarla: deshabilitá el workflow Cadena.
 

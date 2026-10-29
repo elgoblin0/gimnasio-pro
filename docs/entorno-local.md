@@ -29,6 +29,16 @@ node --test "gimnasio/static/**/*.test.js"
 ## Trampas de Windows
 - Al escribir archivos en pruebas, pasar `encoding="utf-8"` y `newline="\n"`; la codificación por defecto es cp1252.
 
+## Codex en el sandbox de Windows
+
+Si Codex dice que `pytest` no arranca por «acceso denegado» al ejecutable de Python, es que el sandbox (grupo `CodexSandboxUsers`) no puede leer el Python base al que apunta `.venv` (`home` en `.venv\pyvenv.cfg`, normalmente bajo `AppData\Local\Programs\Python`). Una vez, el dueño le da lectura a esa carpeta:
+
+```powershell
+icacls "<carpeta del Python base>" /grant "CodexSandboxUsers:(OI)(CI)RX"
+```
+
+Para deshacerlo: `icacls "<carpeta>" /remove "CodexSandboxUsers"`. Aunque falle, el implementador local corre ruff y las pruebas del módulo tocado por su cuenta antes de subir.
+
 ## Cadena automática
 
 Para lanzar trabajo sin la app de escritorio, consultá la sección [Cadena automática](protocolo-agentes.md#cadena-automática) del protocolo de agentes.
