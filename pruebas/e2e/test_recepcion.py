@@ -195,3 +195,38 @@ def test_reintento_espera_la_lectura_en_curso(pagina_demo, demo_aislada):
     expect(pagina.get_by_text("Entrada registrada.", exact=True)).to_be_visible()
     expect(pagina.locator("[data-ocupacion]")).to_have_text("1 de 60")
     assert contar(demo_aislada, "entradas") == 1
+
+
+def test_conciliar_salida_desaparece_sin_recargar(pagina_demo, demo_aislada):
+    from datetime import timedelta
+
+    from gimnasio.comun.ids import desde_texto, nuevo_id
+    from gimnasio.comun.reloj import reloj_actual
+    from gimnasio.visitas import repositorio
+
+    pagina = pagina_demo
+    socio = ingresar(pagina, demo_aislada)
+    with demo_aislada.app.app_context(), transaccion() as cursor:
+        sede = repositorio.obtener_sede(cursor)
+        from gimnasio.comun.ids import desde_bytes
+
+        # El autor es recepción; la sesión HTTP se consulta por la API real.
+        autor = pagina.evaluate("fetch('/api/sesion').then(r => r.json()).then(d => d.usuario.id)")
+        ahora = reloj_actual().ahora()
+        repositorio.insertar_entrada(
+            cursor,
+            nuevo_id(),
+            desde_texto(socio["id"]),
+            desde_bytes(sede["id"]),
+            desde_texto(autor),
+            ahora - timedelta(hours=8),
+        )
+    pagina.get_by_role("button", name="Actualizar visitas").click()
+    pagina.get_by_role("button", name="Conciliar salida", exact=True).click()
+    dialogo = pagina.get_by_role("dialog")
+    dialogo.get_by_label("Motivo", exact=True).fill("El socio confirmó que salió una hora después de entrar")
+    dialogo.get_by_role("button", name="Confirmar salida", exact=True).click()
+    expect(dialogo).not_to_be_visible()
+    expect(pagina.locator("[data-ocupacion]")).to_have_text("0 de 60")
+    expect(pagina.locator("[data-visitas] li")).to_have_count(0)
+    assert contar(demo_aislada, "salidas") == 1

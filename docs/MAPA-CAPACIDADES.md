@@ -38,7 +38,7 @@ Generado por `scripts/mapa_capacidades.py` desde `docs/capacidades/`. No editar 
 | Capacidad | Etapa | Nivel | Prueba |
 |---|---|---|---|
 | Entrada del socio por recepción con membresía y aforo | 1 | validada | `pruebas/e2e/test_esqueleto_andante.py` · https://github.com/elgoblin0/gimnasio-pro/issues/52 |
-| Pantalla de recepción para entrada, salida y permanencia habitual | 1 | validada | `pruebas/e2e/test_recepcion.py` · https://github.com/elgoblin0/gimnasio-pro/issues/52 |
+| Pantalla de recepción para entrada, salida, permanencia habitual y conciliación de salida | 1 | validada | `pruebas/e2e/test_recepcion.py` · https://github.com/elgoblin0/gimnasio-pro/issues/52 |
 | Salida confirmada del socio y lecturas para recepción | 1 | validada | `pruebas/e2e/test_esqueleto_andante.py` · https://github.com/elgoblin0/gimnasio-pro/issues/52 |
 | Clases y reservas con lista de espera | 5 | pendiente | — |
 | Ficha completa con salud y consentimientos | 5 | pendiente | — |

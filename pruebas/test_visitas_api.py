@@ -239,6 +239,7 @@ def test_salida_cierra_visita_y_lectura_calcula_duracion_sin_escribir(visitas_ap
         "duracion",
         "minutos",
         "permanencia_habitual",
+        "permanencia_habitual_sede",
         "por_conciliar",
     }
     assert visitas[0]["minutos"] == 45
@@ -448,3 +449,91 @@ def test_permanencia_del_socio_y_umbral_de_la_sede(visitas_api):
     # La sede tiene mediana de 180: umbral de 360, aunque el socio suele quedarse 60.
     assert visita["por_conciliar"] is False
     assert datos.cliente().get("/api/ocupacion").json["por_conciliar"] == 0
+
+
+def conciliar(datos, entrada_id, cuerpo, clave=None, rol="recepcion"):
+    return datos.cliente(rol).post(
+        f"/api/visitas/{entrada_id}/conciliacion",
+        json=cuerpo,
+        headers={"X-Gimnasio": "1", "Idempotency-Key": clave or str(uuid4())},
+    )
+
+
+def preparar_conciliacion(datos):
+    from datetime import timedelta
+
+    entrada = datos.cuerpo()
+    assert enviar(datos.cliente(), entrada).status_code == 201
+    datos.reloj.avanzar(timedelta(hours=4))
+    return entrada["id"], {
+        "id": str(nuevo_id(datos.reloj)),
+        "salida_en": "2026-10-27T10:00:00-03:00",
+        "motivo": "El socio informó su hora real de salida",
+    }
+
+
+def test_conciliacion_idempotente_baja_ocupacion_y_es_confiable(visitas_api):
+    from datetime import timedelta
+
+    datos = visitas_api
+    entrada_id, cuerpo = preparar_conciliacion(datos)
+    clave = str(uuid4())
+    assert datos.cliente().get("/api/ocupacion").json["ocupacion_registrada"] == 1
+    primera = conciliar(datos, entrada_id, cuerpo, clave)
+    assert primera.status_code == 201
+    assert conciliar(datos, entrada_id, cuerpo, clave).data == primera.data
+    assert conciliar(datos, entrada_id, cuerpo).data == primera.data
+    assert contar(datos, "salidas") == 1
+    assert datos.cliente().get("/api/ocupacion").json["ocupacion_registrada"] == 0
+    with datos.app.app_context(), transaccion() as cursor:
+        cursor.execute("SELECT motivo, corrige_a FROM salidas")
+        assert cursor.fetchone() == {"motivo": cuerpo["motivo"], "corrige_a": None}
+        duraciones = repositorio.listar_duraciones_confiables(
+            cursor, datos.sede, datos.reloj.ahora() - timedelta(days=1), datos.reloj.ahora()
+        )
+        assert [fila["minutos"] for fila in duraciones] == [60]
+    respuesta = conciliar(datos, entrada_id, cuerpo | {"id": str(nuevo_id(datos.reloj))})
+    assert respuesta.status_code == 409
+    assert respuesta.json["error"]["codigo"] == "visita_cerrada"
+
+
+@pytest.mark.parametrize("motivo", [None, "", "   ", "x" * 501, 12])
+def test_conciliacion_rechaza_motivo_invalido(visitas_api, motivo):
+    entrada_id, cuerpo = preparar_conciliacion(visitas_api)
+    assert conciliar(visitas_api, entrada_id, cuerpo | {"motivo": motivo}).status_code == 422
+    del cuerpo["motivo"]
+    assert conciliar(visitas_api, entrada_id, cuerpo).status_code == 422
+    assert contar(visitas_api, "salidas") == 0
+
+
+@pytest.mark.parametrize(
+    "hora",
+    [
+        "2026-10-27T17:00:00Z",
+        "2026-10-27T11:00:00Z",
+        "2026-10-27T12:00:00Z",
+        "2026-10-27T13:00:00",
+        "inválida",
+        None,
+    ],
+)
+def test_conciliacion_rechaza_hora_invalida(visitas_api, hora):
+    entrada_id, cuerpo = preparar_conciliacion(visitas_api)
+    respuesta = conciliar(visitas_api, entrada_id, cuerpo | {"salida_en": hora})
+    assert respuesta.status_code == 422
+    assert respuesta.json["error"]["codigo"] == "salida_invalida"
+    assert contar(visitas_api, "salidas") == 0
+
+
+@pytest.mark.parametrize("rol", ["socio", "entrenador"])
+def test_conciliacion_prohibe_otros_roles(visitas_api, rol):
+    entrada_id, cuerpo = preparar_conciliacion(visitas_api)
+    assert conciliar(visitas_api, entrada_id, cuerpo, rol=rol).status_code == 403
+
+
+def test_conciliacion_exige_clave(visitas_api):
+    entrada_id, cuerpo = preparar_conciliacion(visitas_api)
+    respuesta = visitas_api.cliente().post(
+        f"/api/visitas/{entrada_id}/conciliacion", json=cuerpo, headers={"X-Gimnasio": "1"}
+    )
+    assert respuesta.status_code == 428

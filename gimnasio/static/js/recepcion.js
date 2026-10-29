@@ -9,11 +9,21 @@ const control = crearControlDeOperacion();
 let sedeId;
 let autorizada = false;
 let cargando = false;
+let visitaConciliada;
 
 function actualizarBotones() {
   for (const elemento of document.querySelectorAll("[data-entrada] button, [data-entrada] select, [data-salida]")) {
     elemento.disabled = Boolean(control.actual) || cargando;
   }
+  const pendiente = Boolean(control.actual);
+  for (const selector of ["#salida-en", "#motivo", "[data-confirmar-conciliacion]"]) {
+    $(selector).disabled = pendiente || cargando;
+  }
+  $("[data-cancelar-conciliacion]").disabled = pendiente;
+  $("[data-reintentar-conciliacion]").hidden = !pendiente;
+  $("[data-reintentar-conciliacion]").disabled = control.enCurso || cargando;
+  $("[data-descartar-conciliacion]").hidden = !pendiente;
+  $("[data-descartar-conciliacion]").disabled = control.enCurso;
   $("[data-reintento]").hidden = !control.actual || control.enCurso;
   $("[data-reintentar]").disabled = control.enCurso || cargando;
   $("[data-descartar]").disabled = control.enCurso;
@@ -49,6 +59,12 @@ function dibujarVisitas(visitas) {
       marca.className = "por-conciliar";
       marca.textContent = "por conciliar";
       tarjeta.append(marca);
+      const conciliar = document.createElement("button");
+      conciliar.type = "button";
+      conciliar.dataset.salida = visita.id;
+      conciliar.textContent = "Conciliar salida";
+      conciliar.addEventListener("click", () => abrirConciliacion(visita));
+      tarjeta.append(conciliar);
     }
     tarjeta.append(boton);
     $("[data-visitas]").append(tarjeta);
@@ -92,17 +108,52 @@ async function enviar() {
   try {
     await llamarApi(operacion.ruta, { metodo: "POST", cuerpo: operacion.cuerpo, clave: operacion.clave });
     control.finalizar();
+    if (operacion.ruta.endsWith("/conciliacion")) $("[data-conciliacion]").close();
     $("[data-estado]").textContent = operacion.ruta === "/api/entradas" ? "Entrada registrada." : "Salida registrada.";
     await actualizar();
     $("#socio").focus();
   } catch (error) {
     control.finalizar(error);
     $("[data-error]").textContent = error.message;
+    if (operacion.ruta.endsWith("/conciliacion")) $("[data-error-conciliacion]").textContent = error.message;
     $("[data-estado]").textContent = control.actual ? "No se confirmó la operación. Podés reintentar o descartar el reintento." : "La operación fue rechazada.";
   } finally {
     actualizarBotones();
   }
 }
+
+function abrirConciliacion(visita) {
+  if (control.actual || cargando) return;
+  visitaConciliada = visita;
+  const habitual = visita.permanencia_habitual_sede;
+  // Conservar la hora de la sede, independientemente de la zona del navegador.
+  const fecha = new Date(visita.entrada_local.slice(0, 19) + "Z");
+  fecha.setUTCMinutes(fecha.getUTCMinutes() + (habitual.suficiente ? habitual.mediana : 60));
+  $("#salida-en").value = fecha.toISOString().slice(0, 16);
+  $("#motivo").value = "";
+  $("[data-error-conciliacion]").textContent = "";
+  actualizarBotones();
+  $("[data-conciliacion]").showModal();
+}
+
+$("[data-formulario-conciliacion]").addEventListener("submit", (evento) => {
+  evento.preventDefault();
+  if (control.actual || cargando) return;
+  const desplazamiento = visitaConciliada.entrada_local.slice(-6);
+  control.preparar(`/api/visitas/${visitaConciliada.id}/conciliacion`, {
+    salida_en: $("#salida-en").value + desplazamiento, motivo: $("#motivo").value,
+  });
+  enviar();
+});
+$("[data-conciliacion]").addEventListener("cancel", (evento) => {
+  if (control.actual) evento.preventDefault();
+});
+$("[data-cancelar-conciliacion]").addEventListener("click", () => $("[data-conciliacion]").close());
+$("[data-reintentar-conciliacion]").addEventListener("click", enviar);
+$("[data-descartar-conciliacion]").addEventListener("click", () => {
+  control.descartar();
+  actualizarBotones();
+});
 
 $("[data-entrada]").addEventListener("submit", (evento) => {
   evento.preventDefault();
