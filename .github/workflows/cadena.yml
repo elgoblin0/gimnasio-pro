@@ -21,10 +21,6 @@ on:
 permissions:
   contents: read
 
-concurrency:
-  group: cadena
-  cancel-in-progress: false
-
 env:
   GH_TOKEN: ${{ secrets.CADENA_TOKEN }}
   GITHUB_REPOSITORY: ${{ github.repository }}
@@ -35,6 +31,11 @@ jobs:
     if: >-
       github.event_name == 'workflow_dispatch' ||
       (github.event_name == 'issues' && (github.event.action == 'closed' || github.event.label.name == 'estado:listo'))
+    # Solo arrancar se serializa: GitHub descarta las corridas pendientes de un grupo, y perder
+    # un arrancar repetido no importa, pero perder una revisión o una etiqueta frena la cadena.
+    concurrency:
+      group: cadena-arrancar
+      cancel-in-progress: false
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
