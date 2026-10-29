@@ -29,6 +29,7 @@ MAX_FALLOS = 2
 LIMITE_MINUTOS = 60
 ESPERA_SEGUNDOS = 60
 LIMITE_REVISIONES = 20000
+ARCHIVO_CUERPO = ".implementador-cuerpo.md"
 PEDIDO = re.compile(r"^\s*@codex\s+(?!review\b)\S", re.IGNORECASE)
 
 
@@ -74,11 +75,21 @@ def texto_de_revisiones(resenas, en_linea, desde):
     return "\n\n".join(partes)[:LIMITE_REVISIONES]
 
 
+def cuerpo_del_pr(texto, numero_issue):
+    """El cuerpo que dejó Codex, con `Closes #N` al principio como exige AGENTS.md; None si no dejó nada."""
+    texto = (texto or "").strip()
+    if not texto:
+        return None
+    return texto if texto.startswith("Closes #") else f"Closes #{numero_issue}\n\n{texto}"
+
+
 def prompt_para_codex(pedido, revisiones=""):
     texto = re.sub(r"<!--.*?-->", "", pedido, flags=re.DOTALL).strip().removeprefix("@codex").strip()
     encabezado = (
         "Trabajás en un worktree de la rama de este PR. No hagas commit ni push: lo hace el implementador.\n"
-        "Si la rama tiene conflictos con main sin resolver, resolvelos preservando el alcance del issue.\n\n"
+        "Si la rama tiene conflictos con main sin resolver, resolvelos preservando el alcance del issue.\n"
+        "Escribí el cuerpo del PR (plantilla completa, con «Notas para el próximo agente», el conteo de passed/skipped "
+        f"y lo que no pudiste correr) en `{ARCHIVO_CUERPO}` en la raíz: lo publica el implementador (sin `gh`).\n\n"
     )
     detalle = f"\n\n--- Revisiones del PR a atender ---\n{revisiones}" if revisiones else ""
     return encabezado + texto + detalle
@@ -178,6 +189,9 @@ def atender(pr, pedido):
     numero_issue = cadena.numero_de_rama(rama)
     carpeta = preparar_worktree(rama, numero_issue)
     codigo, texto = correr_codex(carpeta, prompt_para_codex(pedido, revisiones_pendientes(numero)))
+    archivo_cuerpo = carpeta / ARCHIVO_CUERPO
+    cuerpo = cuerpo_del_pr(archivo_cuerpo.read_text(encoding="utf-8") if archivo_cuerpo.exists() else "", numero_issue)
+    archivo_cuerpo.unlink(missing_ok=True)  # no debe viajar en el commit
     pregunta = cadena.pregunta_de_criterio(texto)
     if pregunta:
         cadena.gh("issue", "comment", str(numero_issue), "--body", f"Duda de Codex (PR #{numero}):\n\n> {pregunta}")
@@ -188,6 +202,8 @@ def atender(pr, pedido):
         return
     if codigo != 0 or not subir_cambios(carpeta, rama, f"{pr['title']} (#{numero_issue})"):
         raise RuntimeError(f"Codex terminó con código {codigo} y no dejó cambios que subir.\n\n{texto[-1500:]}")
+    if cuerpo:
+        cadena.gh("pr", "edit", str(numero), "--body", cuerpo)
     cadena.comentar(numero, f"{MARCA_HECHO}\nImplementado en esta PC con Codex.\n\n{texto[-1500:]}")
     git("worktree", "remove", "--force", str(carpeta), chequear=False)
 

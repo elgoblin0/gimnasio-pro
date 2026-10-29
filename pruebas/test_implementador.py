@@ -67,3 +67,11 @@ def test_las_revisiones_posteriores_al_ultimo_hecho_entran_al_prompt():
     prompt = implementador.prompt_para_codex("@codex atendé la revisión", texto)
     assert "Quitá la deduplicación." in prompt
     assert implementador.prompt_para_codex("@codex hacé algo").endswith("hacé algo")
+
+
+def test_el_cuerpo_del_pr_empieza_con_closes():
+    assert implementador.cuerpo_del_pr("Closes #89\n\nNotas", 89) == "Closes #89\n\nNotas"
+    assert implementador.cuerpo_del_pr("Notas", 90) == "Closes #90\n\nNotas"
+    assert implementador.cuerpo_del_pr("  \n", 90) is None
+    assert implementador.cuerpo_del_pr(None, 90) is None
+    assert implementador.ARCHIVO_CUERPO in implementador.prompt_para_codex("@codex hacé algo")
