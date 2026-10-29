@@ -84,6 +84,9 @@ def contenido_cache(pagina):
 
 def test_controla_raiz_y_cachea_solo_la_lista_publica(contexto_pwa, servidor_pwa):
     url, _, _ = servidor_pwa
+    rutas_diferidas = ("/js/comun/cuerpo-3d.js", "/vendor/three@0.186.0/", "/vendor/cuerpo@1/")
+    solicitudes = []
+    contexto_pwa.on("request", lambda solicitud: solicitudes.append(solicitud.url.removeprefix(url)))
     pagina = abrir_controlada(contexto_pwa, url)
     assert pagina.evaluate("navigator.serviceWorker.controller.scriptURL") == url + "/sw.js"
     assert pagina.evaluate("async () => (await navigator.serviceWorker.ready).scope") == url + "/"
@@ -93,13 +96,10 @@ def test_controla_raiz_y_cachea_solo_la_lista_publica(contexto_pwa, servidor_pwa
         ].replace(",\n]", "\n]")
     )
     assert contenido_cache(pagina) == {"gimnasio-estaticos-1": sorted(lista)}
-    # Cada recurso de ejecución de la app está en la lista inicial. Three.js es
-    # exclusivo de los prototipos #81 y no debe descargarse al instalar la PWA.
-    solo_prototipos = ESTATICOS / "vendor/three@0.186.0"
-    for archivo in [ESTATICOS / "index.html", *ESTATICOS.glob("js/**/*.js")]:
-        assert "three@0.186.0" not in archivo.read_text(encoding="utf-8")
-    assert not any("three@0.186.0" in ruta for ruta in lista)
-    # Excluye HTML, SW, pruebas, documentación y la librería aislada de los prototipos.
+    # El cuerpo 3D, Three.js y el modelo se cargan al usarlos, no al instalar la PWA (#92).
+    assert not any(ruta.startswith(rutas_diferidas) for ruta in solicitudes)
+    assert not any(ruta.startswith(rutas_diferidas) for ruta in lista)
+    # La lista inicial incluye los estáticos de ejecución salvo los de carga diferida.
     existentes = {
         "/" + archivo.relative_to(ESTATICOS).as_posix()
         for archivo in ESTATICOS.rglob("*")
@@ -107,7 +107,7 @@ def test_controla_raiz_y_cachea_solo_la_lista_publica(contexto_pwa, servidor_pwa
         and archivo.suffix in {".js", ".css", ".png", ".webmanifest"}
         and not archivo.name.endswith(".test.js")
         and archivo.name != "sw.js"
-        and not archivo.is_relative_to(solo_prototipos)
+        and not ("/" + archivo.relative_to(ESTATICOS).as_posix()).startswith(rutas_diferidas)
     }
     assert set(lista) == existentes
     pagina.evaluate("""async () => {

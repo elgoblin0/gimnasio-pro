@@ -98,6 +98,28 @@ test("solo una petición GET exacta de la lista usa caché", async () => {
   assert.ok(!sw.almacen.get("gimnasio-estaticos-1").has(ORIGEN + "/api/sesion"));
 });
 
+test("el cuerpo 3D y sus recursos se piden por red sin agregarse a la caché inicial", async () => {
+  const sw = entorno();
+  await sw.ciclo("install");
+  const inicial = [...sw.almacen.get("gimnasio-estaticos-1").keys()];
+  assert.ok(inicial.every((ruta) => !/\/(js\/comun\/cuerpo-3d\.js|vendor\/(three@0\.186\.0|cuerpo@1)\/)/.test(ruta)));
+  const rutas = [
+    "/js/comun/cuerpo-3d.js",
+    "/vendor/three@0.186.0/three.module.js",
+    "/vendor/three@0.186.0/three.core.js",
+    "/vendor/three@0.186.0/loaders/GLTFLoader.js",
+    "/vendor/three@0.186.0/utils/BufferGeometryUtils.js",
+    "/vendor/cuerpo@1/cuerpo.glb",
+  ];
+  for (const ruta of rutas) {
+    assert.ok(!inicial.includes(ORIGEN + ruta));
+    assert.equal(await (await sw.pedir(ruta)).text(), "red");
+  }
+  assert.equal(sw.solicitudesDeRed.length, rutas.length);
+  assert.ok(sw.solicitudesDeRed.every(({ opciones }) => opciones.cache === "no-store"));
+  assert.deepEqual([...sw.almacen.get("gimnasio-estaticos-1").keys()], inicial);
+});
+
 test("API y escrituras fallan sin red y recuperarla no provoca reenvíos", async () => {
   const sw = entorno();
   await sw.ciclo("install");
