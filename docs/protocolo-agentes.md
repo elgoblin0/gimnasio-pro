@@ -23,6 +23,17 @@ Frenos: un issue a la vez; como mucho tres pedidos de corrección por PR, despu�
 
 Requisitos (una vez, los hace el dueño): secretos `CADENA_TOKEN` (token personal *fine-grained* con Contents, Issues y Pull requests en escritura sobre este repo) y `CLAUDE_CODE_OAUTH_TOKEN` (`claude setup-token`); el repo conectado a Codex cloud con un entorno que corra ruff y pytest; «Allow auto-merge» activado en el repo.
 
+### Implementador local (mientras Codex cloud no responda)
+
+Codex cloud responde `@codex review` pero rechaza los demás pedidos desde GitHub con «create an environment for this repo», aunque el entorno exista ([openai/codex#20093](https://github.com/openai/codex/issues/20093)). Hasta que OpenAI lo arregle, `scripts/implementador.py` hace ese paso en la PC del dueño: toma el último `@codex implementá…` o `@codex corregí…` sin atender que dejó la cadena en un PR `codex/issue-N`, corre `codex exec` en un worktree (`.implementador/`, fuera de git), sube el resultado y comenta con la marca `<!-- implementador:hecho -->`. Una duda `NECESITA-CRITERIO:` va al issue como en la cadena. Dos fallos seguidos en un pedido dejan el PR `bloqueado`. Todo lo demás (CI, revisión, Opus, fusión) sigue igual.
+
+```bash
+python scripts/implementador.py            # atiende lo pendiente y termina
+python scripts/implementador.py --esperar  # repite cada 60 segundos
+```
+
+Necesita `gh` autenticado y `codex.exe` (lo busca en `GIMNASIO_CODEX_BIN`, el PATH y `%LOCALAPPDATA%\OpenAI\Codexin`). Un issue a la vez, como la cadena.
+
 Para arrancar una etapa: Actions → Cadena → Run workflow. Para frenarla: deshabilitá el workflow Cadena.
 
 ## Roles

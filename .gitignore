@@ -10,3 +10,4 @@ __pycache__/
 reporte-*.xml
 resumen-ci.md
 .mysql-local/
+.implementador/
