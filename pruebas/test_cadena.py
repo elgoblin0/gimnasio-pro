@@ -73,3 +73,9 @@ def test_el_pedido_de_implementar_incluye_el_issue_y_la_salida_de_criterio():
 
 def test_los_pedidos_de_correccion_llevan_la_marca_que_cuenta_intentos():
     assert cadena.MARCA_CORREGIR in cadena.prompt_corregir("el CI falló.")
+
+
+def test_un_pr_de_adr_solo_toca_docs_adr_y_glosario():
+    assert cadena.es_solo_adr(["docs/adr/0017-tema.md", "GLOSSARY.md"])
+    assert not cadena.es_solo_adr(["docs/adr/0017-tema.md", "gimnasio/reglas/progresion.py"])
+    assert not cadena.es_solo_adr([])
