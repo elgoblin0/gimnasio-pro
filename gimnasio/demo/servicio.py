@@ -81,6 +81,20 @@ def _cargar_programas(cursor, socios, siguiente_id, ahora):
     for original, alternativa in ((fuerza, alternativa_fuerza), (cardio, alternativa_cardio)):
         repositorio.insertar_alternativa(cursor, original, alternativa, 1)
         repositorio.insertar_alternativa(cursor, alternativa, original, 1)
+    cajon = siguiente_id()
+    repositorio.insertar_ejercicio(
+        cursor,
+        cajon,
+        "Sentadilla en cajón ficticia",
+        ["repeticiones", "carga"],
+        ahora,
+        patron_movimiento="sentadilla",
+        equipo="cajon",
+        incremento_carga="2.50",
+        zonas=("gluteos", "cuadriceps"),
+    )
+    repositorio.insertar_alternativa(cursor, fuerza, cajon, 2)
+    repositorio.insertar_alternativa(cursor, cajon, fuerza, 1)
     for socio_id in socios[:2]:
         programa, primera, segunda = siguiente_id(), siguiente_id(), siguiente_id()
         repositorio.insertar_programa(cursor, programa, socio_id, ahora)

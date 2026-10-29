@@ -6,7 +6,7 @@ from decimal import Decimal
 
 from gimnasio.comun.tipos import PrescripcionEjercicio, Razon
 
-VERSION_REGLAS = "2.2.0"
+VERSION_REGLAS = "2.3.0"
 
 
 def razon(regla, prescripcion, explicacion, **datos):
@@ -239,7 +239,7 @@ def _ajustar_ejercicio(planificado, entrada, sesion_planificada_id):
     return ajustada, razones + razones_freno, frenos
 
 
-def ajustar_ejercicio(planificado, entrada, sesion_planificada_id):
+def _aplicar_chequeo(planificado, entrada, sesion_planificada_id):
     ajustada, razones, frenos = _ajustar_ejercicio(planificado, entrada, sesion_planificada_id)
     chequeo = entrada.chequeo
     if chequeo is None:
@@ -269,3 +269,16 @@ def ajustar_ejercicio(planificado, entrada, sesion_planificada_id):
         suba_anulada=suba is not None,
     )
     return ajustada, razones + (explicacion,), frenos + ("chequeo_desfavorable",)
+
+
+def ajustar_ejercicio(planificado, entrada, sesion_planificada_id):
+    from gimnasio.reglas.dolor import aplicar_dolor
+
+    ajustada, razones, frenos = _aplicar_chequeo(planificado, entrada, sesion_planificada_id)
+    ejercicio = next((e for e in entrada.catalogo if e.ejercicio_id == planificado.ejercicio_catalogo_id), None)
+    if ejercicio is None:
+        return ajustada, razones, frenos
+    ajustada, razones_dolor, frenos_dolor = aplicar_dolor(
+        ajustada, ejercicio, entrada.catalogo, entrada.dolores_actuales, entrada.dolores_anteriores, razones
+    )
+    return ajustada, razones + razones_dolor, frenos + frenos_dolor

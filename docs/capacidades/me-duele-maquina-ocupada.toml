@@ -2,7 +2,7 @@ id = "me-duele-maquina-ocupada"
 nombre = "\"Me duele\" y \"máquina ocupada\""
 grupo = "Entrenamiento"
 etapa = 2
-nivel = "esqueleto"
-prueba = "pruebas/e2e/test_series.py::test_maquina_ocupada_con_teclado_y_recarga"
+nivel = "funcional"
+prueba = "pruebas/e2e/test_series.py::test_me_duele_rodillas_sustituye_y_explica"
 
-# Máquina ocupada disponible; dolor reportado queda pendiente para su issue.
+# Dolor reportado y máquina ocupada con sustituciones, explicación y recarga.

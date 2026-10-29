@@ -11,12 +11,15 @@ from gimnasio.comun.errores import ErrorDeDominio
 from gimnasio.comun.ids import desde_bytes, desde_texto, nuevo_id
 from gimnasio.comun.reloj import fecha_local, inicio_de_semana, reloj_actual
 from gimnasio.comun.tipos import (
+    ZONAS_CUERPO,
     Chequeo,
     DatosPropuesta,
     EjercicioCatalogo,
     EjercicioPlanificado,
     HistorialEjercicio,
+    PrescripcionEjercicio,
     ProgramaEntrenamiento,
+    Razon,
     SerieRealizada,
     SesionPlanificada,
     SubaCarga,
@@ -25,6 +28,7 @@ from gimnasio.entrenamiento import repositorio
 from gimnasio.permisos.servicio import tiene_asignacion_vigente
 from gimnasio.programas.servicio import OBJETIVOS, listar_programas
 from gimnasio.reglas.alternativas import elegir_alternativas
+from gimnasio.reglas.dolor import aplicar_dolor
 from gimnasio.reglas.progresion import historial_para_sesion
 from gimnasio.reglas.records import detectar_records
 from gimnasio.reglas.sesion import proponer_sesion
@@ -168,7 +172,8 @@ def preparar_subas(efectivas, zona, local):
             if (
                 razon["regla"] == "subir_carga"
                 and ejercicio
-                and not {"tope_semanal", "chequeo_desfavorable"} & {r["regla"] for r in ejercicio["explicacion"]}
+                and not {"tope_semanal", "chequeo_desfavorable", "dolor_reportado"}
+                & {r["regla"] for r in ejercicio["explicacion"]}
             ):
                 subas.append(
                     SubaCarga(ejercicio["ejercicio_id"], fecha, str(desde_bytes(efectiva["sesion_planificada_id"])))
@@ -180,7 +185,15 @@ def catalogo_programa(programa):
     if programa is None:
         return ()
     ejercicios = {
-        e["ejercicio_id"]: EjercicioCatalogo(e["ejercicio_id"], e["nombre"], e["incremento_carga"])
+        e["ejercicio_id"]: EjercicioCatalogo(
+            e["ejercicio_id"],
+            e["nombre"],
+            e["incremento_carga"],
+            e["equipo"],
+            e["patron_movimiento"],
+            tuple(e["zonas"]),
+            tuple(a["ejercicio_id"] for a in e["alternativas"]),
+        )
         for s in programa["sesiones_planificadas"]
         for e in s["ejercicios_planificados"]
     }
@@ -198,6 +211,32 @@ def consultar_propuesta(socio_texto, usuario, planificada_id=None, *, cursor=Non
         filas = repositorio.listar_series_vigentes(lectura, socio_id)
         efectivas = repositorio.listar_prescripciones(lectura, socio_id)
         chequeo = repositorio.obtener_chequeo(lectura, socio_id, fecha_local(ahora, ZoneInfo(sede["zona_horaria"])))
+        actuales = repositorio.zonas_chequeo(lectura, desde_bytes(chequeo["id"]) if chequeo else None)
+        anterior = repositorio.ultima_sesion(lectura, socio_id)
+        anteriores = dolores_de_sesion(lectura, anterior, sede) if anterior else ()
+        catalogo = {}
+        # Incluye alternativas que no forman parte del programa.
+        for programa_disponible in listar_programas(socio_id, cursor=lectura):
+            for sesion in programa_disponible["sesiones_planificadas"]:
+                for ejercicio in sesion["ejercicios_planificados"]:
+                    for elemento in catalogo_ejercicio(lectura, ejercicio):
+                        if elemento.ejercicio_id not in catalogo or elemento.alternativas:
+                            catalogo[elemento.ejercicio_id] = elemento
+        # Las quitadas en vivo también acreditan el pendiente sin reescribir hechos.
+        efectivas = [
+            {
+                **efectiva,
+                "ejercicios": json.dumps(
+                    proyectar_dolor(
+                        lectura,
+                        repositorio.obtener_sesion(lectura, desde_bytes(efectiva["sesion_realizada_id"])),
+                        efectiva,
+                    ),
+                    default=str,
+                ),
+            }
+            for efectiva in efectivas
+        ]
     programas = listar_programas(socio_id, cursor=cursor)
     programa = programas[-1] if programas else None
     if planificada_id is not None:
@@ -246,9 +285,11 @@ def consultar_propuesta(socio_texto, usuario, planificada_id=None, *, cursor=Non
             inicio_de_semana(local),
             series,
             historial,
-            catalogo_programa(programa),
+            tuple(catalogo.values()),
             subas,
             Chequeo(chequeo["sueno"], chequeo["energia"]) if chequeo else None,
+            actuales,
+            anteriores,
         )
     )
     respuesta = {
@@ -281,6 +322,7 @@ def consultar_propuesta(socio_texto, usuario, planificada_id=None, *, cursor=Non
         {
             "id": e["id"],
             "ejercicio_id": e["ejercicio_id"],
+            "ejercicio_hecho_id": prescripciones[e["id"]].ejercicio_hecho_id,
             "carga_anterior": anteriores.get(e["ejercicio_id"]),
             "nombre": e["nombre"],
             "posicion": e["posicion"],
@@ -383,6 +425,7 @@ def crear_sesion(datos, usuario):
             raise ErrorDeDominio("id_ajeno", "El identificador corresponde a otra sesión planificada.", 403)
         if repositorio.obtener_prescripcion(cursor, sesion_id) is None:
             repositorio.insertar_prescripcion(cursor, nuevo_id(), sesion_id, propuesta, ahora)
+            guardar_sustituciones_dolor(cursor, sesion_id, propuesta["ejercicios"], usuario, ahora)
             repositorio.insertar_avisos(cursor, identificar(usuario["id"]), sesion_id, propuesta, ahora)
         return sesion_publica(fila)
 
@@ -402,6 +445,8 @@ def registrar_serie(sesion_texto, datos, usuario):
     serie_id, ejercicio_id = identificar(datos["id"]), identificar(datos["ejercicio_planificado_id"])
     ahora = reloj_actual().ahora()
     with transaccion() as cursor:
+        # Permite series concurrentes, pero espera cualquier dolor o sustitución en curso.
+        repositorio.obtener_socio(cursor, identificar(usuario["id"]), bloqueo_compartido=True)
         sesion = _sesion_propia(cursor, sesion_id, usuario)
         anterior = repositorio.obtener_serie(cursor, serie_id)
         if anterior is not None:
@@ -412,7 +457,17 @@ def registrar_serie(sesion_texto, datos, usuario):
             raise ErrorDeDominio("ejercicio_inexistente", "El ejercicio planificado no existe.", 404)
         if ejercicio["sesion_planificada_id"] != sesion["sesion_planificada_id"]:
             raise ErrorDeDominio("ejercicio_invalido", "El ejercicio no pertenece a esta sesión planificada.", 422)
-        hecho_id = identificar(datos["ejercicio_hecho_id"]) if "ejercicio_hecho_id" in datos else None
+        efectiva = repositorio.obtener_prescripcion(cursor, sesion_id)
+        ejercicios = proyectar_dolor(cursor, sesion, efectiva) if efectiva else []
+        prescrito = next((e for e in ejercicios if e["id"] == str(ejercicio_id)), None)
+        if prescrito and prescrito["objetivos"]["series"] == 0:
+            raise ErrorDeDominio("dolor_reportado", "El ejercicio se quitó por dolor reportado.", 409)
+        vigente = repositorio.sustitucion_vigente(cursor, sesion_id, ejercicio_id)
+        hecho_id = (
+            identificar(datos["ejercicio_hecho_id"])
+            if "ejercicio_hecho_id" in datos
+            else (desde_bytes(vigente["ejercicio_hecho_id"]) if vigente else None)
+        )
         if hecho_id is not None:
             vigente = repositorio.sustitucion_vigente(cursor, sesion_id, ejercicio_id)
             if vigente is None or desde_bytes(vigente["ejercicio_hecho_id"]) != hecho_id:
@@ -472,6 +527,7 @@ def consultar_sesion(sesion_texto, usuario):
     with transaccion() as cursor:
         sesion = _sesion_propia(cursor, sesion_id, usuario)
         efectiva = repositorio.obtener_prescripcion(cursor, sesion_id)
+        ejercicios = proyectar_dolor(cursor, sesion, efectiva) if efectiva else None
         filas = repositorio.listar_series_vigentes(cursor, identificar(usuario["id"]), sesion_id)
         historial = repositorio.listar_series_vigentes(cursor, identificar(usuario["id"]))
         sede = repositorio.obtener_sede(cursor)
@@ -498,7 +554,6 @@ def consultar_sesion(sesion_texto, usuario):
     )
     anteriores = cargas_anteriores(historial, ZoneInfo(sede["zona_horaria"]), sesion)
     cantidades = Counter(str(desde_bytes(f["ejercicio_planificado_id"])) for f in filas)
-    ejercicios = json.loads(efectiva["ejercicios"]) if efectiva else None
     return {
         "prescripcion_efectiva": (
             {campo: json.loads(efectiva[campo]) for campo in ("ejercicios", "explicacion", "frenos")}
@@ -544,10 +599,12 @@ def _ejercicio_de_sesion(cursor, sesion_id, ejercicio_id, usuario):
     return ejercicio
 
 
-def _alternativas(cursor, ejercicio):
-    filas = repositorio.listar_catalogo(cursor, desde_bytes(ejercicio["ejercicio_id"]))
+def catalogo_ejercicio(cursor, ejercicio):
+    identificador = ejercicio["ejercicio_id"]
+    identificador = identificar(identificador) if isinstance(identificador, str) else desde_bytes(identificador)
+    filas = repositorio.listar_catalogo(cursor, identificador)
     ids = tuple(str(desde_bytes(f["id"])) for f in filas[1:])
-    catalogo = tuple(
+    return tuple(
         EjercicioCatalogo(
             str(desde_bytes(f["id"])),
             f["nombre"],
@@ -559,7 +616,14 @@ def _alternativas(cursor, ejercicio):
         )
         for i, f in enumerate(filas)
     )
-    alternativas, razon = elegir_alternativas(str(desde_bytes(ejercicio["ejercicio_id"])), catalogo)
+
+
+def _alternativas(cursor, ejercicio, zonas_excluidas=()):
+    filas = repositorio.listar_catalogo(cursor, desde_bytes(ejercicio["ejercicio_id"]))
+    catalogo = catalogo_ejercicio(cursor, ejercicio)
+    alternativas, razon = elegir_alternativas(
+        str(desde_bytes(ejercicio["ejercicio_id"])), catalogo, zonas_excluidas=zonas_excluidas
+    )
     return [
         {
             "ejercicio_id": e.ejercicio_id,
@@ -576,7 +640,9 @@ def _alternativas(cursor, ejercicio):
 def consultar_alternativas(sesion_texto, ejercicio_texto, usuario):
     with transaccion() as cursor:
         ejercicio = _ejercicio_de_sesion(cursor, identificar(sesion_texto), identificar(ejercicio_texto), usuario)
-        alternativas, razon = _alternativas(cursor, ejercicio)
+        sesion = _sesion_propia(cursor, identificar(sesion_texto), usuario)
+        zonas = dolores_de_sesion(cursor, sesion, repositorio.obtener_sede(cursor))
+        alternativas, razon = _alternativas(cursor, ejercicio, zonas)
     return {
         "alternativas": alternativas,
         "explicacion": (
@@ -605,12 +671,15 @@ def registrar_sustitucion(sesion_texto, datos, usuario):
     )
     ahora = reloj_actual().ahora()
     with transaccion() as cursor:
+        repositorio.obtener_socio(cursor, identificar(usuario["id"]), bloquear=True)
         ejercicio = _ejercicio_de_sesion(cursor, sesion_id, ejercicio_id, usuario)
         anterior = repositorio.obtener_sustitucion(cursor, sustitucion_id)
         if anterior is not None:
             _exigir_destino_serie(anterior, sesion_id, ejercicio_id)
             return sustitucion_publica(anterior)
-        alternativas, _ = _alternativas(cursor, ejercicio)
+        sesion = _sesion_propia(cursor, sesion_id, usuario)
+        zonas = dolores_de_sesion(cursor, sesion, repositorio.obtener_sede(cursor))
+        alternativas, _ = _alternativas(cursor, ejercicio, zonas)
         if str(hecho_id) not in {e["ejercicio_id"] for e in alternativas}:
             raise ErrorDeDominio("alternativa_incompatible", "Elegí una alternativa compatible.", 422)
         repositorio.insertar_sustitucion(
@@ -668,8 +737,13 @@ def consultar_progreso(socio_texto, usuario):
 
 
 def registrar_chequeo(datos, usuario):
-    if not isinstance(datos, dict) or set(datos) != {"id", "sueno", "energia"}:
-        raise ErrorDeDominio("cuerpo_invalido", "Enviá id, sueno y energia.", 422)
+    if (
+        not isinstance(datos, dict)
+        or not {"id", "sueno", "energia"} <= set(datos)
+        or set(datos) - {"id", "sueno", "energia", "zonas"}
+    ):
+        raise ErrorDeDominio("cuerpo_invalido", "Enviá id, sueno, energia y las zonas con dolor.", 422)
+    zonas = validar_zonas(datos.get("zonas", []))
     if any(type(datos[c]) is not int or not 1 <= datos[c] <= 5 for c in ("sueno", "energia")):
         raise ErrorDeDominio("chequeo_invalido", "Sueño y energía deben ser enteros entre 1 y 5.", 422)
     chequeo_id = identificar(datos["id"])
@@ -685,4 +759,120 @@ def registrar_chequeo(datos, usuario):
         sede = repositorio.obtener_sede(cursor)
         local = fecha_local(ahora, ZoneInfo(sede["zona_horaria"]))
         repositorio.insertar_chequeo(cursor, chequeo_id, socio_id, local, datos["sueno"], datos["energia"], ahora)
+        for zona in zonas:
+            repositorio.insertar_dolor(cursor, nuevo_id(), socio_id, zona, ahora, chequeo_id=chequeo_id)
     return {"id": str(chequeo_id), "fecha_local": local.isoformat()}
+
+
+def validar_zonas(zonas):
+    if (
+        not isinstance(zonas, list)
+        or any(not isinstance(z, str) or z not in ZONAS_CUERPO for z in zonas)
+        or len(zonas) != len(set(zonas))
+    ):
+        raise ErrorDeDominio("zonas_invalidas", "Elegí zonas del cuerpo de la silueta, sin repetirlas.", 422)
+    return tuple(zonas)
+
+
+def dolores_de_sesion(cursor, sesion, sede):
+    local = fecha_local(sesion["creada_en"].replace(tzinfo=UTC), ZoneInfo(sede["zona_horaria"]))
+    return repositorio.dolores_sesion(cursor, desde_bytes(sesion["id"]), local)
+
+
+def guardar_sustituciones_dolor(cursor, sesion_id, ejercicios, usuario, ahora):
+    for ejercicio in ejercicios:
+        hecho = ejercicio.get("ejercicio_hecho_id")
+        if not hecho or not ejercicio["objetivos"]["series"]:
+            continue
+        ejercicio_id = identificar(ejercicio["id"])
+        vigente = repositorio.sustitucion_vigente(cursor, sesion_id, ejercicio_id)
+        if vigente and str(desde_bytes(vigente["ejercicio_hecho_id"])) == hecho:
+            continue
+        repositorio.insertar_sustitucion(
+            cursor,
+            nuevo_id(),
+            sesion_id,
+            ejercicio_id,
+            identificar(hecho),
+            identificar(usuario["id"]),
+            ahora,
+            motivo="dolor_reportado",
+        )
+
+
+def proyectar_dolor(cursor, sesion, efectiva):
+    """Proyecta el freno sin modificar la prescripción guardada al iniciar."""
+    ejercicios = json.loads(efectiva["ejercicios"])
+    zonas = dolores_de_sesion(cursor, sesion, repositorio.obtener_sede(cursor))
+    if not zonas:
+        return ejercicios
+    for ejercicio in ejercicios:
+        catalogo = catalogo_ejercicio(cursor, ejercicio)
+        original = catalogo[0]
+        prescripcion = PrescripcionEjercicio(
+            ejercicio["id"],
+            **{
+                c: ejercicio["objetivos"][c]
+                for c in ("series", "repeticiones_minimas", "repeticiones_maximas", "carga", "rir_objetivo", "descanso")
+            },
+        )
+        # Las razones congeladas conservan la carga base previa a cualquier suba.
+        razones = tuple(Razon(r["regla"], r["version"], tuple(r["datos"].items())) for r in ejercicio["explicacion"])
+        ajustada, explicacion, _ = aplicar_dolor(prescripcion, original, catalogo, zonas, (), razones)
+        if not explicacion:
+            continue
+        for campo in ("series", "carga", "repeticiones_minimas"):
+            ejercicio["objetivos"][campo] = getattr(ajustada, campo)
+        ejercicio["ejercicio_hecho_id"] = ajustada.ejercicio_hecho_id
+        ejercicio["explicacion"] = [r for r in ejercicio["explicacion"] if r["regla"] != "dolor_reportado"] + [
+            {"regla": r.regla, "version": r.version, "datos": dict(r.datos)} for r in explicacion
+        ]
+    return ejercicios
+
+
+def registrar_dolor(sesion_texto, datos, usuario):
+    if not isinstance(datos, dict) or set(datos) != {"id", "ejercicio_planificado_id", "zonas"}:
+        raise ErrorDeDominio("cuerpo_invalido", "Enviá id, ejercicio_planificado_id y zonas con dolor.", 422)
+    zonas = validar_zonas(datos["zonas"])
+    if not zonas:
+        raise ErrorDeDominio("zonas_invalidas", "Elegí al menos una zona con dolor.", 422)
+    sesion_id, dolor_id = identificar(sesion_texto), identificar(datos["id"])
+    ejercicio_id, socio_id = identificar(datos["ejercicio_planificado_id"]), identificar(usuario["id"])
+    ahora = reloj_actual().ahora()
+    with transaccion() as cursor:
+        repositorio.obtener_socio(cursor, socio_id, bloquear=True)
+        _ejercicio_de_sesion(cursor, sesion_id, ejercicio_id, usuario)
+        anterior = repositorio.obtener_dolor(cursor, dolor_id)
+        if anterior:
+            if anterior["socio_id"] != socio_id.bytes or anterior["sesion_realizada_id"] != sesion_id.bytes:
+                raise ErrorDeDominio("id_ajeno", "El dolor reportado pertenece a otra sesión realizada.", 403)
+            return {"dolor_reportado": {"id": str(dolor_id)}}
+        efectiva = repositorio.obtener_prescripcion(cursor, sesion_id)
+        if efectiva is None:
+            raise ErrorDeDominio("sesion_sin_prescripcion", "La sesión realizada no tiene prescripción efectiva.", 409)
+        for indice, zona in enumerate(zonas):
+            repositorio.insertar_dolor(
+                cursor, nuevo_id() if indice else dolor_id, socio_id, zona, ahora, sesion_id=sesion_id
+            )
+        sesion = _sesion_propia(cursor, sesion_id, usuario)
+        ejercicios = proyectar_dolor(cursor, sesion, efectiva)
+        guardar_sustituciones_dolor(cursor, sesion_id, ejercicios, usuario, ahora)
+        explicacion = [r for e in ejercicios for r in e["explicacion"] if r["regla"] == "dolor_reportado"]
+        if not explicacion:
+            explicacion = [
+                {
+                    "regla": "dolor_reportado",
+                    "version": efectiva["version_reglas"],
+                    "datos": {
+                        "zonas": ", ".join(zonas),
+                        "explicacion": (
+                            "Dolor reportado en zonas que los ejercicios de esta sesión no involucran. "
+                            "Se avisa al entrenador."
+                        ),
+                    },
+                }
+            ]
+        repositorio.insertar_avisos(
+            cursor, socio_id, sesion_id, {"frenos": ["dolor_reportado"], "explicacion": explicacion}, ahora
+        )
+    return {"dolor_reportado": {"id": str(dolor_id)}}

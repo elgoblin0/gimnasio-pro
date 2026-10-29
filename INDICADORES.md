@@ -7,9 +7,9 @@ Guía para explicar el recorrido de etapa 1. Las referencias `archivo:línea` se
 | Indicador | Evidencia vigente |
 |---|---|
 | Implementación | Sedes y personas: `migraciones/0001_sedes_y_personas.sql:2`. Usuarios y asignaciones: `migraciones/0002_usuarios_y_asignaciones.sql:2`. Membresías: `migraciones/0006_membresias.sql:2`. Programa versionado: `migraciones/0007_programas_entrenamiento.sql:11`. Entradas y salidas con claves foráneas: `migraciones/0008_entradas_y_salidas.sql:2`. Sesiones y series realizadas: `migraciones/0009_sesiones_y_series_realizadas.sql:2`. |
-| C.R.U.D. | Creación y lectura del recorrido: `gimnasio/visitas/repositorio.py:72`, `gimnasio/visitas/repositorio.py:165`, `gimnasio/entrenamiento/repositorio.py:126`, `gimnasio/entrenamiento/repositorio.py:198`. Los hechos solo se insertan: no se presenta un CRUD destructivo sobre visitas o series. La interfaz de etapa 1 no ofrece edición o eliminación general de socios. |
+| C.R.U.D. | Creación y lectura del recorrido: `gimnasio/visitas/repositorio.py:72`, `gimnasio/visitas/repositorio.py:165`, `gimnasio/entrenamiento/repositorio.py:125`, `gimnasio/entrenamiento/repositorio.py:197`. Los hechos solo se insertan: no se presenta un CRUD destructivo sobre visitas o series. La interfaz de etapa 1 no ofrece edición o eliminación general de socios. |
 | Conexión desde Python | Parámetros desde el entorno: `gimnasio/comun/bd.py:13`. Conexión UTC: `gimnasio/comun/bd.py:29`. Transacción: `gimnasio/comun/bd.py:49`. SQL parametrizado: `gimnasio/visitas/repositorio.py:78`. |
-| Migraciones y datos ficticios | Aplicador con versiones y sumas: `gimnasio/comun/migrar.py:48`. Semilla demo: `gimnasio/demo/servicio.py:230`. El SQL heredado no forma parte de este esquema. |
+| Migraciones y datos ficticios | Aplicador con versiones y sumas: `gimnasio/comun/migrar.py:48`. Semilla demo: `gimnasio/demo/servicio.py:244`. El SQL heredado no forma parte de este esquema. |
 
 ## Python (10 pts)
 
@@ -17,23 +17,23 @@ Guía para explicar el recorrido de etapa 1. Las referencias `archivo:línea` se
 |---|---|
 | Manejo de rutas | Fábrica y blueprints: `gimnasio/__init__.py:25`. Entradas, salidas y consultas: `gimnasio/visitas/rutas.py:12`. Propuesta: `gimnasio/entrenamiento/rutas.py:11`. Inicio de sesión realizada y series: `gimnasio/entrenamiento/rutas.py:24`. |
 | Conexión y paso de información con el cliente | Las rutas reciben JSON y responden JSON con códigos HTTP: `gimnasio/visitas/rutas.py:14`, `gimnasio/entrenamiento/rutas.py:26`. Errores JSON: `gimnasio/comun/errores.py:17`. La fábrica sirve los estáticos de `gimnasio/static/`. |
-| Iteradores y condicionales | Selección de primera sesión pendiente y composición de doble progresión: `gimnasio/reglas/sesion.py:7`. Vigencia, visita abierta y aforo: `gimnasio/visitas/servicio.py:39`. Serialización de programa: `gimnasio/entrenamiento/servicio.py:53`. |
+| Iteradores y condicionales | Selección de primera sesión pendiente y composición de doble progresión: `gimnasio/reglas/sesion.py:7`. Vigencia, visita abierta y aforo: `gimnasio/visitas/servicio.py:39`. Serialización de programa: `gimnasio/entrenamiento/servicio.py:57`. |
 | Comportamiento comprobado | E2E integrado con MySQL real y ambos anchos: `pruebas/e2e/test_esqueleto_andante.py:110`. Comprobación de solo inserciones: `pruebas/test_historial_inserciones.py:1`. Los resultados concretos se verifican en los checks del PR; las pruebas omitidas no acreditan el recorrido. |
 
 ## JavaScript (5 pts)
 
 | Indicador | Evidencia vigente |
 |---|---|
-| Iteradores y condicionales | Renderizado de visitas: `gimnasio/static/js/recepcion.js:22`. Formularios según medidas aplicables: `gimnasio/static/js/entrenamiento.js:51`. Explicación y ejercicios: `gimnasio/static/js/entrenamiento.js:119`. |
-| Comunicación y errores | Cliente fetch común, encabezados de escritura y lectura JSON: `gimnasio/static/js/comun/api.js:17`. Actualización de recepción: `gimnasio/static/js/recepcion.js:47`. Actualización del entrenamiento: `gimnasio/static/js/entrenamiento.js:171`. |
-| Persistencia y reintentos | Operaciones con cuerpo, identificador y clave conservados: `gimnasio/static/js/comun/operaciones.js:4`. Recuperación de sesión realizada desde la URL: `gimnasio/static/js/entrenamiento.js:171`. Cerrar sesión solo borra la sesión de usuario: `gimnasio/static/js/comun/operaciones.js:31`. |
+| Iteradores y condicionales | Renderizado de visitas: `gimnasio/static/js/recepcion.js:22`. Formularios según medidas aplicables: `gimnasio/static/js/entrenamiento.js:56`. Explicación y ejercicios: `gimnasio/static/js/entrenamiento.js:124`. |
+| Comunicación y errores | Cliente fetch común, encabezados de escritura y lectura JSON: `gimnasio/static/js/comun/api.js:17`. Actualización de recepción: `gimnasio/static/js/recepcion.js:47`. Actualización del entrenamiento: `gimnasio/static/js/entrenamiento.js:178`. |
+| Persistencia y reintentos | Operaciones con cuerpo, identificador y clave conservados: `gimnasio/static/js/comun/operaciones.js:4`. Recuperación de sesión realizada desde la URL: `gimnasio/static/js/entrenamiento.js:178`. Cerrar sesión solo borra la sesión de usuario: `gimnasio/static/js/comun/operaciones.js:31`. |
 
 ## HTML (5 pts)
 
 | Indicador | Evidencia vigente |
 |---|---|
 | Construcción y estructura | Inicio con idioma español, viewport y dirección B: `gimnasio/static/index.html:2`. Formulario de ingreso: `gimnasio/static/index.html:30`. Recepción y entrenamiento usan `main`, `header`, secciones y controles etiquetados: `gimnasio/static/recepcion.html:17`, `gimnasio/static/entrenamiento.html:17`. |
-| Coordinación con el servidor | Formulario de entrada y selección de socio: `gimnasio/static/recepcion.html:38`, conectado por el módulo de recepción. Los formularios de series se crean según la respuesta real: `gimnasio/static/js/entrenamiento.js:51`. |
+| Coordinación con el servidor | Formulario de entrada y selección de socio: `gimnasio/static/recepcion.html:38`, conectado por el módulo de recepción. Los formularios de series se crean según la respuesta real: `gimnasio/static/js/entrenamiento.js:56`. |
 | Navegación | La pantalla inicial ofrece enlaces según rol; recepción y entrenamiento vuelven a inicio y permiten cerrar sesión: `gimnasio/static/recepcion.html:18`, `gimnasio/static/entrenamiento.html:18`. |
 
 ## Hojas de estilo y CSS (5 + 5 pts)
@@ -51,7 +51,7 @@ Guía para explicar el recorrido de etapa 1. Las referencias `archivo:línea` se
 2. El socio inicia sesión, recibe la primera sesión planificada pendiente y registra series con la prescripción propuesta y la explicación de cada ajuste.
 3. La recarga recupera sus hechos. Recepción registra la salida y la ocupación vuelve al valor inicial. Cerrar sesión de usuario es una operación diferente.
 
-El motor 2.0 agrega doble progresión con RIR y tope semanal (ADR 0012, 0015 y 0016), sin reiniciar la secuencia al cambiar de semana. Los vectores están en `pruebas/reglas/test_progresion.py:1`; el recorrido de la semilla, en `pruebas/e2e/test_progresion_demo.py:1`. El chequeo del día aplica el freno 4 y cada freno deja un aviso al entrenador (#88). Dolor y restricciones quedan para los issues siguientes. El E2E comprueba además visita sin entrenamiento, sesión parcial, reingreso, aforo lleno y reintento sin duplicación.
+El motor 2.0 agrega doble progresión con RIR y tope semanal (ADR 0012, 0015 y 0016), sin reiniciar la secuencia al cambiar de semana. Los vectores están en `pruebas/reglas/test_progresion.py:1`; el recorrido de la semilla, en `pruebas/e2e/test_progresion_demo.py:1`. El chequeo del día aplica el freno 4 y cada freno deja un aviso al entrenador (#88). El dolor reportado aplica el freno 1, sustituye o quita ejercicios y no sube la carga en la sesión actual ni en la siguiente (#89). Las restricciones quedan para el issue siguiente. El E2E comprueba además visita sin entrenamiento, sesión parcial, reingreso, aforo lleno y reintento sin duplicación.
 
 ## Modificación solicitada (5 pts): puntos de cambio
 
@@ -60,11 +60,11 @@ El motor 2.0 agrega doble progresión con RIR y tope semanal (ADR 0012, 0015 y 0
 | Una regla de propuesta | Motor puro `gimnasio/reglas/sesion.py:7`, con issue explícito y revisión independiente. |
 | Un cambio en entrada o salida | `gimnasio/visitas/rutas.py:12` → `gimnasio/visitas/servicio.py:39` → `gimnasio/visitas/repositorio.py:72`. |
 | Un campo persistido | Nueva migración hacia adelante, servicio/repositorio del módulo y pruebas; conservar los hechos existentes. |
-| Una acción de entrenamiento | `gimnasio/entrenamiento/rutas.py:24`, `gimnasio/static/js/entrenamiento.js:205` y pantalla correspondiente. |
+| Una acción de entrenamiento | `gimnasio/entrenamiento/rutas.py:24`, `gimnasio/static/js/entrenamiento.js:212` y pantalla correspondiente. |
 | Un cambio visual | Tokens y estilos compartidos en `gimnasio/static/estilos/`, manteniendo la dirección B. |
 
 ## Límites y referencia histórica
 
-La doble progresión y el freno 3 están implementados; los demás frenos, el módulo de salud y un CRUD completo de socios en la interfaz siguen pendientes. La instalación PWA y el cierre de etapa requieren la validación reservada al dueño en #52. La caché del SW contiene estáticos públicos y no API ni HTML; sin conexión no se envían escrituras.
+La doble progresión y los frenos 1, 3 y 4 están implementados; el freno 2, la lectura de avisos al entrenador, el módulo de salud y un CRUD completo de socios en la interfaz siguen pendientes. La instalación PWA y el cierre de etapa requieren la validación reservada al dueño en #52. La caché del SW contiene estáticos públicos y no API ni HTML; sin conexión no se envían escrituras.
 
 La etiqueta `base-original`, el archivo raíz `base_datos.sql`, la migración heredada de tres dígitos y la carpeta raíz `static/` conservan la referencia académica original. No se usan para ejecutar la aplicación vigente y no hay migración de esos datos.

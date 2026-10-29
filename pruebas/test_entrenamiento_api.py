@@ -122,7 +122,7 @@ def test_propuesta_conserva_plan_y_distingue_posiciones_del_mismo_ejercicio(entr
     assert [e["realizado"] for e in despues["ejercicios"]] == [1, 0]
     assert [e["pendiente"] for e in despues["ejercicios"]] == [1, 2]
     assert despues["ejercicios"][0]["objetivos"]["carga"] == "20.50"
-    assert despues["version_reglas"] == "2.2.0"
+    assert despues["version_reglas"] == "2.3.0"
     assert any("sin ajustes" in r["datos"]["explicacion"] for r in despues["explicacion"])
     assert despues == datos.cliente().get("/api/entrenamiento/propuesta").json
     with datos.app.app_context(), transaccion() as cursor:
@@ -615,7 +615,7 @@ def test_demo_propuesta_ajustada_e_historial_reproducible(entrenamiento_api):
         return respuesta.json
 
     primera = reiniciar_y_consultar()
-    assert primera["version_reglas"] == "2.2.0"
+    assert primera["version_reglas"] == "2.3.0"
     assert primera["frenos"] == []
     fuerza, cardio, mantener = primera["ejercicios"]
     assert fuerza["objetivos"]["carga"] == "23.00"
@@ -970,7 +970,7 @@ def test_prescripcion_efectiva_guardada_idempotente_y_estable(entrenamiento_api,
     respuesta = escribir(cliente, "/api/entrenamiento/sesiones", cuerpo, clave)
     assert respuesta.status_code == 201
     inicial = cliente.get(f"/api/entrenamiento/sesiones/{sesion}").json
-    assert inicial["prescripcion_efectiva"]["version_reglas"] == "2.2.0"
+    assert inicial["prescripcion_efectiva"]["version_reglas"] == "2.3.0"
     assert escribir(cliente, "/api/entrenamiento/sesiones", cuerpo, clave).data == respuesta.data
     assert escribir(cliente, "/api/entrenamiento/sesiones", cuerpo).json == respuesta.json
     assert cantidad(datos, "prescripciones_efectivas") == 1
@@ -1158,3 +1158,258 @@ def test_prescripcion_de_programa_anterior_no_interfiere(entrenamiento_api):
     respuesta = cliente.get("/api/entrenamiento/propuesta")
     assert respuesta.status_code == 200
     assert respuesta.json["sesion_planificada"] is None
+
+
+@pytest.fixture
+def dolor_api(entrenamiento_api):
+    from gimnasio.demo import servicio as demo
+
+    datos = entrenamiento_api
+    datos.app.config["MODO_DEMO"] = True
+    with datos.app.app_context():
+        demo.reiniciar()
+    cliente = datos.app.test_client()
+    assert cliente.post("/api/sesion/demo/socio", headers={"X-Gimnasio": "1"}).status_code == 200
+    datos.cliente_dolor = cliente
+    datos.propuesta_dolor = cliente.get("/api/entrenamiento/propuesta").json
+    datos.sesion_dolor = str(nuevo_id(datos.reloj))
+    respuesta = escribir(
+        cliente,
+        "/api/entrenamiento/sesiones",
+        {
+            "id": datos.sesion_dolor,
+            "sesion_planificada_id": datos.propuesta_dolor["sesion_planificada"]["id"],
+        },
+    )
+    assert respuesta.status_code == 201
+    datos.ruta_dolor = f"/api/entrenamiento/sesiones/{datos.sesion_dolor}"
+    datos.cuerpo_dolor = {
+        "id": str(nuevo_id(datos.reloj)),
+        "ejercicio_planificado_id": datos.propuesta_dolor["ejercicios"][0]["id"],
+        "zonas": ["rodillas"],
+    }
+    return datos
+
+
+def test_dolor_sustitucion_aviso_atomicos_e_idempotentes(dolor_api):
+    datos = dolor_api
+    cliente, ruta = datos.cliente_dolor, datos.ruta_dolor
+    clave = str(uuid4())
+    respuesta = escribir(cliente, ruta + "/dolores", datos.cuerpo_dolor, clave)
+    assert respuesta.status_code == 201
+    assert escribir(cliente, ruta + "/dolores", datos.cuerpo_dolor, clave).data == respuesta.data
+    assert escribir(cliente, ruta + "/dolores", datos.cuerpo_dolor).json == respuesta.json
+    lectura = cliente.get(ruta).json
+    ejercicio = lectura["ejercicios"][0]
+    assert ejercicio["objetivos"]["carga"] == "20.50"
+    assert ejercicio["ejercicio_hecho_id"] is not None
+    assert lectura["sustituciones"][ejercicio["id"]]["nombre"] == "Sentadilla en cajón ficticia"
+    assert lectura["sustituciones"][ejercicio["id"]]["sustitucion"]["motivo"] == "dolor_reportado"
+    assert any("no involucra" in r["datos"]["explicacion"] for r in ejercicio["explicacion"])
+    with datos.app.app_context(), transaccion() as cursor:
+        for tabla in ("dolores_reportados", "sustituciones", "avisos_entrenador"):
+            cursor.execute(
+                f"SELECT COUNT(*) AS cantidad FROM {tabla} WHERE sesion_realizada_id=%s",
+                (a_bytes(desde_texto(datos.sesion_dolor)),),
+            )
+            assert cursor.fetchone()["cantidad"] == 1
+    serie = {
+        "id": str(nuevo_id(datos.reloj)),
+        "ejercicio_planificado_id": ejercicio["id"],
+        "repeticiones": 10,
+        "carga": "20.50",
+    }
+    respuesta = escribir(cliente, ruta + "/series", serie)
+    assert respuesta.status_code == 201
+    assert respuesta.json["serie_realizada"]["ejercicio_hecho_nombre"] == "Sentadilla en cajón ficticia"
+
+
+def test_fallo_aviso_revierte_dolor_y_sustitucion(dolor_api, monkeypatch):
+    datos = dolor_api
+    insertar = repositorio.insertar_avisos
+
+    def fallar(*args):
+        insertar(*args)
+        raise RuntimeError("Fallo ficticio después del aviso")
+
+    monkeypatch.setattr(repositorio, "insertar_avisos", fallar)
+    with pytest.raises(RuntimeError, match="Fallo ficticio"):
+        escribir(datos.cliente_dolor, datos.ruta_dolor + "/dolores", datos.cuerpo_dolor)
+    with datos.app.app_context(), transaccion() as cursor:
+        for tabla in ("dolores_reportados", "sustituciones", "avisos_entrenador"):
+            cursor.execute(f"SELECT COUNT(*) AS cantidad FROM {tabla}")
+            assert cursor.fetchone()["cantidad"] == 0
+
+
+def test_serie_concurrente_espera_dolor_y_respeta_la_quita(dolor_api, monkeypatch):
+    datos = dolor_api
+    dolor_insertado, serie_leyendo, continuar = Event(), Event(), Event()
+    insertar, obtener = repositorio.insertar_dolor, repositorio.obtener_socio
+
+    def insertar_pausado(*args, **kwargs):
+        insertar(*args, **kwargs)
+        dolor_insertado.set()
+        assert continuar.wait(timeout=10)
+
+    def obtener_observado(*args, **kwargs):
+        if kwargs.get("bloqueo_compartido"):
+            serie_leyendo.set()
+        return obtener(*args, **kwargs)
+
+    monkeypatch.setattr(repositorio, "insertar_dolor", insertar_pausado)
+    monkeypatch.setattr(repositorio, "obtener_socio", obtener_observado)
+    otro_cliente = datos.app.test_client()
+    with datos.cliente_dolor.session_transaction() as origen, otro_cliente.session_transaction() as destino:
+        destino.update(origen)
+    with ThreadPoolExecutor(max_workers=2) as hilos:
+        dolor = hilos.submit(
+            escribir,
+            datos.cliente_dolor,
+            datos.ruta_dolor + "/dolores",
+            datos.cuerpo_dolor | {"zonas": ["cuadriceps"]},
+        )
+        try:
+            assert dolor_insertado.wait(timeout=10)
+            serie = hilos.submit(
+                escribir,
+                otro_cliente,
+                datos.ruta_dolor + "/series",
+                {
+                    "id": str(nuevo_id(datos.reloj)),
+                    "ejercicio_planificado_id": datos.cuerpo_dolor["ejercicio_planificado_id"],
+                    "repeticiones": 10,
+                    "carga": "20.50",
+                },
+            )
+            assert serie_leyendo.wait(timeout=10)
+        finally:
+            continuar.set()
+        assert dolor.result(timeout=15).status_code == 201
+        assert serie.result(timeout=15).status_code == 409
+
+
+def test_dolor_sin_alternativa_quita_e_impide_registrar_serie(dolor_api):
+    datos = dolor_api
+    cliente, ruta = datos.cliente_dolor, datos.ruta_dolor
+    assert escribir(cliente, ruta + "/dolores", datos.cuerpo_dolor | {"zonas": ["cuadriceps"]}).status_code == 201
+    lectura = cliente.get(ruta).json
+    ejercicio = lectura["ejercicios"][0]
+    assert ejercicio["objetivos"]["series"] == ejercicio["pendiente"] == 0
+    assert any("Se quita" in r["datos"]["explicacion"] for r in ejercicio["explicacion"])
+    assert (
+        escribir(
+            cliente,
+            ruta + "/series",
+            {
+                "id": str(nuevo_id(datos.reloj)),
+                "ejercicio_planificado_id": ejercicio["id"],
+                "repeticiones": 10,
+                "carga": "20.50",
+            },
+        ).status_code
+        == 409
+    )
+
+
+def test_quitadas_en_vivo_no_impiden_avanzar_la_propuesta(dolor_api):
+    datos = dolor_api
+    cliente, ruta = datos.cliente_dolor, datos.ruta_dolor
+    assert escribir(cliente, ruta + "/dolores", datos.cuerpo_dolor | {"zonas": ["cuadriceps"]}).status_code == 201
+    lectura = cliente.get(ruta).json
+    assert all(e["pendiente"] == 0 for e in lectura["ejercicios"])
+    siguiente = cliente.get("/api/entrenamiento/propuesta").json
+    assert siguiente["sesion_planificada"]["id"] != lectura["sesion_planificada"]["id"]
+
+
+def test_mysql_dolor_se_libera_en_la_tercera_sesion_realizada(dolor_api):
+    from datetime import timedelta
+
+    datos = dolor_api
+    cliente = datos.cliente_dolor
+    assert escribir(cliente, datos.ruta_dolor + "/dolores", datos.cuerpo_dolor).status_code == 201
+    for numero in (2, 3):
+        datos.reloj.avanzar(timedelta(weeks=1))
+        sesion_id = str(nuevo_id(datos.reloj))
+        assert (
+            escribir(
+                cliente,
+                "/api/entrenamiento/sesiones",
+                {
+                    "id": sesion_id,
+                    "sesion_planificada_id": datos.propuesta_dolor["sesion_planificada"]["id"],
+                },
+            ).status_code
+            == 201
+        )
+        ruta = f"/api/entrenamiento/sesiones/{sesion_id}"
+        lectura = cliente.get(ruta).json
+        ejercicio = lectura["ejercicios"][0]
+        assert ("dolor_reportado" in lectura["prescripcion_efectiva"]["frenos"]) == (numero == 2)
+        assert Decimal(ejercicio["objetivos"]["carga"]) == Decimal("20.50" if numero == 2 else "23.00")
+        assert not lectura["sustituciones"]
+        if numero == 2:
+            for _ in range(ejercicio["objetivos"]["series"]):
+                assert (
+                    escribir(
+                        cliente,
+                        ruta + "/series",
+                        {
+                            "id": str(nuevo_id(datos.reloj)),
+                            "ejercicio_planificado_id": ejercicio["id"],
+                            "repeticiones": 12,
+                            "carga": "20.50",
+                            "rir": 2,
+                        },
+                    ).status_code
+                    == 201
+                )
+
+
+@pytest.mark.parametrize("zonas", [[], ["otra"], ["rodillas", "rodillas"], "rodillas", [None]])
+def test_dolor_valida_zonas_sin_insertar(dolor_api, zonas):
+    datos = dolor_api
+    assert (
+        escribir(datos.cliente_dolor, datos.ruta_dolor + "/dolores", datos.cuerpo_dolor | {"zonas": zonas}).status_code
+        == 422
+    )
+    with datos.app.app_context(), transaccion() as cursor:
+        cursor.execute("SELECT COUNT(*) AS cantidad FROM dolores_reportados")
+        assert cursor.fetchone()["cantidad"] == 0
+
+
+def test_chequeo_con_dolor_sustituye_al_iniciar_y_avisa(entrenamiento_api):
+    from gimnasio.demo import servicio as demo
+
+    datos = entrenamiento_api
+    datos.app.config["MODO_DEMO"] = True
+    with datos.app.app_context():
+        demo.reiniciar()
+    cliente = datos.app.test_client()
+    cliente.post("/api/sesion/demo/socio", headers={"X-Gimnasio": "1"})
+    cuerpo = {"id": str(nuevo_id(datos.reloj)), "sueno": 5, "energia": 5, "zonas": ["rodillas"]}
+    assert escribir(cliente, "/api/entrenamiento/chequeos", cuerpo).status_code == 201
+    assert escribir(cliente, "/api/entrenamiento/chequeos", cuerpo).status_code == 201
+    propuesta = cliente.get("/api/entrenamiento/propuesta").json
+    assert propuesta["frenos"] == ["dolor_reportado"]
+    assert propuesta["ejercicios"][0]["objetivos"]["carga"] == "20.50"
+    sesion_id = str(nuevo_id(datos.reloj))
+    assert (
+        escribir(
+            cliente,
+            "/api/entrenamiento/sesiones",
+            {
+                "id": sesion_id,
+                "sesion_planificada_id": propuesta["sesion_planificada"]["id"],
+            },
+        ).status_code
+        == 201
+    )
+    lectura = cliente.get(f"/api/entrenamiento/sesiones/{sesion_id}").json
+    assert lectura["sustituciones"][propuesta["ejercicios"][0]["id"]]["nombre"] == "Sentadilla en cajón ficticia"
+    with datos.app.app_context(), transaccion() as cursor:
+        cursor.execute("SELECT origen,chequeo_id FROM dolores_reportados")
+        dolores = cursor.fetchall()
+        assert len(dolores) == 1
+        assert dolores[0]["origen"] == "chequeo" and dolores[0]["chequeo_id"] == a_bytes(desde_texto(cuerpo["id"]))
+        cursor.execute("SELECT freno FROM avisos_entrenador")
+        assert cursor.fetchall() == [{"freno": "dolor_reportado"}]

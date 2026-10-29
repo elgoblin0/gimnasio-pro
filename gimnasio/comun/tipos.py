@@ -110,6 +110,8 @@ class DatosPropuesta:
     catalogo: tuple[EjercicioCatalogo, ...] = ()
     subas: tuple[SubaCarga, ...] = ()
     chequeo: Chequeo | None = None
+    dolores_actuales: tuple[str, ...] = ()
+    dolores_anteriores: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -136,6 +138,7 @@ class PrescripcionEjercicio:
     carga: Decimal | None
     rir_objetivo: int | None
     descanso: int | None
+    ejercicio_hecho_id: str | None = None
 
 
 @dataclass(frozen=True)

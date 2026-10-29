@@ -90,6 +90,31 @@ def test_fuerza_cardio_pendientes_y_recarga(pagina_demo, demo_aislada, programa_
     assert errores == []
 
 
+@pytest.mark.parametrize("ancho,alto", [(1440, 900), (390, 844)])
+def test_me_duele_rodillas_sustituye_y_explica(pagina_demo, demo_aislada, ancho, alto):
+    pagina = pagina_demo
+    pagina.set_viewport_size({"width": ancho, "height": alto})
+    iniciar(pagina, demo_aislada)
+    boton = pagina.get_by_role("button", name="Me duele durante Sentadilla ficticia", exact=True)
+    tarjeta_id = boton.locator("xpath=ancestor::li").get_attribute("data-ejercicio")
+    tarjeta = pagina.locator(f'[data-ejercicio="{tarjeta_id}"]')
+    boton.focus()
+    pagina.keyboard.press("Enter")
+    rodillas = tarjeta.get_by_role("checkbox", name="Rodillas", exact=True)
+    rodillas.focus()
+    pagina.keyboard.press("Space")
+    expect(rodillas).to_be_checked()
+    tarjeta.get_by_role("button", name="Guardar dolor reportado", exact=True).click()
+    expect(pagina.get_by_text("Dolor reportado guardado. Se avisó al entrenador.", exact=True)).to_be_visible()
+    expect(tarjeta.get_by_role("heading", name="Sentadilla en cajón ficticia", exact=True)).to_be_visible()
+    expect(tarjeta).to_contain_text("conserva el patrón de movimiento y no involucra la zona con dolor")
+    expect(tarjeta.get_by_label("Carga en kg de Sentadilla en cajón ficticia", exact=True)).to_have_value("20.50")
+    pagina.reload()
+    expect(tarjeta.get_by_role("heading", name="Sentadilla en cajón ficticia", exact=True)).to_be_visible()
+    expect(tarjeta).to_contain_text("no involucra la zona con dolor")
+    assert pagina.evaluate("document.documentElement.scrollWidth <= innerWidth")
+
+
 def test_doble_clic_y_respuesta_perdida_conservan_la_serie(pagina_demo, demo_aislada, programa_demo):
     pagina = pagina_demo
     pagina.add_init_script("""(() => {
