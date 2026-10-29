@@ -28,3 +28,7 @@ node --test "gimnasio/static/**/*.test.js"
 
 ## Trampas de Windows
 - Al escribir archivos en pruebas, pasar `encoding="utf-8"` y `newline="\n"`; la codificación por defecto es cp1252.
+
+## Cadena automática
+
+Para lanzar trabajo sin la app de escritorio, consultá la sección [Cadena automática](protocolo-agentes.md#cadena-automática) del protocolo de agentes.
