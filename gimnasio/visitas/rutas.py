@@ -40,3 +40,10 @@ def consultar_ocupacion():
 @requiere("visitas.ver")
 def listar_socios():
     return jsonify({"socios": servicio.listar_socios()})
+
+
+@bp.post("/visitas/<entrada_id>/conciliacion")
+@requiere("visitas.registrar")
+def conciliar_salida(entrada_id):
+    salida = servicio.conciliar_salida(entrada_id, request.get_json(silent=True), usuario_actual())
+    return jsonify({"salida": salida}), 201

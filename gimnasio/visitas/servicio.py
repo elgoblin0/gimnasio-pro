@@ -1,7 +1,7 @@
 """Entrada atómica: sede, socio, vigencia, visita abierta y aforo, en ese orden."""
 
 from dataclasses import asdict
-from datetime import UTC, timedelta
+from datetime import UTC, datetime, timedelta
 from zoneinfo import ZoneInfo
 
 from gimnasio.comun.bd import transaccion
@@ -98,6 +98,45 @@ def registrar_salida(datos, usuario):
         return salida_publica(repositorio.obtener_salida(cursor, ids["id"]))
 
 
+def conciliar_salida(entrada_id, datos, usuario):
+    entrada_id = identificar(entrada_id)
+    if not isinstance(datos, dict) or set(datos) != {"id", "salida_en", "motivo"}:
+        raise ErrorDeDominio("cuerpo_invalido", "Enviá id, salida_en y motivo.", 422)
+    salida_id = identificar(datos["id"])
+    motivo = datos["motivo"]
+    if not isinstance(motivo, str) or not motivo.strip() or len(motivo) > 500:
+        raise ErrorDeDominio("motivo_invalido", "Indicá un motivo de hasta 500 caracteres.", 422)
+    try:
+        salida_en = datetime.fromisoformat(datos["salida_en"])
+        if salida_en.utcoffset() is None:
+            raise ValueError
+        salida_en = salida_en.astimezone(UTC)
+    except (TypeError, ValueError) as error:
+        raise ErrorDeDominio("salida_invalida", "Indicá una hora de salida con zona horaria.", 422) from error
+    with transaccion() as cursor:
+        referencia = repositorio.obtener_entrada(cursor, entrada_id)
+        if referencia is None:
+            raise ErrorDeDominio("entrada_inexistente", "La entrada no existe.", 404)
+        if referencia["corrige_a"] is not None:
+            raise ErrorDeDominio("entrada_invalida", "Usá el identificador de la entrada original.", 422)
+        repositorio.bloquear_sede(cursor, desde_bytes(referencia["sede_id"]))
+        repositorio.bloquear_socio(cursor, desde_bytes(referencia["socio_id"]))
+        anterior = repositorio.obtener_salida(cursor, salida_id)
+        if anterior is not None:
+            if anterior["entrada_id"] != referencia["id"]:
+                raise ErrorDeDominio("id_ajeno", "El identificador corresponde a otra salida.", 403)
+            return salida_publica(anterior)
+        estado = repositorio.obtener_estado_vigente(cursor, entrada_id)
+        if not estado["abierta"]:
+            raise ErrorDeDominio("visita_cerrada", "La visita ya está cerrada o anulada.", 409)
+        if not estado["registrada_en"].replace(tzinfo=UTC) < salida_en <= reloj_actual().ahora():
+            raise ErrorDeDominio("salida_invalida", "La salida debe ser posterior a la entrada y no futura.", 422)
+        repositorio.insertar_salida(
+            cursor, salida_id, entrada_id, identificar(usuario["id"]), salida_en, motivo=motivo.strip()
+        )
+        return salida_publica(repositorio.obtener_salida(cursor, salida_id))
+
+
 def _listar_visitas(cursor, ahora):
     filas = repositorio.listar_visitas_abiertas(cursor)
     historiales = {}
@@ -135,6 +174,7 @@ def _listar_visitas(cursor, ahora):
                 "minutos": minutos,
                 "permanencia_habitual": asdict(habitual),
                 "por_conciliar": por_conciliar,
+                "permanencia_habitual_sede": asdict(permanencias[fila["sede_id"]]),
             }
         )
     return sorted(visitas, key=lambda visita: not visita["por_conciliar"])

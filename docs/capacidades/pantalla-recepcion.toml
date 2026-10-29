@@ -1,5 +1,5 @@
 id = "pantalla-recepcion"
-nombre = "Pantalla de recepción para entrada, salida y permanencia habitual"
+nombre = "Pantalla de recepción para entrada, salida, permanencia habitual y conciliación de salida"
 grupo = "Operación"
 etapa = 1
 nivel = "validada"

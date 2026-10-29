@@ -50,6 +50,20 @@
       <ul class="lista" data-visitas></ul>
     </section>
   </div>
+<dialog data-conciliacion aria-labelledby="titulo-conciliacion">
+  <h2 id="titulo-conciliacion">Conciliar salida</h2>
+  <form data-formulario-conciliacion>
+    <label for="salida-en">Hora real de salida (hora de la sede)</label>
+    <input id="salida-en" type="datetime-local" required>
+    <label for="motivo">Motivo</label>
+    <textarea id="motivo" required maxlength="500"></textarea>
+    <p data-error-conciliacion role="alert"></p>
+    <button type="submit" data-confirmar-conciliacion>Confirmar salida</button>
+    <button type="button" data-cancelar-conciliacion>Cancelar</button>
+    <button type="button" data-reintentar-conciliacion hidden>Reintentar conciliación</button>
+    <button type="button" data-descartar-conciliacion hidden>Descartar conciliación</button>
+  </form>
+</dialog>
 </main>
 </body>
 </html>
