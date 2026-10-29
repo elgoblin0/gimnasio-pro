@@ -78,8 +78,10 @@ def es_solo_adr(archivos):
     return bool(archivos) and all(a.startswith(RUTAS_ADR) for a in archivos)
 
 
-def lista_para_fusionar(etiquetas, sensible):
-    return "revisado:codex" in etiquetas and (not sensible or "revisado:opus" in etiquetas)
+def lista_para_fusionar(etiquetas, archivos):
+    """Un PR sin archivos nunca se fusiona: cerraría su issue sin implementarlo (#127)."""
+    sensible = es_sensible(archivos)
+    return bool(archivos) and "revisado:codex" in etiquetas and (not sensible or "revisado:opus" in etiquetas)
 
 
 def prompt_implementar(issue):
@@ -283,7 +285,7 @@ def etiqueta(numero, nombre):
     if nombre == "correccion-pendiente" and "revisado:codex" in etiquetas_de(pr):
         pedir_correccion(numero, "atendé la revisión de Opus que está en este PR.")
         return
-    if lista_para_fusionar(etiquetas_de(pr), es_sensible(archivos_del_pr(numero))):
+    if lista_para_fusionar(etiquetas_de(pr), archivos_del_pr(numero)):
         # Una revisión pedida a mano puede llegar con el PR aún en borrador; GitHub no fusiona borradores.
         gh("pr", "ready", str(numero))
         gh("pr", "merge", str(numero), "--squash", "--auto", "--delete-branch")
