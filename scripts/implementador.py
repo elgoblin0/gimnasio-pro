@@ -28,6 +28,7 @@ MARCA_FALLO = "<!-- implementador:fallo -->"
 MAX_FALLOS = 2
 LIMITE_MINUTOS = 60
 ESPERA_SEGUNDOS = 60
+LIMITE_REVISIONES = 20000
 PEDIDO = re.compile(r"^\s*@codex\s+(?!review\b)\S", re.IGNORECASE)
 
 
@@ -56,12 +57,31 @@ def pedido_pendiente(comentarios):
     return pendiente, fallos
 
 
-def prompt_para_codex(pedido):
+def texto_de_revisiones(resenas, en_linea, desde):
+    """Lo que dijeron los revisores después de `desde` (fecha ISO del último «hecho»), para que Codex lo lea.
+
+    Codex solo recibe el texto del pedido; sin esto no vería los hallazgos, que viven en las revisiones del PR.
+    """
+    partes = []
+    for r in resenas:
+        if (r.get("submitted_at") or "") > desde and r["body"].strip() and "codex-review-receipt" not in r["body"]:
+            partes.append(f"Revisión de {r['user']['login']}:\n{r['body'].strip()}")
+    for c in en_linea:
+        if c["created_at"] > desde:
+            partes.append(
+                f"Comentario de {c['user']['login']} en {c['path']}:{c.get('line') or '?'}:\n{c['body'].strip()}"
+            )
+    return "\n\n".join(partes)[:LIMITE_REVISIONES]
+
+
+def prompt_para_codex(pedido, revisiones=""):
     texto = re.sub(r"<!--.*?-->", "", pedido, flags=re.DOTALL).strip().removeprefix("@codex").strip()
-    return (
+    encabezado = (
         "Trabajás en un worktree de la rama de este PR. No hagas commit ni push: lo hace el implementador.\n"
-        "Si la rama tiene conflictos con main sin resolver, resolvelos preservando el alcance del issue.\n\n" + texto
+        "Si la rama tiene conflictos con main sin resolver, resolvelos preservando el alcance del issue.\n\n"
     )
+    detalle = f"\n\n--- Revisiones del PR a atender ---\n{revisiones}" if revisiones else ""
+    return encabezado + texto + detalle
 
 
 # --- Codex y git -----------------------------------------------------------
@@ -143,11 +163,21 @@ def subir_cambios(carpeta, rama, titulo):
 # --- Pasos -----------------------------------------------------------------
 
 
+def revisiones_pendientes(numero):
+    """Revisiones y comentarios en línea del PR posteriores al último «hecho» del implementador."""
+    comentarios = cadena.gh_json("pr", "view", str(numero), "--json", "comments")["comments"]
+    desde = max((c["createdAt"] for c in comentarios if MARCA_HECHO in c["body"]), default="")
+    repo = cadena.repo()
+    resenas = cadena.gh_json("api", f"repos/{repo}/pulls/{numero}/reviews")
+    en_linea = cadena.gh_json("api", f"repos/{repo}/pulls/{numero}/comments")
+    return texto_de_revisiones(resenas, en_linea, desde)
+
+
 def atender(pr, pedido):
     numero, rama = pr["number"], pr["headRefName"]
     numero_issue = cadena.numero_de_rama(rama)
     carpeta = preparar_worktree(rama, numero_issue)
-    codigo, texto = correr_codex(carpeta, prompt_para_codex(pedido))
+    codigo, texto = correr_codex(carpeta, prompt_para_codex(pedido, revisiones_pendientes(numero)))
     pregunta = cadena.pregunta_de_criterio(texto)
     if pregunta:
         cadena.gh("issue", "comment", str(numero_issue), "--body", f"Duda de Codex (PR #{numero}):\n\n> {pregunta}")
