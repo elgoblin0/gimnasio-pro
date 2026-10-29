@@ -3,7 +3,7 @@ nombre = "\"Me duele\" y \"máquina ocupada\""
 grupo = "Entrenamiento"
 etapa = 2
 nivel = "funcional"
-prueba = "pruebas/e2e/test_series.py::test_me_duele_rodillas_sustituye_y_explica"
+prueba = "pruebas/e2e/test_recorrido_lucia.py::test_recorrido_lucia_etapa_2"
 
 # Dolor reportado y máquina ocupada con sustituciones, explicación y recarga.
 # Exige consentimiento de salud para guardar dolores; un dolor ajeno al ejercicio

@@ -52,11 +52,11 @@ Generado por `scripts/mapa_capacidades.py` desde `docs/capacidades/`. No editar 
 | Pantalla del socio con propuesta, explicación y pendientes | 1 | validada | `pruebas/e2e/test_entrenamiento.py` · https://github.com/elgoblin0/gimnasio-pro/issues/52 |
 | Registro idempotente de sesiones y series realizadas con RIR opcional y prescripción efectiva guardada | 1 | validada | `pruebas/e2e/test_esqueleto_andante.py` · https://github.com/elgoblin0/gimnasio-pro/issues/52 |
 | Sesión propuesta según la secuencia, con rango de repeticiones y catálogo | 1 | validada | `pruebas/e2e/test_esqueleto_andante.py` · https://github.com/elgoblin0/gimnasio-pro/issues/52 |
-| Chequeo del día | 2 | funcional | `pruebas/reglas/test_chequeo.py` |
-| "Me duele" y "máquina ocupada" | 2 | funcional | `pruebas/e2e/test_series.py::test_me_duele_rodillas_sustituye_y_explica` |
-| Doble progresión + RPE/RIR con ajustes automáticos y frenos | 2 | esqueleto | `pruebas/e2e/test_progresion_demo.py::test_demo_explica_subir_y_mantener` |
-| Récords y progreso | 2 | funcional | `pruebas/test_entrenamiento_api.py::test_progreso_carga_por_sesion_ignora_anuladas_y_usa_ejercicio_hecho` |
-| Sesión en vivo completa | 2 | funcional | `pruebas/e2e/test_series.py::test_terminar_sesion_parcial_muestra_resumen_sin_agregar_hechos` |
+| Chequeo del día | 2 | funcional | `pruebas/e2e/test_recorrido_lucia.py::test_recorrido_lucia_etapa_2` |
+| "Me duele" y "máquina ocupada" | 2 | funcional | `pruebas/e2e/test_recorrido_lucia.py::test_recorrido_lucia_etapa_2` |
+| Doble progresión + RPE/RIR con ajustes automáticos y frenos | 2 | funcional | `pruebas/e2e/test_recorrido_lucia.py::test_recorrido_lucia_etapa_2` |
+| Récords y progreso | 2 | funcional | `pruebas/e2e/test_recorrido_lucia.py::test_recorrido_lucia_etapa_2` |
+| Sesión en vivo completa | 2 | funcional | `pruebas/e2e/test_recorrido_lucia.py::test_recorrido_lucia_etapa_2` |
 
 ## Infraestructura
 
@@ -87,7 +87,7 @@ Generado por `scripts/mapa_capacidades.py` desde `docs/capacidades/`. No editar 
 | Capacidad | Etapa | Nivel | Prueba |
 |---|---|---|---|
 | PWA instalable en escritorio, con pantallas que se adaptan a tablet y celular | 1 | validada | `pruebas/e2e/test_pwa.py` · https://github.com/elgoblin0/gimnasio-pro/issues/52 |
-| Cuerpo 3D muscular | 2 | funcional | `pruebas/e2e/test_cuerpo_3d.py` |
+| Cuerpo 3D muscular | 2 | funcional | `pruebas/e2e/test_recorrido_lucia.py::test_recorrido_lucia_etapa_2` |
 | Escena de ocupación | 3 | pendiente | — |
 | Movimiento cuidado y alternativa sin efectos | 7 | pendiente | — |
 | Recorrido guiado de dos minutos | 7 | pendiente | — |

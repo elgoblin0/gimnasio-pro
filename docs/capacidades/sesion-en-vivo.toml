@@ -3,5 +3,5 @@ nombre = "Sesión en vivo completa"
 grupo = "Entrenamiento"
 etapa = 2
 nivel = "funcional"
-prueba = "pruebas/e2e/test_series.py::test_terminar_sesion_parcial_muestra_resumen_sin_agregar_hechos"
+prueba = "pruebas/e2e/test_recorrido_lucia.py::test_recorrido_lucia_etapa_2"
 notas = "Terminar sesión lleva a un resumen de solo lectura con silueta, zonas trabajadas y con dolor, récords, sustituciones y pendientes originales. API cubierta en pruebas/test_entrenamiento_api.py."
