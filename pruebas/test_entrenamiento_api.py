@@ -869,6 +869,25 @@ def alternativas_api(entrenamiento_api):
     return datos
 
 
+def test_lectura_de_sesion_con_sustitucion_cuya_alternativa_salio_del_catalogo(alternativas_api):
+    datos = alternativas_api
+    cliente = datos.cliente()
+    sesion = iniciar(datos)
+    ruta = f"/api/entrenamiento/sesiones/{sesion}"
+    ejercicio = str(datos.ejercicios[0][0])
+    cuerpo = {
+        "id": str(nuevo_id(datos.reloj)),
+        "ejercicio_planificado_id": ejercicio,
+        "ejercicio_hecho_id": str(datos.alternativas[0]),
+    }
+    assert escribir(cliente, ruta + "/sustituciones", cuerpo).status_code == 201
+    with datos.app.app_context(), transaccion() as cursor:
+        cursor.execute("DELETE FROM alternativas_ejercicio WHERE alternativa_id=%s", (a_bytes(datos.alternativas[0]),))
+    lectura = cliente.get(ruta)
+    assert lectura.status_code == 200
+    assert lectura.json["sustituciones"][ejercicio]["nombre"] == "Alternativa ficticia 1"
+
+
 def test_sustitucion_idempotente_compatible_y_series_acreditadas(alternativas_api):
     datos = alternativas_api
     cliente = datos.cliente()
