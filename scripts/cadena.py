@@ -276,6 +276,8 @@ def etiqueta(numero, nombre):
         pedir_correccion(numero, "atendé la revisión de Opus que está en este PR.")
         return
     if lista_para_fusionar(etiquetas_de(pr), es_sensible(archivos_del_pr(numero))):
+        # Una revisión pedida a mano puede llegar con el PR aún en borrador; GitHub no fusiona borradores.
+        gh("pr", "ready", str(numero))
         gh("pr", "merge", str(numero), "--squash", "--auto", "--delete-branch")
         print(f"Fusión automática activada en el PR #{numero}.")
 
