@@ -87,7 +87,7 @@ Generado por `scripts/mapa_capacidades.py` desde `docs/capacidades/`. No editar 
 | Capacidad | Etapa | Nivel | Prueba |
 |---|---|---|---|
 | PWA instalable en escritorio, con pantallas que se adaptan a tablet y celular | 1 | validada | `pruebas/e2e/test_pwa.py` · https://github.com/elgoblin0/gimnasio-pro/issues/52 |
-| Cuerpo 3D muscular | 2 | pendiente | — |
+| Cuerpo 3D muscular | 2 | funcional | `pruebas/e2e/test_cuerpo_3d.py` |
 | Escena de ocupación | 3 | pendiente | — |
 | Movimiento cuidado y alternativa sin efectos | 7 | pendiente | — |
 | Recorrido guiado de dos minutos | 7 | pendiente | — |

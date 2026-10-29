@@ -57,6 +57,7 @@ export function crearSelectorZonas(contenedor) {
     return control;
   });
   contenedor.append(svg);
+  mejorarCuerpo(contenedor, svg, true);
   return {
     zonas: () => ZONAS_CUERPO.filter((z) => seleccionadas.has(z.id)).map((z) => z.id),
     deshabilitar(valor) {
@@ -88,4 +89,18 @@ export function crearResumenZonas(contenedor, trabajadas, dolores) {
     nombre.textContent += `${trabajada ? " · trabajada" : ""}${dolor ? " · con dolor" : ""}`;
   }
   svg.setAttribute("viewBox", "0 0 700 400");
+  mejorarCuerpo(contenedor, svg, false);
+}
+
+function mejorarCuerpo(contenedor, svg, seleccionable) {
+  const ventana = contenedor.ownerDocument.defaultView;
+  if (!ventana?.matchMedia || ventana.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  const prueba = contenedor.ownerDocument.createElement("canvas");
+  let contexto;
+  try { contexto = prueba.getContext("webgl2"); } catch { return; }
+  if (!contexto) return;
+  contexto.getExtension("WEBGL_lose_context")?.loseContext();
+  import("./cuerpo-3d.js").then(({ crearCuerpo }) => {
+    if (svg.isConnected) return crearCuerpo(contenedor, svg, seleccionable);
+  }).catch(() => {}); // La silueta conserva su función si falla la carga.
 }

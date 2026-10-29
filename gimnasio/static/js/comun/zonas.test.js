@@ -88,3 +88,28 @@ test("el resumen conserva ambos estados en una zona y no ofrece controles de edi
     assert.deepEqual(control.eventos, {});
   }
 });
+
+test("con movimiento reducido no se intenta crear WebGL y la selección sigue funcionando", () => {
+  const contenedor = documentoDePrueba();
+  contenedor.ownerDocument.defaultView = { matchMedia: () => ({ matches: true }) };
+  contenedor.ownerDocument.createElement = () => assert.fail("no debe cargar efectos");
+  const selector = crearSelectorZonas(contenedor);
+  contenedor.hijos[0].querySelectorAll()[0].eventos.click();
+  assert.deepEqual(selector.zonas(), ["pecho"]);
+});
+
+test("sin WebGL conserva la silueta seleccionable y los estados del resumen", () => {
+  const contenedor = documentoDePrueba();
+  contenedor.ownerDocument.defaultView = { matchMedia: () => ({ matches: false }) };
+  contenedor.ownerDocument.createElement = () => ({ getContext: () => null });
+  const selector = crearSelectorZonas(contenedor);
+  contenedor.hijos[0].querySelectorAll()[0].eventos.keydown({ key: "Enter", preventDefault() {} });
+  assert.deepEqual(selector.zonas(), ["pecho"]);
+  const resumen = documentoDePrueba();
+  resumen.ownerDocument.defaultView = contenedor.ownerDocument.defaultView;
+  resumen.ownerDocument.createElement = contenedor.ownerDocument.createElement;
+  crearResumenZonas(resumen, ["pecho"], ["pecho"]);
+  const pecho = resumen.hijos[0].querySelectorAll()[0];
+  assert.equal(pecho.dataset.trabajada, "true");
+  assert.equal(pecho.dataset.dolor, "true");
+});
