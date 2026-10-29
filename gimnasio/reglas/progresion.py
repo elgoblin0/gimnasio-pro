@@ -6,6 +6,7 @@ from decimal import Decimal
 
 from gimnasio.comun.tipos import PrescripcionEjercicio, Razon
 from gimnasio.reglas.dolor import aplicar_dolor
+from gimnasio.reglas.restricciones import aplicar_restricciones
 from gimnasio.reglas.version import VERSION_REGLAS
 
 
@@ -279,4 +280,7 @@ def ajustar_ejercicio(planificado, entrada, sesion_planificada_id):
     ajustada, razones_dolor, frenos_dolor = aplicar_dolor(
         ajustada, ejercicio, entrada.catalogo, entrada.dolores_actuales, entrada.dolores_anteriores, razones
     )
-    return ajustada, razones + razones_dolor, frenos + frenos_dolor
+    ajustada, razones_salud, frenos_salud = aplicar_restricciones(
+        ajustada, ejercicio, entrada.catalogo, entrada.restricciones, entrada.dolores_actuales
+    )
+    return ajustada, razones + razones_dolor + razones_salud, frenos + frenos_dolor + frenos_salud

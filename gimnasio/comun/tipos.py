@@ -101,6 +101,14 @@ class Chequeo:
 
 
 @dataclass(frozen=True)
+class RestriccionSalud:
+    ejercicio_id: str | None = None
+    patron_movimiento: str | None = None
+    zona: str | None = None
+    descripcion: str = ""
+
+
+@dataclass(frozen=True)
 class DatosPropuesta:
     programa: ProgramaEntrenamiento | None
     fecha_local: date
@@ -112,6 +120,7 @@ class DatosPropuesta:
     chequeo: Chequeo | None = None
     dolores_actuales: tuple[str, ...] = ()
     dolores_anteriores: tuple[str, ...] = ()
+    restricciones: tuple[RestriccionSalud, ...] = ()
 
 
 @dataclass(frozen=True)

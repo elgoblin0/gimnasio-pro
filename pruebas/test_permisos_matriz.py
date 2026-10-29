@@ -44,6 +44,11 @@ def test_salud_nunca_la_ven_recepcion_ni_administracion():
         assert not puede(A, permiso)
 
 
+def test_recepcion_no_puede_leer_restricciones_de_salud():
+    assert not puede(R, "salud.ver_propia")
+    assert not puede(R, "salud.ver_asignados")
+
+
 @pytest.mark.parametrize("rol", [None, *ROLES])
 @pytest.mark.parametrize(
     "permiso,rol_permitido",

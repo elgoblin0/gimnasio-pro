@@ -35,7 +35,9 @@ from gimnasio.reglas.alternativas import elegir_alternativas
 from gimnasio.reglas.dolor import aplicar_dolor
 from gimnasio.reglas.progresion import historial_para_sesion
 from gimnasio.reglas.records import detectar_records
+from gimnasio.reglas.restricciones import aplicar_restricciones, excluido
 from gimnasio.reglas.sesion import proponer_sesion
+from gimnasio.salud.servicio import restricciones_vigentes
 
 
 def identificar(texto):
@@ -280,6 +282,7 @@ def consultar_propuesta(socio_texto, usuario, planificada_id=None, *, cursor=Non
     ahora = reloj_actual().ahora()
     with nullcontext(cursor) if cursor is not None else transaccion() as lectura:
         autorizar_socio(lectura, socio_id, usuario)
+        restricciones = restricciones_vigentes(socio_id, cursor=lectura)
         sede = repositorio.obtener_sede(lectura)
         if sede is None:
             raise ErrorDeDominio("sede_inexistente", "La sede no existe.", 404)
@@ -314,6 +317,7 @@ def consultar_propuesta(socio_texto, usuario, planificada_id=None, *, cursor=Non
                         efectiva,
                         zonas=dolores[efectiva["sesion_realizada_id"]],
                         catalogos=catalogos,
+                        restricciones=restricciones,
                     ),
                     default=str,
                 ),
@@ -375,6 +379,7 @@ def consultar_propuesta(socio_texto, usuario, planificada_id=None, *, cursor=Non
             Chequeo(chequeo["sueno"], chequeo["energia"]) if chequeo else None,
             actuales,
             anteriores,
+            restricciones,
         )
     )
     respuesta = {
@@ -511,8 +516,29 @@ def crear_sesion(datos, usuario):
         if repositorio.obtener_prescripcion(cursor, sesion_id) is None:
             repositorio.insertar_prescripcion(cursor, nuevo_id(), sesion_id, propuesta, ahora)
             guardar_sustituciones_dolor(cursor, sesion_id, propuesta["ejercicios"], usuario, ahora)
-            repositorio.insertar_avisos(cursor, identificar(usuario["id"]), sesion_id, propuesta, ahora)
+            restricciones = restricciones_vigentes(identificar(usuario["id"]), cursor=cursor)
+            aviso = aviso_con_restricciones(propuesta, restricciones)
+            repositorio.insertar_avisos(cursor, identificar(usuario["id"]), sesion_id, aviso, ahora)
         return sesion_publica(fila)
+
+
+def aviso_con_restricciones(propuesta, restricciones):
+    """El detalle sensible se agrega solo al aviso, nunca a la prescripción pública."""
+    return {
+        **propuesta,
+        "explicacion": [
+            *propuesta["explicacion"],
+            *(
+                {
+                    "regla": "restriccion_salud",
+                    "version": propuesta["version_reglas"],
+                    "datos": {"descripcion": r.descripcion},
+                }
+                for r in restricciones
+                if "restriccion_salud" in propuesta["frenos"]
+            ),
+        ],
+    }
 
 
 def registrar_serie(sesion_texto, datos, usuario):
@@ -546,6 +572,10 @@ def registrar_serie(sesion_texto, datos, usuario):
         ejercicios = proyectar_dolor(cursor, sesion, efectiva) if efectiva else []
         prescrito = next((e for e in ejercicios if e["id"] == str(ejercicio_id)), None)
         if prescrito and prescrito["objetivos"]["series"] == 0:
+            if any(r["regla"] == "restriccion_salud" for r in prescrito["explicacion"]):
+                raise ErrorDeDominio(
+                    "restriccion_salud", "El ejercicio se quitó por una restricción registrada por tu entrenador.", 409
+                )
             raise ErrorDeDominio("dolor_reportado", "El ejercicio se quitó por dolor reportado.", 409)
         vigente = repositorio.sustitucion_vigente(cursor, sesion_id, ejercicio_id)
         hecho_id = (
@@ -703,14 +733,16 @@ def catalogo_ejercicio(cursor, ejercicio):
     )
 
 
-def _alternativas(cursor, ejercicio, zonas_excluidas=()):
+def _alternativas(cursor, ejercicio, zonas_excluidas=(), *, socio_id):
     filas = repositorio.listar_catalogo(cursor, desde_bytes(ejercicio["ejercicio_id"]))
     catalogo = catalogo_ejercicio(cursor, ejercicio)
+    restricciones = restricciones_vigentes(socio_id, cursor=cursor)
     zonas_excluidas = tuple(zona for zona in zonas_excluidas if zona in catalogo[0].zonas)
     alternativas, razon = elegir_alternativas(
         str(desde_bytes(ejercicio["ejercicio_id"])),
         catalogo,
         zonas_excluidas=zonas_excluidas,
+        ejercicios_excluidos=tuple(e.ejercicio_id for e in catalogo if excluido(e, restricciones)),
         motivo="dolor_reportado" if zonas_excluidas else "maquina_ocupada",
     )
     return [
@@ -731,7 +763,7 @@ def consultar_alternativas(sesion_texto, ejercicio_texto, usuario):
         ejercicio = _ejercicio_de_sesion(cursor, identificar(sesion_texto), identificar(ejercicio_texto), usuario)
         sesion = _sesion_propia(cursor, identificar(sesion_texto), usuario)
         zonas = dolores_de_sesion(cursor, sesion, repositorio.obtener_sede(cursor))
-        alternativas, razon = _alternativas(cursor, ejercicio, zonas)
+        alternativas, razon = _alternativas(cursor, ejercicio, zonas, socio_id=identificar(usuario["id"]))
     return {
         "alternativas": alternativas,
         "explicacion": (
@@ -768,7 +800,7 @@ def registrar_sustitucion(sesion_texto, datos, usuario):
             return sustitucion_publica(anterior)
         sesion = _sesion_propia(cursor, sesion_id, usuario)
         zonas = dolores_de_sesion(cursor, sesion, repositorio.obtener_sede(cursor))
-        alternativas, razon = _alternativas(cursor, ejercicio, zonas)
+        alternativas, razon = _alternativas(cursor, ejercicio, zonas, socio_id=identificar(usuario["id"]))
         if str(hecho_id) not in {e["ejercicio_id"] for e in alternativas}:
             raise ErrorDeDominio("alternativa_incompatible", "Elegí una alternativa compatible.", 422)
         repositorio.insertar_sustitucion(
@@ -924,11 +956,13 @@ def guardar_sustituciones_dolor(cursor, sesion_id, ejercicios, usuario, ahora):
             identificar(hecho),
             identificar(usuario["id"]),
             ahora,
-            motivo="dolor_reportado",
+            motivo="restriccion_salud"
+            if any(r["regla"] == "restriccion_salud" for r in ejercicio["explicacion"])
+            else "dolor_reportado",
         )
 
 
-def proyectar_dolor(cursor, sesion, efectiva, *, zonas=None, catalogos=None):
+def proyectar_dolor(cursor, sesion, efectiva, *, zonas=None, catalogos=None, restricciones=None):
     """Proyecta el freno sin modificar la prescripción guardada al iniciar."""
     ejercicios = json.loads(efectiva["ejercicios"])
     if zonas is None:
@@ -936,6 +970,8 @@ def proyectar_dolor(cursor, sesion, efectiva, *, zonas=None, catalogos=None):
     if not zonas:
         return ejercicios
     catalogos = {} if catalogos is None else catalogos
+    if restricciones is None:
+        restricciones = restricciones_vigentes(desde_bytes(sesion["socio_id"]), cursor=cursor)
     for ejercicio in ejercicios:
         if ejercicio["ejercicio_id"] not in catalogos:
             catalogos[ejercicio["ejercicio_id"]] = catalogo_ejercicio(cursor, ejercicio)
@@ -943,6 +979,7 @@ def proyectar_dolor(cursor, sesion, efectiva, *, zonas=None, catalogos=None):
         original = catalogo[0]
         prescripcion = PrescripcionEjercicio(
             ejercicio["id"],
+            ejercicio_hecho_id=ejercicio.get("ejercicio_hecho_id"),
             **{
                 c: ejercicio["objetivos"][c]
                 for c in ("series", "repeticiones_minimas", "repeticiones_maximas", "carga", "rir_objetivo", "descanso")
@@ -951,12 +988,15 @@ def proyectar_dolor(cursor, sesion, efectiva, *, zonas=None, catalogos=None):
         # Las razones congeladas conservan la carga base previa a cualquier suba.
         razones = tuple(Razon(r["regla"], r["version"], tuple(r["datos"].items())) for r in ejercicio["explicacion"])
         ajustada, explicacion, _ = aplicar_dolor(prescripcion, original, catalogo, zonas, (), razones)
+        ajustada, razones_salud, _ = aplicar_restricciones(ajustada, original, catalogo, restricciones, zonas)
+        explicacion += razones_salud
         if not explicacion:
             continue
         for campo in ("series", "carga", "repeticiones_minimas"):
             ejercicio["objetivos"][campo] = getattr(ajustada, campo)
         ejercicio["ejercicio_hecho_id"] = ajustada.ejercicio_hecho_id
-        ejercicio["explicacion"] = [r for r in ejercicio["explicacion"] if r["regla"] != "dolor_reportado"] + [
+        reemplazadas = {r.regla for r in explicacion}
+        ejercicio["explicacion"] = [r for r in ejercicio["explicacion"] if r["regla"] not in reemplazadas] + [
             {"regla": r.regla, "version": r.version, "datos": dict(r.datos)} for r in explicacion
         ]
     return ejercicios
@@ -993,7 +1033,9 @@ def registrar_dolor(sesion_texto, datos, usuario):
         sesion = _sesion_propia(cursor, sesion_id, usuario)
         ejercicios = proyectar_dolor(cursor, sesion, efectiva)
         guardar_sustituciones_dolor(cursor, sesion_id, ejercicios, usuario, ahora)
-        explicacion = [r for e in ejercicios for r in e["explicacion"] if r["regla"] == "dolor_reportado"]
+        explicacion = [
+            r for e in ejercicios for r in e["explicacion"] if r["regla"] in {"dolor_reportado", "restriccion_salud"}
+        ]
         explicacion.append(
             {
                 "regla": "dolor_reportado",
@@ -1004,7 +1046,13 @@ def registrar_dolor(sesion_texto, datos, usuario):
                 },
             }
         )
-        repositorio.insertar_avisos(
-            cursor, socio_id, sesion_id, {"frenos": ["dolor_reportado"], "explicacion": explicacion}, ahora
+        aviso = aviso_con_restricciones(
+            {
+                "frenos": list(dict.fromkeys(r["regla"] for r in explicacion)),
+                "explicacion": explicacion,
+                "version_reglas": efectiva["version_reglas"],
+            },
+            restricciones_vigentes(socio_id, cursor=cursor),
         )
+        repositorio.insertar_avisos(cursor, socio_id, sesion_id, aviso, ahora)
     return {"dolor_reportado": {"id": str(dolor_id)}}

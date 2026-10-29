@@ -5,9 +5,25 @@ import json
 from gimnasio.comun.ids import a_bytes
 
 
+def insertar_restriccion(cursor, identificador, socio_id, autor_id, ahora):
+    cursor.execute(
+        """INSERT INTO restricciones_salud
+           (id,socio_id,zona,descripcion,registrada_en,autor_id)
+           VALUES (%s,%s,'zona_lumbar','sin carga axial en zona lumbar',%s,%s)""",
+        (a_bytes(identificador), a_bytes(socio_id), ahora.replace(tzinfo=None), a_bytes(autor_id)),
+    )
+
+
 def vaciar_datos(cursor):
     """Borra en orden de dependencias, conservando migraciones_aplicadas y las claves foráneas."""
     cursor.execute("DELETE FROM solicitudes_idempotentes")
+    while True:
+        cursor.execute(
+            "DELETE original FROM restricciones_salud original "
+            "LEFT JOIN restricciones_salud baja ON baja.levanta_a=original.id WHERE baja.id IS NULL"
+        )
+        if cursor.rowcount == 0:
+            break
     # Las series pueden corregir otras series: borrar primero las hojas del historial.
     while True:
         cursor.execute(
