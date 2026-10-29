@@ -189,3 +189,26 @@ def listar_socios_activos(cursor):
            WHERE u.rol = 'socio' AND u.activo = TRUE ORDER BY p.nombre, p.apellido, u.id"""
     )
     return cursor.fetchall()
+
+
+def listar_duraciones_confiables(cursor, sede_id, desde, hasta, socio_id=None):
+    """Entrada y salida vigentes de las últimas ocho semanas, sin anulaciones.
+
+    Solo confirmadas o corregidas: el modelo actual no registra estimadas.
+    Al incorporarlas se debe conservar explícitamente su exclusión aquí.
+    """
+    filtro_socio = " AND socio_id = %s" if socio_id is not None else ""
+    parametros = (a_bytes(sede_id), _fecha_utc(desde), _fecha_utc(hasta), _fecha_utc(hasta))
+    if socio_id is not None:
+        parametros += (a_bytes(socio_id),)
+    cursor.execute(
+        _ESTADOS_VIGENTES
+        + """SELECT socio_id, TIMESTAMPDIFF(MINUTE, registrada_en, salida_registrada_en) AS minutos
+             FROM estados_vigentes
+             WHERE sede_id = %s AND anulada = FALSE AND salida_id IS NOT NULL
+               AND registrada_en >= %s AND registrada_en <= %s
+               AND salida_registrada_en <= %s AND salida_registrada_en >= registrada_en"""
+        + filtro_socio,
+        parametros,
+    )
+    return cursor.fetchall()

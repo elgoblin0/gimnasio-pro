@@ -1,5 +1,7 @@
 """Recepción usa API y MySQL reales en escritorio y celular, con hechos aislados."""
 
+import re
+
 import pytest
 
 from gimnasio.comun.bd import transaccion
@@ -43,6 +45,7 @@ def test_entrada_salida_recarga_y_teclado(pagina_demo, demo_aislada, ancho, alto
     pagina.keyboard.press("Enter")
     expect(pagina.get_by_text("Entrada registrada.", exact=True)).to_be_visible()
     expect(pagina.locator("[data-ocupacion]")).to_have_text("1 de 60")
+    expect(pagina.locator("[data-visitas]")).to_contain_text(re.compile(r"lleva \d+ min"))
     pagina.reload()
     expect(pagina.get_by_role("button", name="Registrar salida de Lucía Benítez")).to_be_visible()
     pagina.get_by_role("button", name="Registrar salida de Lucía Benítez").click()

@@ -1,12 +1,14 @@
 """Entrada atómica: sede, socio, vigencia, visita abierta y aforo, en ese orden."""
 
-from datetime import UTC
+from dataclasses import asdict
+from datetime import UTC, timedelta
 from zoneinfo import ZoneInfo
 
 from gimnasio.comun.bd import transaccion
 from gimnasio.comun.errores import ErrorDeDominio
 from gimnasio.comun.ids import desde_bytes, desde_texto
 from gimnasio.comun.reloj import fecha_local, reloj_actual
+from gimnasio.reglas.permanencia import calcular_permanencia_habitual, es_visita_por_conciliar
 from gimnasio.socios.servicio import consultar_membresia
 from gimnasio.visitas import repositorio
 
@@ -96,36 +98,66 @@ def registrar_salida(datos, usuario):
         return salida_publica(repositorio.obtener_salida(cursor, ids["id"]))
 
 
+def _listar_visitas(cursor, ahora):
+    filas = repositorio.listar_visitas_abiertas(cursor)
+    historiales = {}
+    permanencias = {}
+    for fila in filas:
+        sede = fila["sede_id"]
+        if sede not in historiales:
+            historial = repositorio.listar_duraciones_confiables(
+                cursor, desde_bytes(sede), ahora - timedelta(weeks=8), ahora
+            )
+            historiales[sede] = historial
+            permanencias[sede] = calcular_permanencia_habitual(tuple(visita["minutos"] for visita in historial))
+    visitas = []
+    for fila in filas:
+        duracion = max(0, int((ahora - fila["registrada_en"].replace(tzinfo=UTC)).total_seconds()))
+        minutos = duracion // 60
+        habitual = calcular_permanencia_habitual(
+            tuple(
+                visita["minutos"] for visita in historiales[fila["sede_id"]] if visita["socio_id"] == fila["socio_id"]
+            )
+        )
+        por_conciliar, _ = es_visita_por_conciliar(minutos, permanencias[fila["sede_id"]])
+        visitas.append(
+            {
+                "id": str(desde_bytes(fila["entrada_id"])),
+                "socio_id": str(desde_bytes(fila["socio_id"])),
+                "nombre": fila["nombre"],
+                "cedula": fila["cedula"],
+                "entrada": fila["registrada_en"].replace(tzinfo=UTC).isoformat(),
+                "entrada_local": fila["registrada_en"]
+                .replace(tzinfo=UTC)
+                .astimezone(ZoneInfo(fila["zona_horaria"]))
+                .isoformat(),
+                "duracion": duracion,
+                "minutos": minutos,
+                "permanencia_habitual": asdict(habitual),
+                "por_conciliar": por_conciliar,
+            }
+        )
+    return sorted(visitas, key=lambda visita: not visita["por_conciliar"])
+
+
 def listar_visitas():
     ahora = reloj_actual().ahora()
     with transaccion() as cursor:
-        filas = repositorio.listar_visitas_abiertas(cursor)
-    return [
-        {
-            "id": str(desde_bytes(fila["entrada_id"])),
-            "socio_id": str(desde_bytes(fila["socio_id"])),
-            "nombre": fila["nombre"],
-            "cedula": fila["cedula"],
-            "entrada": fila["registrada_en"].replace(tzinfo=UTC).isoformat(),
-            "entrada_local": fila["registrada_en"]
-            .replace(tzinfo=UTC)
-            .astimezone(ZoneInfo(fila["zona_horaria"]))
-            .isoformat(),
-            "duracion": max(0, int((ahora - fila["registrada_en"].replace(tzinfo=UTC)).total_seconds())),
-        }
-        for fila in filas
-    ]
+        return _listar_visitas(cursor, ahora)
 
 
 def consultar_ocupacion():
+    ahora = reloj_actual().ahora()
     with transaccion() as cursor:
         sede = repositorio.obtener_sede(cursor)
         if sede is None:
             raise ErrorDeDominio("sede_inexistente", "La sede no existe.", 404)
+        visitas = _listar_visitas(cursor, ahora)
         return {
             "sede_id": str(desde_bytes(sede["id"])),
             "ocupacion_registrada": repositorio.contar_ocupacion_registrada(cursor, desde_bytes(sede["id"])),
             "aforo_maximo": sede["aforo_maximo"],
+            "por_conciliar": sum(visita["por_conciliar"] for visita in visitas),
         }
 
 
