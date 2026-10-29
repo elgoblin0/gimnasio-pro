@@ -5,7 +5,7 @@ from decimal import Decimal
 
 from gimnasio.comun.tipos import Razon
 from gimnasio.reglas.alternativas import elegir_alternativas
-from gimnasio.reglas.progresion import VERSION_REGLAS
+from gimnasio.reglas.version import VERSION_REGLAS
 
 
 def aplicar_dolor(prescripcion, ejercicio, catalogo, actuales, anteriores, razones=()):

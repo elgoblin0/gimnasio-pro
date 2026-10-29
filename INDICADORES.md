@@ -17,7 +17,7 @@ Guía para explicar el recorrido de etapa 1. Las referencias `archivo:línea` se
 |---|---|
 | Manejo de rutas | Fábrica y blueprints: `gimnasio/__init__.py:25`. Entradas, salidas y consultas: `gimnasio/visitas/rutas.py:12`. Propuesta: `gimnasio/entrenamiento/rutas.py:11`. Inicio de sesión realizada y series: `gimnasio/entrenamiento/rutas.py:24`. |
 | Conexión y paso de información con el cliente | Las rutas reciben JSON y responden JSON con códigos HTTP: `gimnasio/visitas/rutas.py:14`, `gimnasio/entrenamiento/rutas.py:26`. Errores JSON: `gimnasio/comun/errores.py:17`. La fábrica sirve los estáticos de `gimnasio/static/`. |
-| Iteradores y condicionales | Selección de primera sesión pendiente y composición de doble progresión: `gimnasio/reglas/sesion.py:7`. Vigencia, visita abierta y aforo: `gimnasio/visitas/servicio.py:39`. Serialización de programa: `gimnasio/entrenamiento/servicio.py:58`. |
+| Iteradores y condicionales | Selección de primera sesión pendiente y composición de doble progresión: `gimnasio/reglas/sesion.py:7`. Vigencia, visita abierta y aforo: `gimnasio/visitas/servicio.py:39`. Serialización de programa: `gimnasio/entrenamiento/servicio.py:59`. |
 | Comportamiento comprobado | E2E integrado con MySQL real y ambos anchos: `pruebas/e2e/test_esqueleto_andante.py:110`. Comprobación de solo inserciones: `pruebas/test_historial_inserciones.py:1`. Los resultados concretos se verifican en los checks del PR; las pruebas omitidas no acreditan el recorrido. |
 
 ## JavaScript (5 pts)

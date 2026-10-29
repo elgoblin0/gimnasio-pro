@@ -1,7 +1,7 @@
 """Alternativas compatibles para una sustitución, sin efectos secundarios."""
 
 from gimnasio.comun.tipos import Razon
-from gimnasio.reglas.progresion import VERSION_REGLAS
+from gimnasio.reglas.version import VERSION_REGLAS
 
 
 def elegir_alternativas(ejercicio_id, catalogo, zonas_excluidas=(), ejercicios_excluidos=(), motivo="maquina_ocupada"):

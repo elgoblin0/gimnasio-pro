@@ -245,7 +245,7 @@ def test_reinicio_demo_borra_correcciones_y_sesiones_antes_del_programa(entrenam
         datos.cursor.execute(f"SELECT COUNT(*) AS cantidad FROM {tabla}")
         assert datos.cursor.fetchone()["cantidad"] == cantidad
     datos.cursor.execute("SELECT COUNT(*) AS cantidad FROM migraciones_aplicadas")
-    assert datos.cursor.fetchone()["cantidad"] == 15
+    assert datos.cursor.fetchone()["cantidad"] == 16
 
 
 @pytest.mark.parametrize(

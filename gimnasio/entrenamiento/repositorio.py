@@ -6,7 +6,7 @@ from decimal import Decimal, InvalidOperation
 
 from mysql.connector import IntegrityError, errorcode
 
-from gimnasio.comun.ids import a_bytes
+from gimnasio.comun.ids import a_bytes, desde_bytes
 
 MEDIDAS = ("repeticiones", "carga", "duracion", "distancia")
 
@@ -315,7 +315,7 @@ def obtener_prescripcion(cursor, sesion_id):
 
 def listar_prescripciones(cursor, socio_id):
     cursor.execute(
-        """SELECT p.*, s.sesion_planificada_id FROM prescripciones_efectivas p
+        """SELECT p.*, s.sesion_planificada_id, s.creada_en AS sesion_creada_en FROM prescripciones_efectivas p
            JOIN sesiones_realizadas s ON s.id=p.sesion_realizada_id WHERE s.socio_id=%s""",
         (a_bytes(socio_id),),
     )
@@ -353,12 +353,6 @@ def insertar_avisos(cursor, socio_id, sesion_id, propuesta, ahora):
     )
     asignacion = cursor.fetchone()
     for freno in dict.fromkeys(propuesta["frenos"]):
-        cursor.execute(
-            "SELECT id FROM avisos_entrenador WHERE sesion_realizada_id=%s AND freno=%s FOR SHARE",
-            (a_bytes(sesion_id), freno),
-        )
-        if cursor.fetchone():
-            continue
         cursor.execute(
             """INSERT INTO avisos_entrenador
                (id,socio_id,entrenador_id,sesion_realizada_id,freno,explicacion,creado_en)
@@ -423,10 +417,21 @@ def dolores_sesion(cursor, sesion_id, fecha):
     cursor.execute("SELECT zona FROM dolores_reportados WHERE sesion_realizada_id=%s FOR SHARE", (a_bytes(sesion_id),))
     zonas = {f["zona"] for f in cursor.fetchall()}
     if chequeo:
-        from gimnasio.comun.ids import desde_bytes
-
         zonas.update(zonas_chequeo(cursor, desde_bytes(chequeo["id"])))
     return tuple(sorted(zonas))
+
+
+def listar_dolores_socio(cursor, socio_id):
+    """Dolores en sesión y chequeos, incluso neutros para no recuperar un dolor previo."""
+    cursor.execute(
+        """SELECT NULL AS sesion_realizada_id, c.id AS chequeo_id, c.fecha_local, c.registrado_en, d.zona
+           FROM chequeos_dia c LEFT JOIN dolores_reportados d ON d.chequeo_id=c.id WHERE c.socio_id=%s
+           UNION ALL
+           SELECT d.sesion_realizada_id, NULL, NULL, NULL, d.zona
+           FROM dolores_reportados d WHERE d.socio_id=%s AND d.origen='sesion'""",
+        (a_bytes(socio_id),) * 2,
+    )
+    return cursor.fetchall()
 
 
 def ultima_sesion(cursor, socio_id, sesion=None):

@@ -5,8 +5,8 @@ from datetime import timedelta
 from decimal import Decimal
 
 from gimnasio.comun.tipos import PrescripcionEjercicio, Razon
-
-VERSION_REGLAS = "2.3.0"
+from gimnasio.reglas.dolor import aplicar_dolor
+from gimnasio.reglas.version import VERSION_REGLAS
 
 
 def razon(regla, prescripcion, explicacion, **datos):
@@ -272,8 +272,6 @@ def _aplicar_chequeo(planificado, entrada, sesion_planificada_id):
 
 
 def ajustar_ejercicio(planificado, entrada, sesion_planificada_id):
-    from gimnasio.reglas.dolor import aplicar_dolor
-
     ajustada, razones, frenos = _aplicar_chequeo(planificado, entrada, sesion_planificada_id)
     ejercicio = next((e for e in entrada.catalogo if e.ejercicio_id == planificado.ejercicio_catalogo_id), None)
     if ejercicio is None:
