@@ -31,6 +31,7 @@ ESPERA_SEGUNDOS = 60
 LIMITE_REVISIONES = 20000
 ARCHIVO_CUERPO = ".implementador-cuerpo.md"
 ESPERA_CUPO_SEGUNDOS = 15 * 60
+ESFUERZO_POR_DEFECTO = "low"  # el cupo de Codex rinde más; GIMNASIO_CODEX_ESFUERZO lo cambia (low|medium|high)
 PEDIDO = re.compile(r"^\s*@codex\s+(?!review\b)\S", re.IGNORECASE)
 
 
@@ -98,7 +99,9 @@ def prompt_para_codex(pedido, revisiones=""):
         "Trabajás en un worktree de la rama de este PR. No hagas commit ni push: lo hace el implementador.\n"
         "Si la rama tiene conflictos con main sin resolver, resolvelos preservando el alcance del issue.\n"
         "Escribí el cuerpo del PR (plantilla completa, con «Notas para el próximo agente», el conteo de passed/skipped "
-        f"y lo que no pudiste correr) en `{ARCHIVO_CUERPO}` en la raíz: lo publica el implementador (sin `gh`).\n\n"
+        f"y lo que no pudiste correr) en `{ARCHIVO_CUERPO}` en la raíz: lo publica el implementador (sin `gh`).\n"
+        "Para ahorrar cupo: corré ruff y solo las pruebas de los módulos que tocás (con MySQL si hace falta); la suite "
+        "completa y los e2e los corre el CI, no los repitas. No lances revisiones aparte: las hace la cadena.\n\n"
     )
     detalle = f"\n\n--- Revisiones del PR a atender ---\n{revisiones}" if revisiones else ""
     return encabezado + texto + detalle
@@ -145,13 +148,17 @@ def preparar_worktree(rama, numero):
     return carpeta
 
 
+def esfuerzo():
+    return os.environ.get("GIMNASIO_CODEX_ESFUERZO") or ESFUERZO_POR_DEFECTO
+
+
 def correr_codex(carpeta, prompt):
     binario = binario_codex()
     if binario is None:
         raise RuntimeError("No encuentro Codex: definí GIMNASIO_CODEX_BIN con la ruta de codex.exe.")
     salida = carpeta / ".implementador-ultimo.txt"
     resultado = subprocess.run(
-        [binario, "exec", "-C", str(carpeta), "-s", "workspace-write", "-c", 'model_reasoning_effort="high"']
+        [binario, "exec", "-C", str(carpeta), "-s", "workspace-write", "-c", f'model_reasoning_effort="{esfuerzo()}"']
         + ["-o", str(salida), "-"],
         input=prompt,
         capture_output=True,
