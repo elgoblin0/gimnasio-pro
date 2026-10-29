@@ -113,6 +113,9 @@ def test_fuerza_cardio_pendientes_y_recarga(pagina_demo, demo_aislada, programa_
 def test_me_duele_rodillas_sustituye_y_explica(pagina_demo, demo_aislada, ancho, alto):
     pagina = pagina_demo
     pagina.set_viewport_size({"width": ancho, "height": alto})
+    # Comprueba el teclado en la silueta sin reemplazar el foco durante la pulsación.
+    # El recorrido de Lucía cubre la selección con el cuerpo 3D cargado.
+    pagina.emulate_media(reduced_motion="reduce")
     iniciar(pagina, demo_aislada)
     boton = pagina.get_by_role("button", name="Me duele durante Sentadilla ficticia", exact=True)
     tarjeta_id = boton.locator("xpath=ancestor::li").get_attribute("data-ejercicio")

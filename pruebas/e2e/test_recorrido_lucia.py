@@ -63,7 +63,15 @@ def test_recorrido_lucia_etapa_2(pagina_demo, demo_aislada, ancho, alto, sin_web
     expect(pagina.locator("[data-record]")).to_have_attribute("aria-live", "polite")
 
     pagina.get_by_role("button", name="Me duele durante Sentadilla ficticia", exact=True).click()
-    sentadilla.get_by_role("checkbox", name="Rodillas", exact=True).click()
+    dolor = sentadilla.locator("[data-dolor] form")
+    if sin_webgl:
+        # El centro del grupo SVG abarca otras zonas; el texto identifica Rodillas.
+        dolor.get_by_role("checkbox", name="Rodillas", exact=True).locator("text").click()
+    else:
+        # El 3D reemplaza los controles de la silueta al terminar de cargar.
+        expect(dolor).to_have_attribute("data-cuerpo3d", "listo")
+        dolor.get_by_role("checkbox", name="Rodillas", exact=True).click()
+    expect(dolor.get_by_role("checkbox", name="Rodillas", exact=True)).to_be_checked()
     sentadilla.get_by_role("button", name="Guardar dolor reportado", exact=True).click()
     expect(pagina.get_by_text("Dolor reportado guardado. Se avisó al entrenador.", exact=True)).to_be_visible()
     cajon = pagina.locator("[data-ejercicio]").filter(
