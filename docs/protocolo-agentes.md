@@ -16,6 +16,7 @@ Desde el 28/10/2026, por decisión del dueño, GitHub hace de buzón y nadie cop
 | CI terminado en `codex/issue-N` | `cadena.yml` → `tras-ci` | Rojo: pide a Codex que lo arregle. Verde: marca el PR listo y comenta `@codex review`. |
 | Respuesta de Codex en el PR | `cadena.yml` → `revision` | `NECESITA-CRITERIO:` → la copia al issue y pone `necesita-criterio`. Revisión sin hallazgos → `revisado:codex`. Con hallazgos → `correccion-pendiente` y pide la corrección. |
 | `necesita-criterio` en un issue | `opus.yml` → `criterio` | Opus decide, comenta, abre un ADR provisional si hace falta y deja el issue `estado:listo`; la cadena reanuda el PR. |
+| CI verde en un PR `opus/adr-*` | `cadena.yml` → `fusionar-adr` | Si el PR toca solo `docs/adr/` y `GLOSSARY.md`, activa la fusión automática con squash (el ADR provisional de Opus; el dueño los revisa al cierre de la etapa). |
 | `revisado:codex` en un PR sensible | `opus.yml` → `revisar` | Opus lee el diff: `revisado:opus` o hallazgos con `correccion-pendiente`. |
 | `revisado:codex` (y `revisado:opus` si es sensible) | `cadena.yml` → `etiqueta` | Activa la fusión automática con squash; el ruleset de main espera calidad, pruebas, e2e y secretos. |
 
