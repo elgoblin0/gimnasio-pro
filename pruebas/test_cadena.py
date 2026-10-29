@@ -58,10 +58,14 @@ def test_reconoce_la_duda_de_codex():
 
 
 def test_un_pr_sensible_espera_la_revision_de_opus():
-    assert cadena.lista_para_fusionar({"revisado:codex"}, sensible=False)
-    assert not cadena.lista_para_fusionar({"revisado:codex"}, sensible=True)
-    assert cadena.lista_para_fusionar({"revisado:codex", "revisado:opus"}, sensible=True)
-    assert not cadena.lista_para_fusionar({"revisado:opus"}, sensible=False)
+    assert cadena.lista_para_fusionar({"revisado:codex"}, ["gimnasio/socio/rutas.py"])
+    assert not cadena.lista_para_fusionar({"revisado:codex"}, ["gimnasio/reglas/motor.py"])
+    assert cadena.lista_para_fusionar({"revisado:codex", "revisado:opus"}, ["gimnasio/reglas/motor.py"])
+    assert not cadena.lista_para_fusionar({"revisado:opus"}, ["gimnasio/socio/rutas.py"])
+
+
+def test_un_pr_sin_archivos_nunca_se_fusiona():
+    assert not cadena.lista_para_fusionar({"revisado:codex", "revisado:opus"}, [])
 
 
 def test_el_pedido_de_implementar_incluye_el_issue_y_la_salida_de_criterio():
