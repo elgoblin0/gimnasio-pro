@@ -6,6 +6,7 @@ from decimal import Decimal
 
 from gimnasio.comun.tipos import PrescripcionEjercicio, Razon
 from gimnasio.reglas.dolor import aplicar_dolor
+from gimnasio.reglas.restricciones import aplicar_restricciones
 from gimnasio.reglas.version import VERSION_REGLAS
 
 
@@ -275,8 +276,33 @@ def ajustar_ejercicio(planificado, entrada, sesion_planificada_id):
     ajustada, razones, frenos = _aplicar_chequeo(planificado, entrada, sesion_planificada_id)
     ejercicio = next((e for e in entrada.catalogo if e.ejercicio_id == planificado.ejercicio_catalogo_id), None)
     if ejercicio is None:
+        if any(
+            r.patron_movimiento is not None
+            or r.zona is not None
+            or (
+                r.ejercicio_id is not None
+                and r.ejercicio_id in (planificado.ejercicio_catalogo_id, planificado.ejercicio_id)
+            )
+            for r in entrada.restricciones
+        ):
+            ajustada = replace(ajustada, series=0, ejercicio_hecho_id=None)
+            return (
+                ajustada,
+                razones
+                + (
+                    razon(
+                        "restriccion_salud",
+                        ajustada,
+                        "Se quita el ejercicio por una restricción registrada por tu entrenador.",
+                    ),
+                ),
+                frenos + ("restriccion_salud",),
+            )
         return ajustada, razones, frenos
     ajustada, razones_dolor, frenos_dolor = aplicar_dolor(
         ajustada, ejercicio, entrada.catalogo, entrada.dolores_actuales, entrada.dolores_anteriores, razones
     )
-    return ajustada, razones + razones_dolor, frenos + frenos_dolor
+    ajustada, razones_salud, frenos_salud = aplicar_restricciones(
+        ajustada, ejercicio, entrada.catalogo, entrada.restricciones, entrada.dolores_actuales
+    )
+    return ajustada, razones + razones_dolor + razones_salud, frenos + frenos_dolor + frenos_salud

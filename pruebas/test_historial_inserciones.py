@@ -8,6 +8,7 @@ import pytest
 
 RAIZ = Path(__file__).resolve().parent.parent
 HECHOS = {
+    "restricciones_salud",
     "dolores_reportados",
     "chequeos_dia",
     "avisos_entrenador",

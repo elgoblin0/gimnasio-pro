@@ -14,7 +14,7 @@ def test_demo_explica_subir_y_mantener(pagina_demo, demo_aislada, ancho):
     pagina.goto(demo_aislada.url)
     pagina.get_by_role("button", name="Entrar como socio", exact=True).click()
     pagina.get_by_role("link", name="Ver mi entrenamiento", exact=True).click()
-    expect(pagina.locator("[data-contenido]")).to_have_attribute("data-version-reglas", "2.3.0")
+    expect(pagina.locator("[data-contenido]")).to_have_attribute("data-version-reglas", "2.4.0")
     subir = pagina.locator("[data-ejercicio]").filter(
         has=pagina.get_by_role("heading", name="Sentadilla ficticia", exact=True)
     )

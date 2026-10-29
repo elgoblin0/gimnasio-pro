@@ -47,7 +47,7 @@ def id_ficticio(numero, momento):
 def _cargar_programas(cursor, socios, siguiente_id, ahora):
     fuerza, cardio = siguiente_id(), siguiente_id()
     alternativa_fuerza, alternativa_cardio = siguiente_id(), siguiente_id()
-    zonas_fuerza = tuple(z for z in ZONAS_CUERPO if z in {"gluteos", "cuadriceps", "rodillas"})
+    zonas_fuerza = tuple(z for z in ZONAS_CUERPO if z in {"gluteos", "cuadriceps", "rodillas", "zona_lumbar"})
     zonas_cardio = tuple(z for z in ZONAS_CUERPO if z in {"cuadriceps", "pantorrillas"})
     for identificador, nombre, equipo in (
         (fuerza, "Sentadilla ficticia", "barra"),
@@ -277,6 +277,7 @@ def reiniciar():
             desde = fecha_local(ahora) - (timedelta(days=30) if socio_id == socios[-1] else timedelta())
             repositorio.insertar_membresia(cursor, siguiente_id(), socio_id, desde, desde + timedelta(days=29), ahora)
         _cargar_programas(cursor, socios, siguiente_id, ahora)
+        repositorio.insertar_restriccion(cursor, siguiente_id(), socios[1], entrenador_id, ahora)
         # 37 socios: el 80 % se redondea al entero más cercano (30).
         for socio_id in socios[: round(len(socios) * 0.8)]:
             permisos.registrar_consentimiento(

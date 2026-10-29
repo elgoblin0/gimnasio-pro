@@ -63,6 +63,12 @@ def test_el_repo_cumple_las_reglas_de_dependencia():
     assert violaciones(RAIZ) == []
 
 
+def test_entrenamiento_lee_restricciones_desde_servicio_de_salud():
+    nombres = importaciones(RAIZ / "gimnasio/entrenamiento/servicio.py", "gimnasio.entrenamiento.servicio")
+    assert "gimnasio.salud.servicio.restricciones_vigentes" in nombres
+    assert not any(es_de(n, "gimnasio.salud.repositorio") for n in nombres)
+
+
 def escribir(raiz, ruta, contenido):
     archivo = raiz / ruta
     archivo.parent.mkdir(parents=True, exist_ok=True)
