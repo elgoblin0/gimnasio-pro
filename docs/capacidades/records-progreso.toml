@@ -3,4 +3,4 @@ nombre = "Récords y progreso"
 grupo = "Entrenamiento"
 etapa = 2
 nivel = "funcional"
-prueba = "pruebas/test_entrenamiento_api.py::test_progreso_carga_por_sesion_ignora_anuladas_y_usa_ejercicio_hecho"
+prueba = "pruebas/e2e/test_recorrido_lucia.py::test_recorrido_lucia_etapa_2"

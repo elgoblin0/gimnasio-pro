@@ -3,4 +3,4 @@ nombre = "Cuerpo 3D muscular"
 grupo = "Experiencia"
 etapa = 2
 nivel = "funcional"
-prueba = "pruebas/e2e/test_cuerpo_3d.py"
+prueba = "pruebas/e2e/test_recorrido_lucia.py::test_recorrido_lucia_etapa_2"
