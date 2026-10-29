@@ -53,6 +53,14 @@ Lugar físico del gimnasio, con su zona horaria. Gimnasio Pro maneja una sola se
 **Entrada / Salida**:
 Registros que abren y cierran una visita. Una salida puede ser confirmada, corregida por recepción o estimada.
 
+**Visita por conciliar**:
+Visita abierta que ya dura anormalmente más que la permanencia habitual. Recepción la cierra con una salida corregida y su motivo; nunca se cierra sola.
+_Evitar_: Visita vencida, incidencia sin calificar.
+
+**Zona de la sede**:
+Área física de la sede (por ejemplo, musculación o cardio) donde se ubican sus equipos. La escena de ocupación ubica a las personas en estas zonas.
+_Evitar_: Zona, sin calificar (choca con **Zona del cuerpo**); sector, área.
+
 **Tarjeta contextual**:
 Resumen del socio que ve recepción al registrar su entrada: membresía, pagos pendientes, avisos para el personal, incorporación y riesgo de abandono. No muestra el detalle de salud.
 
@@ -60,7 +68,7 @@ Resumen del socio que ve recepción al registrar su entrada: membresía, pagos p
 Franjas con menor ocupación prevista, calculadas desde el historial de visitas. Es una previsión, no un dato actual.
 
 **Escena de ocupación**:
-Visualización interactiva de la ocupación registrada de la sede, con datos simulados identificados como tales en el modo demo.
+Visualización interactiva de la ocupación registrada de la sede, con las personas ubicadas por zona de la sede y las visitas simuladas identificadas como tales en el modo demo.
 
 ## Progresión y seguridad
 
@@ -172,6 +180,10 @@ Configuración de la instancia pública: datos ficticios que se reinician solos,
 
 **Cuerpo 3D muscular**:
 Modelo 3D que resalta las zonas del cuerpo trabajadas o con dolor reportado.
+
+**Visita simulada**:
+Visita de un socio ficticio que el modo demo registra sola para que la sede tenga movimiento. Cuenta para la ocupación registrada como cualquier otra y se identifica como simulada.
+_Evitar_: Visita falsa, visita de prueba.
 
 **Recorrido guiado**:
 Demostración paso a paso de unos dos minutos que muestra el producto a alguien sin conocimientos técnicos.
