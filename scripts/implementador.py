@@ -30,10 +30,19 @@ LIMITE_MINUTOS = 60
 ESPERA_SEGUNDOS = 60
 LIMITE_REVISIONES = 20000
 ARCHIVO_CUERPO = ".implementador-cuerpo.md"
+ESPERA_CUPO_SEGUNDOS = 15 * 60
 PEDIDO = re.compile(r"^\s*@codex\s+(?!review\b)\S", re.IGNORECASE)
 
 
+class SinCupo(RuntimeError):
+    """Codex se quedó sin cupo de uso: no es un fallo del pedido, hay que esperar a que se renueve."""
+
+
 # --- Lógica pura -----------------------------------------------------------
+
+
+def es_falta_de_cupo(texto):
+    return "hit your usage limit" in (texto or "").lower()
 
 
 def es_pedido(cuerpo):
@@ -153,6 +162,10 @@ def correr_codex(carpeta, prompt):
     )
     texto = salida.read_text(encoding="utf-8").strip() if salida.exists() else resultado.stderr[-2000:]
     salida.unlink(missing_ok=True)
+    if resultado.returncode != 0 and es_falta_de_cupo(resultado.stderr + texto):
+        raise SinCupo(
+            next((linea for linea in resultado.stderr.splitlines() if "usage limit" in linea), "Sin cupo de Codex.")
+        )
     return resultado.returncode, texto
 
 
@@ -223,6 +236,9 @@ def una_vuelta():
         print(f"Atendiendo el PR #{pr['number']} ({pr['headRefName']})…")
         try:
             atender(pr, pedido)
+        except SinCupo as aviso:  # no cuenta como fallo: se reintenta cuando se renueve el cupo
+            print(f"Codex sin cupo, reintento en {ESPERA_CUPO_SEGUNDOS // 60} min: {aviso}", file=sys.stderr)
+            time.sleep(ESPERA_CUPO_SEGUNDOS)
         except Exception as error:  # un fallo no frena el ciclo: queda registrado en el PR
             print(f"Falló el PR #{pr['number']}: {error}", file=sys.stderr)
             cadena.comentar(pr["number"], f"{MARCA_FALLO}\nEl implementador falló:\n\n```\n{error}\n```")
