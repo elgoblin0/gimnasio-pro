@@ -111,7 +111,7 @@ def esta_cerrado(numero):
 
 
 def prs_de_codex():
-    prs = gh_json("pr", "list", "--state", "open", "--json", "number,headRefName,labels,body", "--limit", "100")
+    prs = gh_json("pr", "list", "--state", "open", "--json", "number,title,headRefName,labels,body", "--limit", "100")
     return [p for p in prs if p["headRefName"].startswith(PREFIJO_RAMA)]
 
 
