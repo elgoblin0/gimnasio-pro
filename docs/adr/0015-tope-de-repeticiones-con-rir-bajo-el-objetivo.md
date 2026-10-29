@@ -1,6 +1,6 @@
 # 0015. Mantener la carga cuando se llega al tope de repeticiones con RIR bajo el objetivo
 
-- Estado: provisional
+- Estado: aceptado el 2026-10-29 por el dueño en el cierre de etapa 2 (#136)
 - Fecha: 2026-10-28
 - Decide: Opus
 - Etiquetas: modulo:reglas; rutas sensibles: `gimnasio/reglas/`

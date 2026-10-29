@@ -52,11 +52,11 @@ Generado por `scripts/mapa_capacidades.py` desde `docs/capacidades/`. No editar 
 | Pantalla del socio con propuesta, explicación y pendientes | 1 | validada | `pruebas/e2e/test_entrenamiento.py` · https://github.com/elgoblin0/gimnasio-pro/issues/52 |
 | Registro idempotente de sesiones y series realizadas con RIR opcional y prescripción efectiva guardada | 1 | validada | `pruebas/e2e/test_esqueleto_andante.py` · https://github.com/elgoblin0/gimnasio-pro/issues/52 |
 | Sesión propuesta según la secuencia, con rango de repeticiones y catálogo | 1 | validada | `pruebas/e2e/test_esqueleto_andante.py` · https://github.com/elgoblin0/gimnasio-pro/issues/52 |
-| Chequeo del día | 2 | funcional | `pruebas/e2e/test_recorrido_lucia.py::test_recorrido_lucia_etapa_2` |
-| "Me duele" y "máquina ocupada" | 2 | funcional | `pruebas/e2e/test_recorrido_lucia.py::test_recorrido_lucia_etapa_2` |
-| Doble progresión + RPE/RIR con ajustes automáticos y frenos | 2 | funcional | `pruebas/e2e/test_recorrido_lucia.py::test_recorrido_lucia_etapa_2` |
-| Récords y progreso | 2 | funcional | `pruebas/e2e/test_recorrido_lucia.py::test_recorrido_lucia_etapa_2` |
-| Sesión en vivo completa | 2 | funcional | `pruebas/e2e/test_recorrido_lucia.py::test_recorrido_lucia_etapa_2` |
+| Chequeo del día | 2 | validada | `pruebas/e2e/test_recorrido_lucia.py::test_recorrido_lucia_etapa_2` · https://github.com/elgoblin0/gimnasio-pro/issues/136 |
+| "Me duele" y "máquina ocupada" | 2 | validada | `pruebas/e2e/test_recorrido_lucia.py::test_recorrido_lucia_etapa_2` · https://github.com/elgoblin0/gimnasio-pro/issues/136 |
+| Doble progresión + RPE/RIR con ajustes automáticos y frenos | 2 | validada | `pruebas/e2e/test_recorrido_lucia.py::test_recorrido_lucia_etapa_2` · https://github.com/elgoblin0/gimnasio-pro/issues/136 |
+| Récords y progreso | 2 | validada | `pruebas/e2e/test_recorrido_lucia.py::test_recorrido_lucia_etapa_2` · https://github.com/elgoblin0/gimnasio-pro/issues/136 |
+| Sesión en vivo completa | 2 | validada | `pruebas/e2e/test_recorrido_lucia.py::test_recorrido_lucia_etapa_2` · https://github.com/elgoblin0/gimnasio-pro/issues/136 |
 
 ## Infraestructura
 
@@ -87,7 +87,7 @@ Generado por `scripts/mapa_capacidades.py` desde `docs/capacidades/`. No editar 
 | Capacidad | Etapa | Nivel | Prueba |
 |---|---|---|---|
 | PWA instalable en escritorio, con pantallas que se adaptan a tablet y celular | 1 | validada | `pruebas/e2e/test_pwa.py` · https://github.com/elgoblin0/gimnasio-pro/issues/52 |
-| Cuerpo 3D muscular | 2 | funcional | `pruebas/e2e/test_recorrido_lucia.py::test_recorrido_lucia_etapa_2` |
+| Cuerpo 3D muscular | 2 | validada | `pruebas/e2e/test_recorrido_lucia.py::test_recorrido_lucia_etapa_2` · https://github.com/elgoblin0/gimnasio-pro/issues/136 |
 | Escena de ocupación | 3 | pendiente | — |
 | Movimiento cuidado y alternativa sin efectos | 7 | pendiente | — |
 | Recorrido guiado de dos minutos | 7 | pendiente | — |

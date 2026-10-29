@@ -2,8 +2,9 @@ id = "progresion-con-frenos"
 nombre = "Doble progresión + RPE/RIR con ajustes automáticos y frenos"
 grupo = "Entrenamiento"
 etapa = 2
-nivel = "funcional"
+nivel = "validada"
 prueba = "pruebas/e2e/test_recorrido_lucia.py::test_recorrido_lucia_etapa_2"
+validacion = "https://github.com/elgoblin0/gimnasio-pro/issues/136"
 
 # Motor, chequeo, dolor, restricciones y avisos cubiertos por las pruebas de reglas y API; recorrido integrado de Lucía en etapa 2.
 # Freno 2: pruebas/reglas/test_restricciones.py y pruebas/test_salud.py (#90).

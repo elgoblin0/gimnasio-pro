@@ -1,6 +1,6 @@
 # 0017. Aceptar como alternativa por dolor reportado un ejercicio con solo zonas del original, sin las de dolor
 
-- Estado: provisional
+- Estado: aceptado el 2026-10-29 por el dueño en el cierre de etapa 2 (#136)
 - Fecha: 2026-10-29
 - Decide: Opus
 - Etiquetas: modulo:reglas, modulo:entrenamiento; rutas sensibles: `gimnasio/reglas/`
