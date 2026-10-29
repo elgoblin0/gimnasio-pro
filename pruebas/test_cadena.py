@@ -70,7 +70,8 @@ def test_un_pr_sin_archivos_nunca_se_fusiona():
 
 def test_el_pedido_de_implementar_incluye_el_issue_y_la_salida_de_criterio():
     texto = cadena.prompt_implementar({"number": 7, "title": "Alta de socio", "body": "Objetivo: X"})
-    assert texto.startswith("@codex implementá el issue #7")
+    assert cadena.MARCA_PEDIDO in texto and f"{cadena.ENCABEZADO_LOCAL} implementá el issue #7" in texto
+    assert "@codex" not in texto
     assert "NECESITA-CRITERIO:" in texto
     assert "Objetivo: X" in texto
 
@@ -83,3 +84,20 @@ def test_un_pr_de_adr_solo_toca_docs_adr_y_glosario():
     assert cadena.es_solo_adr(["docs/adr/0017-tema.md", "GLOSSARY.md"])
     assert not cadena.es_solo_adr(["docs/adr/0017-tema.md", "gimnasio/reglas/progresion.py"])
     assert not cadena.es_solo_adr([])
+
+
+def test_un_issue_cerrado_pierde_las_etiquetas_de_estado():
+    assert cadena.etiquetas_de_estado_a_quitar({"estado:en-curso", "agente:codex", "estado:revision"}) == [
+        "estado:en-curso",
+        "estado:revision",
+    ]
+    assert cadena.etiquetas_de_estado_a_quitar({"tipo:funcion", "modulo:visitas"}) == []
+
+
+def test_el_pedido_menciona_a_codex_solo_si_se_lo_pide(monkeypatch):
+    issue = {"number": 7, "title": "Alta", "body": "X"}
+    monkeypatch.setenv("CADENA_MENCIONAR_CODEX", "1")
+    assert "@codex implementá el issue #7" in cadena.prompt_implementar(issue)
+    assert "@codex el CI falló." in cadena.prompt_corregir("el CI falló.")
+    monkeypatch.delenv("CADENA_MENCIONAR_CODEX")
+    assert "@codex" not in cadena.prompt_corregir("el CI falló.")
