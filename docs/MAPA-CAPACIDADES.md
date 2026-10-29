@@ -56,7 +56,7 @@ Generado por `scripts/mapa_capacidades.py` desde `docs/capacidades/`. No editar 
 | "Me duele" y "máquina ocupada" | 2 | funcional | `pruebas/e2e/test_series.py::test_me_duele_rodillas_sustituye_y_explica` |
 | Doble progresión + RPE/RIR con ajustes automáticos y frenos | 2 | esqueleto | `pruebas/e2e/test_progresion_demo.py::test_demo_explica_subir_y_mantener` |
 | Récords y progreso | 2 | funcional | `pruebas/test_entrenamiento_api.py::test_progreso_carga_por_sesion_ignora_anuladas_y_usa_ejercicio_hecho` |
-| Sesión en vivo completa | 2 | funcional | `pruebas/e2e/test_series.py` |
+| Sesión en vivo completa | 2 | funcional | `pruebas/e2e/test_series.py::test_terminar_sesion_parcial_muestra_resumen_sin_agregar_hechos` |
 
 ## Infraestructura
 

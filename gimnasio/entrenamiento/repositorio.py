@@ -11,6 +11,27 @@ from gimnasio.comun.ids import a_bytes, desde_bytes
 MEDIDAS = ("repeticiones", "carga", "duracion", "distancia")
 
 
+def listar_zonas_trabajadas(cursor, socio_id, sesion_id):
+    series = listar_series_vigentes(cursor, socio_id, sesion_id)
+    zonas = set()
+    for hecho_id in {fila["ejercicio_hecho_resuelto_id"] for fila in series}:
+        cursor.execute("SELECT zona FROM zonas_ejercicio WHERE ejercicio_id=%s", (hecho_id,))
+        zonas.update(fila["zona"] for fila in cursor.fetchall())
+    return sorted(zonas)
+
+
+def listar_sustituciones_sesion(cursor, sesion_id):
+    cursor.execute(
+        """SELECT s.*, e.nombre AS ejercicio_hecho_nombre, ep.nombre AS ejercicio_planificado_nombre
+           FROM sustituciones s JOIN ejercicios e ON e.id=s.ejercicio_hecho_id
+           JOIN ejercicios_planificados p ON p.id=s.ejercicio_planificado_id
+           JOIN ejercicios ep ON ep.id=p.ejercicio_id
+           WHERE s.sesion_realizada_id=%s ORDER BY s.registrada_en, s.id""",
+        (a_bytes(sesion_id),),
+    )
+    return cursor.fetchall()
+
+
 def obtener_socio(cursor, socio_id, *, bloquear=False, bloqueo_compartido=False):
     bloqueo = " FOR UPDATE" if bloquear else " FOR SHARE" if bloqueo_compartido else ""
     cursor.execute("SELECT id, rol, activo FROM usuarios WHERE id = %s" + bloqueo, (a_bytes(socio_id),))

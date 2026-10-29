@@ -33,6 +33,25 @@ def contar(instancia):
         return cursor.fetchone()["cantidad"]
 
 
+@pytest.mark.parametrize("ancho", [1440, 390])
+def test_terminar_sesion_parcial_muestra_resumen_sin_agregar_hechos(pagina_demo, demo_aislada, programa_demo, ancho):
+    pagina = pagina_demo
+    pagina.set_viewport_size({"width": ancho, "height": 900})
+    iniciar(pagina, demo_aislada)
+    pagina.get_by_role("button", name="Registrar serie de Sentadilla ficticia", exact=True).click()
+    expect(pagina.get_by_text("Serie guardada.", exact=True)).to_be_visible()
+    antes = contar(demo_aislada)
+    pagina.get_by_role("button", name="Terminar sesión", exact=True).click()
+    expect(pagina.get_by_role("heading", name="Resumen de la sesión", exact=True)).to_be_visible()
+    expect(pagina.get_by_role("img", name="Zonas trabajadas y con dolor de la sesión")).to_be_visible()
+    expect(pagina.locator("[data-pendientes]")).to_contain_text("Sentadilla ficticia: series 2")
+    expect(pagina.locator("[data-pendientes]")).to_contain_text("Caminata ficticia")
+    assert pagina.evaluate("document.documentElement.scrollWidth <= innerWidth")
+    pagina.reload()
+    expect(pagina.get_by_text("Resumen actualizado.", exact=True)).to_be_visible()
+    assert contar(demo_aislada) == antes
+
+
 @pytest.mark.parametrize("ancho,alto", [(1440, 900), (390, 844)])
 def test_fuerza_cardio_pendientes_y_recarga(pagina_demo, demo_aislada, programa_demo, ancho, alto):
     pagina = pagina_demo

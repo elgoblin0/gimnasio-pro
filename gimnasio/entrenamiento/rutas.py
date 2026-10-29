@@ -8,6 +8,18 @@ from gimnasio.permisos.servicio import requiere, usuario_actual
 bp = Blueprint("entrenamiento", __name__, url_prefix="/api/entrenamiento")
 
 
+@bp.get("/sesiones/<sesion_id>/resumen")
+@requiere("entrenamiento.ver_propio")
+def resumen_propio(sesion_id):
+    return jsonify(servicio.consultar_resumen(sesion_id, usuario_actual()))
+
+
+@bp.get("/socios/<socio_id>/sesiones/<sesion_id>/resumen")
+@requiere("entrenamiento.ver_asignados")
+def resumen_asignado(socio_id, sesion_id):
+    return jsonify(servicio.consultar_resumen(sesion_id, usuario_actual(), socio_texto=socio_id))
+
+
 @bp.get("/propuesta")
 @requiere("entrenamiento.ver_propio")
 def propuesta_propia():

@@ -42,3 +42,5 @@
 .silueta-zonas [aria-checked="true"] text { font-weight: bold; text-decoration: underline; }
 .silueta-zonas [role="checkbox"]:focus { outline: 2px solid currentColor; outline-offset: 2px; }
 .silueta-zonas [aria-disabled="true"] { opacity: .55; cursor: default; }
+.silueta-zonas [data-trabajada="true"] .silueta-region { fill: var(--acento); }
+.silueta-zonas [data-dolor="true"] .silueta-region { stroke: currentColor; stroke-width: 5; stroke-dasharray: 6 3; }

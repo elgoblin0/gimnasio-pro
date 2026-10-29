@@ -42,6 +42,7 @@ const selectoresDolor = new Set();
 const numero = new Intl.NumberFormat("es-PY", { maximumFractionDigits: 2 });
 
 function actualizarBotones() {
+  $("[data-terminar]").disabled = cargando || Boolean(control.actual);
   zonasChequeo.deshabilitar(Boolean(control.actual) || cargando);
   for (const selector of selectoresDolor) selector.deshabilitar(Boolean(control.actual) || cargando);
   for (const elemento of document.querySelectorAll("[data-formulario-chequeo] select, [data-formulario-chequeo] button, [data-iniciar], [data-serie] input, [data-serie] button, [data-sustitucion] button, [data-dolor] button")) {
@@ -280,6 +281,10 @@ async function iniciar() {
   }
 }
 $("[data-actualizar]").addEventListener("click", () => autorizada ? actualizar() : iniciar());
+$("[data-terminar]").addEventListener("click", () => {
+  if (cargando || control.actual || !sesionId) return;
+  location.assign(`/resumen-sesion.html?sesion=${encodeURIComponent(sesionId)}`);
+});
 $("[data-iniciar]").addEventListener("click", () => {
   if (cargando || control.actual || !propuestaActual?.sesion_planificada) return;
   control.preparar("/api/entrenamiento/sesiones", { sesion_planificada_id: propuestaActual.sesion_planificada.id });

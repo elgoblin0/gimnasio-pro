@@ -267,6 +267,119 @@ def cantidad(datos, tabla="series_realizadas"):
         return cursor.fetchone()["cantidad"]
 
 
+def test_resumen_parcial_con_sustitucion_zonas_dolor_records_y_pendientes(alternativas_api):
+    datos = alternativas_api
+    cliente = datos.cliente()
+    with datos.app.app_context(), transaccion() as cursor:
+        cursor.execute("SELECT ejercicio_id FROM ejercicios_planificados LIMIT 1")
+        original = cursor.fetchone()["ejercicio_id"]
+        cursor.execute("INSERT INTO zonas_ejercicio VALUES (%s,'cuadriceps')", (original,))
+        cursor.execute("INSERT INTO zonas_ejercicio VALUES (%s,'cuadriceps')", (a_bytes(datos.alternativas[0]),))
+        anterior = nuevo_id(datos.reloj)
+        repositorio.insertar_sesion(cursor, anterior, datos.usuarios["socio"], datos.sesiones[0], datos.reloj.ahora())
+        repositorio.insertar_serie(
+            cursor,
+            nuevo_id(datos.reloj),
+            anterior,
+            datos.ejercicios[0][0],
+            datos.usuarios["socio"],
+            datos.reloj.ahora(),
+            repeticiones=8,
+            carga=Decimal("10"),
+            ejercicio_hecho_id=datos.alternativas[0],
+        )
+    sesion = iniciar(datos)
+    ruta = f"/api/entrenamiento/sesiones/{sesion}"
+    assert (
+        escribir(
+            cliente,
+            ruta + "/sustituciones",
+            {
+                "id": str(nuevo_id(datos.reloj)),
+                "ejercicio_planificado_id": str(datos.ejercicios[0][0]),
+                "ejercicio_hecho_id": str(datos.alternativas[0]),
+            },
+        ).status_code
+        == 201
+    )
+    assert escribir(cliente, ruta + "/series", cuerpo_serie(datos)).status_code == 201
+    with datos.app.app_context(), transaccion() as cursor:
+        repositorio.insertar_dolor(
+            cursor,
+            nuevo_id(datos.reloj),
+            datos.usuarios["socio"],
+            "cuadriceps",
+            datos.reloj.ahora(),
+            sesion_id=desde_texto(sesion),
+        )
+    antes = {
+        tabla: cantidad(datos, tabla)
+        for tabla in (
+            "series_realizadas",
+            "sesiones_realizadas",
+            "prescripciones_efectivas",
+            "solicitudes_idempotentes",
+        )
+    }
+    respuesta = cliente.get(ruta + "/resumen")
+    assert respuesta.status_code == 200
+    resumen = respuesta.json
+    assert resumen["zonas_trabajadas"] == resumen["zonas_con_dolor"] == ["cuadriceps"]
+    assert resumen["pendientes"] == [
+        {"ejercicio_id": str(datos.ejercicios[0][0]), "series": [2]},
+        {"ejercicio_id": str(datos.ejercicios[0][1]), "series": [1, 2]},
+    ]
+    assert resumen["sustituciones"][0]["motivo"] == "maquina_ocupada"
+    assert resumen["sustituciones"][0]["ejercicio_hecho_nombre"] == "Alternativa ficticia 1"
+    assert [r["medida"] for r in resumen["records"]] == ["carga_maxima"]
+    assert resumen["records"][0]["marca_anterior"] == "10.00"
+    assert cliente.get(ruta + "/resumen").json == resumen
+    assert {tabla: cantidad(datos, tabla) for tabla in antes} == antes
+
+
+@pytest.mark.parametrize("rol", ["socio", "ajeno", "entrenador", "otro", "recepcion", "administracion"])
+def test_resumen_respeta_propiedad_y_asignacion(entrenamiento_api, rol):
+    datos = entrenamiento_api
+    sesion = iniciar(datos)
+    ruta = f"/api/entrenamiento/sesiones/{sesion}/resumen"
+    if rol in {"entrenador", "otro"}:
+        ruta = f"/api/entrenamiento/socios/{datos.usuarios['socio']}/sesiones/{sesion}/resumen"
+    respuesta = datos.cliente(rol).get(ruta)
+    assert respuesta.status_code == (200 if rol in {"socio", "entrenador"} else 403)
+    if respuesta.status_code == 200:
+        assert respuesta.json["zonas_trabajadas"] == []
+        assert respuesta.json["records"] == []
+        assert respuesta.json["sustituciones"] == []
+        assert [p["series"] for p in respuesta.json["pendientes"]] == [[1, 2], [1, 2]]
+
+
+def test_resumen_series_corregidas_y_anuladas(entrenamiento_api):
+    datos = entrenamiento_api
+    sesion = iniciar(datos)
+    ruta = f"/api/entrenamiento/sesiones/{sesion}"
+    serie = escribir(datos.cliente(), ruta + "/series", cuerpo_serie(datos)).json["serie_realizada"]
+    with datos.app.app_context(), transaccion() as cursor:
+        cursor.execute("SELECT ejercicio_id FROM ejercicios_planificados LIMIT 1")
+        cursor.execute("INSERT INTO zonas_ejercicio VALUES (%s,'cuadriceps')", (cursor.fetchone()["ejercicio_id"],))
+        repositorio.insertar_serie(
+            cursor,
+            nuevo_id(datos.reloj),
+            desde_texto(sesion),
+            datos.ejercicios[0][0],
+            datos.usuarios["socio"],
+            datos.reloj.ahora(),
+            repeticiones=10,
+            carga=Decimal("20.50"),
+            corrige_a=desde_texto(serie["id"]),
+            anulada=True,
+            motivo="Corrección ficticia",
+        )
+    resumen = datos.cliente().get(ruta + "/resumen").json
+    assert resumen["zonas_trabajadas"] == []
+    assert resumen["records"] == []
+    assert [p["series"] for p in resumen["pendientes"]] == [[1, 2], [1, 2]]
+
+
 def test_escritura_real_reintentos_y_lectura_parcial(entrenamiento_api):
     datos = entrenamiento_api
     sesion = iniciar(datos)

@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { ZONAS_CUERPO, crearSelectorZonas } from "./zonas.js";
+import { ZONAS_CUERPO, crearSelectorZonas, crearResumenZonas } from "./zonas.js";
 
 test("14 zonas del vector compartido con el motor, con nombres visibles", () => {
   const vector = JSON.parse(readFileSync(new URL("../../../../pruebas/vectores/zonas_cuerpo.json", import.meta.url), "utf8"));
@@ -20,7 +20,24 @@ function documentoDePrueba() {
         atributos: {}, hijos: [], eventos: {},
         setAttribute(clave, valor) { this.atributos[clave] = valor; },
         getAttribute(clave) { return this.atributos[clave]; },
-        append(...hijos) { this.hijos.push(...hijos); },
+        append(...hijos) { for (const hijo of hijos) { hijo.padre = this; this.hijos.push(hijo); } },
+        removeAttribute(clave) { delete this.atributos[clave]; },
+        get dataset() {
+          return new Proxy({}, {
+            get: (_, clave) => this.atributos[`data-${clave}`],
+            set: (_, clave, valor) => { this.atributos[`data-${clave}`] = valor; return true; },
+          });
+        },
+        querySelector(selector) { return this.hijos.find((h) => h.nombre === selector); },
+        querySelectorAll() { return this.hijos.filter((h) => h.atributos["data-zona"]); },
+        cloneNode() {
+          const copia = documento.createElementNS(this.namespaceURI, this.nombre);
+          copia.atributos = { ...this.atributos };
+          copia.textContent = this.textContent;
+          copia.append(...this.hijos.map((h) => h.cloneNode(true)));
+          return copia;
+        },
+        replaceWith(otro) { this.padre.hijos[this.padre.hijos.indexOf(this)] = otro; },
         addEventListener(tipo, funcion) { this.eventos[tipo] = funcion; },
       };
     },
@@ -53,4 +70,21 @@ test("cada zona es un control accesible, seleccionable por clic, toque y teclado
   controles[0].eventos.keydown({ key: "Escape", preventDefault() { assert.fail(); } });
   controles[0].eventos.click();
   assert.equal(selector.zonas().length, 13);
+});
+
+test("el resumen conserva ambos estados en una zona y no ofrece controles de edición", () => {
+  const contenedor = documentoDePrueba();
+  crearResumenZonas(contenedor, ["cuadriceps"], ["cuadriceps", "rodillas"]);
+  const svg = contenedor.hijos[0];
+  assert.equal(svg.getAttribute("role"), "img");
+  const controles = svg.querySelectorAll("[data-zona]");
+  const cuadriceps = controles.find((c) => c.dataset.zona === "cuadriceps");
+  assert.equal(cuadriceps.dataset.trabajada, "true");
+  assert.equal(cuadriceps.dataset.dolor, "true");
+  assert.match(cuadriceps.querySelector("text").textContent, /trabajada · con dolor/);
+  for (const control of controles) {
+    assert.equal(control.getAttribute("role"), undefined);
+    assert.equal(control.getAttribute("tabindex"), undefined);
+    assert.deepEqual(control.eventos, {});
+  }
 });
