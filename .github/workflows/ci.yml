@@ -79,7 +79,7 @@ jobs:
       - name: pytest
         run: |
           set -o pipefail
-          pytest -n auto -m "not e2e" --durations=15 --junitxml=reporte-pytest.xml -q 2>&1 | tee registro-pytest.txt
+          pytest -n 4 --dist worksteal -m "not e2e" --durations=15 --junitxml=reporte-pytest.xml -q 2>&1 | tee registro-pytest.txt
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -125,7 +125,7 @@ jobs:
       - name: pytest
         run: |
           set -o pipefail
-          pytest -n auto -m e2e --durations=15 --junitxml=reporte-pytest.xml -q 2>&1 | tee registro-pytest.txt
+          pytest -n 4 --dist worksteal -m e2e --durations=15 --junitxml=reporte-pytest.xml -q 2>&1 | tee registro-pytest.txt
       - uses: actions/upload-artifact@v4
         if: always()
         with:
