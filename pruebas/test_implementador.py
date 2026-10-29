@@ -39,3 +39,31 @@ def test_el_prompt_quita_la_mencion_y_las_marcas():
     prompt = implementador.prompt_para_codex("<!-- cadena:corregir -->\n@codex el CI falló: arreglalo")
     assert prompt.endswith("el CI falló: arreglalo")
     assert "@codex" not in prompt and "<!--" not in prompt
+
+
+def test_las_revisiones_posteriores_al_ultimo_hecho_entran_al_prompt():
+    resenas = [
+        {"user": {"login": "claude"}, "body": "Quitá la deduplicación.", "submitted_at": "2026-10-29T12:50:00Z"},
+        {"user": {"login": "claude"}, "body": "Vieja.", "submitted_at": "2026-10-29T10:00:00Z"},
+        {
+            "user": {"login": "bot"},
+            "body": "<!-- codex-review-receipt:v1 --> ruido",
+            "submitted_at": "2026-10-29T12:51:00Z",
+        },
+    ]
+    en_linea = [
+        {
+            "user": {"login": "bot"},
+            "path": "a.py",
+            "line": 7,
+            "body": "P1 falta consentimiento",
+            "created_at": "2026-10-29T12:49:00Z",
+        }
+    ]
+    texto = implementador.texto_de_revisiones(resenas, en_linea, "2026-10-29T11:00:00Z")
+    assert "Quitá la deduplicación." in texto
+    assert "a.py:7" in texto and "P1 falta consentimiento" in texto
+    assert "Vieja." not in texto and "ruido" not in texto
+    prompt = implementador.prompt_para_codex("@codex atendé la revisión", texto)
+    assert "Quitá la deduplicación." in prompt
+    assert implementador.prompt_para_codex("@codex hacé algo").endswith("hacé algo")
