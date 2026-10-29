@@ -9,7 +9,7 @@ Guía para explicar el recorrido de etapa 1. Las referencias `archivo:línea` se
 | Implementación | Sedes y personas: `migraciones/0001_sedes_y_personas.sql:2`. Usuarios y asignaciones: `migraciones/0002_usuarios_y_asignaciones.sql:2`. Membresías: `migraciones/0006_membresias.sql:2`. Programa versionado: `migraciones/0007_programas_entrenamiento.sql:11`. Entradas y salidas con claves foráneas: `migraciones/0008_entradas_y_salidas.sql:2`. Sesiones y series realizadas: `migraciones/0009_sesiones_y_series_realizadas.sql:2`. |
 | C.R.U.D. | Creación y lectura del recorrido: `gimnasio/visitas/repositorio.py:72`, `gimnasio/visitas/repositorio.py:165`, `gimnasio/entrenamiento/repositorio.py:146`, `gimnasio/entrenamiento/repositorio.py:218`. Los hechos solo se insertan: no se presenta un CRUD destructivo sobre visitas o series. La interfaz de etapa 1 no ofrece edición o eliminación general de socios. |
 | Conexión desde Python | Parámetros desde el entorno: `gimnasio/comun/bd.py:13`. Conexión UTC: `gimnasio/comun/bd.py:29`. Transacción: `gimnasio/comun/bd.py:49`. SQL parametrizado: `gimnasio/visitas/repositorio.py:78`. |
-| Migraciones y datos ficticios | Aplicador con versiones y sumas: `gimnasio/comun/migrar.py:48`. Semilla demo: `gimnasio/demo/servicio.py:244`. El SQL heredado no forma parte de este esquema. |
+| Migraciones y datos ficticios | Aplicador con versiones y sumas: `gimnasio/comun/migrar.py:48`. Semilla demo: `gimnasio/demo/servicio.py:282`. El SQL heredado no forma parte de este esquema. |
 
 ## Python (10 pts)
 

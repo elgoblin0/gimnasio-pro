@@ -1,6 +1,6 @@
 id = "semilla-demo"
-nombre = "Semilla ficticia de Paraguay con catálogo, alternativas y recorrido reiniciable"
+nombre = "Semilla ficticia de Paraguay con catálogo, recorrido e historial de visitas de ocho semanas"
 grupo = "Demo"
 etapa = 0
 nivel = "funcional"
-prueba = "pruebas/test_demo_recorrido.py"
+prueba = "pruebas/test_demo_semilla.py"

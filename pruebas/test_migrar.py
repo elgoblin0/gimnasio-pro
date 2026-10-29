@@ -78,6 +78,34 @@ def test_las_migraciones_del_repo_se_aplican_sobre_una_base_vacia(bd_vacia):
 
 
 @pytest.mark.bd
+def test_horario_conserva_la_sede_existente(tmp_path, bd_vacia, reloj_fijo):
+    import json
+
+    from gimnasio.demo.servicio import HORARIO_SEDE
+
+    for migracion in leer_migraciones():
+        if migracion.version < "0018":
+            escribir(tmp_path, migracion.nombre, migracion.sql)
+    aplicar(bd_vacia, tmp_path, salida=lambda _: None)
+    conexion = conectar(bd_vacia)
+    try:
+        cursor = conexion.cursor(dictionary=True)
+        cursor.execute(
+            "INSERT INTO sedes (id,nombre,zona_horaria,aforo_maximo,actualizada_en) "
+            "VALUES (UNHEX('00000000000070008000000000000001'),'Sede ficticia','America/Asuncion',60,%s)",
+            (reloj_fijo.ahora().replace(tzinfo=None),),
+        )
+        conexion.commit()
+        assert aplicar(bd_vacia, salida=lambda _: None) == ["0018"]
+        cursor.execute("SELECT nombre, horario FROM sedes")
+        sede = cursor.fetchone()
+        assert sede["nombre"] == "Sede ficticia"
+        assert json.loads(sede["horario"]) == HORARIO_SEDE
+    finally:
+        conexion.close()
+
+
+@pytest.mark.bd
 def test_avisos_sucesivos_conservan_hechos_de_la_migracion_anterior(tmp_path, bd_vacia, reloj_fijo):
     from gimnasio import crear_app
     from gimnasio.comun.bd import transaccion
@@ -102,7 +130,7 @@ def test_avisos_sucesivos_conservan_hechos_de_la_migracion_anterior(tmp_path, bd
         repositorio.insertar_avisos(cursor, socio_id, sesion_id, propuesta, reloj_fijo.ahora())
         cursor.execute("SELECT * FROM avisos_entrenador")
         antes = cursor.fetchall()
-    assert aplicar(bd_vacia, salida=lambda _: None) == ["0016", "0017"]
+    assert aplicar(bd_vacia, salida=lambda _: None) == ["0016", "0017", "0018"]
     assert aplicar(bd_vacia, salida=lambda _: None) == []
     with app.app_context(), transaccion() as cursor:
         cursor.execute("SELECT * FROM avisos_entrenador")
@@ -182,6 +210,7 @@ def test_catalogo_y_rango_conserva_semilla_etapa_uno(tmp_path, bd_vacia, reloj_f
             "0015",
             "0016",
             "0017",
+            "0018",
         ]
         cursor.execute("SELECT id, repeticiones_minimas, repeticiones_maximas FROM ejercicios_planificados ORDER BY id")
         assert cursor.fetchall() == [

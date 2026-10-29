@@ -178,7 +178,7 @@ def listar_visitas_abiertas(cursor):
 
 
 def obtener_sede(cursor):
-    cursor.execute("SELECT id, aforo_maximo FROM sedes ORDER BY id LIMIT 1")
+    cursor.execute("SELECT id, aforo_maximo, zona_horaria, horario FROM sedes ORDER BY id LIMIT 1")
     return cursor.fetchone()
 
 

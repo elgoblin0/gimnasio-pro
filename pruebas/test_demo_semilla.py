@@ -1,11 +1,16 @@
 """Semilla ficticia, reinicio transaccional y accesos por rol de la demo."""
 
-from datetime import timedelta
+import json
+from collections import Counter
+from datetime import UTC, timedelta
+from statistics import median
 
 import pytest
 
 from gimnasio.comun.bd import transaccion
 from gimnasio.comun.formatos import normalizar_cedula, normalizar_telefono
+from gimnasio.comun.ids import desde_bytes
+from gimnasio.comun.reloj import ZONA_SEDE, fecha_local
 from gimnasio.demo import servicio
 from gimnasio.demo.nombres import APELLIDOS, NOMBRES
 from gimnasio.demo.semilla import main
@@ -15,20 +20,23 @@ from gimnasio.socios.servicio import consultar_membresia
 def test_las_personas_son_deterministas_y_sus_datos_son_ficticios():
     personas = servicio.generar_personas()
     assert personas == servicio.generar_personas()
-    assert len(personas) == 40
-    assert len({persona["cedula"] for persona in personas}) == 40
-    assert len({persona["correo"] for persona in personas}) == 40
+    assert len(personas) == 80
+    assert len({persona["cedula"] for persona in personas}) == 80
+    assert len({persona["correo"] for persona in personas}) == 80
     assert [(p["nombre"], p["apellido"], p["rol"]) for p in personas if p["es_demo"]] == [
         ("Lucía", "Benítez", "socio"),
         ("Rocío", "Ayala", "recepcion"),
         ("Marcos", "Giménez", "entrenador"),
         ("Ana", "Duarte", "administracion"),
     ]
-    for persona in personas:
-        assert 9_900_000 <= int(persona["cedula"]) <= 9_999_999
+    for indice, persona in enumerate(personas):
+        if indice < 40:
+            assert 9_900_000 <= int(persona["cedula"]) <= 9_999_999
+        else:
+            assert 98_000_000 <= int(persona["cedula"]) < 98_000_040
         assert normalizar_cedula(persona["cedula"]) == persona["cedula"]
         assert normalizar_telefono(persona["telefono"]) == persona["telefono"]
-        assert persona["telefono"].startswith("+59599")
+        assert persona["telefono"].startswith("+5959")
         assert persona["correo"].endswith("@demo.gimnasio.invalid")
     for persona in personas[4:]:
         assert persona["nombre"] in NOMBRES
@@ -84,6 +92,73 @@ def datos_semilla(app):
 
 
 @pytest.mark.bd
+def test_historial_de_ocho_semanas_con_horario_y_aforo(app_con_bd, reloj_fijo):
+    from gimnasio.visitas import repositorio as visitas
+
+    app_con_bd.config["MODO_DEMO"] = True
+
+    def reiniciar_y_leer():
+        with app_con_bd.app_context():
+            servicio.reiniciar()
+            with transaccion() as cursor:
+                sede = visitas.obtener_sede(cursor)
+                assert sede["zona_horaria"] == "America/Asuncion"
+                assert json.loads(sede["horario"]) == servicio.HORARIO_SEDE
+                assert visitas.contar_ocupacion_registrada(cursor, desde_bytes(sede["id"])) == 0
+        return consultar(
+            app_con_bd,
+            """SELECT e.socio_id, e.registrada_en AS entrada, s.registrada_en AS salida,
+                      e.corrige_a, e.anulada, s.corrige_a AS salida_corrige_a,
+                      s.anulada AS salida_anulada, u.es_demo, p.correo, a.rol AS autor,
+                      e.autor_id = s.autor_id AS mismo_autor, m.desde, m.hasta
+               FROM entradas e LEFT JOIN salidas s ON s.entrada_id = e.id
+               JOIN usuarios u ON u.id = e.socio_id JOIN personas p ON p.id = u.persona_id
+               JOIN usuarios a ON a.id = e.autor_id JOIN membresias m ON m.socio_id = u.id
+               ORDER BY e.registrada_en, e.socio_id""",
+        )
+
+    primera = reiniciar_y_leer()
+    assert primera == reiniciar_y_leer()
+    assert len({v["socio_id"] for v in primera}) == 40
+    semanas, duraciones, eventos = set(), [], []
+    entradas_por_dia = Counter()
+    martes = Counter()
+    hoy = fecha_local(reloj_fijo.ahora())
+    for visita in primera:
+        entrada = visita["entrada"].replace(tzinfo=UTC).astimezone(ZONA_SEDE)
+        assert visita["salida"] is not None
+        salida = visita["salida"].replace(tzinfo=UTC).astimezone(ZONA_SEDE)
+        assert hoy - timedelta(weeks=8) <= entrada.date() < hoy
+        semanas.add(entrada.date().isocalendar()[:2])
+        assert entrada.date() == salida.date()
+        franjas = servicio.HORARIO_SEDE.get(str(entrada.isoweekday()), [])
+        assert any(inicio <= entrada.strftime("%H:%M") < salida.strftime("%H:%M") <= fin for inicio, fin in franjas)
+        duraciones.append((salida - entrada).total_seconds() / 60)
+        assert not visita["es_demo"] and visita["correo"].startswith("historial")
+        assert visita["desde"] <= hoy <= visita["hasta"]
+        assert visita["autor"] == "recepcion" and visita["mismo_autor"]
+        assert visita["corrige_a"] is None and visita["salida_corrige_a"] is None
+        assert not visita["anulada"] and not visita["salida_anulada"]
+        entradas_por_dia[entrada.isoweekday()] += 1
+        if entrada.isoweekday() == 2:
+            for hora in (14, 18):
+                inicio = entrada.replace(hour=hora, minute=0)
+                if entrada < inicio + timedelta(hours=1) and salida > inicio:
+                    martes[hora] += 1
+        eventos.extend(((entrada, 1), (salida, -1)))
+    assert len(semanas) >= 8
+    assert min(duraciones) >= 40 and max(duraciones) <= 110
+    assert 65 <= median(duraciones) <= 75
+    assert martes[18] > martes[14]
+    assert entradas_por_dia[6] < entradas_por_dia[2]
+    ocupacion = 0
+    for _, cambio in sorted(eventos):
+        ocupacion += cambio
+        assert 0 <= ocupacion <= 60
+    assert ocupacion == 0
+
+
+@pytest.mark.bd
 def test_dos_reinicios_dejan_los_mismos_datos(app_con_bd, reloj_fijo):
     app_con_bd.config["MODO_DEMO"] = True
     migraciones = consultar(app_con_bd, "SELECT * FROM migraciones_aplicadas ORDER BY version")
@@ -125,16 +200,16 @@ def test_dos_reinicios_dejan_los_mismos_datos(app_con_bd, reloj_fijo):
         }
     ]
     socios = [p for p in primera["personas"] if p["rol"] == "socio"]
-    assert len(socios) == 37
+    assert len(socios) == 77
     assert {a["cedula"] for a in primera["asignaciones"]} == {p["cedula"] for p in socios}
     assert all(a["rol"] == "entrenador" and a["hasta"] is None for a in primera["asignaciones"])
     assert len(primera["membresias"]) == len(socios)
     assert {m["cedula"] for m in primera["membresias"]} == {p["cedula"] for p in socios}
     assert all(m["hasta"] - m["desde"] == timedelta(days=29) for m in primera["membresias"])
-    assert len(primera["consentimientos"]) == round(len(socios) * 0.8) == 30
+    assert len(primera["consentimientos"]) == round(len(socios) * 0.8) == 62
     assert all(c["tipo"] == "salud" and c["otorgado"] and c["propio"] for c in primera["consentimientos"])
     assert all(p["activo"] for p in primera["personas"])
-    assert len({c["clave_hash"] for c in claves if c["clave_hash"]}) == 40
+    assert len({c["clave_hash"] for c in claves if c["clave_hash"]}) == 80
     assert {c["clave_hash"] for c in claves}.isdisjoint(
         c["clave_hash"] for c in consultar(app_con_bd, "SELECT clave_hash FROM usuarios")
     )
@@ -195,11 +270,11 @@ def test_membresias_de_semilla_sin_superposiciones_y_sin_depender_de_salud(app_c
             membresias = cursor.fetchall()
             cursor.execute("SELECT DISTINCT socio_id FROM consentimientos WHERE tipo = 'salud'")
             con_salud = {fila["socio_id"] for fila in cursor.fetchall()}
-        assert len(membresias) == 37
+        assert len(membresias) == 77
         assert all(m["cantidad"] == 1 for m in membresias)
         assert len(con_salud) < len(membresias)
         vigentes = [
             consultar_membresia(desde_bytes(m["socio_id"]), fecha_local(reloj_fijo.ahora())) for m in membresias
         ]
-        assert sum(m is not None for m in vigentes) == 36
+        assert sum(m is not None for m in vigentes) == 76
         assert sum(m is None for m in vigentes) == 1  # Caso explícito de membresía vencida de #48.

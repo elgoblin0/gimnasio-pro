@@ -9,6 +9,7 @@ from gimnasio import crear_app
 from gimnasio.comun.bd import transaccion
 from gimnasio.comun.errores import ErrorDeDominio
 from gimnasio.comun.ids import desde_bytes, nuevo_id
+from gimnasio.comun.migrar import leer_migraciones
 from gimnasio.demo import servicio as demo
 from gimnasio.entrenamiento.servicio import consultar_propuesta
 
@@ -171,6 +172,8 @@ def test_ids_dominio_y_hechos_de_semilla_se_reponen_iguales(recorrido, reloj_fij
                 "asignaciones_entrenador",
                 "consentimientos",
                 "membresias",
+                "entradas",
+                "salidas",
             ):
                 cursor.execute(f"SELECT * FROM {tabla} ORDER BY id")
                 resultado[tabla] = cursor.fetchall()
@@ -191,11 +194,10 @@ def test_ids_dominio_y_hechos_de_semilla_se_reponen_iguales(recorrido, reloj_fij
         demo.reiniciar()
     assert instantanea() == antes
     with app.app_context(), transaccion() as cursor:
-        for tabla in ("solicitudes_idempotentes", "entradas", "salidas"):
-            cursor.execute(f"SELECT COUNT(*) AS cantidad FROM {tabla}")
-            assert cursor.fetchone()["cantidad"] == 0
+        cursor.execute("SELECT COUNT(*) AS cantidad FROM solicitudes_idempotentes")
+        assert cursor.fetchone()["cantidad"] == 0
         cursor.execute("SELECT COUNT(*) AS cantidad FROM migraciones_aplicadas")
-        assert cursor.fetchone()["cantidad"] == 17
+        assert cursor.fetchone()["cantidad"] == len(leer_migraciones())
 
 
 @pytest.mark.bd
