@@ -71,7 +71,7 @@ jobs:
       - run: pip install -r requirements-dev.txt
       - name: MySQL sin fsync (solo CI)
         run: |
-          mysql -h 127.0.0.1 -uroot -psolo-ci -e "SET GLOBAL innodb_flush_log_at_trx_commit=0; SET GLOBAL sync_binlog=0; SET GLOBAL innodb_doublewrite=OFF;"
+          mysql -h 127.0.0.1 -uroot -psolo-ci -e "SET GLOBAL innodb_flush_log_at_trx_commit=0; SET GLOBAL sync_binlog=0;"
       - name: Migraciones sobre base vacía
         run: |
           set -o pipefail
@@ -117,7 +117,7 @@ jobs:
       - run: playwright install --with-deps chromium
       - name: MySQL sin fsync (solo CI)
         run: |
-          mysql -h 127.0.0.1 -uroot -psolo-ci -e "SET GLOBAL innodb_flush_log_at_trx_commit=0; SET GLOBAL sync_binlog=0; SET GLOBAL innodb_doublewrite=OFF;"
+          mysql -h 127.0.0.1 -uroot -psolo-ci -e "SET GLOBAL innodb_flush_log_at_trx_commit=0; SET GLOBAL sync_binlog=0;"
       - name: Migraciones sobre base vacía
         run: |
           set -o pipefail
