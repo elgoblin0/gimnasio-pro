@@ -4,6 +4,7 @@ import json
 from collections import Counter
 from contextlib import nullcontext
 from datetime import UTC
+from decimal import Decimal
 from zoneinfo import ZoneInfo
 
 from gimnasio.comun.bd import transaccion
@@ -160,7 +161,7 @@ def preparar_historial(filas, zona, local, sesion_planificada_id=None):
     return historial
 
 
-def preparar_subas(efectivas, zona, local):
+def preparar_subas(efectivas, filas, zona, local):
     subas = []
     for efectiva in efectivas:
         fecha = fecha_local(efectiva["creada_en"].replace(tzinfo=UTC), zona)
@@ -172,8 +173,18 @@ def preparar_subas(efectivas, zona, local):
             if (
                 razon["regla"] == "subir_carga"
                 and ejercicio
-                and not {"tope_semanal", "chequeo_desfavorable", "dolor_reportado"}
-                & {r["regla"] for r in ejercicio["explicacion"]}
+                and not {"tope_semanal", "chequeo_desfavorable"} & {r["regla"] for r in ejercicio["explicacion"]}
+                # El dolor posterior anula la propuesta, pero no una suba ya realizada.
+                and (
+                    "dolor_reportado" not in {r["regla"] for r in ejercicio["explicacion"]}
+                    or any(
+                        fila["sesion_realizada_id"] == efectiva["sesion_realizada_id"]
+                        and str(desde_bytes(fila["ejercicio_planificado_id"])) == ejercicio["id"]
+                        and fila["carga"] is not None
+                        and fila["carga"] > Decimal(razon["datos"]["carga_base"])
+                        for fila in filas
+                    )
+                )
             ):
                 subas.append(
                     SubaCarga(ejercicio["ejercicio_id"], fecha, str(desde_bytes(efectiva["sesion_planificada_id"])))
@@ -277,7 +288,7 @@ def consultar_propuesta(socio_texto, usuario, planificada_id=None, *, cursor=Non
         local,
         seleccion.sesion_planificada.id if seleccion.sesion_planificada else None,
     )
-    subas = preparar_subas(efectivas, ZoneInfo(sede["zona_horaria"]), local)
+    subas = preparar_subas(efectivas, filas, ZoneInfo(sede["zona_horaria"]), local)
     propuesta = proponer_sesion(
         DatosPropuesta(
             programa_motor,

@@ -1377,6 +1377,73 @@ def test_quitadas_en_vivo_no_impiden_avanzar_la_propuesta(dolor_api):
     assert siguiente["sesion_planificada"]["id"] != lectura["sesion_planificada"]["id"]
 
 
+@pytest.mark.parametrize(
+    ("series_antes", "carga_antes", "carga_esperada", "hubo_suba"),
+    [
+        (0, "23.00", "23.00", False),
+        (1, "20.50", "23.00", False),
+        (1, "23.00", "20.50", True),
+        (2, "23.00", "23.00", True),
+    ],
+)
+def test_tope_semanal_conserva_suba_realizada_antes_del_dolor(
+    dolor_api, series_antes, carga_antes, carga_esperada, hubo_suba
+):
+    from datetime import timedelta
+
+    datos = dolor_api
+    cliente, ruta = datos.cliente_dolor, datos.ruta_dolor
+    ejercicio = datos.propuesta_dolor["ejercicios"][0]
+    assert ejercicio["objetivos"]["carga"] == "23.00"
+    serie = {"ejercicio_planificado_id": ejercicio["id"], "repeticiones": 12, "rir": 2}
+    for _ in range(series_antes):
+        assert (
+            escribir(
+                cliente, ruta + "/series", serie | {"id": str(nuevo_id(datos.reloj)), "carga": carga_antes}
+            ).status_code
+            == 201
+        )
+    assert escribir(cliente, ruta + "/dolores", datos.cuerpo_dolor).status_code == 201
+    for _ in range(ejercicio["objetivos"]["series"] - series_antes):
+        assert (
+            escribir(
+                cliente, ruta + "/series", serie | {"id": str(nuevo_id(datos.reloj)), "carga": "20.50"}
+            ).status_code
+            == 201
+        )
+    # Una sesión intermedia sin dolor libera el freno 1, pero no el tope semanal.
+    datos.reloj.avanzar(timedelta(days=1))
+    intermedia = str(nuevo_id(datos.reloj))
+    assert (
+        escribir(
+            cliente,
+            "/api/entrenamiento/sesiones",
+            {"id": intermedia, "sesion_planificada_id": datos.propuesta_dolor["sesion_planificada"]["id"]},
+        ).status_code
+        == 201
+    )
+    assert (
+        "dolor_reportado"
+        in cliente.get(f"/api/entrenamiento/sesiones/{intermedia}").json["prescripcion_efectiva"]["frenos"]
+    )
+    with datos.app.app_context(), transaccion() as cursor:
+        cursor.execute(
+            "SELECT s.id FROM sesiones_planificadas s JOIN sesiones_planificadas anterior "
+            "ON s.programa_id=anterior.programa_id WHERE anterior.id=%s AND s.posicion=2",
+            (a_bytes(desde_texto(datos.propuesta_dolor["sesion_planificada"]["id"])),),
+        )
+        siguiente = str(desde_bytes(cursor.fetchone()["id"]))
+    datos.reloj.avanzar(timedelta(days=1))
+    sesion = str(nuevo_id(datos.reloj))
+    assert (
+        escribir(cliente, "/api/entrenamiento/sesiones", {"id": sesion, "sesion_planificada_id": siguiente}).status_code
+        == 201
+    )
+    lectura = cliente.get(f"/api/entrenamiento/sesiones/{sesion}").json
+    assert lectura["prescripcion_efectiva"]["frenos"] == (["tope_semanal"] if hubo_suba else [])
+    assert lectura["ejercicios"][0]["objetivos"]["carga"] == carga_esperada
+
+
 def test_mysql_dolor_se_libera_en_la_tercera_sesion_realizada(dolor_api):
     from datetime import timedelta
 
