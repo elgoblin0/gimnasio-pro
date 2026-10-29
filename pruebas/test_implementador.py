@@ -67,3 +67,24 @@ def test_las_revisiones_posteriores_al_ultimo_hecho_entran_al_prompt():
     prompt = implementador.prompt_para_codex("@codex atendé la revisión", texto)
     assert "Quitá la deduplicación." in prompt
     assert implementador.prompt_para_codex("@codex hacé algo").endswith("hacé algo")
+
+
+def test_el_cuerpo_del_pr_empieza_con_closes():
+    assert implementador.cuerpo_del_pr("Closes #89\n\nNotas", 89) == "Closes #89\n\nNotas"
+    assert implementador.cuerpo_del_pr("Notas", 90) == "Closes #90\n\nNotas"
+    assert implementador.cuerpo_del_pr("  \n", 90) is None
+    assert implementador.cuerpo_del_pr(None, 90) is None
+    assert implementador.ARCHIVO_CUERPO in implementador.prompt_para_codex("@codex hacé algo")
+
+
+def test_reconoce_la_falta_de_cupo_de_codex():
+    assert implementador.es_falta_de_cupo("ERROR: You've hit your usage limit. Upgrade to Pro")
+    assert not implementador.es_falta_de_cupo("Codex terminó con código 1")
+    assert not implementador.es_falta_de_cupo(None)
+
+
+def test_el_esfuerzo_de_codex_es_bajo_salvo_que_se_pida_otro(monkeypatch):
+    monkeypatch.delenv("GIMNASIO_CODEX_ESFUERZO", raising=False)
+    assert implementador.esfuerzo() == "low"
+    monkeypatch.setenv("GIMNASIO_CODEX_ESFUERZO", "high")
+    assert implementador.esfuerzo() == "high"
