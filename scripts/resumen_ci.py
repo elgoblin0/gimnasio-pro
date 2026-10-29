@@ -56,7 +56,7 @@ def main(argumentos):
         salida += [f"- {fallo}" for fallo in fallos[:MAX_FALLOS]]
         if len(fallos) > MAX_FALLOS:
             salida.append(f"- … y {len(fallos) - MAX_FALLOS} más")
-    for trabajo in ("pruebas", "e2e"):
+    for trabajo in ("pruebas", "e2e", "cuerpo3d"):
         if resultados.get(trabajo) == "failure" and not fallos_de_pytest(carpeta / trabajo)[1]:
             # Falló antes de producir el reporte (migraciones, importación, Chromium): se muestra el final
             # de los registros de ese trabajo; cada artefacto se descarga en una carpeta con su nombre.

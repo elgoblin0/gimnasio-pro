@@ -46,6 +46,8 @@ def servidor_demo(playwright):
             )
             with app.app_context():
                 reiniciar()
+            # El reloj fijo nunca desliza la ventana de 60 solicitudes por minuto: un recorrido largo la agotaría.
+            app.extensions["limite_demo"].espera = lambda ip: 0
 
             with make_server("127.0.0.1", 0, app) as servidor:
                 hilo = Thread(target=servidor.serve_forever, daemon=True)

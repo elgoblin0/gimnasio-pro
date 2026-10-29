@@ -9,6 +9,7 @@ Uso:
   python scripts/cadena.py tras-ci --rama codex/issue-12 --resultado success
   python scripts/cadena.py revision --pr 40 --texto-archivo cuerpo.txt [--revision 123]
   python scripts/cadena.py etiqueta --pr 40 --etiqueta revisado:codex
+  python scripts/cadena.py fusionar-adr --rama opus/adr-0017-tema
 """
 
 import argparse
@@ -28,6 +29,8 @@ RUTAS_SENSIBLES = (
     "gimnasio/permisos/",
     "gimnasio/salud/",
 )
+PREFIJO_ADR = "opus/adr-"
+RUTAS_ADR = ("docs/adr/", "GLOSSARY.md")
 MAX_CORRECCIONES = 3
 MARCA_CORREGIR = "<!-- cadena:corregir -->"
 MARCA_REVISAR = "<!-- cadena:revisar {sha} -->"
@@ -68,6 +71,11 @@ def pregunta_de_criterio(texto):
         if linea.strip().startswith(PEDIDO_CRITERIO):
             return linea.strip().removeprefix(PEDIDO_CRITERIO).strip()
     return None
+
+
+def es_solo_adr(archivos):
+    """Un PR de ADR provisional toca únicamente docs/adr/ y el glosario."""
+    return bool(archivos) and all(a.startswith(RUTAS_ADR) for a in archivos)
 
 
 def lista_para_fusionar(etiquetas, sensible):
@@ -282,10 +290,23 @@ def etiqueta(numero, nombre):
         print(f"Fusión automática activada en el PR #{numero}.")
 
 
+def fusionar_adr(rama):
+    """Activa la fusión automática de un ADR provisional de Opus; el ruleset espera los checks requeridos."""
+    pr = next((p for p in gh_json("pr", "list", "--state", "open", "--head", rama, "--json", "number,labels")), None)
+    if pr is None or "bloqueado" in etiquetas_de(pr):
+        return
+    if not es_solo_adr(archivos_del_pr(pr["number"])):
+        print(f"El PR #{pr['number']} toca algo más que ADR y glosario: no se fusiona solo.")
+        return
+    gh("pr", "merge", str(pr["number"]), "--squash", "--auto", "--delete-branch")
+    print(f"Fusión automática activada en el ADR #{pr['number']}.")
+
+
 def main(argv=None):
     analizador = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     pasos = analizador.add_subparsers(dest="paso", required=True)
     pasos.add_parser("arrancar")
+    pasos.add_parser("fusionar-adr").add_argument("--rama", required=True)
     p = pasos.add_parser("tras-ci")
     p.add_argument("--rama", required=True)
     p.add_argument("--resultado", required=True)
@@ -303,6 +324,8 @@ def main(argv=None):
         tras_ci(args.rama, args.resultado)
     elif args.paso == "revision":
         revision(args.pr, args.texto_archivo.read_text(encoding="utf-8"), args.revision)
+    elif args.paso == "fusionar-adr":
+        fusionar_adr(args.rama)
     else:
         etiqueta(args.pr, args.etiqueta)
 

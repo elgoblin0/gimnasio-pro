@@ -19,6 +19,22 @@ def pytest_collection_modifyitems(config, items):
             item.add_marker(saltar)
 
 
+@pytest.fixture(scope="session", autouse=True)
+def hash_de_clave_barato():
+    """La semilla demo hashea una clave por persona; con scrypt eso cuesta segundos por cada base de prueba."""
+    from werkzeug.security import generate_password_hash
+
+    from gimnasio.permisos import servicio
+
+    def barato(clave):
+        return generate_password_hash(clave, method="pbkdf2:sha256:1")
+
+    parche = pytest.MonkeyPatch()
+    parche.setattr(servicio, "generate_password_hash", barato)
+    yield
+    parche.undo()
+
+
 @pytest.fixture
 def bd_vacia():
     """Crea una base vacía y única para la prueba y la borra al terminar."""

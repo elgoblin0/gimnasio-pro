@@ -67,6 +67,15 @@ jobs:
           PR: ${{ github.event.pull_request.number || github.event.issue.number }}
           REVISION: ${{ github.event.review.id }}
 
+  fusionar-adr:
+    if: github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success' && startsWith(github.event.workflow_run.head_branch, 'opus/adr-')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: python scripts/cadena.py fusionar-adr --rama "$RAMA"
+        env:
+          RAMA: ${{ github.event.workflow_run.head_branch }}
+
   etiqueta:
     if: github.event_name == 'pull_request' && startsWith(github.event.pull_request.head.ref, 'codex/issue-')
     runs-on: ubuntu-latest
