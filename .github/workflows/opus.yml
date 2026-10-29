@@ -83,5 +83,5 @@ jobs:
               en el PR, sin quitar `revisado:codex`. La cadena se lo pasa a Codex.
           claude_args: |
             --model claude-opus-5-5
-            --max-turns 15
+            --max-turns 40
             --allowedTools "Bash(gh:*),Read,Glob,Grep"
