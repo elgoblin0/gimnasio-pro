@@ -3,7 +3,7 @@
 import random
 import secrets
 from collections import OrderedDict, deque
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime, time, timedelta
 from itertools import count
 from math import ceil
 from threading import Lock
@@ -14,7 +14,7 @@ from gimnasio.comun.bd import transaccion
 from gimnasio.comun.errores import ErrorDeDominio
 from gimnasio.comun.formatos import normalizar_cedula, normalizar_telefono
 from gimnasio.comun.ids import desde_texto
-from gimnasio.comun.reloj import fecha_local, reloj_actual
+from gimnasio.comun.reloj import ZONA_SEDE, fecha_local, reloj_actual
 from gimnasio.comun.tipos import ZONAS_CUERPO
 from gimnasio.demo import repositorio
 from gimnasio.demo.nombres import APELLIDOS, NOMBRES
@@ -27,6 +27,9 @@ USUARIOS_DEMO = (
     ("Ana", "Duarte", "administracion"),
 )
 SOCIOS_ADICIONALES = 36
+SOCIOS_HISTORIAL = 40
+HORARIO_SEDE = {str(dia): [["06:00", "22:00"]] for dia in range(1, 6)}
+HORARIO_SEDE["6"] = [["08:00", "14:00"]]
 SOLICITUDES_POR_MINUTO = 60
 VENTANA_DE_SOLICITUDES = timedelta(minutes=1)
 
@@ -227,7 +230,7 @@ def generar_personas():
     telefonos = aleatorio.sample(range(10_000_000), cantidad)
     nombres = list(USUARIOS_DEMO)
     nombres.extend((aleatorio.choice(NOMBRES), aleatorio.choice(APELLIDOS), "socio") for _ in range(SOCIOS_ADICIONALES))
-    return [
+    personas = [
         {
             "nombre": nombre,
             "apellido": apellido,
@@ -239,6 +242,41 @@ def generar_personas():
         }
         for indice, (nombre, apellido, rol) in enumerate(nombres)
     ]
+
+    # Se conserva la generación anterior para los accesos y los casos del recorrido.
+    for indice in range(SOCIOS_HISTORIAL):
+        personas.append(
+            {
+                "nombre": aleatorio.choice(NOMBRES),
+                "apellido": aleatorio.choice(APELLIDOS),
+                "cedula": str(98_000_000 + indice),
+                "telefono": f"+595980{indice:06d}",
+                "correo": f"historial{indice + 1}@demo.gimnasio.invalid",
+                "rol": "socio",
+                "es_demo": False,
+            }
+        )
+    return personas
+
+
+def generar_visitas(ahora, socios):
+    """Ocho semanas anteriores al día local; a lo sumo una visita diaria por socio."""
+    aleatorio = random.Random(ahora.isoformat())
+    visitas = []
+    hoy = fecha_local(ahora)
+    for dias in range(56, 0, -1):
+        fecha = hoy - timedelta(days=dias)
+        if fecha.isoweekday() == 7:
+            continue
+        sabado = fecha.isoweekday() == 6
+        presentes = aleatorio.sample(socios, 10 if sabado else 30)
+        for indice, socio in enumerate(presentes):
+            # La mayoría entra cerca de las 07:00 o entre las 18:00 y las 20:00.
+            hora = 9 if sabado else (7 if indice < 10 else 18 if indice < 20 else 19 if indice < 28 else 14)
+            entrada = datetime.combine(fecha, time(hora), ZONA_SEDE) + timedelta(minutes=aleatorio.randrange(60))
+            duracion = round(aleatorio.triangular(40, 110, 60))
+            visitas.append((socio, entrada.astimezone(UTC), (entrada + timedelta(minutes=duracion)).astimezone(UTC)))
+    return visitas
 
 
 def reiniciar():
@@ -256,7 +294,8 @@ def reiniciar():
     socios = []
     with transaccion() as cursor:
         repositorio.vaciar_datos(cursor)
-        repositorio.insertar_sede(cursor, siguiente_id(), ahora)
+        sede_id = siguiente_id()
+        repositorio.insertar_sede(cursor, sede_id, ahora, HORARIO_SEDE)
         for persona in personas:
             # La clave se descarta: nunca se imprime ni depende de random.Random(2026).
             usuario_id = permisos.crear_usuario(
@@ -269,16 +308,20 @@ def reiniciar():
             )
             if persona["rol"] == "socio":
                 socios.append(usuario_id)
+            elif persona["rol"] == "recepcion":
+                recepcion_id = usuario_id
             elif persona["rol"] == "entrenador":
                 entrenador_id = usuario_id
         for socio_id in socios:
             repositorio.insertar_asignacion(cursor, siguiente_id(), socio_id, entrenador_id, ahora)
             # Un único intervalo ficticio por socio: treinta días inclusivos, sin superposiciones.
-            desde = fecha_local(ahora) - (timedelta(days=30) if socio_id == socios[-1] else timedelta())
+            desde = fecha_local(ahora) - (timedelta(days=30) if socio_id == socios[SOCIOS_ADICIONALES] else timedelta())
             repositorio.insertar_membresia(cursor, siguiente_id(), socio_id, desde, desde + timedelta(days=29), ahora)
+        historial = generar_visitas(ahora, socios[SOCIOS_ADICIONALES + 1 :])
+        repositorio.insertar_visitas(cursor, sede_id, recepcion_id, historial, siguiente_id)
         _cargar_programas(cursor, socios, siguiente_id, ahora)
         repositorio.insertar_restriccion(cursor, siguiente_id(), socios[1], entrenador_id, ahora)
-        # 37 socios: el 80 % se redondea al entero más cercano (30).
+        # El 80 % se redondea al entero más cercano.
         for socio_id in socios[: round(len(socios) * 0.8)]:
             permisos.registrar_consentimiento(
                 cursor, socio_id, "salud", True, "demo-1", socio_id, identificador=siguiente_id()

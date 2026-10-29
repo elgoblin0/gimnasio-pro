@@ -24,9 +24,19 @@ def ingresar(pagina, instancia):
 
 
 def contar(instancia, tabla):
+    """Cuenta los hechos de Lucía sin incluir las visitas históricas de otros socios."""
     assert tabla in {"entradas", "salidas"}
     with instancia.app.app_context(), transaccion() as cursor:
-        cursor.execute(f"SELECT COUNT(*) AS cantidad FROM {tabla}")
+        cursor.execute(
+            f"""SELECT COUNT(*) AS cantidad FROM {tabla} h
+                JOIN usuarios u ON u.id = h.socio_id
+                WHERE u.rol = 'socio' AND u.es_demo = TRUE"""
+            if tabla == "entradas"
+            else """SELECT COUNT(*) AS cantidad FROM salidas h
+                    JOIN entradas e ON e.id = h.entrada_id
+                    JOIN usuarios u ON u.id = e.socio_id
+                    WHERE u.rol = 'socio' AND u.es_demo = TRUE"""
+        )
         return cursor.fetchone()["cantidad"]
 
 

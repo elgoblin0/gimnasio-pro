@@ -235,6 +235,8 @@ def test_fk_de_sesion_y_serie_rechazan_referencias_inexistentes(entrenamiento):
 def test_reinicio_demo_borra_correcciones_y_sesiones_antes_del_programa(entrenamiento):
     datos = entrenamiento
     datos.app.config["MODO_DEMO"] = True
+    datos.cursor.execute("SELECT * FROM migraciones_aplicadas ORDER BY version")
+    migraciones = datos.cursor.fetchall()
     original = serie(datos)
     correccion = serie(datos, corrige_a=original, motivo="Corrección ficticia")
     demo.reiniciar()
@@ -244,8 +246,8 @@ def test_reinicio_demo_borra_correcciones_y_sesiones_antes_del_programa(entrenam
     for tabla, cantidad in (("series_realizadas", 13), ("sesiones_realizadas", 4), ("programas_entrenamiento", 2)):
         datos.cursor.execute(f"SELECT COUNT(*) AS cantidad FROM {tabla}")
         assert datos.cursor.fetchone()["cantidad"] == cantidad
-    datos.cursor.execute("SELECT COUNT(*) AS cantidad FROM migraciones_aplicadas")
-    assert datos.cursor.fetchone()["cantidad"] == 17
+    datos.cursor.execute("SELECT * FROM migraciones_aplicadas ORDER BY version")
+    assert datos.cursor.fetchall() == migraciones
 
 
 @pytest.mark.parametrize(

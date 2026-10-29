@@ -1,6 +1,7 @@
 """SQL de la demo; única excepción al borrado de hechos (ADR 0003)."""
 
 import json
+from datetime import UTC
 
 from gimnasio.comun.ids import a_bytes
 
@@ -65,11 +66,11 @@ def vaciar_datos(cursor):
     cursor.execute("DELETE FROM sedes")
 
 
-def insertar_sede(cursor, sede_id, momento):
+def insertar_sede(cursor, sede_id, momento, horario):
     cursor.execute(
-        """INSERT INTO sedes (id, nombre, zona_horaria, aforo_maximo, actualizada_en)
-           VALUES (%s, %s, %s, %s, %s)""",
-        (a_bytes(sede_id), "Gimnasio Pro Demo · Asunción", "America/Asuncion", 60, momento),
+        """INSERT INTO sedes (id, nombre, zona_horaria, aforo_maximo, actualizada_en, horario)
+           VALUES (%s, %s, %s, %s, %s, %s)""",
+        (a_bytes(sede_id), "Gimnasio Pro Demo · Asunción", "America/Asuncion", 60, momento, json.dumps(horario)),
     )
 
 
@@ -186,3 +187,26 @@ def insertar_historial(cursor, sesion_id, series, socio_id, planificada_id, ejer
             "VALUES (%s,%s,%s,%s,20.50,2,%s,%s)",
             (a_bytes(serie_id), a_bytes(sesion_id), a_bytes(ejercicio_id), repeticiones, a_bytes(socio_id), momento),
         )
+
+
+def insertar_visitas(cursor, sede_id, autor_id, visitas, siguiente_id):
+    """Carga las entradas y las salidas confirmadas en dos lotes, sin correcciones."""
+    entradas, salidas = [], []
+    for socio_id, entrada, salida in visitas:
+        entrada_id = a_bytes(siguiente_id())
+        entradas.append(
+            (
+                entrada_id,
+                a_bytes(socio_id),
+                a_bytes(sede_id),
+                a_bytes(autor_id),
+                entrada.astimezone(UTC).replace(tzinfo=None),
+            )
+        )
+        salidas.append(
+            (a_bytes(siguiente_id()), entrada_id, a_bytes(autor_id), salida.astimezone(UTC).replace(tzinfo=None))
+        )
+    cursor.executemany(
+        "INSERT INTO entradas (id,socio_id,sede_id,autor_id,registrada_en) VALUES (%s,%s,%s,%s,%s)", entradas
+    )
+    cursor.executemany("INSERT INTO salidas (id,entrada_id,autor_id,registrada_en) VALUES (%s,%s,%s,%s)", salidas)
