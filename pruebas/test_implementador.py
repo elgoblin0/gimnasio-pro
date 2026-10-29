@@ -285,3 +285,17 @@ def test_resumen_de_la_corrida():
     assert "10 min en marcha" in texto and "PR #155: duda" in texto
     assert "Atendidos: 2 · Fallos: 1 · Veces sin cupo: 1" in texto
     assert "72,704 tokens" in texto and "#150" in texto
+
+
+def test_reconoce_los_pedidos_de_la_cadena_sin_mencion():
+    issue = {"number": 7, "title": "Alta", "body": "X"}
+    assert implementador.es_pedido(implementador.cadena.prompt_implementar(issue))
+    assert implementador.es_pedido(implementador.cadena.prompt_corregir("el CI falló."))
+    assert not implementador.es_pedido("Pedido para el implementador local: sin marca de la cadena")
+
+
+def test_el_prompt_para_codex_no_lleva_el_encabezado_local():
+    pedido = implementador.cadena.prompt_corregir("el CI falló: arreglalo.")
+    prompt = implementador.prompt_para_codex(pedido)
+    assert "el CI falló: arreglalo." in prompt
+    assert implementador.cadena.ENCABEZADO_LOCAL not in prompt and "<!--" not in prompt

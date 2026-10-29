@@ -33,6 +33,8 @@ PREFIJO_ADR = "opus/adr-"
 RUTAS_ADR = ("docs/adr/", "GLOSSARY.md")
 MAX_CORRECCIONES = 3
 MARCA_CORREGIR = "<!-- cadena:corregir -->"
+MARCA_PEDIDO = "<!-- cadena:pedido -->"
+ENCABEZADO_LOCAL = "Pedido para el implementador local:"
 MARCA_REVISAR = "<!-- cadena:revisar {sha} -->"
 APROBACION_CODEX = "didn't find any major issues"
 PEDIDO_CRITERIO = "NECESITA-CRITERIO:"
@@ -84,10 +86,18 @@ def lista_para_fusionar(etiquetas, archivos):
     return bool(archivos) and "revisado:codex" in etiquetas and (not sensible or "revisado:opus" in etiquetas)
 
 
+def encabezado_de_pedido():
+    """`@codex` solo si CADENA_MENCIONAR_CODEX=1 (cuando Codex cloud vuelva a atender pedidos).
+
+    Mientras los atienda el implementador local, mencionar a Codex solo trae su respuesta «create an environment».
+    """
+    return "@codex" if os.environ.get("CADENA_MENCIONAR_CODEX") == "1" else ENCABEZADO_LOCAL
+
+
 def prompt_implementar(issue):
     return (
-        f"@codex implementá el issue #{issue['number']} en esta rama, según AGENTS.md y "
-        "docs/protocolo-agentes.md. Corré ruff y pytest antes de subir.\n"
+        f"{MARCA_PEDIDO}\n{encabezado_de_pedido()} implementá el issue #{issue['number']} en esta rama, "
+        "según AGENTS.md y docs/protocolo-agentes.md. Corré ruff y pytest antes de subir.\n"
         f"Si te falta una decisión de diseño, producto, alcance o término, no implementes: respondé "
         f"con una sola línea que empiece con `{PEDIDO_CRITERIO}` y la duda con tu recomendación.\n\n"
         f"## {issue['title']}\n\n{issue['body']}"
@@ -95,7 +105,10 @@ def prompt_implementar(issue):
 
 
 def prompt_corregir(motivo):
-    return f"{MARCA_CORREGIR}\n@codex {motivo} Subí la corrección a esta rama sin salirte del alcance del issue."
+    return (
+        f"{MARCA_CORREGIR}\n{encabezado_de_pedido()} {motivo} "
+        "Subí la corrección a esta rama sin salirte del alcance del issue."
+    )
 
 
 # --- GitHub ----------------------------------------------------------------
@@ -209,7 +222,8 @@ def arrancar():
             etiquetar(numero_issue, agregar=["estado:en-curso", "agente:codex"], quitar=["estado:listo"], tipo="issue")
             comentar(
                 pr["number"],
-                "@codex Opus resolvió la duda en el issue: leé su comentario y seguí.\n\n" + prompt_implementar(issue),
+                f"{encabezado_de_pedido()} Opus resolvió la duda en el issue: leé su comentario y seguí.\n\n"
+                + prompt_implementar(issue),
             )
             print(f"Reanudado el PR #{pr['number']}.")
         else:

@@ -12,7 +12,7 @@ Desde el 28/10/2026, por decisión del dueño, GitHub hace de buzón y nadie cop
 
 | Evento | Quién reacciona | Qué hace |
 |---|---|---|
-| Issue cerrado, `estado:listo` puesto o arranque manual | `cadena.yml` → `arrancar` | Si no hay otro en curso, toma el issue `estado:listo` + `ejecutor:codex` de número más bajo con dependencias cerradas, crea `codex/issue-N`, abre un PR borrador y comenta `@codex implementá…` con el issue. |
+| Issue cerrado, `estado:listo` puesto o arranque manual | `cadena.yml` → `arrancar` | Si no hay otro en curso, toma el issue `estado:listo` + `ejecutor:codex` de número más bajo con dependencias cerradas, crea `codex/issue-N`, abre un PR borrador y comenta el pedido de implementar con el issue (sin `@codex`, ver Implementador local). |
 | CI terminado en `codex/issue-N` | `cadena.yml` → `tras-ci` | Rojo: pide a Codex que lo arregle. Verde: marca el PR listo y comenta `@codex review`. |
 | Respuesta de Codex en el PR | `cadena.yml` → `revision` | `NECESITA-CRITERIO:` → la copia al issue y pone `necesita-criterio`. Revisión sin hallazgos → `revisado:codex`. Con hallazgos → `correccion-pendiente` y pide la corrección. |
 | `necesita-criterio` en un issue | `opus.yml` → `criterio` | Opus decide, comenta, abre un ADR provisional si hace falta y deja el issue `estado:listo`; la cadena reanuda el PR. |
@@ -26,7 +26,7 @@ Requisitos (una vez, los hace el dueño): secretos `CADENA_TOKEN` (token persona
 
 ### Implementador local (mientras Codex cloud no responda)
 
-Codex cloud responde `@codex review` pero rechaza los demás pedidos desde GitHub con «create an environment for this repo», aunque el entorno exista ([openai/codex#20093](https://github.com/openai/codex/issues/20093)). Hasta que OpenAI lo arregle, `scripts/implementador.py` hace ese paso en la PC del dueño: toma el último `@codex implementá…` o `@codex corregí…` sin atender que dejó la cadena en un PR `codex/issue-N`, corre `codex exec` en un worktree (`.implementador/`, fuera de git), sube el resultado y comenta con la marca `<!-- implementador:hecho -->`. Una duda `NECESITA-CRITERIO:` va al issue como en la cadena. Dos fallos seguidos en un pedido dejan el PR `bloqueado`. Todo lo demás (CI, revisión, Opus, fusión) sigue igual.
+Codex cloud responde `@codex review` pero rechaza los demás pedidos desde GitHub con «create an environment for this repo», aunque el entorno exista ([openai/codex#20093](https://github.com/openai/codex/issues/20093)). Hasta que OpenAI lo arregle, `scripts/implementador.py` hace ese paso en la PC del dueño: toma el último pedido de implementar o corregir (marca `<!-- cadena:pedido -->` o `<!-- cadena:corregir -->`) sin atender que dejó la cadena en un PR `codex/issue-N`, corre `codex exec` en un worktree (`.implementador/`, fuera de git), sube el resultado y comenta con la marca `<!-- implementador:hecho -->`. Una duda `NECESITA-CRITERIO:` va al issue como en la cadena. Dos fallos seguidos en un pedido dejan el PR `bloqueado`. Todo lo demás (CI, revisión, Opus, fusión) sigue igual. La cadena no menciona a `@codex` en esos pedidos (Codex cloud solo respondía «create an environment»); `@codex review` sí se mantiene. Cuando OpenAI lo arregle, con la variable `CADENA_MENCIONAR_CODEX=1` en `cadena.yml` los pedidos vuelven a mencionarlo.
 
 ```bash
 python scripts/implementador.py            # atiende lo pendiente y termina

@@ -1,9 +1,10 @@
 """Implementador local: hace en esta PC lo que Codex cloud no responde desde GitHub (ver docs/protocolo-agentes.md).
 
-La cadena (scripts/cadena.py) sigue abriendo el PR borrador y comentando `@codex implementá…` o
-`@codex corregí…`. Este script toma el último pedido de esos comentarios que nadie atendió, corre `codex exec`
-en un worktree de la rama del PR, sube el resultado y deja un comentario con la marca de «hecho». El CI, la
-revisión y la fusión siguen a cargo de la cadena.
+La cadena (scripts/cadena.py) sigue abriendo el PR borrador y comentando el pedido de implementar o corregir
+(con la marca `<!-- cadena:pedido -->` o `<!-- cadena:corregir -->`, sin mencionar a `@codex`).
+Este script toma el último pedido de esos comentarios que nadie atendió, corre `codex exec`
+en un worktree de la rama del PR, sube el resultado y deja un comentario con la marca de «hecho».
+El CI, la revisión y la fusión siguen a cargo de la cadena.
 
 Uso:
   python scripts/implementador.py            # atiende los pedidos pendientes y termina
@@ -65,7 +66,10 @@ def es_falta_de_cupo(texto):
 
 def es_pedido(cuerpo):
     """Un comentario de la cadena que le pide trabajo a Codex (no la revisión, que sí responde en la nube)."""
-    return bool(PEDIDO.match(re.sub(r"<!--.*?-->", "", cuerpo or "", flags=re.DOTALL)))
+    cuerpo = cuerpo or ""
+    if cadena.MARCA_PEDIDO in cuerpo or cadena.MARCA_CORREGIR in cuerpo:
+        return True
+    return bool(PEDIDO.match(re.sub(r"<!--.*?-->", "", cuerpo, flags=re.DOTALL)))  # pedidos con @codex, de antes
 
 
 def pedido_pendiente(comentarios):
@@ -111,7 +115,8 @@ def cuerpo_del_pr(texto, numero_issue):
 
 
 def prompt_para_codex(pedido, revisiones=""):
-    texto = re.sub(r"<!--.*?-->", "", pedido, flags=re.DOTALL).strip().removeprefix("@codex").strip()
+    texto = re.sub(r"<!--.*?-->", "", pedido, flags=re.DOTALL).strip()
+    texto = texto.removeprefix("@codex").removeprefix(cadena.ENCABEZADO_LOCAL).strip()
     encabezado = (
         "Trabajás en un worktree de la rama de este PR. No hagas commit ni push: lo hace el implementador.\n"
         "Si la rama tiene conflictos con main sin resolver, resolvelos preservando el alcance del issue.\n"
