@@ -86,6 +86,16 @@ export async function crearCuerpo(contenedor, svg, seleccionable) {
       boton.type = "button";
       boton.setAttribute("role", "checkbox");
       boton.addEventListener("click", () => control.dispatchEvent(new ventana.MouseEvent("click")));
+      // Igual que la silueta: alternar al presionar, sin clic nativo al soltar
+      // Espacio si el foco pasó al 3D durante la pulsación.
+      boton.addEventListener("keydown", evento => {
+        if (evento.key === " " || evento.key === "Enter") {
+          evento.preventDefault(); boton.click();
+        }
+      });
+      boton.addEventListener("keyup", evento => {
+        if (evento.key === " ") evento.preventDefault();
+      });
     }
     boton.dataset.zona = control.dataset.zona;
     lista.append(boton);
