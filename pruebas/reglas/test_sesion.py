@@ -256,4 +256,4 @@ def test_motor_conserva_rango_rir_y_descanso_sin_ajustes():
     propuesta = proponer_sesion(datos(programa=ProgramaEntrenamiento((sesion,))))
     assert propuesta.sesion_planificada is sesion
     assert propuesta.sesion_planificada.ejercicios == (ejercicio,)
-    assert propuesta.version == "2.2.0"
+    assert propuesta.version == "2.3.0"

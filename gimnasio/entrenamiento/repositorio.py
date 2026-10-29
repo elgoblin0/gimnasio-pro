@@ -6,15 +6,14 @@ from decimal import Decimal, InvalidOperation
 
 from mysql.connector import IntegrityError, errorcode
 
-from gimnasio.comun.ids import a_bytes
+from gimnasio.comun.ids import a_bytes, desde_bytes
 
 MEDIDAS = ("repeticiones", "carga", "duracion", "distancia")
 
 
-def obtener_socio(cursor, socio_id, *, bloquear=False):
-    cursor.execute(
-        "SELECT id, rol, activo FROM usuarios WHERE id = %s" + (" FOR UPDATE" if bloquear else ""), (a_bytes(socio_id),)
-    )
+def obtener_socio(cursor, socio_id, *, bloquear=False, bloqueo_compartido=False):
+    bloqueo = " FOR UPDATE" if bloquear else " FOR SHARE" if bloqueo_compartido else ""
+    cursor.execute("SELECT id, rol, activo FROM usuarios WHERE id = %s" + bloqueo, (a_bytes(socio_id),))
     return cursor.fetchone()
 
 
@@ -259,17 +258,20 @@ def sustitucion_vigente(cursor, sesion_id, ejercicio_id):
     return cursor.fetchone()
 
 
-def insertar_sustitucion(cursor, sustitucion_id, sesion_id, ejercicio_id, hecho_id, autor_id, ahora):
+def insertar_sustitucion(
+    cursor, sustitucion_id, sesion_id, ejercicio_id, hecho_id, autor_id, ahora, motivo="maquina_ocupada"
+):
     _insertar(
         cursor,
         """INSERT INTO sustituciones
            (id,sesion_realizada_id,ejercicio_planificado_id,ejercicio_hecho_id,motivo,autor_id,registrada_en)
-           VALUES (%s,%s,%s,%s,'maquina_ocupada',%s,%s)""",
+           VALUES (%s,%s,%s,%s,%s,%s,%s)""",
         (
             a_bytes(sustitucion_id),
             a_bytes(sesion_id),
             a_bytes(ejercicio_id),
             a_bytes(hecho_id),
+            motivo,
             a_bytes(autor_id),
             _fecha_utc(ahora),
         ),
@@ -313,7 +315,7 @@ def obtener_prescripcion(cursor, sesion_id):
 
 def listar_prescripciones(cursor, socio_id):
     cursor.execute(
-        """SELECT p.*, s.sesion_planificada_id FROM prescripciones_efectivas p
+        """SELECT p.*, s.sesion_planificada_id, s.creada_en AS sesion_creada_en FROM prescripciones_efectivas p
            JOIN sesiones_realizadas s ON s.id=p.sesion_realizada_id WHERE s.socio_id=%s""",
         (a_bytes(socio_id),),
     )
@@ -323,7 +325,7 @@ def listar_prescripciones(cursor, socio_id):
 def obtener_chequeo(cursor, socio_id, fecha):
     cursor.execute(
         """SELECT * FROM chequeos_dia WHERE socio_id=%s AND fecha_local=%s
-           ORDER BY registrado_en DESC, id DESC LIMIT 1""",
+           ORDER BY registrado_en DESC, id DESC LIMIT 1 FOR SHARE""",
         (a_bytes(socio_id), fecha),
     )
     return cursor.fetchone()
@@ -369,4 +371,76 @@ def insertar_avisos(cursor, socio_id, sesion_id, propuesta, ahora):
 
 def obtener_chequeo_por_id(cursor, chequeo_id):
     cursor.execute("SELECT * FROM chequeos_dia WHERE id=%s FOR SHARE", (a_bytes(chequeo_id),))
+    return cursor.fetchone()
+
+
+def insertar_dolor(cursor, dolor_id, socio_id, zona, ahora, *, chequeo_id=None, sesion_id=None):
+    cursor.execute(
+        """INSERT INTO dolores_reportados
+           (id,socio_id,zona,origen,chequeo_id,sesion_realizada_id,registrado_en)
+           VALUES (%s,%s,%s,%s,%s,%s,%s)""",
+        (
+            a_bytes(dolor_id),
+            a_bytes(socio_id),
+            zona,
+            "chequeo" if chequeo_id else "sesion",
+            a_bytes(chequeo_id) if chequeo_id else None,
+            a_bytes(sesion_id) if sesion_id else None,
+            _fecha_utc(ahora),
+        ),
+    )
+
+
+def obtener_dolor(cursor, dolor_id):
+    cursor.execute("SELECT * FROM dolores_reportados WHERE id=%s FOR SHARE", (a_bytes(dolor_id),))
+    return cursor.fetchone()
+
+
+def zonas_chequeo(cursor, chequeo_id):
+    if chequeo_id is None:
+        return ()
+    cursor.execute(
+        "SELECT zona FROM dolores_reportados WHERE chequeo_id=%s ORDER BY zona FOR SHARE", (a_bytes(chequeo_id),)
+    )
+    return tuple(f["zona"] for f in cursor.fetchall())
+
+
+def dolores_sesion(cursor, sesion_id, fecha):
+    """Incluye el chequeo vigente al iniciar, aun después de medianoche u otro chequeo."""
+    cursor.execute(
+        """SELECT c.id FROM chequeos_dia c JOIN sesiones_realizadas s ON s.id=%s
+           WHERE c.fecha_local=%s AND c.socio_id=s.socio_id AND (c.registrado_en,c.id)<=(s.creada_en,s.id)
+           ORDER BY c.registrado_en DESC,c.id DESC LIMIT 1 FOR SHARE""",
+        (a_bytes(sesion_id), fecha),
+    )
+    chequeo = cursor.fetchone()
+    cursor.execute("SELECT zona FROM dolores_reportados WHERE sesion_realizada_id=%s FOR SHARE", (a_bytes(sesion_id),))
+    zonas = {f["zona"] for f in cursor.fetchall()}
+    if chequeo:
+        zonas.update(zonas_chequeo(cursor, desde_bytes(chequeo["id"])))
+    return tuple(sorted(zonas))
+
+
+def listar_dolores_socio(cursor, socio_id):
+    """Dolores en sesión y chequeos, incluso neutros para no recuperar un dolor previo."""
+    cursor.execute(
+        """SELECT NULL AS sesion_realizada_id, c.id AS chequeo_id, c.fecha_local, c.registrado_en, d.zona
+           FROM chequeos_dia c LEFT JOIN dolores_reportados d ON d.chequeo_id=c.id WHERE c.socio_id=%s
+           UNION ALL
+           SELECT d.sesion_realizada_id, NULL, NULL, NULL, d.zona
+           FROM dolores_reportados d WHERE d.socio_id=%s AND d.origen='sesion'""",
+        (a_bytes(socio_id),) * 2,
+    )
+    return cursor.fetchall()
+
+
+def ultima_sesion(cursor, socio_id, sesion=None):
+    filtro = " AND (creada_en,id)<(%s,%s)" if sesion else ""
+    parametros = (a_bytes(socio_id),) + ((sesion["creada_en"], sesion["id"]) if sesion else ())
+    cursor.execute(
+        "SELECT * FROM sesiones_realizadas WHERE socio_id=%s"
+        + filtro
+        + " ORDER BY creada_en DESC,id DESC LIMIT 1 FOR SHARE",
+        parametros,
+    )
     return cursor.fetchone()

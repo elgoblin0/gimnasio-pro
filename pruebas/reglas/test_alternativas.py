@@ -33,3 +33,30 @@ def test_otro_equipo_orden_y_razon():
     assert elegir_alternativas("original", catalogo, zonas_excluidas=("cuadriceps",)) == ((), None)
     assert elegir_alternativas("inexistente", catalogo) == ((), None)
     assert elegir_alternativas("original", (original,)) == ((), None)
+
+
+def test_dolor_exige_zonas_reducidas_no_vacias_sin_agregar_zonas():
+    from dataclasses import replace
+
+    original = replace(
+        ejercicio("original", equipo="barra", zonas=("gluteos", "cuadriceps", "rodillas")),
+        alternativas=("con_dolor", "agrega", "vacia", "reducida"),
+    )
+    reducida = ejercicio("reducida", equipo="cajon", zonas=("gluteos", "cuadriceps"))
+    catalogo = (
+        original,
+        reducida,
+        ejercicio("con_dolor", zonas=original.zonas),
+        ejercicio("agrega", zonas=("gluteos", "isquiotibiales")),
+        ejercicio("vacia", zonas=()),
+    )
+    alternativas, razon = elegir_alternativas(
+        "original", catalogo, zonas_excluidas=("rodillas",), motivo="dolor_reportado"
+    )
+    assert alternativas == (reducida,)
+    assert razon.regla == "dolor_reportado"
+    assert dict(razon.datos)["ejercicio_hecho_id"] == "reducida"
+    assert dict(razon.datos)["explicacion"] == (
+        "reducida conserva el patrón de movimiento y no involucra la zona con dolor."
+    )
+    assert reducida not in elegir_alternativas("original", catalogo)[0]

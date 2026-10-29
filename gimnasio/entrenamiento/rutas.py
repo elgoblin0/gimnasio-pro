@@ -70,3 +70,9 @@ def progreso_socio(socio_id):
 @requiere("entrenamiento.registrar_propio")
 def registrar_chequeo():
     return jsonify({"chequeo": servicio.registrar_chequeo(request.get_json(silent=True), usuario_actual())}), 201
+
+
+@bp.post("/sesiones/<sesion_id>/dolores")
+@requiere("entrenamiento.registrar_propio")
+def registrar_dolor(sesion_id):
+    return jsonify(servicio.registrar_dolor(sesion_id, request.get_json(silent=True), usuario_actual())), 201

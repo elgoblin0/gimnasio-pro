@@ -91,7 +91,7 @@ def test_subas_salen_de_prescripciones_y_excluyen_frenadas_y_otra_semana(reloj_f
     lunes = efectiva(datetime(2026, 10, 26, 3))
     futura = efectiva(datetime(2026, 11, 2, 3))
     frenada = efectiva(datetime(2026, 10, 27, 12), True)
-    subas = preparar_subas([domingo, lunes, futura, frenada], ZoneInfo("America/Asuncion"), date(2026, 10, 27))
+    subas = preparar_subas([domingo, lunes, futura, frenada], [], ZoneInfo("America/Asuncion"), date(2026, 10, 27))
     assert len(subas) == 1
     assert subas[0].fecha_local == date(2026, 10, 26)
     assert subas[0].ejercicio_id == "catalogo"

@@ -78,6 +78,47 @@ def test_las_migraciones_del_repo_se_aplican_sobre_una_base_vacia(bd_vacia):
 
 
 @pytest.mark.bd
+def test_avisos_sucesivos_conservan_hechos_de_la_migracion_anterior(tmp_path, bd_vacia, reloj_fijo):
+    from gimnasio import crear_app
+    from gimnasio.comun.bd import transaccion
+    from gimnasio.comun.ids import desde_bytes
+    from gimnasio.demo.servicio import reiniciar
+    from gimnasio.entrenamiento import repositorio
+
+    for migracion in leer_migraciones():
+        if migracion.version < "0016":
+            (tmp_path / migracion.nombre).write_text(migracion.sql, encoding="utf-8", newline="\n")
+    aplicar(bd_vacia, tmp_path, salida=lambda _: None)
+    app = crear_app({"ENTORNO": "prueba", "SECRET_KEY": "solo-pruebas", "MODO_DEMO": True, "BD": bd_vacia}, reloj_fijo)
+    with app.app_context():
+        reiniciar()
+        with transaccion() as cursor:
+            cursor.execute("SELECT id, socio_id FROM sesiones_realizadas ORDER BY id LIMIT 1")
+            sesion = cursor.fetchone()
+            socio_id, sesion_id = desde_bytes(sesion["socio_id"]), desde_bytes(sesion["id"])
+            propuesta = {"frenos": ["dolor_reportado"], "explicacion": [{"zonas": "rodillas"}]}
+            repositorio.insertar_avisos(cursor, socio_id, sesion_id, propuesta, reloj_fijo.ahora())
+            cursor.execute("SELECT * FROM avisos_entrenador")
+            antes = cursor.fetchall()
+    assert aplicar(bd_vacia, salida=lambda _: None) == ["0016"]
+    assert aplicar(bd_vacia, salida=lambda _: None) == []
+    with app.app_context(), transaccion() as cursor:
+        cursor.execute("SELECT * FROM avisos_entrenador")
+        assert cursor.fetchall() == antes
+        repositorio.insertar_avisos(
+            cursor,
+            socio_id,
+            sesion_id,
+            {"frenos": ["dolor_reportado"], "explicacion": [{"zonas": "cuello"}]},
+            reloj_fijo.ahora(),
+        )
+        cursor.execute("SELECT * FROM avisos_entrenador ORDER BY creado_en, id")
+        despues = cursor.fetchall()
+        assert len(despues) == 2
+        assert antes[0] in despues
+
+
+@pytest.mark.bd
 def test_catalogo_y_rango_conserva_semilla_etapa_uno(tmp_path, bd_vacia, reloj_fijo):
     """Aplica 0010 a la semilla anterior, incluidos sus hechos de entrenamiento."""
     from gimnasio import crear_app
@@ -130,7 +171,7 @@ def test_catalogo_y_rango_conserva_semilla_etapa_uno(tmp_path, bd_vacia, reloj_f
         cursor.execute("SELECT * FROM series_realizadas ORDER BY id")
         hechos = cursor.fetchall()
         conexion.commit()
-        assert aplicar(bd_vacia, salida=lambda _: None) == ["0010", "0011", "0012", "0013", "0014"]
+        assert aplicar(bd_vacia, salida=lambda _: None) == ["0010", "0011", "0012", "0013", "0014", "0015", "0016"]
         cursor.execute("SELECT id, repeticiones_minimas, repeticiones_maximas FROM ejercicios_planificados ORDER BY id")
         assert cursor.fetchall() == [
             {"id": f["id"], "repeticiones_minimas": f["repeticiones"], "repeticiones_maximas": f["repeticiones"]}

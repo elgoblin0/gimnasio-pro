@@ -4,6 +4,7 @@ import { formatearCarga, formatearFecha } from "@comun/formatos.js";
 import { cerrarSesion, crearControlDeOperacion } from "@comun/operaciones.js";
 import { prepararMedidas } from "@comun/series.js";
 import { registrarPwa } from "@comun/pwa.js";
+import { crearSelectorZonas } from "@comun/zonas.js";
 
 import { crearDescanso } from "@comun/descanso.js";
 import { crearReloj } from "@comun/reloj.js";
@@ -36,10 +37,14 @@ let propuestaActual = null;
 let sesionActual = null;
 let sesionId = new URL(location.href).searchParams.get("sesion");
 const control = crearControlDeOperacion();
+const zonasChequeo = crearSelectorZonas($("[data-zonas-chequeo]"));
+const selectoresDolor = new Set();
 const numero = new Intl.NumberFormat("es-PY", { maximumFractionDigits: 2 });
 
 function actualizarBotones() {
-  for (const elemento of document.querySelectorAll("[data-formulario-chequeo] select, [data-formulario-chequeo] button, [data-iniciar], [data-serie] input, [data-serie] button, [data-sustitucion] button")) {
+  zonasChequeo.deshabilitar(Boolean(control.actual) || cargando);
+  for (const selector of selectoresDolor) selector.deshabilitar(Boolean(control.actual) || cargando);
+  for (const elemento of document.querySelectorAll("[data-formulario-chequeo] select, [data-formulario-chequeo] button, [data-iniciar], [data-serie] input, [data-serie] button, [data-sustitucion] button, [data-dolor] button")) {
     elemento.disabled = Boolean(control.actual) || cargando || (elemento.matches("[data-iniciar]") && !chequeoResuelto);
   }
   $("[data-actualizar]").disabled = cargando || control.enCurso;
@@ -129,6 +134,7 @@ function dibujar(propuesta) {
     $("[data-explicacion]").append(texto);
   }
   $("[data-ejercicios]").replaceChildren();
+  selectoresDolor.clear();
   $("[data-titulo-sesion]").textContent = propuesta.sesion_planificada?.nombre
     ?? (propuesta.explicacion[0]?.regla === "sin_programa" ? "Sin programa de entrenamiento" : "Secuencia realizada");
   for (const propuesto of propuesta.ejercicios) {
@@ -159,6 +165,7 @@ function dibujar(propuesta) {
     tarjeta.append(explicacion);
     if (coincide && ejercicio.pendiente > 0) {
       agregarSustitucion(tarjeta, ejercicio);
+      agregarDolor(tarjeta, ejercicio);
       agregarFormulario(tarjeta, ejercicio);
     }
     $("[data-ejercicios]").append(tarjeta);
@@ -243,7 +250,7 @@ async function enviar() {
       }
     }
     control.finalizar();
-    await actualizar(datos.sesion_realizada ? "Sesión realizada iniciada." : (datos.sustitucion ? "Sustitución guardada." : "Serie guardada."));
+    await actualizar(datos.dolor_reportado ? "Dolor reportado guardado. Se avisó al entrenador." : (datos.sesion_realizada ? "Sesión realizada iniciada." : (datos.sustitucion ? "Sustitución guardada." : "Serie guardada.")));
     const foco = document.querySelector("[data-serie] input") ?? $("[data-actualizar]");
     foco.focus();
   } catch (error) {
@@ -282,7 +289,7 @@ $("[data-formulario-chequeo]").addEventListener("submit", (evento) => {
   evento.preventDefault();
   if (cargando || control.actual || !autorizada) return;
   const datos = new FormData(evento.currentTarget);
-  control.preparar("/api/entrenamiento/chequeos", { sueno: Number(datos.get("sueno")), energia: Number(datos.get("energia")) });
+  control.preparar("/api/entrenamiento/chequeos", { sueno: Number(datos.get("sueno")), energia: Number(datos.get("energia")), zonas: zonasChequeo.zonas() });
   enviar();
 });
 $("[data-saltear-chequeo]").addEventListener("click", () => {
@@ -347,6 +354,38 @@ function agregarSustitucion(tarjeta, ejercicio) {
       lista.querySelector("button")?.focus();
     } catch (error) { $("[data-error]").textContent = error.message; }
     finally { actualizarBotones(); }
+  });
+  contenedor.append(boton);
+  tarjeta.append(contenedor);
+}
+
+function agregarDolor(tarjeta, ejercicio) {
+  const contenedor = document.createElement("div");
+  contenedor.dataset.dolor = ejercicio.id;
+  const boton = document.createElement("button");
+  boton.type = "button";
+  boton.textContent = "Me duele";
+  boton.setAttribute("aria-label", `Me duele durante ${ejercicio.nombre}`);
+  boton.addEventListener("click", () => {
+    if (cargando || control.actual) return;
+    if (contenedor.querySelector("form")) return;
+    const formulario = document.createElement("form");
+    const selector = crearSelectorZonas(formulario);
+    selectoresDolor.add(selector);
+    const guardar = document.createElement("button");
+    guardar.type = "submit";
+    guardar.textContent = "Guardar dolor reportado";
+    formulario.append(guardar);
+    formulario.addEventListener("submit", (evento) => {
+      evento.preventDefault();
+      if (cargando || control.actual) return;
+      const zonas = selector.zonas();
+      if (!zonas.length) { $("[data-error]").textContent = "Elegí al menos una zona con dolor."; return; }
+      control.preparar(`/api/entrenamiento/sesiones/${sesionId}/dolores`, { ejercicio_planificado_id: ejercicio.id, zonas });
+      enviar();
+    });
+    contenedor.append(formulario);
+    formulario.querySelector("[role=checkbox]").focus();
   });
   contenedor.append(boton);
   tarjeta.append(contenedor);

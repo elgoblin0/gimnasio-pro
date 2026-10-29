@@ -2,7 +2,14 @@ id = "me-duele-maquina-ocupada"
 nombre = "\"Me duele\" y \"máquina ocupada\""
 grupo = "Entrenamiento"
 etapa = 2
-nivel = "esqueleto"
-prueba = "pruebas/e2e/test_series.py::test_maquina_ocupada_con_teclado_y_recarga"
+nivel = "funcional"
+prueba = "pruebas/e2e/test_series.py::test_me_duele_rodillas_sustituye_y_explica"
 
-# Máquina ocupada disponible; dolor reportado queda pendiente para su issue.
+# Dolor reportado y máquina ocupada con sustituciones, explicación y recarga.
+# Exige consentimiento de salud para guardar dolores; un dolor ajeno al ejercicio
+# conserva la equivalencia de zonas por máquina ocupada (pruebas/test_entrenamiento_api.py).
+# El dolor posterior conserva en el tope semanal las subas con series realizadas;
+# las anuladas antes de realizarlas no cuentan (pruebas/test_entrenamiento_api.py).
+# Cada dolor en vivo deja su aviso sin duplicarlo al reintentar; las alternativas
+# con zonas excluidas explican y guardan el motivo dolor_reportado. La propuesta
+# lee los dolores en conjunto y no agrega consultas por cada sesión del historial.
