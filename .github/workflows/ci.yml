@@ -125,11 +125,35 @@ jobs:
       - name: pytest
         run: |
           set -o pipefail
-          pytest -n 4 --dist worksteal -m e2e --durations=15 --junitxml=reporte-pytest.xml -q 2>&1 | tee registro-pytest.txt
+          pytest -n 4 --dist worksteal -m e2e --deselect pruebas/test_prototipos.py::test_cuerpo_3d_carga_y_emite_zonas_en_chromium --durations=15 --junitxml=reporte-pytest.xml -q 2>&1 | tee registro-pytest.txt
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: e2e
+          path: |
+            reporte-pytest.xml
+            registro-*.txt
+
+  # La prueba del cuerpo 3D tarda ~90 s y no usa MySQL: en su propio trabajo corre en paralelo al resto.
+  cuerpo3d:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+          cache-dependency-path: requirements-dev.txt
+      - run: pip install -r requirements-dev.txt
+      - run: playwright install --with-deps chromium
+      - name: pytest
+        run: |
+          set -o pipefail
+          pytest pruebas/test_prototipos.py::test_cuerpo_3d_carga_y_emite_zonas_en_chromium --junitxml=reporte-pytest.xml -q 2>&1 | tee registro-pytest.txt
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: cuerpo3d
           path: |
             reporte-pytest.xml
             registro-*.txt
@@ -146,7 +170,7 @@ jobs:
 
   resumen:
     if: always() && github.event_name == 'pull_request'
-    needs: [calidad, pruebas, e2e, secretos]
+    needs: [calidad, pruebas, e2e, cuerpo3d, secretos]
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -162,6 +186,7 @@ jobs:
             calidad=${{ needs.calidad.result }}
             pruebas=${{ needs.pruebas.result }}
             e2e=${{ needs.e2e.result }}
+            cuerpo3d=${{ needs.cuerpo3d.result }}
             secretos=${{ needs.secretos.result }}
         run: |
           python scripts/resumen_ci.py artefactos $RESULTADOS > resumen-ci.md
