@@ -15,7 +15,7 @@ const puerta = {x:50,y:97};
 function destino(persona) {
   const indice = nombres.indexOf(persona.zona);
   const [x,y,ancho,alto] = zonas[indice];
-  const usados = new Set(personas.filter(p => p !== persona && p.zona === persona.zona && !p.saliendo).map(p => p.lugar));
+  const usados = new Set(personas.filter(p => p !== persona && p.zona === persona.zona && !p.saliendo && p.lugar !== undefined).map(p => p.lugar));
   let lugar = 0;
   while (usados.has(lugar)) lugar++;
   persona.lugar = lugar;
