@@ -2,5 +2,6 @@ id = "aforo-mejores-horarios"
 nombre = "Aforo en vivo y mejores horarios"
 grupo = "Recepción"
 etapa = 3
-nivel = "funcional"
+nivel = "validada"
+validacion = "https://github.com/elgoblin0/gimnasio-pro/issues/154"
 prueba = "pruebas/test_mejores_horarios.py"
