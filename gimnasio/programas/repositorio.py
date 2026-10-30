@@ -1,6 +1,6 @@
 """Programas y catálogo; las alternativas se reemplazan y los cambios de estado se insertan."""
 
-from gimnasio.comun.ids import a_bytes
+from gimnasio.comun.ids import a_bytes, desde_texto
 
 
 def leer_ejercicios(cursor):
@@ -85,7 +85,7 @@ def leer_por_socio(cursor, socio_id, version=None):
     filtro = "" if version is None else " AND p.version = %s"
     parametros = (a_bytes(socio_id),) if version is None else (a_bytes(socio_id), version)
     cursor.execute(
-        """SELECT p.id AS programa_id, p.socio_id, p.version, p.creado_en,
+        """SELECT p.id AS programa_id, p.socio_id, p.version, p.creado_en, p.duracion_semanas, s.semana,
                   s.id AS sesion_id, s.posicion AS sesion_posicion, s.nombre AS sesion_nombre,
                   ep.id AS planificado_id, ep.posicion AS ejercicio_posicion,
                   ep.series, ep.repeticiones_minimas, ep.repeticiones_maximas, ep.rir_objetivo, ep.descanso,
@@ -109,3 +109,62 @@ def leer_por_socio(cursor, socio_id, version=None):
         parametros,
     )
     return cursor.fetchall()
+
+
+def bloquear_socio(cursor, socio_id):
+    cursor.execute("SELECT id FROM usuarios WHERE id=%s FOR UPDATE", (a_bytes(socio_id),))
+    return cursor.fetchone()
+
+
+def version_vigente(cursor, socio_id):
+    cursor.execute(
+        "SELECT version FROM programas_entrenamiento WHERE socio_id=%s ORDER BY version DESC LIMIT 1 FOR UPDATE",
+        (a_bytes(socio_id),),
+    )
+    fila = cursor.fetchone()
+    return fila["version"] if fila else None
+
+
+def insertar_programa(cursor, identificador, socio_id, version, semanas, momento):
+    cursor.execute(
+        "INSERT INTO programas_entrenamiento (id,socio_id,version,duracion_semanas,creado_en) VALUES (%s,%s,%s,%s,%s)",
+        (a_bytes(identificador), a_bytes(socio_id), version, semanas, momento),
+    )
+
+
+def insertar_sesion(cursor, identificador, programa_id, posicion, semana, nombre):
+    cursor.execute(
+        "INSERT INTO sesiones_planificadas (id,programa_id,posicion,semana,nombre) VALUES (%s,%s,%s,%s,%s)",
+        (a_bytes(identificador), a_bytes(programa_id), posicion, semana, nombre),
+    )
+
+
+def insertar_ejercicio_planificado(cursor, identificador, sesion_id, posicion, ejercicio):
+    cursor.execute(
+        """INSERT INTO ejercicios_planificados
+           (id,sesion_planificada_id,ejercicio_id,posicion,series,repeticiones_minimas,repeticiones_maximas,
+            rir_objetivo,descanso,carga,duracion,distancia) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)""",
+        (a_bytes(identificador), a_bytes(sesion_id), a_bytes(desde_texto(ejercicio["ejercicio_id"])), posicion)
+        + tuple(
+            ejercicio.get(campo)
+            for campo in (
+                "series",
+                "repeticiones_minimas",
+                "repeticiones_maximas",
+                "rir_objetivo",
+                "descanso",
+                "carga",
+                "duracion",
+                "distancia",
+            )
+        ),
+    )
+
+
+def leer_plantillas(cursor):
+    cursor.execute("SELECT * FROM plantillas_programa ORDER BY nombre,id")
+    plantillas = cursor.fetchall()
+    cursor.execute("SELECT * FROM plantillas_sesiones ORDER BY posicion,id")
+    sesiones = cursor.fetchall()
+    cursor.execute("SELECT * FROM plantillas_ejercicios ORDER BY posicion,id")
+    return plantillas, sesiones, cursor.fetchall()

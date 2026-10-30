@@ -134,7 +134,9 @@ function dibujar(propuesta) {
   $("[data-explicacion]").replaceChildren();
   for (const razon of propuesta.explicacion.filter((r) => !r.datos.ejercicio_id)) {
     const texto = document.createElement("li");
-    texto.textContent = razon.datos.explicacion;
+    texto.textContent = razon.regla === "secuencia_realizada"
+      ? "Terminaste tu programa; tu entrenador prepara el siguiente"
+      : razon.datos.explicacion;
     $("[data-explicacion]").append(texto);
   }
   $("[data-ejercicios]").replaceChildren();

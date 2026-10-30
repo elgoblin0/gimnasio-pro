@@ -46,6 +46,9 @@ def vaciar_datos(cursor):
     cursor.execute("DELETE FROM ejercicios_planificados")
     cursor.execute("DELETE FROM sesiones_planificadas")
     cursor.execute("DELETE FROM programas_entrenamiento")
+    cursor.execute("DELETE FROM plantillas_ejercicios")
+    cursor.execute("DELETE FROM plantillas_sesiones")
+    cursor.execute("DELETE FROM plantillas_programa")
     cursor.execute("DELETE FROM alternativas_ejercicio")
     cursor.execute("DELETE FROM zonas_ejercicio")
     cursor.execute("DELETE FROM ejercicios")
@@ -110,6 +113,29 @@ def insertar_alternativa(cursor, ejercicio_id, alternativa_id, orden):
     cursor.execute(
         "INSERT INTO alternativas_ejercicio (ejercicio_id,alternativa_id,orden) VALUES (%s,%s,%s)",
         (a_bytes(ejercicio_id), a_bytes(alternativa_id), orden),
+    )
+
+
+def insertar_plantilla(cursor, identificador, nombre, descripcion, momento):
+    cursor.execute(
+        "INSERT INTO plantillas_programa (id,nombre,descripcion,creada_en) VALUES (%s,%s,%s,%s)",
+        (a_bytes(identificador), nombre, descripcion, momento),
+    )
+
+
+def insertar_sesion_plantilla(cursor, identificador, plantilla_id, posicion, nombre):
+    cursor.execute(
+        "INSERT INTO plantillas_sesiones (id,plantilla_id,posicion,nombre) VALUES (%s,%s,%s,%s)",
+        (a_bytes(identificador), a_bytes(plantilla_id), posicion, nombre),
+    )
+
+
+def insertar_ejercicio_plantilla(cursor, identificador, sesion_id, ejercicio_id, posicion):
+    cursor.execute(
+        """INSERT INTO plantillas_ejercicios
+           (id,sesion_id,ejercicio_id,posicion,series,repeticiones_minimas,repeticiones_maximas,rir_objetivo,descanso)
+           VALUES (%s,%s,%s,%s,3,8,12,2,90)""",
+        (a_bytes(identificador), a_bytes(sesion_id), a_bytes(ejercicio_id), posicion),
     )
 
 
