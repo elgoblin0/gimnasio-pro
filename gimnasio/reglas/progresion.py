@@ -250,16 +250,17 @@ def _ajustar_ejercicio(planificado, entrada, sesion_planificada_id):
             ),
         )
         ajustada = replace(ajustada, carga=carga)
+        if carga <= prescripcion.carga:
+            # La carga de partida anuló la suba: no consume el tope semanal.
+            razones = tuple(r for r in razones if r.regla != "subir_carga")
         prescripcion = replace(prescripcion, carga=min(prescripcion.carga, carga))
-        # Los frenos posteriores que anulan una suba tampoco pueden recuperar una carga mayor.
-        razones = tuple(
-            replace(r, datos=tuple((k, str(prescripcion.carga) if k == "carga_base" else v) for k, v in r.datos))
-            if r.regla == "subir_carga"
-            else r
-            for r in razones
-        )
     ajustada, razones_freno, frenos = aplicar_frenos(
-        ajustada, prescripcion, ejercicio, entrada, explicacion.regla == "subir_carga", sesion_planificada_id
+        ajustada,
+        prescripcion,
+        ejercicio,
+        entrada,
+        any(r.regla == "subir_carga" for r in razones),
+        sesion_planificada_id,
     )
     return ajustada, razones + razones_freno, frenos
 

@@ -181,3 +181,79 @@ def test_carga_de_partida_publicada_con_historial(carga, registrado, esperada):
     )
     assert propuesta.prescripcion[0].carga == Decimal(esperada)
     assert ("carga_de_partida" in {r.regla for r in propuesta.explicacion}) == (not registrado)
+
+
+@pytest.mark.parametrize("carga,hay_suba", [("10", False), ("40", False), ("41", True), ("42.5", True), ("60", True)])
+def test_carga_de_partida_solo_contabiliza_subas_efectivas(reloj_fijo, carga, hay_suba):
+    import json
+    from dataclasses import replace
+
+    from gimnasio.comun.tipos import (
+        DatosPropuesta,
+        EjercicioCatalogo,
+        EjercicioPlanificado,
+        HistorialEjercicio,
+        ProgramaEntrenamiento,
+        SerieRealizada,
+        SesionPlanificada,
+    )
+    from gimnasio.entrenamiento.servicio import preparar_subas
+    from gimnasio.reglas.sesion import proponer_sesion
+
+    lunes = date(2026, 10, 26)
+    ejercicio = EjercicioPlanificado(
+        "planificado",
+        3,
+        8,
+        12,
+        Decimal(carga),
+        2,
+        60,
+        ejercicio_catalogo_id="catalogo",
+        carga_de_partida=Decimal(carga),
+    )
+    anterior = HistorialEjercicio(
+        "catalogo",
+        "anterior",
+        "anterior",
+        lunes - timedelta(days=1),
+        tuple(SerieRealizada("anterior", "viejo", n, 12, Decimal("40"), rir=2) for n in range(1, 4)),
+    )
+    datos = DatosPropuesta(
+        ProgramaEntrenamiento((SesionPlanificada("primera", (ejercicio,)),)),
+        lunes,
+        lunes,
+        historial=(anterior,),
+        catalogo=(EjercicioCatalogo("catalogo", "Ejercicio", Decimal("2.5")),),
+    )
+    propuesta = proponer_sesion(datos)
+    carga_efectiva = min(Decimal(carga), Decimal("42.5"))
+    assert propuesta.prescripcion[0].carga == carga_efectiva
+    razones = [{"regla": r.regla, "version": r.version, "datos": dict(r.datos)} for r in propuesta.explicacion]
+    efectiva = {
+        "creada_en": datetime(2026, 10, 26, 12),
+        "sesion_planificada_id": a_bytes(nuevo_id(reloj_fijo)),
+        "ejercicios": json.dumps([{"id": "planificado", "ejercicio_id": "catalogo", "explicacion": razones}]),
+        "explicacion": json.dumps(razones),
+    }
+    subas = preparar_subas([efectiva], [], ZoneInfo("America/Asuncion"), lunes + timedelta(days=1))
+    realizada = replace(
+        anterior,
+        sesion_planificada_id="primera",
+        fecha_local=lunes,
+        series=tuple(replace(s, carga=carga_efectiva) for s in anterior.series),
+    )
+    siguiente = proponer_sesion(
+        replace(
+            datos,
+            fecha_local=lunes + timedelta(days=1),
+            historial=(anterior, realizada),
+            subas=subas,
+            programa=ProgramaEntrenamiento(
+                (SesionPlanificada("segunda", (replace(ejercicio, carga_de_partida=None),)),)
+            ),
+        )
+    )
+    assert siguiente.prescripcion[0].carga == carga_efectiva + (Decimal("0") if hay_suba else Decimal("2.5"))
+    assert bool(subas) is hay_suba
+    assert ("subir_carga" in {r.regla for r in propuesta.explicacion}) is hay_suba

@@ -375,5 +375,19 @@ def test_carga_de_partida_conserva_frenos_posteriores(freno):
     propuesta = proponer_sesion(datos)
     assert propuesta.prescripcion[0].carga == Decimal("10")
     assert propuesta.prescripcion[0].series == (2 if freno == "chequeo_desfavorable" else 3)
-    if freno != "ninguno":
+    if freno == "tope_semanal":
+        assert freno not in propuesta.frenos
+    elif freno != "ninguno":
         assert freno in propuesta.frenos
+
+
+def test_carga_de_partida_con_suba_real_conserva_tope_semanal():
+    datos = replace(
+        entrada(subas=(SubaCarga("sentadilla", LUNES, "otra"),)),
+        programa=ProgramaEntrenamiento(
+            (SesionPlanificada("proxima", (replace(EJERCICIO, carga_de_partida=Decimal("41")),)),)
+        ),
+    )
+    propuesta = proponer_sesion(datos)
+    assert propuesta.prescripcion[0].carga == Decimal("40")
+    assert propuesta.frenos == ("tope_semanal",)
