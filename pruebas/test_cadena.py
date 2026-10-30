@@ -176,6 +176,74 @@ def test_avisa_una_sola_vez_por_pedido():
     assert cadena.demora(avisado, AHORA, ocupado=False) is None
 
 
+CORREGIR = f"{cadena.MARCA_CORREGIR}\n<!-- cadena:origen opus -->\natendé la revisión de Opus"
+HECHO = f"{cadena.MARCA_HECHO}\nNo modifiqué código."
+ANTES_DEL_PEDIDO = "2026-10-29T09:00:00Z"
+DESPUES_DEL_PEDIDO = "2026-10-29T10:03:00Z"
+
+
+def test_detecta_el_pedido_cerrado_sin_un_commit_posterior():
+    cerrado = [comentario(CORREGIR, 0), comentario(HECHO, 5)]
+    assert cadena.pedido_cerrado_sin_commit(cerrado, ANTES_DEL_PEDIDO)["body"] == HECHO
+    assert cadena.pedido_cerrado_sin_commit(cerrado, DESPUES_DEL_PEDIDO) is None
+    assert cadena.pedido_cerrado_sin_commit(cerrado[:1], ANTES_DEL_PEDIDO) is None  # sigue abierto: es de `demora`
+    assert cadena.pedido_cerrado_sin_commit([], ANTES_DEL_PEDIDO) is None
+
+
+def test_un_pedido_nuevo_olvida_el_cierre_y_el_aviso_anteriores():
+    avisado = [comentario(CORREGIR, 0), comentario(HECHO, 5), comentario(f"{cadena.MARCA_AVISO}\nparado", 25)]
+    assert cadena.pedido_cerrado_sin_commit(avisado, ANTES_DEL_PEDIDO)["avisado"] is True
+    otra_vuelta = [*avisado, comentario(CORREGIR, 30), comentario(HECHO, 35)]
+    assert cadena.pedido_cerrado_sin_commit(otra_vuelta, ANTES_DEL_PEDIDO)["avisado"] is False
+
+
+def _vigilar(monkeypatch, comentarios, etiquetas=("correccion-pendiente",), issue=(), commit=ANTES_DEL_PEDIDO):
+    """Corre `vigilar` sin red sobre un PR; devuelve los comentarios y los avisos que dejó."""
+    pr = {"number": 7, "headRefName": "codex/issue-3", "labels": [{"name": e} for e in etiquetas]}
+    respuestas = {
+        "commits": {"commits": [{"committedDate": commit}]},
+        "labels": {"labels": [{"name": e} for e in issue]},
+    }
+    comentados, avisos = [], []
+    monkeypatch.setenv("GITHUB_REPOSITORY", "dueno/repo")
+    monkeypatch.setattr(cadena, "prs_de_codex", lambda: [pr])
+    monkeypatch.setattr(cadena, "comentarios_rest", lambda numero: comentarios)
+    monkeypatch.setattr(cadena, "gh_json", lambda *argumentos: respuestas[argumentos[-1]])
+    monkeypatch.setattr(cadena, "comentar", lambda numero, texto: comentados.append(texto))
+    monkeypatch.setattr(cadena, "notificar", lambda titulo, texto, enlace=None: avisos.append(titulo))
+    cadena.vigilar(AHORA)
+    return comentados, avisos
+
+
+def test_vigilar_avisa_la_correccion_parada(monkeypatch):
+    comentados, avisos = _vigilar(monkeypatch, [comentario(CORREGIR, 0), comentario(HECHO, 5)])
+    assert avisos == ["PR #7 parado"]
+    assert cadena.MARCA_AVISO in comentados[0]
+
+
+def test_vigilar_avisa_la_correccion_parada_una_sola_vez(monkeypatch):
+    avisado = [comentario(CORREGIR, 0), comentario(HECHO, 5), comentario(f"{cadena.MARCA_AVISO}\nparado", 25)]
+    assert _vigilar(monkeypatch, avisado) == ([], [])
+
+
+def test_vigilar_no_avisa_si_la_correccion_sigue_su_curso(monkeypatch):
+    cerrado = [comentario(CORREGIR, 0), comentario(HECHO, 5)]
+    # Hay un commit después del pedido: el CI le quita la etiqueta.
+    assert _vigilar(monkeypatch, cerrado, commit=DESPUES_DEL_PEDIDO) == ([], [])
+    # La duda espera a Opus, que reanuda el PR al resolverla.
+    assert _vigilar(monkeypatch, cerrado, issue=["necesita-criterio"]) == ([], [])
+    # Sin la etiqueta no hay corrección pendiente.
+    assert _vigilar(monkeypatch, cerrado, etiquetas=()) == ([], [])
+    # `bloqueado` ya avisó al dueño.
+    assert _vigilar(monkeypatch, cerrado, etiquetas=("correccion-pendiente", "bloqueado")) == ([], [])
+
+
+def test_vigilar_da_margen_a_lo_que_acaba_de_cerrarse(monkeypatch):
+    # Recién cerrado: `arrancar` puede estar por reanudar el PR.
+    recien = [comentario(CORREGIR, 0), {**comentario(HECHO, 5), "created_at": "2026-10-29T11:25:00Z"}]
+    assert _vigilar(monkeypatch, recien) == ([], [])
+
+
 def test_la_etapa_termina_cuando_no_quedan_issues_de_codex_abiertos():
     cierres = [{"number": 141, "title": "Especificación: Etapa 3"}, {"number": 154, "title": "Cierre de etapa 3"}]
     assert cadena.issue_de_cierre(cierres)["number"] == 154

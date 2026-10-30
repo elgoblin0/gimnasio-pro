@@ -2,6 +2,7 @@
 
 import sys
 from pathlib import Path
+from types import SimpleNamespace
 
 RAIZ = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(RAIZ / "scripts"))
@@ -258,6 +259,117 @@ def test_pr_filtra_el_pedido_a_atender(entorno, monkeypatch):
     monkeypatch.setattr(implementador, "atender", lambda pr, pedido, nivel=None: atendidos.append(pr["number"]))
     assert implementador.una_vuelta(solo_pr=8) is True
     assert atendidos == [8]
+
+
+# --- Qué cuenta como atendido ---------------------------------------------------------------------------------
+
+
+PEDIDO_CORREGIR = f"{implementador.cadena.MARCA_CORREGIR}\natendé la revisión de Opus"
+PR_DE_CODEX = {"number": 7, "headRefName": "codex/issue-3", "labels": [], "title": "t"}
+
+
+@pytest.fixture
+def atencion(entorno, tmp_path, monkeypatch):
+    """`atender` sin git, gh ni Codex: `responder` fija lo que hace Codex y `publicado` junta lo que llegó al PR."""
+    carpeta = tmp_path / "arbol"
+    carpeta.mkdir()
+    publicado = SimpleNamespace(comentarios=[], gh=[], etiquetas=[])
+
+    def responder(texto, cuerpo=None, cambios=False):
+        def correr_codex(carpeta_codex, prompt, nivel=None):
+            if cuerpo:
+                (carpeta_codex / implementador.ARCHIVO_CUERPO).write_text(cuerpo, encoding="utf-8", newline="\n")
+            return 0, texto, 10
+
+        monkeypatch.setattr(implementador, "correr_codex", correr_codex)
+        monkeypatch.setattr(implementador, "subir_cambios", lambda *a: cambios)
+
+    monkeypatch.setattr(implementador.cadena, "marcar_tomado", lambda *a: None)
+    monkeypatch.setattr(implementador.cadena, "gh", lambda *a: publicado.gh.append(a))
+    monkeypatch.setattr(implementador.cadena, "comentar", lambda numero, texto: publicado.comentarios.append(texto))
+    monkeypatch.setattr(implementador.cadena, "etiquetar", lambda *a, **k: publicado.etiquetas.append(k))
+    monkeypatch.setattr(implementador, "preparar_worktree", lambda rama, numero: carpeta)
+    monkeypatch.setattr(implementador, "revisiones_pendientes", lambda numero: "")
+    monkeypatch.setattr(implementador, "verificar", lambda c: (["ruff: sin observaciones"], True))
+    monkeypatch.setattr(implementador, "git", lambda *a, **k: SimpleNamespace(stdout=""))
+    return SimpleNamespace(responder=responder, publicado=publicado)
+
+
+@pytest.mark.parametrize("pedido", [PEDIDO_CORREGIR, f"{implementador.cadena.MARCA_PEDIDO}\nimplementá el issue #3"])
+def test_terminar_sin_cambios_aunque_deje_cuerpo_no_cuenta_como_atendido(atencion, pedido):
+    atencion.responder("Necesito criterio, no modifiqué código.", cuerpo="Pedido detenido.")
+    with pytest.raises(RuntimeError, match="sin cambios"):
+        implementador.atender(PR_DE_CODEX, pedido)
+    assert not any(implementador.MARCA_HECHO in c for c in atencion.publicado.comentarios)
+    assert atencion.publicado.gh == []  # el texto de Codex no reemplaza el cuerpo del PR
+
+
+def test_terminar_sin_cambios_ni_cuerpo_tampoco_cuenta(atencion):
+    atencion.responder("No hice nada.")
+    with pytest.raises(RuntimeError, match="sin cambios"):
+        implementador.atender(PR_DE_CODEX, PEDIDO_CORREGIR)
+
+
+def test_un_pedido_sin_cambios_termina_bloqueado_al_llegar_al_tope(atencion, monkeypatch):
+    atencion.responder("Necesito criterio.", cuerpo="Pedido detenido.")
+    comentarios = [PEDIDO_CORREGIR]
+    monkeypatch.setattr(implementador.cadena, "prs_de_codex", lambda: [PR_DE_CODEX])
+    monkeypatch.setattr(implementador.cadena, "comentarios_del_pr", lambda n: comentarios)
+    monkeypatch.setattr(implementador.cadena, "comentar", lambda n, texto: comentarios.append(texto))
+    for _ in range(implementador.MAX_FALLOS):
+        assert implementador.una_vuelta() is True
+    assert all(implementador.MARCA_FALLO in c for c in comentarios[1:])
+    assert implementador.una_vuelta() is False
+    assert atencion.publicado.etiquetas == [{"agregar": ["bloqueado"]}]
+
+
+def test_con_cambios_publica_el_cuerpo_y_cierra_el_pedido(atencion):
+    atencion.responder("Corregido.", cuerpo="Closes #3\n\nCuerpo.", cambios=True)
+    implementador.atender(PR_DE_CODEX, PEDIDO_CORREGIR)
+    assert implementador.MARCA_HECHO in atencion.publicado.comentarios[-1]
+    assert atencion.publicado.gh == [("pr", "edit", "7", "--body", "Closes #3\n\nCuerpo.")]
+
+
+def test_una_duda_reconocida_cierra_el_pedido_sin_cambios(atencion):
+    atencion.responder("Lo pensé.\nNECESITA-CRITERIO: ¿dónde guardo el hecho?", cuerpo="Pedido detenido.")
+    implementador.atender(PR_DE_CODEX, PEDIDO_CORREGIR)
+    assert implementador.MARCA_HECHO in atencion.publicado.comentarios[-1]
+    assert atencion.publicado.etiquetas[0]["agregar"] == ["necesita-criterio"]
+    assert not any(a[:2] == ("pr", "edit") for a in atencion.publicado.gh)
+
+
+def test_el_prompt_exige_el_prefijo_exacto_de_la_duda():
+    prompt = implementador.prompt_para_codex(PEDIDO_CORREGIR)
+    assert f"empieza exactamente con `{implementador.cadena.PEDIDO_CRITERIO}`" in prompt
+    assert "cuenta como fallo" in prompt
+
+
+def test_etapa_de_una_correccion_parada():
+    etapa = implementador.etapa_del_pr
+    verde = [{"status": "COMPLETED", "conclusion": "SUCCESS"}]
+    rojo = [{"status": "COMPLETED", "conclusion": "FAILURE"}]
+    etiquetas = {"correccion-pendiente"}
+    assert "la cadena la va a pedir" in etapa(etiquetas, False, verde, False)
+    for checks in (verde, rojo):
+        assert "nadie la va a volver a pedir" in etapa(etiquetas, False, checks, False, parada=True)
+    assert "lo atiende el implementador" in etapa(etiquetas, True, verde, False, parada=True)
+    assert "lo desbloquea el dueño" in etapa(etiquetas | {"bloqueado"}, False, verde, False, parada=True)
+
+
+def test_el_estado_distingue_la_correccion_parada(entorno, monkeypatch, capsys):
+    pr = {**PR_DE_CODEX, "labels": [{"name": "correccion-pendiente"}], "statusCheckRollup": []}
+    comentarios = [
+        {"body": PEDIDO_CORREGIR, "created_at": "2026-10-29T10:00:00Z"},
+        {"body": implementador.MARCA_HECHO, "created_at": "2026-10-29T10:05:00Z"},
+    ]
+    respuestas = {"commits": {"commits": [{"committedDate": "2026-10-29T09:00:00Z"}]}, "labels": {"labels": []}}
+    monkeypatch.setattr(
+        implementador.cadena, "gh_json", lambda *a: [pr] if a[:2] == ("pr", "list") else respuestas[a[-1]]
+    )
+    monkeypatch.setattr(implementador.cadena, "comentarios_rest", lambda numero: comentarios)
+    monkeypatch.setattr(implementador.cadena, "archivos_del_pr", lambda numero: ["scripts/cadena.py"])
+    implementador.mostrar_estado()
+    assert "nadie la va a volver a pedir" in capsys.readouterr().out
 
 
 # --- Verificación propia, estado y resumen (lógica pura) -----------------------------------------------------

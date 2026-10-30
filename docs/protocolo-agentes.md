@@ -19,7 +19,7 @@ Corre en GitHub Actions y todo queda a la vista en los comentarios de cada PR y 
 | `revisado:codex` (y `revisado:opus` si es sensible) | `cadena.yml` → `etiqueta` | Si está `revisado:opus`, descarta los pedidos de cambios de `claude[bot]` anteriores a esa etiqueta. Activa la fusión automática con squash, con el cuerpo del PR como mensaje; el ruleset de main espera calidad, pruebas, e2e y secretos. |
 | `bloqueado` en un PR | `cadena.yml` → `etiqueta` | Avisa al dueño en el celular (ver Avisos). |
 | Último issue `ejecutor:codex` de un milestone cerrado | `cadena.yml` → `cierre` | Publica el informe de la etapa (`scripts/informe_cadena.py`) en el issue «Cierre de etapa …» del milestone y avisa al dueño que toca revisar los ADR provisionales. |
-| Cada 15 minutos | `cadena.yml` → `vigilar` | Si un pedido lleva 15 minutos sin que el implementador lo tome (y no está ocupado con otro PR), o lo tomó y no terminó en 75, lo comenta en el PR y avisa al dueño. Una vez por pedido. |
+| Cada 15 minutos | `cadena.yml` → `vigilar` | Si un pedido lleva 15 minutos sin que el implementador lo tome (y no está ocupado con otro PR), o lo tomó y no terminó en 75, lo comenta en el PR y avisa al dueño. También si un PR con `correccion-pendiente` tiene su último pedido cerrado sin un commit posterior y sin una duda abierta en el issue: sin commit no hay CI ni revisión nueva, y nadie la vuelve a pedir. Una vez por pedido. |
 
 Frenos:
 - Hasta dos issues en curso, y el segundo solo si no comparte `modulo:` con el primero (un issue sin `modulo:` va solo). La variable del repo `CADENA_EN_CURSO=1` vuelve a uno por vez.
@@ -32,7 +32,7 @@ Para arrancar una etapa: Actions → Cadena → Run workflow. Para frenarla: des
 
 ### Avisos
 
-Los comentarios de la cadena salen con el token del dueño, y GitHub no le notifica lo que «él mismo» escribe. Por eso la cadena avisa aparte, por [ntfy](https://ntfy.sh): el dueño instala la app, se suscribe a un tema con nombre difícil de adivinar y guarda su URL (`https://ntfy.sh/<tema>`) en el secreto `NOTIFICAR_URL`. Avisa cuando un PR queda `bloqueado` y cuando `vigilar` detecta un pedido demorado; tocar el aviso abre el PR. Sin el secreto, los avisos solo quedan en el registro de Actions y, los de demora, en el PR. El repo es público: los avisos llevan número de PR y motivo, nada privado.
+Los comentarios de la cadena salen con el token del dueño, y GitHub no le notifica lo que «él mismo» escribe. Por eso la cadena avisa aparte, por [ntfy](https://ntfy.sh): el dueño instala la app, se suscribe a un tema con nombre difícil de adivinar y guarda su URL (`https://ntfy.sh/<tema>`) en el secreto `NOTIFICAR_URL`. Avisa cuando un PR queda `bloqueado` y cuando `vigilar` detecta un pedido demorado o una corrección parada; tocar el aviso abre el PR. Sin el secreto, los avisos solo quedan en el registro de Actions y, los de demora, en el PR. El repo es público: los avisos llevan número de PR y motivo, nada privado.
 
 La cadena fusiona con el cuerpo del PR como mensaje, para que el `[skip ci]` del commit vacío de inicio no llegue a main. Para cubrir también las fusiones manuales, el squash del repo debe usar el título y el cuerpo del PR (Settings → General → Pull Requests → «Default to pull request title and description», o `squash_merge_commit_message: PR_BODY`). Mientras use «mensajes de los commits», al fusionar a mano hay que borrar la línea `Inicia codex/issue-N [skip ci]`: si llega a main, salta su CI.
 
@@ -42,7 +42,7 @@ La cadena fusiona con el cuerpo del PR como mensaje, para que el `[skip ci]` del
 
 ### Implementador local (mientras Codex cloud no responda)
 
-Codex cloud responde `@codex review` pero rechaza los demás pedidos desde GitHub con «create an environment for this repo», aunque el entorno exista ([openai/codex#20093](https://github.com/openai/codex/issues/20093)). Hasta que OpenAI lo arregle, `scripts/implementador.py` hace ese paso en la PC del dueño: toma el último pedido de implementar o corregir (marca `<!-- cadena:pedido -->` o `<!-- cadena:corregir -->`) sin atender que dejó la cadena en un PR `codex/issue-N`, corre `codex exec` en un worktree (`.implementador/`, fuera de git), sube el resultado y comenta con la marca `<!-- implementador:hecho -->`. Una duda `NECESITA-CRITERIO:` va al issue como en la cadena. Dos fallos seguidos en un pedido dejan el PR `bloqueado`. Todo lo demás (CI, revisión, Opus, fusión) sigue igual. La cadena no menciona a `@codex` en esos pedidos; `@codex review` sí se mantiene. Cuando OpenAI lo arregle, con la variable `CADENA_MENCIONAR_CODEX=1` en `cadena.yml` los pedidos vuelven a mencionarlo.
+Codex cloud responde `@codex review` pero rechaza los demás pedidos desde GitHub con «create an environment for this repo», aunque el entorno exista ([openai/codex#20093](https://github.com/openai/codex/issues/20093)). Hasta que OpenAI lo arregle, `scripts/implementador.py` hace ese paso en la PC del dueño: toma el último pedido de implementar o corregir (marca `<!-- cadena:pedido -->` o `<!-- cadena:corregir -->`) sin atender que dejó la cadena en un PR `codex/issue-N`, corre `codex exec` en un worktree (`.implementador/`, fuera de git), sube el resultado y comenta con la marca `<!-- implementador:hecho -->`. Una duda `NECESITA-CRITERIO:` va al issue como en la cadena. Terminar sin cambios en la rama y sin esa línea cuenta como fallo del pedido, aunque Codex haya escrito el cuerpo del PR, que entonces no se publica: sin commit la cadena no puede avanzar. Por eso un pedido que solo corrige el cuerpo también termina `bloqueado` y lo resuelve el dueño. Dos fallos seguidos en un pedido dejan el PR `bloqueado`. Todo lo demás (CI, revisión, Opus, fusión) sigue igual. La cadena no menciona a `@codex` en esos pedidos; `@codex review` sí se mantiene. Cuando OpenAI lo arregle, con la variable `CADENA_MENCIONAR_CODEX=1` en `cadena.yml` los pedidos vuelven a mencionarlo.
 
 ```bash
 python scripts/implementador.py            # atiende lo pendiente y termina
@@ -83,7 +83,7 @@ Una sola sesión de Claude Code por etapa con la habilidad `planificar-etapa` (`
 
 ## Qué hace Codex con un pedido
 
-Implementa o corrige solo lo que pide el issue, siguiendo `AGENTS.md`, y deja el cuerpo del PR con la plantilla completa. No hace commit, push, revisiones ni fusiones: los hace la cadena. Si le falta una decisión de diseño, producto, alcance o término, no implementa y responde con una línea `NECESITA-CRITERIO:` y su recomendación.
+Implementa o corrige solo lo que pide el issue, siguiendo `AGENTS.md`, y deja el cuerpo del PR con la plantilla completa. No hace commit, push, revisiones ni fusiones: los hace la cadena. Si le falta una decisión de diseño, producto, alcance o término, no implementa y responde con una línea que empiece exactamente con `NECESITA-CRITERIO:` y su recomendación; dicha de otro modo, la duda no se reconoce.
 
 Las pruebas de MySQL saltadas en local no sustituyen el CI de GitHub. Se mantienen la protección de main y los checks calidad, pruebas, e2e y secretos.
 
