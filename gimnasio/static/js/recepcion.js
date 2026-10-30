@@ -11,6 +11,12 @@ let sondeos = [];
 function dibujarOcupacion(ocupacion) {
   sedeId = ocupacion.sede_id;
   $("[data-ocupacion]").textContent = `${ocupacion.ocupacion_registrada} de ${ocupacion.aforo_maximo}`;
+  for (const barra of document.querySelectorAll("[data-zona-sede]")) {
+    const cantidad = ocupacion.por_zona[barra.dataset.zonaSede];
+    barra.querySelector("progress").max = Math.max(1, ocupacion.ocupacion_registrada);
+    barra.querySelector("progress").value = cantidad;
+    barra.querySelector("span").textContent = cantidad;
+  }
 }
 const $ = (selector) => document.querySelector(selector);
 const control = crearControlDeOperacion();

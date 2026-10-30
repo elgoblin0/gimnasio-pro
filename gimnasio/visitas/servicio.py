@@ -3,6 +3,7 @@
 import json
 from dataclasses import asdict
 from datetime import UTC, datetime, timedelta
+from hashlib import sha256
 from zoneinfo import ZoneInfo
 
 from gimnasio.comun.bd import transaccion
@@ -12,6 +13,7 @@ from gimnasio.comun.ids import desde_bytes, desde_texto
 from gimnasio.comun.reloj import fecha_local, reloj_actual
 from gimnasio.reglas.horarios import calcular_mejores_horarios
 from gimnasio.reglas.permanencia import calcular_permanencia_habitual, es_visita_por_conciliar
+from gimnasio.reglas.zonas_sede import NOMBRES_ZONAS_SEDE, ubicar_en_zona
 from gimnasio.socios.servicio import consultar_membresia, membresia_para_tarjeta
 from gimnasio.visitas import repositorio
 
@@ -186,6 +188,11 @@ def conciliar_salida(entrada_id, datos, usuario):
 
 def _listar_visitas(cursor, ahora):
     filas = repositorio.listar_visitas_abiertas(cursor)
+    series_por_socio = {}
+    for serie in repositorio.listar_series_para_ubicacion(cursor, ahora):
+        series_por_socio.setdefault(serie["socio_id"], []).append(
+            (serie["registrada_en"].replace(tzinfo=UTC), serie["equipo"])
+        )
     historiales = {}
     permanencias = {}
     for fila in filas:
@@ -210,6 +217,9 @@ def _listar_visitas(cursor, ahora):
             {
                 "id": str(desde_bytes(fila["entrada_id"])),
                 "socio_id": str(desde_bytes(fila["socio_id"])),
+                "zona": ubicar_en_zona(
+                    series_por_socio.get(fila["socio_id"], []), ahora, fila["registrada_en"].replace(tzinfo=UTC)
+                ),
                 "nombre": fila["nombre"],
                 "cedula": fila["cedula"],
                 "entrada": fila["registrada_en"].replace(tzinfo=UTC).isoformat(),
@@ -242,10 +252,11 @@ def consultar_ocupacion():
         visitas = _listar_visitas(cursor, ahora)
         return {
             "sede_id": str(desde_bytes(sede["id"])),
-            "version": repositorio.obtener_version(cursor, ahora),
+            "version": _version_ubicacion(cursor, ahora, visitas),
             "ocupacion_registrada": repositorio.contar_ocupacion_registrada(cursor, desde_bytes(sede["id"])),
             "aforo_maximo": sede["aforo_maximo"],
             "por_conciliar": sum(visita["por_conciliar"] for visita in visitas),
+            "por_zona": {zona: sum(visita["zona"] == zona for visita in visitas) for zona in NOMBRES_ZONAS_SEDE},
         }
 
 
@@ -258,8 +269,14 @@ def listar_socios():
 def consultar_visitas():
     ahora = reloj_actual().ahora()
     with transaccion() as cursor:
-        version = repositorio.obtener_version(cursor, ahora)
-        return {"visitas": _listar_visitas(cursor, ahora), "version": version}
+        visitas = _listar_visitas(cursor, ahora)
+        return {"visitas": visitas, "version": _version_ubicacion(cursor, ahora, visitas)}
+
+
+def _version_ubicacion(cursor, ahora, visitas):
+    # El vencimiento de la ubicación puede ocurrir dentro del mismo minuto.
+    ubicacion = sorted((visita["id"], visita["zona"]) for visita in visitas)
+    return repositorio.obtener_version(cursor, ahora) + "-" + sha256(repr(ubicacion).encode()).hexdigest()[:16]
 
 
 def consultar_mejores_horarios():
