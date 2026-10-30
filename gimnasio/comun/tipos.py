@@ -176,3 +176,24 @@ class PermanenciaHabitual:
     mediana: int | None = None
     p25: int | None = None
     p75: int | None = None
+
+
+@dataclass(frozen=True)
+class FranjaPrevista:
+    desde: str
+    hasta: str
+    prevision: float
+    observaciones: int
+
+
+@dataclass(frozen=True)
+class MejoresHorariosDia:
+    franjas: tuple[FranjaPrevista, ...]
+    cerrado: bool = False
+    datos_insuficientes: bool = False
+
+
+@dataclass(frozen=True)
+class MejoresHorarios:
+    hoy: MejoresHorariosDia
+    manana: MejoresHorariosDia

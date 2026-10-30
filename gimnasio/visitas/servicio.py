@@ -1,5 +1,6 @@
 """Entrada atómica: sede, socio, vigencia, visita abierta y aforo, en ese orden."""
 
+import json
 from dataclasses import asdict
 from datetime import UTC, datetime, timedelta
 from zoneinfo import ZoneInfo
@@ -8,6 +9,7 @@ from gimnasio.comun.bd import transaccion
 from gimnasio.comun.errores import ErrorDeDominio
 from gimnasio.comun.ids import desde_bytes, desde_texto
 from gimnasio.comun.reloj import fecha_local, reloj_actual
+from gimnasio.reglas.horarios import calcular_mejores_horarios
 from gimnasio.reglas.permanencia import calcular_permanencia_habitual, es_visita_por_conciliar
 from gimnasio.socios.servicio import consultar_membresia
 from gimnasio.visitas import repositorio
@@ -213,3 +215,27 @@ def consultar_visitas():
     with transaccion() as cursor:
         version = repositorio.obtener_version(cursor, ahora)
         return {"visitas": _listar_visitas(cursor, ahora), "version": version}
+
+
+def consultar_mejores_horarios():
+    ahora = reloj_actual().ahora()
+    with transaccion() as cursor:
+        sede = repositorio.obtener_sede(cursor)
+        if sede is None:
+            raise ErrorDeDominio("sede_inexistente", "La sede no existe.", 404)
+        zona = ZoneInfo(sede["zona_horaria"])
+        ahora_local = ahora.astimezone(zona).replace(tzinfo=None)
+        desde = (ahora_local - timedelta(weeks=8)).replace(tzinfo=zona).astimezone(UTC)
+        filas = repositorio.listar_visitas_confiables(cursor, desde_bytes(sede["id"]), desde, ahora)
+        visitas = tuple(
+            tuple(
+                fila[campo].replace(tzinfo=UTC).astimezone(zona).replace(tzinfo=None)
+                for campo in ("registrada_en", "salida_registrada_en")
+            )
+            for fila in filas
+        )
+        horario_json = json.loads(sede["horario"]) if isinstance(sede["horario"], (str, bytes)) else sede["horario"]
+        horario = tuple(
+            sorted((int(dia), tuple(tuple(franja) for franja in franjas)) for dia, franjas in horario_json.items())
+        )
+        return asdict(calcular_mejores_horarios(visitas, ahora_local, horario))

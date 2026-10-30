@@ -223,3 +223,16 @@ def obtener_version(cursor, ahora):
     fila = cursor.fetchone()
     # El minuto invalida duraciones y visitas por conciliar aunque no haya hechos nuevos.
     return f"{fila['hechos']}-{fila['aforo']}-{int(ahora.timestamp()) // 60}"
+
+
+def listar_visitas_confiables(cursor, sede_id, desde, hasta):
+    """Visitas vigentes cerradas que se superponen al rango; sin salidas estimadas."""
+    cursor.execute(
+        _ESTADOS_VIGENTES
+        + """SELECT registrada_en, salida_registrada_en FROM estados_vigentes
+             WHERE sede_id = %s AND anulada = FALSE AND salida_id IS NOT NULL
+               AND registrada_en < %s AND salida_registrada_en > %s
+               AND salida_registrada_en <= %s AND salida_registrada_en > registrada_en""",
+        (a_bytes(sede_id), _fecha_utc(hasta), _fecha_utc(desde), _fecha_utc(hasta)),
+    )
+    return cursor.fetchall()

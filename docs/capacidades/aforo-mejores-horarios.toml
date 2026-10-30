@@ -2,5 +2,5 @@ id = "aforo-mejores-horarios"
 nombre = "Aforo en vivo y mejores horarios"
 grupo = "Recepción"
 etapa = 3
-nivel = "pendiente"
-prueba = ""
+nivel = "funcional"
+prueba = "pruebas/test_mejores_horarios.py"

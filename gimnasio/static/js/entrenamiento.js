@@ -1,4 +1,5 @@
 import { calcularProgreso } from "@comun/progreso.js";
+import { actualizarMejoresHorarios } from "@comun/horarios.js";
 import { llamarApi } from "@comun/api.js";
 import { formatearCarga, formatearFecha } from "@comun/formatos.js";
 import { cerrarSesion, crearControlDeOperacion } from "@comun/operaciones.js";
@@ -181,6 +182,7 @@ function dibujar(propuesta) {
 async function actualizar(mensaje) {
   if (!autorizada || cargando || control.enCurso) return;
   cargando = true;
+  actualizarMejoresHorarios();
   actualizarBotones();
   if (!control.actual) $("[data-error]").textContent = "";
   $("[data-estado]").textContent = "Cargando tu propuesta…";
