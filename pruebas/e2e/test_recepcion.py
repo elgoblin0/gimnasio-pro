@@ -1,13 +1,32 @@
 """Recepción usa API y MySQL reales en escritorio y celular, con hechos aislados."""
 
 import re
+from datetime import UTC, datetime
 
 import pytest
 
 from gimnasio.comun.bd import transaccion
+from gimnasio.demo.servicio import poner_al_dia
 
 expect = pytest.importorskip("playwright.sync_api").expect
 pytestmark = pytest.mark.e2e
+
+
+def test_visitas_simuladas_a_las_diecinueve_y_entrada_real(pagina_demo, demo_aislada):
+    # Preparar el salto de diez horas fuera de la espera de la interfaz.
+    # La consulta de recepción todavía genera el último minuto por la API real.
+    demo_aislada.app.extensions["reloj"].fijar(datetime(2026, 10, 27, 21, 59, tzinfo=UTC))
+    with demo_aislada.app.app_context():
+        poner_al_dia()
+    demo_aislada.app.extensions["reloj"].fijar(datetime(2026, 10, 27, 22, tzinfo=UTC))
+    ingresar(pagina_demo, demo_aislada)
+    expect(pagina_demo.locator("[data-visitas]").get_by_text("simulada", exact=True).first).to_be_visible()
+    pagina_demo.locator("[data-visitas]").get_by_role("button", name="Ver tarjeta contextual").first.click()
+    expect(pagina_demo.locator("[data-tarjeta-contextual]")).to_contain_text("Socio simulado de la demo")
+    pagina_demo.keyboard.press("Escape")
+    pagina_demo.get_by_role("button", name="Registrar entrada", exact=True).click()
+    expect(pagina_demo.get_by_text("Entrada registrada.", exact=True)).to_be_visible()
+    assert contar(demo_aislada, "entradas") == 1
 
 
 def ingresar(pagina, instancia):

@@ -96,7 +96,7 @@ def test_horario_conserva_la_sede_existente(tmp_path, bd_vacia, reloj_fijo):
             (reloj_fijo.ahora().replace(tzinfo=None),),
         )
         conexion.commit()
-        assert aplicar(bd_vacia, salida=lambda _: None) == ["0018"]
+        assert aplicar(bd_vacia, salida=lambda _: None) == ["0018", "0019"]
         cursor.execute("SELECT nombre, horario FROM sedes")
         sede = cursor.fetchone()
         assert sede["nombre"] == "Sede ficticia"
@@ -130,7 +130,7 @@ def test_avisos_sucesivos_conservan_hechos_de_la_migracion_anterior(tmp_path, bd
         repositorio.insertar_avisos(cursor, socio_id, sesion_id, propuesta, reloj_fijo.ahora())
         cursor.execute("SELECT * FROM avisos_entrenador")
         antes = cursor.fetchall()
-    assert aplicar(bd_vacia, salida=lambda _: None) == ["0016", "0017", "0018"]
+    assert aplicar(bd_vacia, salida=lambda _: None) == ["0016", "0017", "0018", "0019"]
     assert aplicar(bd_vacia, salida=lambda _: None) == []
     with app.app_context(), transaccion() as cursor:
         cursor.execute("SELECT * FROM avisos_entrenador")
@@ -211,6 +211,7 @@ def test_catalogo_y_rango_conserva_semilla_etapa_uno(tmp_path, bd_vacia, reloj_f
             "0016",
             "0017",
             "0018",
+            "0019",
         ]
         cursor.execute("SELECT id, repeticiones_minimas, repeticiones_maximas FROM ejercicios_planificados ORDER BY id")
         assert cursor.fetchall() == [

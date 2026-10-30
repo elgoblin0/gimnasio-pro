@@ -7,6 +7,7 @@ import pytest
 
 from gimnasio.comun.bd import transaccion
 from gimnasio.comun.ids import desde_bytes
+from gimnasio.demo.servicio import poner_al_dia
 
 expect = pytest.importorskip("playwright.sync_api").expect
 pytestmark = [pytest.mark.e2e, pytest.mark.parametrize("ancho,alto", [(1440, 900), (390, 844)])]
@@ -28,6 +29,11 @@ def preparar(pagina, ancho, alto, *, aforo=False):
 def tiempo_de_recorrido(instancia, *, dias=0):
     # Representa el tiempo entre cambios de rol/sesión sin desactivar el límite de la demo.
     instancia.app.extensions["reloj"].avanzar(timedelta(days=dias, minutes=1))
+    if dias:
+        # El salto de días prepara datos; no debe bloquear el servidor de un solo
+        # hilo mientras la interfaz espera una serie o una propuesta.
+        with instancia.app.app_context():
+            poner_al_dia()
 
 
 def ingresar(pagina, instancia, rol):

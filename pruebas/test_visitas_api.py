@@ -230,6 +230,7 @@ def test_salida_cierra_visita_y_lectura_calcula_duracion_sin_escribir(visitas_ap
     assert visitas[0]["entrada"].endswith("+00:00")
     assert visitas[0]["entrada_local"].endswith("-03:00")
     assert set(visitas[0]) == {
+        "simulada",
         "zona",
         "id",
         "socio_id",

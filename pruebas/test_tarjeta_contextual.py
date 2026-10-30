@@ -62,7 +62,8 @@ def test_tarjeta_con_historial(visitas_api, estado):
         "visitas_ultimas_4_semanas",
         "permanencia_habitual",
     }
-    assert set(tarjeta["socio"]) == {"id", "nombre", "apellido", "cedula"}
+    assert set(tarjeta["socio"]) == {"id", "nombre", "apellido", "cedula", "simulada"}
+    assert tarjeta["socio"]["simulada"] is False
     assert tarjeta["socio"]["cedula"] == "9.900.503"
     assert tarjeta["membresia"] == {"vigente": True, "hasta": "2026-10-27", "dias_restantes": 0}
     assert (tarjeta["visita_abierta"] is not None) == (estado == "abierta")
