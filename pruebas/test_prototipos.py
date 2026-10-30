@@ -12,6 +12,7 @@ import pytest
 PROTOTIPOS = Path(__file__).resolve().parent.parent / "prototipos"
 DIRECCIONES = sorted(PROTOTIPOS.glob("direccion-*/index.html"))
 CUERPOS = sorted(PROTOTIPOS.glob("cuerpo-3d/*/index.html"))
+ESCENAS = sorted(PROTOTIPOS.glob("escena-ocupacion/*/index.html"))
 CASOS = """
 const chequeo = (sueno, energia, dolor) => ({ sueno, energia, dolor });
 console.log(JSON.stringify({
@@ -46,14 +47,29 @@ def test_permanece_b_y_se_retiro_a():
     assert {"--superficie", "--texto", "--acento", "--freno", "--foco"} <= tokens_semanticos(b)
 
 
-@pytest.mark.parametrize("archivo", DIRECCIONES + CUERPOS, ids=lambda d: d.parent.name)
+@pytest.mark.parametrize("archivo", DIRECCIONES + CUERPOS + ESCENAS, ids=lambda d: d.parent.name)
 def test_sin_recursos_externos_y_con_movimiento_reducido(archivo):
     html = leer(archivo)
     assert not re.search(r"""(src|href)=["']https?:|url\(["']?https?:""", html)
-    assert "prefers-reduced-motion: reduce" in html or (
-        archivo in CUERPOS and "prefers-reduced-motion: reduce" in leer(PROTOTIPOS / "cuerpo-3d/cuerpo.css")
+    assert (
+        "prefers-reduced-motion: reduce" in html
+        or (archivo in CUERPOS and "prefers-reduced-motion: reduce" in leer(PROTOTIPOS / "cuerpo-3d/cuerpo.css"))
+        or (archivo in ESCENAS and "prefers-reduced-motion: reduce" in leer(PROTOTIPOS / "escena-ocupacion/escena.css"))
     )
     assert "Demo · datos ficticios" in html
+
+
+def test_escena_ocupacion_compara_dos_direcciones_con_los_mismos_datos():
+    assert {p.parent.name for p in ESCENAS} == {"a", "b"}
+    datos = json.loads(leer(PROTOTIPOS / "escena-ocupacion/personas.json"))
+    assert len(datos["personas"]) == 40
+    assert datos["aforo_maximo"] >= 40
+    assert len({p["id"] for p in datos["personas"]}) == 40
+    assert {p["zona"] for p in datos["personas"]} == {"Musculación", "Peso libre", "Cardio", "Funcional", "En la sede"}
+    assert {p["simulada"] for p in datos["personas"]} == {True, False}
+    assert all(p["minutos"] >= 0 for p in datos["personas"])
+    for archivo in ESCENAS:
+        assert 'src="../escena.js"' in leer(archivo)
 
 
 def test_cuerpo_3d_tiene_dos_versiones_y_las_zonas_del_catalogo():
