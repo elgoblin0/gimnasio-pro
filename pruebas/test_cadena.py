@@ -180,3 +180,96 @@ def test_la_etapa_termina_cuando_no_quedan_issues_de_codex_abiertos():
     cierres = [{"number": 141, "title": "Especificación: Etapa 3"}, {"number": 154, "title": "Cierre de etapa 3"}]
     assert cadena.issue_de_cierre(cierres)["number"] == 154
     assert cadena.issue_de_cierre(cierres[:1]) is None
+
+
+def revision_de(cuenta, minuto, estado="CHANGES_REQUESTED", id_revision=1):
+    return {
+        "id": id_revision,
+        "state": estado,
+        "user": {"login": cuenta},
+        "submitted_at": f"2026-10-30T21:{minuto:02d}:00Z",
+    }
+
+
+def evento_de_etiqueta(nombre, minuto, cuenta="claude[bot]"):
+    return {
+        "event": "labeled",
+        "label": {"name": nombre},
+        "actor": {"login": cuenta},
+        "created_at": f"2026-10-30T21:{minuto:02d}:00Z",
+    }
+
+
+APROBACION_OPUS = evento_de_etiqueta("revisado:opus", 56)
+
+
+def test_la_aprobacion_de_opus_es_la_ultima_vez_que_se_puso_su_etiqueta():
+    eventos = [
+        evento_de_etiqueta("revisado:opus", 10),
+        {"event": "unlabeled", "label": {"name": "revisado:opus"}, "created_at": "2026-10-30T21:20:00Z"},
+        evento_de_etiqueta("revisado:codex", 40),
+        APROBACION_OPUS,
+        {"event": "reviewed", "created_at": "2026-10-30T21:57:00Z"},
+    ]
+    assert cadena.aprobacion_de_opus(eventos) == APROBACION_OPUS
+    assert cadena.aprobacion_de_opus(eventos[1:3]) is None
+
+
+def test_solo_se_descartan_los_pedidos_de_cambios_de_opus_anteriores_a_su_aprobacion():
+    anterior = revision_de("claude[bot]", 29, id_revision=1)
+    revisiones = [
+        anterior,
+        revision_de("elgoblin0", 30, id_revision=2),
+        revision_de("chatgpt-codex-connector[bot]", 31, id_revision=3),
+        revision_de("claude[bot]", 32, estado="COMMENTED", id_revision=4),
+        revision_de("claude[bot]", 33, estado="DISMISSED", id_revision=5),
+        revision_de("claude[bot]", 56, id_revision=6),  # mismo minuto que la aprobación: no se sabe cuál fue antes
+        revision_de("claude[bot]", 58, id_revision=7),  # Opus cambió de opinión: sigue frenando
+        {**revision_de("claude[bot]", 34, id_revision=8), "user": None},  # cuenta borrada
+    ]
+    assert cadena.revisiones_a_descartar(revisiones, APROBACION_OPUS) == [anterior]
+    assert cadena.revisiones_a_descartar(revisiones, None) == []
+
+
+def correr_etiqueta(monkeypatch, etiquetas, revisiones, eventos, archivos=("gimnasio/reglas/motor.py",)):
+    """Corre `etiqueta` sin red; devuelve las llamadas a `gh` que cambian algo, en orden."""
+    monkeypatch.setenv("GITHUB_REPOSITORY", "dueno/repo")
+    pr = {"number": 40, "body": "Closes #7", "labels": [{"name": e} for e in etiquetas]}
+    monkeypatch.setattr(cadena, "prs_de_codex", lambda: [pr])
+    monkeypatch.setattr(cadena, "archivos_del_pr", lambda numero: list(archivos))
+
+    def gh_json(*argumentos):
+        return [eventos] if "issues/40/events" in argumentos[1] else revisiones
+
+    llamadas = []
+    monkeypatch.setattr(cadena, "gh_json", gh_json)
+    monkeypatch.setattr(cadena, "gh", lambda *argumentos: llamadas.append(argumentos) or "")
+    cadena.etiqueta(40, "revisado:opus")
+    return llamadas
+
+
+def test_un_pedido_de_cambios_viejo_de_opus_se_descarta_antes_de_activar_la_fusion(monkeypatch):
+    """En #191 quedó CHANGES_REQUESTED con ambas etiquetas y el CI en verde, y hubo que descartarlo a mano."""
+    revisiones = [revision_de("claude[bot]", 29, id_revision=5718861186), revision_de("elgoblin0", 30, id_revision=2)]
+    llamadas = correr_etiqueta(monkeypatch, {"revisado:codex", "revisado:opus"}, revisiones, [APROBACION_OPUS])
+    descartes = [i for i, c in enumerate(llamadas) if "/dismissals" in " ".join(c)]
+    fusiones = [i for i, c in enumerate(llamadas) if c[:2] == ("pr", "merge")]
+    assert len(descartes) == 1 and len(fusiones) == 1 and descartes[0] < fusiones[0]
+    descarte = " ".join(llamadas[descartes[0]])
+    assert "pulls/40/reviews/5718861186/dismissals" in descarte
+    assert "revisado:opus" in descarte and "claude[bot]" in descarte
+
+
+def test_sin_aprobacion_de_opus_no_se_descarta_nada(monkeypatch):
+    """Un PR que dejó de ser sensible se fusiona sin `revisado:opus`: el pedido de cambios sigue frenando."""
+    llamadas = correr_etiqueta(
+        monkeypatch, {"revisado:codex"}, [revision_de("claude[bot]", 29)], [], archivos=("gimnasio/socio/rutas.py",)
+    )
+    assert not any("/dismissals" in " ".join(c) for c in llamadas)
+    assert any(c[:2] == ("pr", "merge") for c in llamadas)
+
+
+def test_sin_pedidos_de_cambios_la_fusion_se_activa_sin_descartar(monkeypatch):
+    llamadas = correr_etiqueta(monkeypatch, {"revisado:codex", "revisado:opus"}, [], [APROBACION_OPUS])
+    assert not any("/dismissals" in " ".join(c) for c in llamadas)
+    assert any(c[:2] == ("pr", "merge") for c in llamadas)
