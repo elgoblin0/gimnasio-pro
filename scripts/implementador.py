@@ -689,10 +689,13 @@ def atender(pr, pedido, nivel=None):
     informe, bien = verificar(carpeta)
     paso("\n".join(informe))
     paso("Haciendo commit y push de los cambios…")
-    if not subir_cambios(carpeta, rama, f"{pr['title']} (#{numero_issue})"):
+    if subir_cambios(carpeta, rama, f"{pr['title']} (#{numero_issue})"):
+        resumen = git("show", "--stat", "--format=", "HEAD", cwd=carpeta).stdout.strip()
+        paso(f"Cambios subidos:\n{resumen}")
+    elif cuerpo:  # el pedido era solo corregir el cuerpo del PR: no hay código que subir
+        paso("Sin cambios de código: el pedido solo corregía el cuerpo del PR.")
+    else:
         raise RuntimeError(f"Codex terminó con código {codigo} y no dejó cambios que subir.\n\n{texto[-1500:]}")
-    resumen = git("show", "--stat", "--format=", "HEAD", cwd=carpeta).stdout.strip()
-    paso(f"Cambios subidos:\n{resumen}")
     if cuerpo:
         paso("Actualizando el cuerpo del PR…")
         cadena.gh("pr", "edit", str(numero), "--body", cuerpo)
