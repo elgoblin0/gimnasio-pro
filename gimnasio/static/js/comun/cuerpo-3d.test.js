@@ -6,17 +6,23 @@ import { crearSelectorZonas } from "./zonas.js";
 // Sustituye solo WebGL y la descarga: la selección y el relevo del foco son reales.
 const moduloThree = `
   class Objeto {
-    constructor() { this.position = { set() {} }; this.color = { set() {} }; }
+    constructor() {
+      this.position = { set() {} }; this.rotation = { y: 0 }; this.color = { set() {} }; this.groundColor = { set() {} };
+      this.geometry = { dispose() {} }; this.attributes = { position: { clone() {} } }; this.uniforms = { uOpacidad: {} };
+    }
     add() {} lookAt() {} updateProjectionMatrix() {} dispose() {}
     setPixelRatio() {} setSize() {} render() {}
+    set() { return this; } toArray() {} project() {} scale() {} translate() {} setAttribute() {}
   }
   export { Objeto as WebGLRenderer, Objeto as Scene, Objeto as Group,
     Objeto as PerspectiveCamera, Objeto as HemisphereLight,
-    Objeto as DirectionalLight, Objeto as MeshStandardMaterial };
+    Objeto as DirectionalLight, Objeto as MeshStandardMaterial,
+    Objeto as Mesh, Objeto as CircleGeometry, Objeto as RingGeometry, Objeto as ShaderMaterial,
+    Objeto as MeshBasicMaterial, Objeto as Color, Objeto as Vector3 };
   export const DoubleSide = 2;
 `;
 const moduloModelo = `export class GLTFLoader {
-  async loadAsync() { return { scene: { updateMatrixWorld() {}, traverse() {} } }; }
+  async loadAsync(url) { globalThis.modeloPedido = url; return { scene: { updateMatrixWorld() {}, traverse() {} } }; }
 }`;
 registerHooks({
   resolve(nombre, contexto, siguiente) {
@@ -51,13 +57,15 @@ function crearDocumento() {
         setAttribute(clave, valor) { this.atributos[clave] = valor; },
         getAttribute(clave) { return this.atributos[clave]; },
         append(...hijos) { this.hijos.push(...hijos); },
+        replaceChildren(...hijos) { this.hijos = hijos; },
+        before() {},
         prepend(hijo) { this.hijos.unshift(hijo); },
         addEventListener(tipo, funcion) { this.eventos[tipo] = funcion; },
         dispatchEvent(evento) { this.eventos[evento.type]?.(evento); },
         click() { if (!this.disabled) this.dispatchEvent({ type: "click" }); },
         focus() { documento.activeElement = this; },
         getContext() { return null; },
-        getBoundingClientRect() { return { width: 500 }; },
+        getBoundingClientRect() { return { width: 500, height: 400 }; },
         querySelector(nombre) { return this.hijos.find(hijo => hijo.nombre === nombre); },
         querySelectorAll() { return this.hijos.filter(hijo => hijo.getAttribute("data-zona")); },
       };
@@ -102,4 +110,14 @@ test("cargar el cuerpo 3D entre presionar y soltar Espacio conserva Rodillas sel
   pulsar(control, "keydown", " ");
   control.click();
   assert.deepEqual(selector.zonas(), ["rodillas"]);
+});
+
+test("cada figura carga su modelo y una desconocida usa la masculina", async () => {
+  for (const [figura, archivo] of [["femenina", "femenina.glb"], ["masculina", "masculina.glb"], ["otra", "masculina.glb"]]) {
+    const documento = crearDocumento();
+    const contenedor = documento.createElement("div");
+    crearSelectorZonas(contenedor);
+    await crearCuerpo(contenedor, contenedor.querySelector("svg"), true, figura);
+    assert.ok(globalThis.modeloPedido.endsWith(`/vendor/cuerpo@2/${archivo}`), globalThis.modeloPedido);
+  }
 });

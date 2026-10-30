@@ -120,6 +120,9 @@ Ejercicio que puede reemplazar a otro porque comparte patrón de movimiento con 
 Región muscular o articular de una lista fija, común al dolor reportado, las restricciones de salud, los ejercicios y el cuerpo 3D.
 _Evitar_: Grupo muscular, parte del cuerpo.
 
+**Figura del cuerpo**:
+Forma con que se muestra el cuerpo 3D: masculina o femenina. La elige cada persona y solo cambia la imagen, no las zonas del cuerpo ni las reglas de entrenamiento (ADR 0020).
+
 **Incremento de carga**:
 Paso fijo en que sube o baja la carga de un ejercicio, según su equipamiento. El tope de suba semanal es un incremento por ejercicio.
 

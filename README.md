@@ -83,6 +83,7 @@ app.py                   entrada local mínima
 |---|---|---|
 | GET | `/api/estado` | Estado del servicio |
 | GET, POST, DELETE | `/api/sesion` | Consultar, iniciar o cerrar sesión de usuario |
+| PUT | `/api/sesion/figura-cuerpo` | Cada usuario elige la figura de su cuerpo 3D |
 | POST | `/api/entradas`, `/api/salidas` | Recepción registra hechos |
 | GET | `/api/visitas?abiertas=1`, `/api/ocupacion`, `/api/visitas/socios` | Recepción consulta visitas, aforo y socios |
 | GET | `/api/entrenamiento/propuesta` | Propuesta del propio socio |

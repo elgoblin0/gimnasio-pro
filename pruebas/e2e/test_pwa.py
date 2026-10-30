@@ -84,7 +84,7 @@ def contenido_cache(pagina):
 
 def test_controla_raiz_y_cachea_solo_la_lista_publica(contexto_pwa, servidor_pwa):
     url, _, _ = servidor_pwa
-    rutas_diferidas = ("/js/comun/cuerpo-3d.js", "/vendor/three@0.186.0/", "/vendor/cuerpo@1/")
+    rutas_diferidas = ("/js/comun/cuerpo-3d.js", "/vendor/three@0.186.0/", "/vendor/cuerpo@2/")
     solicitudes = []
     contexto_pwa.on("request", lambda solicitud: solicitudes.append(solicitud.url.removeprefix(url)))
     pagina = abrir_controlada(contexto_pwa, url)

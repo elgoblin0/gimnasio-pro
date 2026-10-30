@@ -1,3 +1,5 @@
+import { llamarApi } from "./api.js";
+
 // Las mismas zonas del cuerpo que el motor; coordenadas de frente y espalda.
 export const ZONAS_CUERPO = Object.freeze([
   ["pecho", "Pecho", "M65 85 H135 V125 H65 Z"],
@@ -100,7 +102,17 @@ function mejorarCuerpo(contenedor, svg, seleccionable) {
   try { contexto = prueba.getContext("webgl2"); } catch { return; }
   if (!contexto) return;
   contexto.getExtension("WEBGL_lose_context")?.loseContext();
-  import("./cuerpo-3d.js").then(({ crearCuerpo }) => {
-    if (svg.isConnected) return crearCuerpo(contenedor, svg, seleccionable);
+  import("./cuerpo-3d.js").then(async ({ crearCuerpo }) => {
+    const usuario = await usuarioDeLaSesion();
+    if (svg.isConnected) return crearCuerpo(contenedor, svg, seleccionable, usuario?.figura_cuerpo, usuario ? guardarFigura : undefined);
   }).catch(() => {}); // La silueta conserva su función si falla la carga.
+}
+
+// Una página puede abrir varios cuerpos: comparten la sesión y la figura elegida en cualquiera de ellos.
+let sesion;
+const usuarioDeLaSesion = () => sesion ??= llamarApi("/api/sesion").then((datos) => datos.usuario).catch(() => null);
+
+async function guardarFigura(figura) {
+  const { usuario } = await llamarApi("/api/sesion/figura-cuerpo", { metodo: "PUT", cuerpo: { figura_cuerpo: figura } });
+  sesion = Promise.resolve(usuario);
 }

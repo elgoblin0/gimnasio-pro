@@ -102,14 +102,15 @@ test("el cuerpo 3D y sus recursos se piden por red sin agregarse a la caché ini
   const sw = entorno();
   await sw.ciclo("install");
   const inicial = [...sw.almacen.get("gimnasio-estaticos-1").keys()];
-  assert.ok(inicial.every((ruta) => !/\/(js\/comun\/cuerpo-3d\.js|vendor\/(three@0\.186\.0|cuerpo@1)\/)/.test(ruta)));
+  assert.ok(inicial.every((ruta) => !/\/(js\/comun\/cuerpo-3d\.js|vendor\/(three@0\.186\.0|cuerpo@2)\/)/.test(ruta)));
   const rutas = [
     "/js/comun/cuerpo-3d.js",
     "/vendor/three@0.186.0/three.module.js",
     "/vendor/three@0.186.0/three.core.js",
     "/vendor/three@0.186.0/loaders/GLTFLoader.js",
     "/vendor/three@0.186.0/utils/BufferGeometryUtils.js",
-    "/vendor/cuerpo@1/cuerpo.glb",
+    "/vendor/cuerpo@2/masculina.glb",
+    "/vendor/cuerpo@2/femenina.glb",
   ];
   for (const ruta of rutas) {
     assert.ok(!inicial.includes(ORIGEN + ruta));

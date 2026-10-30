@@ -21,6 +21,7 @@ SEGUNDOS_DE_ESPERA_DEL_CANDADO = 10
 MAX_FALLIDOS_POR_IP = 20
 LARGO_MINIMO_DE_CLAVE = 8
 TIPOS_DE_CONSENTIMIENTO = ("datos_personales", "salud", "imagen")
+FIGURAS_CUERPO = ("masculina", "femenina")
 
 
 @cache
@@ -46,6 +47,7 @@ def _publico(fila):
         "nombre": fila["nombre"],
         "apellido": fila["apellido"],
         "es_demo": bool(fila["es_demo"]),
+        "figura_cuerpo": fila["figura_cuerpo"],
     }
 
 
@@ -144,6 +146,19 @@ def usuario_actual():
     return usuario
 
 
+def cambiar_figura_cuerpo(figura):
+    """Cada usuario elige la suya; solo cambia cómo se ve su cuerpo 3D (ADR 0020)."""
+    usuario = usuario_actual()
+    if usuario is None:
+        raise ErrorDeDominio("sin_sesion", "Tenés que iniciar sesión.", 401)
+    if figura not in FIGURAS_CUERPO:
+        raise ErrorDeDominio("figura_invalida", "Elegí una figura masculina o femenina.", 422)
+    with transaccion() as cursor:
+        repositorio.actualizar_figura_cuerpo(cursor, desde_texto(usuario["id"]), figura, reloj_actual().ahora())
+    g.usuario = {**usuario, "figura_cuerpo": figura}
+    return g.usuario
+
+
 def requiere(permiso):
     """Decorador de rutas: 401 sin sesión, 403 si el rol no tiene el permiso de la matriz."""
     puede(ROLES[0], permiso)  # falla al importar si el permiso no existe
@@ -179,6 +194,8 @@ def crear_usuario(cursor, persona, rol, clave=None, es_demo=False, *, identifica
     repositorio.insertar_persona(cursor, persona_id, datos, ahora)
     clave_hash = generate_password_hash(clave) if clave else None
     repositorio.insertar_usuario(cursor, usuario_id, persona_id, rol, clave_hash, es_demo, ahora)
+    if datos.get("figura_cuerpo"):
+        repositorio.actualizar_figura_cuerpo(cursor, usuario_id, datos["figura_cuerpo"], ahora)
     return usuario_id
 
 

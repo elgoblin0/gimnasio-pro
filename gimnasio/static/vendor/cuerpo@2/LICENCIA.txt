@@ -1,0 +1,7 @@
+Human Base Meshes, Blender Studio y colaboradores de la comunidad de Blender.
+https://www.blender.org/download/demo-files/
+
+License:
+CC0 1.0 Universal (CC0 1.0)
+Public Domain Dedication
+https://creativecommons.org/publicdomain/zero/1.0/

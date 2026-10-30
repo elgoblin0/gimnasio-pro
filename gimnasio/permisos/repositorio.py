@@ -4,7 +4,7 @@ from gimnasio.comun.ids import a_bytes
 
 COLUMNAS_USUARIO = """
     u.id, u.rol, u.clave_hash, u.es_demo, u.activo,
-    p.id AS persona_id, p.nombre, p.apellido, p.cedula, p.correo
+    p.id AS persona_id, p.nombre, p.apellido, p.cedula, p.correo, p.figura_cuerpo
 """
 
 
@@ -57,6 +57,14 @@ def insertar_persona(cursor, persona_id, datos, momento):
             momento,
             momento,
         ),
+    )
+
+
+def actualizar_figura_cuerpo(cursor, usuario_id, figura, momento):
+    cursor.execute(
+        """UPDATE personas p JOIN usuarios u ON u.persona_id = p.id
+           SET p.figura_cuerpo = %s, p.actualizada_en = %s WHERE u.id = %s""",
+        (figura, momento, a_bytes(usuario_id)),
     )
 
 

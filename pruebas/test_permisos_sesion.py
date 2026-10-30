@@ -25,6 +25,29 @@ def entrar(cliente, identificador, clave=CLAVE):
     return cliente.post("/api/sesion", json={"identificador": identificador, "clave": clave}, headers=CABECERA)
 
 
+def test_cada_usuario_guarda_su_figura_del_cuerpo(app_con_bd):
+    crear(app_con_bd, "socio", "4567891")
+    cliente = app_con_bd.test_client()
+    claves = {**CABECERA, "Idempotency-Key": "0193a000-0000-7000-8000-000000000001"}
+    assert (
+        cliente.put("/api/sesion/figura-cuerpo", json={"figura_cuerpo": "femenina"}, headers=claves).status_code == 401
+    )
+
+    assert entrar(cliente, "4567891").get_json()["usuario"]["figura_cuerpo"] is None
+    invalida = cliente.put("/api/sesion/figura-cuerpo", json={"figura_cuerpo": "otra"}, headers=claves)
+    assert invalida.status_code == 422
+    assert (
+        cliente.put("/api/sesion/figura-cuerpo", json={"figura_cuerpo": "femenina"}, headers=CABECERA).status_code
+        == 428
+    )
+
+    otra_clave = {**CABECERA, "Idempotency-Key": "0193a000-0000-7000-8000-000000000002"}
+    respuesta = cliente.put("/api/sesion/figura-cuerpo", json={"figura_cuerpo": "femenina"}, headers=otra_clave)
+    assert respuesta.status_code == 200
+    assert respuesta.get_json()["usuario"]["figura_cuerpo"] == "femenina"
+    assert cliente.get("/api/sesion").get_json()["usuario"]["figura_cuerpo"] == "femenina"
+
+
 def test_inicia_sesion_con_cedula_o_correo_y_la_cierra(app_con_bd):
     crear(app_con_bd, "recepcion", "4567890", correo="Rocio@Demo.Gimnasio.invalid", nombre="Rocío")
     cliente = app_con_bd.test_client()
