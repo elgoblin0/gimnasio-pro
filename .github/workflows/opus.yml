@@ -67,6 +67,23 @@ jobs:
             | grep -qE '^(gimnasio/reglas/|migraciones/|gimnasio/comun/migrar\.py|gimnasio/permisos/|gimnasio/salud/)'; then
             echo "si=true" >> "$GITHUB_OUTPUT"
           fi
+      - name: Lo nuevo desde la última revisión de Opus
+        id: previa
+        if: steps.sensible.outputs.si == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
+          HEAD: ${{ github.event.pull_request.head.sha }}
+        # Tras una corrección que pidió Opus, releer el diff entero gasta cupo de Claude: alcanza con lo nuevo
+        # en los archivos del PR (la fusión con main que hace el implementador no cuenta).
+        run: |
+          previa=$(gh api "repos/${{ github.repository }}/issues/$PR/comments?per_page=100" \
+            --jq '[.[] | (.body // "") | capture("<!-- opus:revisado (?<sha>[0-9a-f]{40}) -->") | .sha] | last // empty' || true)
+          if [ -n "$previa" ] && git fetch --no-tags --depth=1 origin "$previa" "$HEAD"; then
+            archivos=$(gh pr diff "$PR" --repo "${{ github.repository }}" --name-only)
+            git diff "$previa" "$HEAD" -- $archivos > diff-desde-opus.txt
+            echo "previa=$previa" >> "$GITHUB_OUTPUT"
+          fi
       - if: steps.sensible.outputs.si == 'true'
         uses: anthropics/claude-code-action@v1
         with:
@@ -76,8 +93,7 @@ jobs:
             PR: #${{ github.event.pull_request.number }}
 
             Sos Opus en Gimnasio Pro y revisás un PR que toca rutas sensibles (AGENTS.md).
-            Leé solo el diff (`gh pr diff ${{ github.event.pull_request.number }}`), el issue que cierra
-            y los ADR que el diff toca. No leas el repo entero.
+            ${{ steps.previa.outputs.previa && format('Ya revisaste este PR en {0} y pediste correcciones. Leé solo `diff-desde-opus.txt` (lo que cambió desde entonces en los archivos del PR) y tus hallazgos anteriores en los comentarios (`gh pr view {1} --comments`). Abrí el diff entero solo si lo nuevo lo exige.', steps.previa.outputs.previa, github.event.pull_request.number) || format('Leé solo el diff (`gh pr diff {0}`), el issue que cierra y los ADR que el diff toca. No leas el repo entero.', github.event.pull_request.number) }}
             - Si está bien: poné la etiqueta `revisado:opus` en el PR.
             - Si no: dejá una revisión con hallazgos concretos y accionables y poné `correccion-pendiente`
               en el PR, sin quitar `revisado:codex`. La cadena se lo pasa a Codex.
@@ -95,3 +111,15 @@ jobs:
           gh pr view "$PR" --repo "${{ github.repository }}" --json labels --jq '.labels[].name' \
             | grep -qxE 'revisado:opus|correccion-pendiente' \
             || { echo "Opus no dejó dictamen (ni revisado:opus ni correccion-pendiente)."; exit 1; }
+      - name: Recordar hasta qué commit revisó Opus
+        if: steps.sensible.outputs.si == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
+          HEAD: ${{ github.event.pull_request.head.sha }}
+        # Solo si pidió correcciones: la próxima revisión parte de acá (paso «Lo nuevo desde la última revisión»).
+        run: |
+          if gh pr view "$PR" --repo "${{ github.repository }}" --json labels --jq '.labels[].name' | grep -qx correccion-pendiente; then
+            gh pr comment "$PR" --repo "${{ github.repository }}" \
+              --body "<!-- opus:revisado $HEAD -->Opus revisó hasta \`${HEAD:0:7}\`: la próxima revisión lee solo lo nuevo."
+          fi

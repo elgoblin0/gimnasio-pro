@@ -1,6 +1,6 @@
 ---
 name: dividir-en-tickets
-description: Partir una especificación o un plan de Gimnasio Pro en tickets de bala trazadora para Codex, publicarlos en GitHub con sus dependencias y entregar un prompt por ticket. Usar después de escribir-especificacion, o cuando el dueño pide tickets.
+description: Partir una especificación o un plan de Gimnasio Pro en tickets de bala trazadora para Codex, publicarlos en GitHub con sus dependencias para que los tome la cadena. Usar después de escribir-especificacion, o cuando el dueño pide tickets.
 ---
 
 ## 1. Contexto
@@ -13,7 +13,7 @@ Cada ticket es una **bala trazadora**:
 
 - atraviesa todas las capas que necesita (migración, repositorio, servicio, rutas, pantalla, pruebas): vertical, nunca una capa sola;
 - terminado, se puede demostrar o verificar por sí mismo;
-- cabe en un chat nuevo de Codex;
+- cabe en un solo pedido de Codex;
 - las prefactorizaciones van primero.
 
 Cada ticket declara sus **bloqueos**: los tickets que tienen que estar fusionados antes de empezarlo.
@@ -49,18 +49,10 @@ EOF
 
 - `Depende de:` en esa forma exacta, vacío si no hay bloqueos; no uses las dependencias nativas de GitHub.
 - `tipo:patron` si es la primera instancia de un patrón: la Especificación lo describe completo.
-- Un `modulo:*` existente (`gh label list`); si ninguno sirve, preguntale al dueño antes de crear uno.
+- Todos los `modulo:*` existentes que toca (`gh label list`): la cadena corre dos tickets en paralelo solo si no comparten módulo, y uno sin `modulo:` va solo. Si ninguno sirve, preguntale al dueño antes de crear uno.
 
-## 5. Prompts para Codex
+## 5. Cierre
 
-Entregá un prompt por ticket, en orden de dependencias, cada uno en su propio bloque para copiar:
+No escribas prompts para Codex: la cadena toma sola cada ticket `estado:listo` cuando sus dependencias están cerradas (`docs/protocolo-agentes.md`). Decile al dueño qué tickets tocan rutas sensibles (esos PR esperan además la revisión de Opus) y, si no hay ningún issue en curso, que arranque la cadena desde Actions → Cadena → Run workflow.
 
-```
-Implementá el issue #N de elgoblin0/gimnasio-pro. Leelo con `gh issue view N --comments`.
-Seguí AGENTS.md y docs/protocolo-agentes.md. Corré ruff y pytest,
-abrí el PR con la plantilla y pedí la revisión a un subagente de Codex.
-```
-
-Agregá una o dos líneas solo cuando haya una trampa o una decisión que el ticket no alcanza a decir. Marcá qué tickets tocan rutas sensibles: esos PR esperan además la revisión de Opus.
-
-Terminado: todos los tickets aprobados están publicados y cada uno tiene su prompt.
+Terminado: todos los tickets aprobados están publicados con sus dependencias y sus módulos.
