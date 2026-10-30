@@ -51,7 +51,7 @@ No reinicia si las migraciones fallan. Las ejecuciones del workflow no se superp
 
 Solo en modo demo:
 
-- 60 solicitudes por IP en una ventana móvil de un minuto, incluyendo archivos y rutas inexistentes.
+- 240 solicitudes por IP en una ventana móvil de un minuto, incluyendo archivos y rutas inexistentes.
   Al superar el límite responde 429 con `Retry-After`.
 - Cuerpo máximo de 1 MB (1.000.000 bytes). Al superar el límite responde 413, incluso en rutas
   que no leen el cuerpo y en transferencias sin `Content-Length` con fin de flujo indicado por WSGI.
@@ -76,7 +76,7 @@ y 5. Los demás pasos son manuales.
 2. Abrir la URL HTTPS de Render y `/api/estado`; debe responder `modo_demo: true`.
 3. Comprobar el aviso de datos ficticios y los accesos rápidos por rol.
 4. Verificar desde dos IP distintas que cada una tiene su cupo, incluso si se envía un
-   `X-Forwarded-For` arbitrario. Comprobar 429 después de 60 solicitudes en menos de un minuto,
+   `X-Forwarded-For` arbitrario. Comprobar 429 después de 240 solicitudes en menos de un minuto,
    esperar el plazo de `Retry-After` y volver a entrar.
 5. Enviar un cuerpo de más de 1.000.000 bytes desde una IP con cupo y comprobar 413.
 6. Confirmar al día siguiente la ejecución programada y la restauración de la semilla ficticia.

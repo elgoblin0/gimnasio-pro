@@ -24,9 +24,9 @@ def crear_demo(reloj, **config):
     return app
 
 
-def test_la_demo_admite_60_solicitudes_por_minuto_y_por_ip(reloj_fijo):
+def test_la_demo_admite_240_solicitudes_por_minuto_y_por_ip(reloj_fijo):
     cliente = crear_demo(reloj_fijo).test_client()
-    for _ in range(60):
+    for _ in range(240):
         assert cliente.get("/api/estado").status_code == 200
     respuesta = cliente.get("/api/estado")
     assert respuesta.status_code == 429
@@ -42,22 +42,22 @@ def test_la_demo_admite_60_solicitudes_por_minuto_y_por_ip(reloj_fijo):
 
 def test_la_ventana_es_movil_y_los_rechazos_no_extienden_la_espera(reloj_fijo):
     cliente = crear_demo(reloj_fijo).test_client()
-    for _ in range(30):
+    for _ in range(120):
         cliente.get("/api/estado")
     reloj_fijo.avanzar(timedelta(seconds=30))
-    for _ in range(30):
+    for _ in range(120):
         cliente.get("/api/estado")
     reloj_fijo.avanzar(timedelta(seconds=29))
     assert cliente.get("/api/estado").headers["Retry-After"] == "1"
     reloj_fijo.avanzar(timedelta(seconds=1))
-    for _ in range(30):
+    for _ in range(120):
         assert cliente.get("/api/estado").status_code == 200
     assert cliente.get("/api/estado").status_code == 429
 
 
 def test_los_archivos_y_las_rutas_inexistentes_comparten_el_limite(reloj_fijo):
     cliente = crear_demo(reloj_fijo).test_client()
-    for _ in range(30):
+    for _ in range(120):
         assert cliente.get("/").status_code == 200
         assert cliente.get("/no-existe").status_code == 404
     assert cliente.get("/api/estado").status_code == 429
@@ -70,8 +70,8 @@ def test_las_solicitudes_simultaneas_no_esquivan_el_limite(reloj_fijo):
         return app.test_client().get("/api/estado").status_code
 
     with ThreadPoolExecutor(max_workers=8) as hilos:
-        estados = list(hilos.map(solicitar, range(80)))
-    assert estados.count(200) == 60
+        estados = list(hilos.map(solicitar, range(260)))
+    assert estados.count(200) == 240
     assert estados.count(429) == 20
 
 
@@ -124,7 +124,7 @@ def test_controla_el_tamano_sin_content_length(reloj_fijo, cantidad, estado):
 
 def test_fuera_de_demo_no_aplica_ninguno_de_los_limites(reloj_fijo):
     cliente = crear_demo(reloj_fijo, MODO_DEMO=False).test_client()
-    for _ in range(61):
+    for _ in range(241):
         assert cliente.get("/api/estado").status_code == 200
     respuesta = cliente.get("/api/prueba/cuerpo", data=b"x" * 1_000_001, headers={"X-Gimnasio": "1"})
     assert respuesta.status_code == 200
@@ -132,7 +132,7 @@ def test_fuera_de_demo_no_aplica_ninguno_de_los_limites(reloj_fijo):
 
 def test_en_render_separa_las_ip_de_cloudflare_e_ignora_x_forwarded_for(reloj_fijo):
     cliente = crear_demo(reloj_fijo, EN_RENDER=True).test_client()
-    for numero in range(60):
+    for numero in range(240):
         assert (
             cliente.get(
                 "/api/estado",
@@ -149,7 +149,7 @@ def test_en_render_separa_las_ip_de_cloudflare_e_ignora_x_forwarded_for(reloj_fi
 
 def test_fuera_de_render_no_confia_en_encabezados_de_ip(reloj_fijo):
     cliente = crear_demo(reloj_fijo).test_client()
-    for numero in range(60):
+    for numero in range(240):
         assert (
             cliente.get(
                 "/api/estado",
@@ -165,10 +165,10 @@ def test_fuera_de_render_no_confia_en_encabezados_de_ip(reloj_fijo):
 
 def test_render_normaliza_ipv6_y_si_no_hay_ip_valida_usa_la_conexion(reloj_fijo):
     cliente = crear_demo(reloj_fijo, EN_RENDER=True).test_client()
-    for _ in range(60):
+    for _ in range(240):
         assert cliente.get("/api/estado", headers={"CF-Connecting-IP": "2001:db8::1"}).status_code == 200
     assert cliente.get("/api/estado", headers={"CF-Connecting-IP": "2001:0db8:0:0:0:0:0:1"}).status_code == 429
-    for _ in range(60):
+    for _ in range(240):
         assert cliente.get("/api/estado", headers={"CF-Connecting-IP": "invalida"}).status_code == 200
     assert cliente.get("/api/estado").status_code == 429
 
@@ -186,7 +186,7 @@ def test_las_ip_vencidas_se_descartan_y_las_apps_no_comparten_contadores(reloj_f
     reloj_fijo.avanzar(timedelta(minutes=1))
     cliente.get("/api/estado")
     assert len(app.extensions["limite_demo"].solicitudes) == 1
-    for _ in range(59):
+    for _ in range(239):
         cliente.get("/api/estado")
     assert cliente.get("/api/estado").status_code == 429
     assert crear_demo(reloj_fijo).test_client().get("/api/estado").status_code == 200

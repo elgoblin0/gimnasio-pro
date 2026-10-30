@@ -12,7 +12,7 @@ import sys
 import urllib.error
 import urllib.request
 
-SOLICITUDES_POR_MINUTO = 60
+SOLICITUDES_POR_MINUTO = 240
 MAXIMO_BYTES = 1_000_000
 
 

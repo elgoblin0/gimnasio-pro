@@ -10,7 +10,7 @@ verificar_demo = importlib.util.module_from_spec(ESPECIFICACION)
 ESPECIFICACION.loader.exec_module(verificar_demo)
 
 
-def demo_simulada(modo_demo=True, limite=60, rechaza_grande=True, retry_after="12"):
+def demo_simulada(modo_demo=True, limite=240, rechaza_grande=True, retry_after="12"):
     llamadas = []
 
     def abrir(metodo, url, cuerpo=None):
