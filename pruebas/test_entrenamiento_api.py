@@ -1,6 +1,7 @@
 """Propuesta real, programa intacto y alcance por rol/asignación sobre MySQL."""
 
 from concurrent.futures import ThreadPoolExecutor
+from datetime import timedelta
 from decimal import Decimal
 from threading import Barrier, Event
 from types import SimpleNamespace
@@ -1564,19 +1565,14 @@ def test_equipo_posterior_conserva_reduccion_congelada(alternativas_api, series_
     assert cliente.get(ruta).json["prescripcion_efectiva"] == congelada
 
 
-def test_alternativa_por_dolor_no_disponible_conserva_pendiente(dolor_api, monkeypatch):
-    from gimnasio.entrenamiento import servicio
-
+def test_alternativa_por_dolor_no_disponible_conserva_pendiente(dolor_api):
     datos = dolor_api
     cliente, ruta = datos.cliente_dolor, datos.ruta_dolor
-    assert escribir(cliente, ruta + "/dolores", datos.cuerpo_dolor).status_code == 201
     inicial = cliente.get(ruta).json
     primero = inicial["ejercicios"][0]
-    assert primero["ejercicio_hecho_id"]
-    with datos.app.app_context(), transaccion() as cursor:
-        cursor.execute("SELECT DISTINCT equipo FROM ejercicios")
-        equipos = frozenset(fila["equipo"] for fila in cursor.fetchall())
-    monkeypatch.setattr(servicio, "equipos_fuera_de_servicio", lambda cursor: equipos)
+    cambiar_equipo_dolor(datos, "cajon", "fuera_de_servicio")
+    datos.reloj.avanzar(timedelta(seconds=1))
+    assert escribir(cliente, ruta + "/dolores", datos.cuerpo_dolor).status_code == 201
     lectura = cliente.get(ruta).json
     assert lectura["ejercicios"][0]["no_disponible"]
     assert lectura["ejercicios"][0]["pendiente"] == primero["pendiente"] > 0
@@ -1585,6 +1581,89 @@ def test_alternativa_por_dolor_no_disponible_conserva_pendiente(dolor_api, monke
     ejercicio = next(e for e in propuesta["ejercicios"] if e["id"] == primero["id"])
     assert ejercicio["pendiente"] == primero["pendiente"]
     assert cliente.get(ruta).json["prescripcion_efectiva"] == inicial["prescripcion_efectiva"]
+
+
+def cambiar_equipo_dolor(datos, nombre, estado):
+    entrenador = datos.app.test_client()
+    assert entrenador.post("/api/sesion/demo/entrenador", headers={"X-Gimnasio": "1"}).status_code == 200
+    equipo = next(e for e in entrenador.get("/api/equipos").json["equipos"] if e["nombre"] == nombre)
+    datos.reloj.avanzar(timedelta(seconds=1))
+    assert escribir(entrenador, f"/api/equipos/{equipo['id']}/estado", {"estado": estado}).status_code == 200
+
+
+@pytest.mark.parametrize("reparar_primera", [False, True])
+def test_dolor_conserva_sustitucion_tras_cambio_equipo(dolor_api, reparar_primera):
+    datos = dolor_api
+    cliente, ruta = datos.cliente_dolor, datos.ruta_dolor
+    if reparar_primera:
+        # Dos alternativas seguras, en equipos distintos y con orden explícito.
+        with datos.app.app_context(), transaccion() as cursor:
+            cursor.execute("SELECT id FROM ejercicios WHERE equipo='mancuernas'")
+            primera = cursor.fetchone()["id"]
+            cursor.execute("DELETE FROM zonas_ejercicio WHERE ejercicio_id=%s", (primera,))
+            cursor.execute(
+                "INSERT INTO zonas_ejercicio (ejercicio_id,zona) "
+                "SELECT %s,z.zona FROM zonas_ejercicio z JOIN ejercicios e ON e.id=z.ejercicio_id "
+                "WHERE e.equipo='cajon'",
+                (primera,),
+            )
+        cambiar_equipo_dolor(datos, "mancuernas", "fuera_de_servicio")
+    datos.reloj.avanzar(timedelta(seconds=1))
+    assert escribir(cliente, ruta + "/dolores", datos.cuerpo_dolor).status_code == 201
+    inicial = cliente.get(ruta).json
+    ejercicio = inicial["ejercicios"][0]
+    hecho = ejercicio["ejercicio_hecho_id"]
+    assert hecho
+    serie = {
+        "id": str(nuevo_id(datos.reloj)),
+        "ejercicio_planificado_id": ejercicio["id"],
+        "repeticiones": 10,
+        "carga": "20.50",
+    }
+    assert escribir(cliente, ruta + "/series", serie).status_code == 201
+    cambiar_equipo_dolor(
+        datos, "mancuernas" if reparar_primera else "cajon", "disponible" if reparar_primera else "fuera_de_servicio"
+    )
+    lectura = cliente.get(ruta).json
+    actual = lectura["ejercicios"][0]
+    assert actual["ejercicio_hecho_id"] == hecho
+    assert not actual.get("no_disponible", False)
+    assert lectura["sustituciones"][ejercicio["id"]] == inicial["sustituciones"][ejercicio["id"]]
+    respuesta = escribir(cliente, ruta + "/series", serie | {"id": str(nuevo_id(datos.reloj))})
+    assert respuesta.status_code == 201
+    assert respuesta.json["serie_realizada"]["ejercicio_hecho_id"] == hecho
+    assert cliente.get("/api/entrenamiento/propuesta").status_code == 200
+
+
+def test_dolor_sin_alternativa_conserva_no_disponible_tras_reparacion(dolor_api):
+    datos = dolor_api
+    cliente, ruta = datos.cliente_dolor, datos.ruta_dolor
+    cambiar_equipo_dolor(datos, "cajon", "fuera_de_servicio")
+    datos.reloj.avanzar(timedelta(seconds=1))
+    assert escribir(cliente, ruta + "/dolores", datos.cuerpo_dolor).status_code == 201
+    inicial = cliente.get(ruta).json["ejercicios"][0]
+    assert inicial["no_disponible"]
+    cambiar_equipo_dolor(datos, "cajon", "disponible")
+    actual = cliente.get(ruta).json["ejercicios"][0]
+    assert actual == inicial
+    serie = {
+        "id": str(nuevo_id(datos.reloj)),
+        "ejercicio_planificado_id": inicial["id"],
+        "repeticiones": 10,
+        "carga": "20.50",
+    }
+    respuesta = escribir(cliente, ruta + "/series", serie)
+    assert respuesta.status_code == 409
+    assert respuesta.json["error"]["codigo"] == "ejercicio_no_disponible"
+    propuesta = cliente.get("/api/entrenamiento/propuesta").json
+    ejercicio = next(e for e in propuesta["ejercicios"] if e["id"] == inicial["id"])
+    assert ejercicio["pendiente"] == inicial["pendiente"] > 0
+    # Solo un dolor nuevo vuelve a decidir con el equipo reparado.
+    datos.reloj.avanzar(timedelta(seconds=1))
+    assert (
+        escribir(cliente, ruta + "/dolores", datos.cuerpo_dolor | {"id": str(nuevo_id(datos.reloj))}).status_code == 201
+    )
+    assert not cliente.get(ruta).json["ejercicios"][0].get("no_disponible", False)
 
 
 def test_dolor_sustitucion_aviso_atomicos_e_idempotentes(dolor_api):

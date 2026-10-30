@@ -4,3 +4,7 @@ grupo = "Entrenador"
 etapa = 4
 nivel = "funcional"
 prueba = "pruebas/test_entrenamiento_api.py"
+
+# La sustitución por dolor conserva el ejercicio hecho aunque cambie el equipo.
+# Sin sustitución, usa el historial de equipos al último dolor o al inicio por chequeo.
+# La reparación posterior conserva el no disponible y el pendiente de esa sesión.

@@ -68,6 +68,7 @@ def test_frenos_iniciales_conservan_pendiente_si_solo_falta_equipo(
     alternativa = replace(
         original,
         ejercicio_id="alternativa",
+        nombre="Alternativa ficticia",
         equipo="prensa",
         zonas=("gluteos",) if alternativa_segura else ("rodillas",),
         alternativas=(),
@@ -92,6 +93,9 @@ def test_frenos_iniciales_conservan_pendiente_si_solo_falta_equipo(
         assert prescripcion.carga == Decimal("40")
     reglas = {r.regla for r in propuesta.explicacion}
     assert ("ejercicio_no_disponible" in reglas) == prescripcion.no_disponible
+    if prescripcion.no_disponible:
+        assert all("Alternativa ficticia" not in str(r.datos) for r in propuesta.explicacion)
+        assert all(not dict(r.datos).get("ejercicio_hecho_id") for r in propuesta.explicacion)
 
 
 def historial(repeticiones=(12, 12, 12), rir=(2, 2, 2), *, fecha=LUNES - timedelta(days=1), identificador="anterior"):

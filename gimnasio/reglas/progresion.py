@@ -334,8 +334,19 @@ def ajustar_ejercicio(planificado, entrada, sesion_planificada_id):
         )
         if disponible.series:
             ajustada = replace(disponible, ejercicio_hecho_id=None, no_disponible=True)
-            razones_dolor, frenos_dolor = dolor_disponible, frenos_dolor_disponible
-            razones_salud, frenos_salud = salud_disponible, frenos_salud_disponible
+            # Conserva los frenos sin anunciar una sustitución que no se puede hacer.
+            razones_dolor = tuple(
+                razon("dolor_reportado", ajustada, "Dolor reportado: no se sube la carga. Se avisa al entrenador.")
+                for _ in dolor_disponible
+            )
+            razones_salud = tuple(
+                razon(
+                    "restriccion_salud", ajustada, "Restricción registrada por tu entrenador. Se avisa al entrenador."
+                )
+                for _ in salud_disponible
+            )
+            frenos_dolor = frenos_dolor_disponible
+            frenos_salud = frenos_salud_disponible
             razones += (
                 razon(
                     "ejercicio_no_disponible",

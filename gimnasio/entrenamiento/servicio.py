@@ -4,7 +4,7 @@ import json
 from bisect import bisect_right
 from collections import Counter, defaultdict
 from contextlib import nullcontext
-from dataclasses import asdict
+from dataclasses import asdict, replace
 from datetime import UTC
 from decimal import Decimal
 from zoneinfo import ZoneInfo
@@ -30,7 +30,12 @@ from gimnasio.comun.tipos import (
 )
 from gimnasio.entrenamiento import repositorio
 from gimnasio.permisos.servicio import tiene_asignacion_vigente, tiene_consentimiento
-from gimnasio.programas.servicio import OBJETIVOS, equipos_fuera_de_servicio, listar_programas
+from gimnasio.programas.servicio import (
+    OBJETIVOS,
+    equipos_fuera_de_servicio,
+    equipos_fuera_de_servicio_en_momentos,
+    listar_programas,
+)
 from gimnasio.reglas.alternativas import elegir_alternativas
 from gimnasio.reglas.dolor import aplicar_dolor
 from gimnasio.reglas.progresion import historial_para_sesion
@@ -310,6 +315,9 @@ def consultar_propuesta(socio_texto, usuario, planificada_id=None, *, cursor=Non
             efectivas, repositorio.listar_dolores_socio(lectura, socio_id), ZoneInfo(sede["zona_horaria"])
         )
         efectivas_guardadas = efectivas
+        equipos_por_momento = equipos_fuera_de_servicio_en_momentos(
+            lectura, [e["ultimo_dolor"] or e["sesion_creada_en"] for e in efectivas]
+        )
         efectivas = [
             {
                 **efectiva,
@@ -321,7 +329,7 @@ def consultar_propuesta(socio_texto, usuario, planificada_id=None, *, cursor=Non
                         zonas=dolores[efectiva["sesion_realizada_id"]],
                         catalogos=catalogos,
                         restricciones=restricciones,
-                        equipos=equipos_no_disponibles,
+                        equipos=equipos_por_momento[efectiva["ultimo_dolor"] or efectiva["sesion_creada_en"]],
                     ),
                     default=str,
                 ),
@@ -977,8 +985,11 @@ def proyectar_dolor(cursor, sesion, efectiva, *, zonas=None, catalogos=None, res
         zonas = dolores_de_sesion(cursor, sesion, repositorio.obtener_sede(cursor))
     if not zonas:
         return ejercicios
-    if equipos is None:
-        equipos = equipos_fuera_de_servicio(cursor)
+    sesion_id = desde_bytes(sesion["id"] if sesion else efectiva["sesion_realizada_id"]) if cursor else None
+    momento = None
+    sustituciones = (
+        json.loads(efectiva["sustituciones_vigentes"] or "{}") if "sustituciones_vigentes" in efectiva else None
+    )
     catalogos = {} if catalogos is None else catalogos
     if restricciones is None:
         restricciones = restricciones_vigentes(desde_bytes(sesion["socio_id"]), cursor=cursor)
@@ -999,10 +1010,36 @@ def proyectar_dolor(cursor, sesion, efectiva, *, zonas=None, catalogos=None, res
         razones = tuple(Razon(r["regla"], r["version"], tuple(r["datos"].items())) for r in ejercicio["explicacion"])
         if ejercicio.get("no_disponible"):
             continue
-        ajustada, explicacion, _ = aplicar_dolor(prescripcion, original, catalogo, zonas, (), razones, equipos)
-        ajustada, razones_salud, _ = aplicar_restricciones(ajustada, original, catalogo, restricciones, zonas, equipos)
+        if sustituciones is not None:
+            hecho_id = sustituciones.get(ejercicio["id"])
+        else:
+            vigente = (
+                repositorio.sustitucion_vigente(cursor, sesion_id, identificar(ejercicio["id"])) if cursor else None
+            )
+            hecho_id = str(desde_bytes(vigente["ejercicio_hecho_id"])) if vigente else None
+        hecho = next((e for e in catalogo if e.ejercicio_id == hecho_id), None)
+        if hecho and set(hecho.zonas).isdisjoint(zonas) and not excluido(hecho, restricciones):
+            # Conserva la alternativa guardada mientras los frenos la permitan.
+            prescripcion = replace(prescripcion, ejercicio_hecho_id=hecho_id)
+            original = replace(original, alternativas=(hecho_id,))
+            catalogo = (original, hecho)
+            equipos_ejercicio = frozenset()
+        else:
+            if equipos is None:
+                if momento is None:
+                    momento = repositorio.ultimo_momento_dolor(cursor, sesion_id) or (
+                        sesion["creada_en"] if sesion else efectiva["sesion_creada_en"]
+                    )
+                equipos = equipos_fuera_de_servicio(cursor, momento=momento)
+            equipos_ejercicio = equipos
+        ajustada, explicacion, _ = aplicar_dolor(
+            prescripcion, original, catalogo, zonas, (), razones, equipos_ejercicio
+        )
+        ajustada, razones_salud, _ = aplicar_restricciones(
+            ajustada, original, catalogo, restricciones, zonas, equipos_ejercicio
+        )
         explicacion += razones_salud
-        if equipos and prescripcion.series and not ajustada.series:
+        if equipos_ejercicio and prescripcion.series and not ajustada.series:
             # La falta de equipo no dispensa trabajo: distinguimos ese caso de
             # un ejercicio quitado por dolor o restricción aun con equipos disponibles.
             disponible, _, _ = aplicar_dolor(prescripcion, original, catalogo, zonas, (), razones)
