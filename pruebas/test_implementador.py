@@ -20,6 +20,36 @@ def test_distingue_los_pedidos_de_trabajo_de_la_revision():
     assert not implementador.es_pedido(None)
 
 
+def test_resumen_de_codex_deja_una_linea_por_accion():
+    salida = (
+        "OpenAI Codex v0.165\n--------\nmodel: gpt-6.1-sol\nreasoning effort: low\n--------\n"
+        "user\nTrabajás en un worktree\nmás prompt\n"
+        "codex\nVoy a revisar el cambio.\nsegundo párrafo\n"
+        "exec\n\"C:\\\\WINDOWS\\\\powershell.exe\" -Command 'Get-Content AGENTS.md' in C:\\Users\\x\\issue-1\n"
+        " succeeded in 284ms:\n# AGENTS.md\ncontenido largo\n"
+        "exec\n\"C:\\\\WINDOWS\\\\powershell.exe\" -Command 'pytest -q' in C:\\Users\\x\\issue-1\n"
+        " exited 1 in 213ms:\nprimer error\nsegundo error\ntercero\n"
+        "apply patch\npatch: completed\nC:\\Users\\x\\.implementador\\issue-143\\gimnasio\\static\\sw.js\n"
+        'diff --git a/gimnasio/static/sw.js b/gimnasio/static/sw.js\n+const VERSION = "17"\n'
+        "tokens used\n22,704\nCorregido.\n"
+    )
+    resumen = implementador.ResumenDeCodex()
+    visibles = [v for linea in salida.splitlines() for v in resumen.procesar(linea)]
+    assert visibles == [
+        "model: gpt-6.1-sol",
+        "reasoning effort: low",
+        "💬 Voy a revisar el cambio.",
+        "$ 'Get-Content AGENTS.md'",
+        "  ✓ 284ms",
+        "$ 'pytest -q'",
+        "  ✗ código 1 (213ms)",
+        "    primer error",
+        "    segundo error",
+        "✎ edita gimnasio\\static\\sw.js",
+        "tokens: 22,704",
+    ]
+
+
 def test_toma_el_ultimo_pedido_sin_atender():
     comentarios = ["@codex implementá #5", "respuesta del bot", f"{HECHO}\nlisto", "@codex corregí"]
     assert implementador.pedido_pendiente(comentarios) == ("@codex corregí", 0)
@@ -101,6 +131,7 @@ def entorno(tmp_path, monkeypatch):
     """Registro y bloqueo en una carpeta temporal, sin avisos de Windows ni esperas reales."""
     monkeypatch.setattr(implementador, "CARPETA_TRABAJO", tmp_path / "trabajo")
     monkeypatch.setattr(implementador, "REGISTRO", tmp_path / "trabajo" / "registro.log")
+    monkeypatch.setattr(implementador, "CRUDO", tmp_path / "trabajo" / "codex-crudo.log")
     monkeypatch.setattr(implementador, "BLOQUEO", tmp_path / "trabajo" / "bloqueo.pid")
     monkeypatch.setattr(implementador, "SONDEO_SEGUNDOS", 0.05)
     avisos = []
@@ -122,7 +153,8 @@ def _codex_falso(monkeypatch, tmp_path, guion):
     return carpeta
 
 
-def test_muestra_la_salida_de_codex_y_lee_su_respuesta(entorno, tmp_path, monkeypatch, capsys):
+def test_muestra_la_salida_de_codex_resumida_y_la_guarda_cruda(entorno, tmp_path, monkeypatch, capsys):
+    monkeypatch.delenv("GIMNASIO_IMPL_VERBOSO", raising=False)
     carpeta = _codex_falso(
         monkeypatch,
         tmp_path,
@@ -131,6 +163,20 @@ def test_muestra_la_salida_de_codex_y_lee_su_respuesta(entorno, tmp_path, monkey
     )
     codigo, texto, tokens = implementador.correr_codex(carpeta, "el pedido")
     assert (codigo, texto, tokens) == (0, "respuesta final", 1234)
+    salida = capsys.readouterr().out
+    assert "│ tokens: 1,234" in salida and "pensando" not in salida
+    assert "pensando" in implementador.CRUDO.read_text(encoding="utf-8")
+
+
+def test_con_verboso_muestra_la_salida_entera(entorno, tmp_path, monkeypatch, capsys):
+    monkeypatch.setenv("GIMNASIO_IMPL_VERBOSO", "1")
+    carpeta = _codex_falso(
+        monkeypatch,
+        tmp_path,
+        "import sys\nprint('pensando')\nprint(sys.stdin.read().strip())\n"
+        "open(sys.argv[1], 'w').write('respuesta final')\n",
+    )
+    implementador.correr_codex(carpeta, "el pedido")
     salida = capsys.readouterr().out
     assert "│ pensando" in salida and "│ el pedido" in salida
     assert "pensando" in implementador.REGISTRO.read_text(encoding="utf-8")
