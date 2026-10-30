@@ -294,14 +294,25 @@ export async function crearCuerpo(contenedor, svg, seleccionable, nombreFigura, 
       boton.setAttribute("aria-pressed", String(nombre === elegida));
       boton.addEventListener("click", async () => {
         if (nombre === elegida) return;
-        elegida = nombre;
-        figura = FIGURAS[nombre];
-        for (const [otro, otroNombre] of botones) otro.setAttribute("aria-pressed", String(otroNombre === nombre));
-        const [modelo, guardado] = await Promise.allSettled([cargarModelo(), guardarFigura(nombre)]);
-        if (!lienzo.isConnected) return;
-        if (figura === FIGURAS[nombre]) dibujar();
-        if (modelo.status === "rejected" || guardado.status === "rejected") aviso.textContent = "No se pudo cambiar la figura. Probá de nuevo.";
-        else aviso.textContent = "La figura solo cambia cómo se ve este cuerpo y se guarda en tu cuenta.";
+        const anterior = elegida;
+        const marcar = valor => {
+          elegida = valor;
+          figura = FIGURAS[valor] ?? FIGURAS.masculina;
+          for (const [otro, otroNombre] of botones) otro.setAttribute("aria-pressed", String(otroNombre === valor));
+        };
+        marcar(nombre);
+        const resultados = await Promise.allSettled([cargarModelo(), guardarFigura(nombre)]);
+        // Si eligieron otra mientras tanto, esa elección manda.
+        if (!lienzo.isConnected || elegida !== nombre) return;
+        const fallo = resultados.some(({status}) => status === "rejected");
+        if (fallo) {
+          // Vuelve a la figura anterior para que el reintento repita todo.
+          marcar(anterior);
+          await cargarModelo().catch(() => {});
+          if (!lienzo.isConnected) return;
+        }
+        dibujar();
+        aviso.textContent = fallo ? "No se pudo cambiar la figura. Probá de nuevo." : "La figura solo cambia cómo se ve este cuerpo y se guarda en tu cuenta.";
       });
       return [boton, nombre];
     });
