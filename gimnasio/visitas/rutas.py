@@ -66,3 +66,9 @@ def _respuesta_condicional(datos):
     respuesta.cache_control.private = True
     respuesta.cache_control.no_cache = True
     return respuesta.make_conditional(request)
+
+
+@bp.get("/mejores-horarios")
+@requiere("ocupacion.ver")
+def consultar_mejores_horarios():
+    return jsonify(servicio.consultar_mejores_horarios())

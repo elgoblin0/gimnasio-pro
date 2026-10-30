@@ -70,7 +70,7 @@ Generado por `scripts/mapa_capacidades.py` desde `docs/capacidades/`. No editar 
 |---|---|---|---|
 | Historial de entradas y salidas con ocupación registrada | 1 | funcional | `pruebas/test_visitas.py` |
 | Consulta de membresía de acceso por vigencia, sin cupo de entradas | 1 | funcional | `pruebas/test_socios_membresia.py` |
-| Aforo en vivo y mejores horarios | 3 | pendiente | — |
+| Aforo en vivo y mejores horarios | 3 | funcional | `pruebas/test_mejores_horarios.py` |
 | Tarjeta contextual en recepción | 3 | pendiente | — |
 
 ## Entrenador
