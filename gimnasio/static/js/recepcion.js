@@ -12,6 +12,7 @@ let escena;
 let visitasEscena = [];
 let zonaElegida;
 let escenaIniciada = false;
+const ESPERA_ESCENA_MS = 1000;
 
 function seleccionarVisita(visita) {
   if (escena) escena.elegirVisita(visita.id);
@@ -59,6 +60,8 @@ async function iniciarEscena() {
   if (escenaIniciada) return;
   escenaIniciada = true;
   try {
+    // La escena no compite con la primera lectura: recepción ya es usable sin ella.
+    await new Promise(resolver => setTimeout(resolver, ESPERA_ESCENA_MS));
     const {crearEscena} = await import('@escena');
     escena = crearEscena($('[data-escena-ocupacion]'), visita => abrirTarjeta(visita.socio_id));
     escena.actualizar(visitasEscena);

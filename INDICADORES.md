@@ -24,8 +24,8 @@ Guía para explicar el recorrido de etapa 1. Las referencias `archivo:línea` se
 
 | Indicador | Evidencia vigente |
 |---|---|
-| Iteradores y condicionales | Renderizado de visitas: `gimnasio/static/js/recepcion.js:106`. Formularios según medidas aplicables: `gimnasio/static/js/entrenamiento.js:60`. Explicación y ejercicios: `gimnasio/static/js/entrenamiento.js:128`. |
-| Comunicación y errores | Cliente fetch común, encabezados de escritura y lectura JSON: `gimnasio/static/js/comun/api.js:17`. Actualización de recepción: `gimnasio/static/js/recepcion.js:162`. Actualización del entrenamiento: `gimnasio/static/js/entrenamiento.js:182`. |
+| Iteradores y condicionales | Renderizado de visitas: `gimnasio/static/js/recepcion.js:109`. Formularios según medidas aplicables: `gimnasio/static/js/entrenamiento.js:60`. Explicación y ejercicios: `gimnasio/static/js/entrenamiento.js:128`. |
+| Comunicación y errores | Cliente fetch común, encabezados de escritura y lectura JSON: `gimnasio/static/js/comun/api.js:17`. Actualización de recepción: `gimnasio/static/js/recepcion.js:165`. Actualización del entrenamiento: `gimnasio/static/js/entrenamiento.js:182`. |
 | Persistencia y reintentos | Operaciones con cuerpo, identificador y clave conservados: `gimnasio/static/js/comun/operaciones.js:4`. Recuperación de sesión realizada desde la URL: `gimnasio/static/js/entrenamiento.js:182`. Cerrar sesión solo borra la sesión de usuario: `gimnasio/static/js/comun/operaciones.js:31`. |
 
 ## HTML (5 pts)

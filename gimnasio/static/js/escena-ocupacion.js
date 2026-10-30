@@ -2,14 +2,23 @@
 import * as T from 'three';
 import {construirMaqueta} from './escena-ocupacion-maqueta.js';
 import {CARRIL, PUERTA, SALAS, NOMBRES} from './escena-ocupacion-plano.js';
-import {diferenciarVisitas} from './escena-ocupacion-estado.js';
+import {diferenciarVisitas, esDibujoPorSoftware} from './escena-ocupacion-estado.js';
+
+function nombreDelRenderizador() {
+  const contexto = document.createElement('canvas').getContext('webgl2');
+  const extension = contexto?.getExtension('WEBGL_debug_renderer_info');
+  const nombre = extension ? contexto.getParameter(extension.UNMASKED_RENDERER_WEBGL) : '';
+  contexto?.getExtension('WEBGL_lose_context')?.loseContext();
+  return nombre;
+}
 
 export function crearEscena(contenedorEscena, alElegir) {
   const token = nombre => getComputedStyle(document.documentElement).getPropertyValue(nombre).trim();
   const lienzo = contenedorEscena.querySelector('canvas');
   const capaPersonas = contenedorEscena.querySelector('[data-puntos]');
   const tarjeta = contenedorEscena.querySelector('[data-rotulo-visita]');
-  const dibujante = new T.WebGLRenderer({canvas: lienzo, antialias: true, alpha: true});
+  const porSoftware = esDibujoPorSoftware(nombreDelRenderizador());
+  const dibujante = new T.WebGLRenderer({canvas: lienzo, antialias: !porSoftware, alpha: true});
   const escena = new T.Scene();
   const camara = new T.OrthographicCamera(-1, 1, 1, -1, .1, 400);
   const DIRECCION = new T.Vector3(1, 1.02, 1).normalize();
@@ -176,7 +185,7 @@ export function crearEscena(contenedorEscena, alElegir) {
     ancho = contenedorEscena.clientWidth;
     alto = contenedorEscena.clientHeight;
     if (!dibujante || !ancho || !alto) return;
-    dibujante.setPixelRatio(Math.min(devicePixelRatio, 2));
+    dibujante.setPixelRatio(porSoftware ? 1 : Math.min(devicePixelRatio, 2));
     dibujante.setSize(ancho, alto, false);
     // Encuadre: la maqueta entra entera, dejando aire para el encabezado y los controles.
     const proporcion = ancho / alto;
@@ -407,7 +416,7 @@ export function crearEscena(contenedorEscena, alElegir) {
     pedirCuadro();
   }
 
-  let cuadroPendiente = 0, ultimo = 0;
+  let cuadroPendiente = 0, ultimo = 0, yaDibujo = false, sombreadoresListos = false;
   function pedirCuadro() {
     if (!cuadroPendiente && !document.hidden) cuadroPendiente = requestAnimationFrame(cuadro);
   }
@@ -429,7 +438,8 @@ export function crearEscena(contenedorEscena, alElegir) {
       const cuantos = personas.filter(p => p.zona === nombre && !p.retirar).length;
       rotulos[nombre].textContent = `${nombre} ${cuantos}`;
       const meta = tema.focoBase + tema.focoPorVisita * cuantos;
-      f.actual += (meta - f.actual) * (reducido.matches ? 1 : Math.min(1, dt * 2.5));
+      // La luz solo se anima con un cambio de ocupación, no al abrir la pantalla.
+      f.actual += (meta - f.actual) * (reducido.matches || !yaDibujo ? 1 : Math.min(1, dt * 2.5));
       f.luz.intensity = f.actual;
       if (Math.abs(meta - f.actual) > 1) seguir = true;
     }
@@ -448,7 +458,10 @@ export function crearEscena(contenedorEscena, alElegir) {
     ubicarCamara();
     for (const [nombre, ancla] of Object.entries(anclas)) aPantalla(...ancla, rotulos[nombre]);
     dibujarPersonas();
-    dibujante.render(escena, camara);
+    if (sombreadoresListos) {
+      dibujante.render(escena, camara);
+      yaDibujo = true;
+    }
     if (seguir) pedirCuadro();
     else ultimo = 0;
   }
@@ -483,7 +496,7 @@ export function crearEscena(contenedorEscena, alElegir) {
     }
     pedirCuadro();
   }
-  dibujante.shadowMap.enabled = true;
+  dibujante.shadowMap.enabled = !porSoftware;
   dibujante.shadowMap.type = T.PCFSoftShadowMap;
   dibujante.toneMapping = T.ACESFilmicToneMapping;
   dibujante.outputColorSpace = T.SRGBColorSpace;
@@ -496,6 +509,11 @@ export function crearEscena(contenedorEscena, alElegir) {
   reducido.addEventListener('change', inmovilizar);
   aplicarLuz();
   medir();
+  // Compilar en segundo plano: sin GPU, hacerlo al dibujar congela la pantalla varios segundos.
+  dibujante.compileAsync(escena, camara).catch(() => {}).finally(() => {
+    sombreadoresListos = true;
+    pedirCuadro();
+  });
   return {actualizar, abrirZona, elegirVisita(id) {
     const persona = personas.find(p => p.id === id && !p.retirar);
     if (persona) elegir(persona);

@@ -1,7 +1,17 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {diferenciarVisitas} from './escena-ocupacion-estado.js';
+import {diferenciarVisitas, esDibujoPorSoftware} from './escena-ocupacion-estado.js';
 
+test('reconoce el dibujo sin GPU', () => {
+  assert.equal(esDibujoPorSoftware('ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero)), SwiftShader driver)'), true);
+  assert.equal(esDibujoPorSoftware('llvmpipe (LLVM 15.0.7, 256 bits)'), true);
+  assert.equal(esDibujoPorSoftware('ANGLE (Microsoft, Microsoft Basic Render Driver Direct3D11)'), true);
+});
+test('con GPU o sin dato conserva la calidad completa', () => {
+  assert.equal(esDibujoPorSoftware('ANGLE (NVIDIA, NVIDIA GeForce RTX 3060 Direct3D11)'), false);
+  assert.equal(esDibujoPorSoftware(''), false);
+  assert.equal(esDibujoPorSoftware(undefined), false);
+});
 const visita = {id: 'visita-1', zona: 'cardio', minutos: 5};
 test('entrada', () => {
   assert.deepEqual(diferenciarVisitas([], [visita]), {entradas: [visita], salidas: [], cambios: []});
