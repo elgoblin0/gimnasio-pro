@@ -3,4 +3,4 @@ nombre = "Equipos y alternativas"
 grupo = "Entrenador"
 etapa = 4
 nivel = "funcional"
-prueba = "pruebas/test_equipos_api.py"
+prueba = "pruebas/test_entrenamiento_api.py::test_equipo_fuera_de_servicio_conserva_prescripcion_efectiva"

@@ -149,7 +149,7 @@ function dibujar(propuesta) {
     tarjeta.className = "tarjeta";
     tarjeta.dataset.ejercicio = ejercicio.id;
     const nombre = document.createElement("h3");
-    nombre.textContent = ejercicio.nombre;
+    nombre.textContent = ejercicio.nombre + (ejercicio.no_disponible ? " · No disponible" : "");
     const objetivos = document.createElement("p");
     objetivos.textContent = describirObjetivos(ejercicio.objetivos);
     const pendiente = document.createElement("p");
@@ -167,7 +167,7 @@ function dibujar(propuesta) {
       explicacion.append(texto);
     }
     tarjeta.append(explicacion);
-    if (coincide && ejercicio.pendiente > 0) {
+    if (coincide && ejercicio.pendiente > 0 && !ejercicio.no_disponible) {
       agregarSustitucion(tarjeta, ejercicio);
       agregarDolor(tarjeta, ejercicio);
       agregarFormulario(tarjeta, ejercicio);

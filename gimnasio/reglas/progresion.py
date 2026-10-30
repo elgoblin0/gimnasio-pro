@@ -5,8 +5,9 @@ from datetime import timedelta
 from decimal import Decimal
 
 from gimnasio.comun.tipos import PrescripcionEjercicio, Razon
+from gimnasio.reglas.alternativas import elegir_alternativas
 from gimnasio.reglas.dolor import aplicar_dolor
-from gimnasio.reglas.restricciones import aplicar_restricciones
+from gimnasio.reglas.restricciones import aplicar_restricciones, excluido
 from gimnasio.reglas.version import VERSION_REGLAS
 
 
@@ -300,9 +301,43 @@ def ajustar_ejercicio(planificado, entrada, sesion_planificada_id):
             )
         return ajustada, razones, frenos
     ajustada, razones_dolor, frenos_dolor = aplicar_dolor(
-        ajustada, ejercicio, entrada.catalogo, entrada.dolores_actuales, entrada.dolores_anteriores, razones
+        ajustada,
+        ejercicio,
+        entrada.catalogo,
+        entrada.dolores_actuales,
+        entrada.dolores_anteriores,
+        razones,
+        entrada.equipos_fuera_de_servicio,
     )
     ajustada, razones_salud, frenos_salud = aplicar_restricciones(
-        ajustada, ejercicio, entrada.catalogo, entrada.restricciones, entrada.dolores_actuales
+        ajustada,
+        ejercicio,
+        entrada.catalogo,
+        entrada.restricciones,
+        entrada.dolores_actuales,
+        entrada.equipos_fuera_de_servicio,
     )
-    return ajustada, razones + razones_dolor + razones_salud, frenos + frenos_dolor + frenos_salud
+    razones += razones_dolor + razones_salud
+    hecho = next((e for e in entrada.catalogo if e.ejercicio_id == ajustada.ejercicio_hecho_id), ejercicio)
+    if ajustada.series and hecho.equipo in entrada.equipos_fuera_de_servicio:
+        alternativas, explicacion = elegir_alternativas(
+            ejercicio.ejercicio_id,
+            entrada.catalogo,
+            zonas_excluidas=entrada.dolores_actuales,
+            ejercicios_excluidos=tuple(e.ejercicio_id for e in entrada.catalogo if excluido(e, entrada.restricciones)),
+            motivo="equipo_fuera_de_servicio",
+            equipos_fuera_de_servicio=entrada.equipos_fuera_de_servicio,
+        )
+        if alternativas:
+            ajustada = replace(ajustada, ejercicio_hecho_id=alternativas[0].ejercicio_id)
+            razones += (replace(explicacion, datos=(("ejercicio_id", ajustada.ejercicio_id),) + explicacion.datos[1:]),)
+        else:
+            ajustada = replace(ajustada, no_disponible=True)
+            razones += (
+                razon(
+                    "ejercicio_no_disponible",
+                    ajustada,
+                    "El equipo está fuera de servicio y no hay alternativa disponible. Sigue pendiente.",
+                ),
+            )
+    return ajustada, razones, frenos + frenos_dolor + frenos_salud

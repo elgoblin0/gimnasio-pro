@@ -4,6 +4,41 @@ from gimnasio.comun.tipos import EjercicioCatalogo
 from gimnasio.reglas.alternativas import elegir_alternativas
 
 
+def test_equipos_fuera_de_servicio_se_descartan_para_todos_los_motivos():
+    from dataclasses import replace
+
+    original = replace(ejercicio("original", "barra"), alternativas=("primera", "segunda"))
+    catalogo = (original, ejercicio("primera", "prensa"), ejercicio("segunda", "mancuernas"))
+    for motivo in ("maquina_ocupada", "dolor_reportado", "equipo_fuera_de_servicio", "restriccion_salud"):
+        alternativas, razon = elegir_alternativas(
+            "original", catalogo, motivo=motivo, equipos_fuera_de_servicio=frozenset({"prensa"})
+        )
+        assert alternativas == (catalogo[2],)
+        assert razon.regla == motivo
+        assert elegir_alternativas(
+            "original", catalogo, motivo=motivo, equipos_fuera_de_servicio=frozenset({"prensa", "mancuernas"})
+        ) == ((), None)
+
+
+def test_dolor_descarta_equipo_fuera_de_servicio_con_zonas_reducidas():
+    from dataclasses import replace
+
+    original = replace(ejercicio("original", "barra", ("gluteos", "rodillas")), alternativas=("primera", "segunda"))
+    catalogo = (
+        original,
+        ejercicio("primera", "prensa", ("gluteos",)),
+        ejercicio("segunda", "mancuernas", ("gluteos",)),
+    )
+    alternativas, _ = elegir_alternativas(
+        "original",
+        catalogo,
+        zonas_excluidas=("rodillas",),
+        motivo="dolor_reportado",
+        equipos_fuera_de_servicio=frozenset({"prensa"}),
+    )
+    assert alternativas == (catalogo[2],)
+
+
 def ejercicio(identificador, equipo="mancuernas", zonas=("cuadriceps",), patron="sentadilla"):
     return EjercicioCatalogo(identificador, identificador, None, equipo, patron, zonas)
 

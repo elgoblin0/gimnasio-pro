@@ -121,6 +121,7 @@ class DatosPropuesta:
     dolores_actuales: tuple[str, ...] = ()
     dolores_anteriores: tuple[str, ...] = ()
     restricciones: tuple[RestriccionSalud, ...] = ()
+    equipos_fuera_de_servicio: frozenset[str] = frozenset()
 
 
 @dataclass(frozen=True)
@@ -148,6 +149,7 @@ class PrescripcionEjercicio:
     rir_objetivo: int | None
     descanso: int | None
     ejercicio_hecho_id: str | None = None
+    no_disponible: bool = False
 
 
 @dataclass(frozen=True)

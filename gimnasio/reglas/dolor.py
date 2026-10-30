@@ -8,7 +8,9 @@ from gimnasio.reglas.alternativas import elegir_alternativas
 from gimnasio.reglas.version import VERSION_REGLAS
 
 
-def aplicar_dolor(prescripcion, ejercicio, catalogo, actuales, anteriores, razones=()):
+def aplicar_dolor(
+    prescripcion, ejercicio, catalogo, actuales, anteriores, razones=(), equipos_fuera_de_servicio=frozenset()
+):
     zonas = set(ejercicio.zonas) & (set(actuales) | set(anteriores))
     if not zonas:
         return prescripcion, (), ()
@@ -23,7 +25,11 @@ def aplicar_dolor(prescripcion, ejercicio, catalogo, actuales, anteriores, razon
     hecho_id = None
     if set(ejercicio.zonas) & set(actuales):
         alternativas, razon = elegir_alternativas(
-            ejercicio.ejercicio_id, catalogo, zonas_excluidas=actuales, motivo="dolor_reportado"
+            ejercicio.ejercicio_id,
+            catalogo,
+            zonas_excluidas=actuales,
+            motivo="dolor_reportado",
+            equipos_fuera_de_servicio=equipos_fuera_de_servicio,
         )
         if alternativas:
             hecho_id = alternativas[0].ejercicio_id

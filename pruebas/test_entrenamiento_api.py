@@ -122,7 +122,7 @@ def test_propuesta_conserva_plan_y_distingue_posiciones_del_mismo_ejercicio(entr
     assert [e["realizado"] for e in despues["ejercicios"]] == [1, 0]
     assert [e["pendiente"] for e in despues["ejercicios"]] == [1, 2]
     assert despues["ejercicios"][0]["objetivos"]["carga"] == "20.50"
-    assert despues["version_reglas"] == "2.4.0"
+    assert despues["version_reglas"] == "3.0.0"
     assert any("sin ajustes" in r["datos"]["explicacion"] for r in despues["explicacion"])
     assert despues == datos.cliente().get("/api/entrenamiento/propuesta").json
     with datos.app.app_context(), transaccion() as cursor:
@@ -252,6 +252,56 @@ def cuerpo_serie(datos):
         "repeticiones": 10,
         "carga": "20.50",
     }
+
+
+@pytest.mark.parametrize("con_alternativa", [True, False])
+def test_equipo_fuera_de_servicio_conserva_prescripcion_efectiva(alternativas_api, con_alternativa):
+    datos = alternativas_api
+    cliente = datos.cliente()
+    inicial = cliente.get("/api/entrenamiento/propuesta").json
+    assert not inicial["ejercicios"][0]["no_disponible"]
+    equipos = []
+    with datos.app.app_context(), transaccion() as cursor:
+        for nombre in ("barra",) if con_alternativa else ("barra", "mancuernas"):
+            equipo_id = nuevo_id(datos.reloj)
+            equipos.append(equipo_id)
+            cursor.execute(
+                "INSERT INTO equipos (id,nombre,creado_en) VALUES (%s,%s,%s)",
+                (a_bytes(equipo_id), nombre, datos.reloj.ahora()),
+            )
+    entrenador = datos.cliente("entrenador")
+    for equipo_id in equipos:
+        assert (
+            escribir(entrenador, f"/api/equipos/{equipo_id}/estado", {"estado": "fuera_de_servicio"}).status_code == 200
+        )
+    propuesta = cliente.get("/api/entrenamiento/propuesta").json
+    ejercicio = propuesta["ejercicios"][0]
+    assert ejercicio["no_disponible"] == (not con_alternativa)
+    assert ejercicio["ejercicio_hecho_id"] == (str(datos.alternativas[0]) if con_alternativa else None)
+    assert propuesta["frenos"] == []
+    sesion = iniciar(datos)
+    ruta = f"/api/entrenamiento/sesiones/{sesion}"
+    efectiva = cliente.get(ruta).json["prescripcion_efectiva"]
+    for equipo_id in equipos:
+        assert escribir(entrenador, f"/api/equipos/{equipo_id}/estado", {"estado": "disponible"}).status_code == 200
+    with datos.app.app_context(), transaccion() as cursor:
+        cursor.execute("SELECT motivo FROM sustituciones")
+        assert {f["motivo"] for f in cursor.fetchall()} == ({"equipo_fuera_de_servicio"} if con_alternativa else set())
+        cursor.execute("SELECT COUNT(*) AS cantidad FROM avisos_entrenador")
+        assert cursor.fetchone()["cantidad"] == 0
+    assert cliente.get(ruta).json["prescripcion_efectiva"] == efectiva
+    respuesta = escribir(cliente, ruta + "/series", cuerpo_serie(datos))
+    if con_alternativa:
+        assert respuesta.status_code == 201
+        assert respuesta.json["serie_realizada"]["ejercicio_hecho_id"] == str(datos.alternativas[0])
+    else:
+        assert respuesta.status_code == 409
+        assert respuesta.json["error"]["codigo"] == "ejercicio_no_disponible"
+        assert cantidad(datos) == 0
+        siguiente = cliente.get("/api/entrenamiento/propuesta").json
+        assert siguiente["sesion_planificada"]["id"] == inicial["sesion_planificada"]["id"]
+        assert siguiente["ejercicios"][0]["pendiente"] == 2
+        assert cliente.get(ruta).json["ejercicios"][0]["pendiente"] == 2
 
 
 def cantidad(datos, tabla="series_realizadas"):
@@ -728,7 +778,7 @@ def test_demo_propuesta_ajustada_e_historial_reproducible(entrenamiento_api):
         return respuesta.json
 
     primera = reiniciar_y_consultar()
-    assert primera["version_reglas"] == "2.4.0"
+    assert primera["version_reglas"] == "3.0.0"
     assert primera["frenos"] == []
     fuerza, cardio, mantener = primera["ejercicios"]
     assert fuerza["objetivos"]["carga"] == "23.00"
@@ -1155,7 +1205,7 @@ def test_prescripcion_efectiva_guardada_idempotente_y_estable(entrenamiento_api,
     respuesta = escribir(cliente, "/api/entrenamiento/sesiones", cuerpo, clave)
     assert respuesta.status_code == 201
     inicial = cliente.get(f"/api/entrenamiento/sesiones/{sesion}").json
-    assert inicial["prescripcion_efectiva"]["version_reglas"] == "2.4.0"
+    assert inicial["prescripcion_efectiva"]["version_reglas"] == "3.0.0"
     assert escribir(cliente, "/api/entrenamiento/sesiones", cuerpo, clave).data == respuesta.data
     assert escribir(cliente, "/api/entrenamiento/sesiones", cuerpo).json == respuesta.json
     assert cantidad(datos, "prescripciones_efectivas") == 1
