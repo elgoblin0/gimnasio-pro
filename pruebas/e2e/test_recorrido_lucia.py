@@ -73,6 +73,9 @@ def test_recorrido_lucia_etapa_2(pagina_demo, demo_aislada, ancho, alto, sin_web
     else:
         # El 3D reemplaza los controles de la silueta al terminar de cargar.
         expect(dolor).to_have_attribute("data-cuerpo3d", "listo")
+        # La lista muestra lo marcado; el resto de las zonas se abre a pedido.
+        expect(dolor.get_by_role("checkbox", name="Rodillas", exact=True)).to_be_hidden()
+        dolor.get_by_role("button", name="Ver todas las zonas", exact=True).click()
         dolor.get_by_role("checkbox", name="Rodillas", exact=True).click()
     expect(dolor.get_by_role("checkbox", name="Rodillas", exact=True)).to_be_checked()
     sentadilla.get_by_role("button", name="Guardar dolor reportado", exact=True).click()

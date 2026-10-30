@@ -43,6 +43,13 @@ def cerrar():
     return "", 204
 
 
+@bp.put("/figura-cuerpo")
+def cambiar_figura_cuerpo():
+    datos = request.get_json(silent=True)
+    figura = datos.get("figura_cuerpo") if isinstance(datos, dict) else None
+    return jsonify({"usuario": servicio.cambiar_figura_cuerpo(figura)})
+
+
 @bp.post("/demo/<rol>")
 def entrar_como(rol):
     return jsonify({"usuario": servicio.entrar_como_demo(rol)})

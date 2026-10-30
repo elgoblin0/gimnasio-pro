@@ -243,6 +243,7 @@ def generar_personas():
             "correo": f"persona{indice + 1}@demo.gimnasio.invalid",
             "rol": rol,
             "es_demo": indice < len(USUARIOS_DEMO),
+            "figura_cuerpo": "femenina" if nombre == "Lucía" and indice == 0 else None,
         }
         for indice, (nombre, apellido, rol) in enumerate(nombres)
     ]
