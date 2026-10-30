@@ -25,6 +25,8 @@ def test_escena_entrada_sin_recarga_y_seleccion_por_teclado(pagina_demo, demo_ai
     punto = pagina.locator("[data-punto-visita]")
     expect(punto).to_have_count(1)
     expect(punto).not_to_have_attribute("aria-label", re.compile("Lucía"))
+    expect(pagina.locator("[data-evento]")).to_have_text(re.compile("^Entrada → "))
+    expect(pagina.locator("[data-ocupacion-cifra]")).to_have_text("1")
     pagina.keyboard.press("Escape")
     # Desde el selector: Tab llega a registrar entrada y luego al punto anónimo.
     pagina.get_by_label("Socio", exact=True).focus()

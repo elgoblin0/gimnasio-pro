@@ -13,7 +13,7 @@ function preparar(t) {
   const elementos = new Map();
   const obtener = (selector) => {
     if (!elementos.has(selector)) elementos.set(selector, {
-      open: false, isConnected: true, textContent: "", hijos: [],
+      open: false, isConnected: true, textContent: "", hijos: [], style: { setProperty() {} },
       addEventListener() {}, focus() {}, show() { this.open = true; },
       close() { this.open = false; },
       replaceChildren() { this.hijos = []; }, append(hijo) { this.hijos.push(hijo); },

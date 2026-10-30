@@ -12,7 +12,7 @@ function nombreDelRenderizador() {
   return nombre;
 }
 
-export function crearEscena(contenedorEscena, alElegir) {
+export function crearEscena(contenedorEscena, alElegir, alAvisar = () => {}) {
   const token = nombre => getComputedStyle(document.documentElement).getPropertyValue(nombre).trim();
   const lienzo = contenedorEscena.querySelector('canvas');
   const capaPersonas = contenedorEscena.querySelector('[data-puntos]');
@@ -37,6 +37,8 @@ export function crearEscena(contenedorEscena, alElegir) {
     const rotulo = document.createElement('span');
     rotulo.className = 'rotulo-zona-escena';
     rotulo.textContent = nombre;
+    if (nombre === 'Puerta') rotulo.classList.add('puerta');
+    else rotulo.append(document.createElement('b'));
     contenedorEscena.append(rotulo);
     return [nombre, rotulo];
   }));
@@ -371,9 +373,14 @@ export function crearEscena(contenedorEscena, alElegir) {
   function descripcion(p) {
     return `${p.zona} · ${p.minutos} min${p.simulada ? ' · Visita simulada' : ''}${p.por_conciliar ? ' · Por conciliar' : ''}`;
   }
+  function mostrarRotulo(p) {
+    const nombre = document.createElement('b');
+    nombre.textContent = p.nombre;
+    tarjeta.replaceChildren(nombre, descripcion(p));
+  }
   function elegir(p) {
     seleccion = p;
-    tarjeta.textContent = `${p.nombre} · ${descripcion(p)}`;
+    mostrarRotulo(p);
     tarjeta.hidden = false;
     for (const persona of personas) persona.boton.setAttribute('aria-pressed', String(persona === p));
     pedirCuadro();
@@ -418,9 +425,16 @@ export function crearEscena(contenedorEscena, alElegir) {
         brilloPuerta = reducido.matches ? 0 : 1;
       }
     }
+    // Sin nombres: los puntos de la escena son anónimos hasta elegirlos.
+    if (!inicial) {
+      const [entrada] = diferencias.entradas, [cambio] = diferencias.cambios, [salida] = diferencias.salidas;
+      if (entrada) alAvisar(`Entrada → ${entrada.zona}`);
+      else if (cambio) alAvisar(`Cambio de zona de la sede → ${cambio.zona}`);
+      else if (salida) alAvisar(`Salida desde ${salida.zona}`);
+    }
     anteriores = actuales;
     inicial = false;
-    if (seleccion && !seleccion.retirar) tarjeta.textContent = `${seleccion.nombre} · ${descripcion(seleccion)}`;
+    if (seleccion && !seleccion.retirar) mostrarRotulo(seleccion);
     pedirCuadro();
   }
 
@@ -444,7 +458,7 @@ export function crearEscena(contenedorEscena, alElegir) {
     for (const nombre of NOMBRES) {
       const f = focos[nombre];
       const cuantos = personas.filter(p => p.zona === nombre && !p.retirar).length;
-      rotulos[nombre].textContent = `${nombre} ${cuantos}`;
+      rotulos[nombre].lastElementChild.textContent = cuantos;
       const meta = tema.focoBase + tema.focoPorVisita * cuantos;
       // La luz solo se anima con un cambio de ocupación, no al abrir la pantalla.
       f.actual += (meta - f.actual) * (reducido.matches || !yaDibujo ? 1 : Math.min(1, dt * 2.5));
@@ -489,6 +503,7 @@ export function crearEscena(contenedorEscena, alElegir) {
   }
   function abrirZona(nombre) {
     zonaAbierta = SALAS[nombre] ? nombre : null;
+    for (const zona of NOMBRES) rotulos[zona].classList.toggle('apagado', Boolean(zonaAbierta) && zona !== zonaAbierta);
     vista.destino = zonaAbierta ? encuadrar(SALAS[nombre]) : {x: .6, z: 1.2, zoom: 1};
     pedirCuadro();
   }
