@@ -8,6 +8,69 @@ import { crearSondeo } from "@comun/sondeo.js";
 
 registrarPwa();
 let sondeos = [];
+let escena;
+let visitasEscena = [];
+let zonaElegida;
+let escenaIniciada = false;
+const ESPERA_ESCENA_MS = 1000;
+
+function seleccionarVisita(visita) {
+  if (escena) escena.elegirVisita(visita.id);
+  else abrirTarjeta(visita.socio_id);
+}
+
+function actualizarPorZona() {
+  for (const fila of document.querySelectorAll('[data-zona-sede]')) {
+    const clave = fila.dataset.zonaSede;
+    const nombre = fila.querySelector('progress').getAttribute('aria-label');
+    let boton = fila.querySelector('[data-elegir-zona]');
+    if (!boton) {
+      boton = document.createElement('button');
+      boton.type = 'button';
+      boton.dataset.elegirZona = clave;
+      boton.textContent = nombre;
+      boton.addEventListener('click', () => {
+        zonaElegida = zonaElegida === clave ? null : clave;
+        escena?.abrirZona(zonaElegida ? nombre : null);
+        actualizarPorZona();
+      });
+      fila.prepend(boton);
+      fila.append(document.createElement('ul'));
+    }
+    boton.setAttribute('aria-expanded', String(zonaElegida === clave));
+    const lista = fila.querySelector('ul');
+    lista.hidden = zonaElegida !== clave;
+    const foco = lista.contains(document.activeElement) ? document.activeElement.dataset.visitaZona : null;
+    const conocidas = [...document.querySelectorAll('[data-zona-sede]')].map(f => f.dataset.zonaSede);
+    lista.replaceChildren(...visitasEscena.filter(v => (conocidas.includes(v.zona) ? v.zona : 'en_la_sede') === clave).map(v => {
+      const elemento = document.createElement('li');
+      const elegir = document.createElement('button');
+      elegir.type = 'button';
+      elegir.dataset.visitaZona = v.id;
+      elegir.textContent = `${v.nombre} · ${v.minutos} min${v.simulada ? ' · Visita simulada' : ''}${v.por_conciliar ? ' · Por conciliar' : ''}`;
+      elegir.addEventListener('click', () => seleccionarVisita(v));
+      elemento.append(elegir);
+      return elemento;
+    }));
+    if (foco) [...lista.querySelectorAll('button')].find(b => b.dataset.visitaZona === foco)?.focus();
+  }
+}
+
+async function iniciarEscena() {
+  if (escenaIniciada) return;
+  escenaIniciada = true;
+  try {
+    // La escena no compite con la primera lectura: recepción ya es usable sin ella.
+    await new Promise(resolver => setTimeout(resolver, ESPERA_ESCENA_MS));
+    const {crearEscena} = await import('@escena');
+    escena = crearEscena($('[data-escena-ocupacion]'), visita => abrirTarjeta(visita.socio_id));
+    escena.actualizar(visitasEscena);
+    $('[data-escena-ocupacion]').dataset.lista = 'true';
+  } catch {
+    $('[data-escena-ocupacion]').hidden = true;
+    $('[data-alternativa-escena]').hidden = false;
+  }
+}
 function dibujarOcupacion(ocupacion) {
   sedeId = ocupacion.sede_id;
   $("[data-ocupacion]").textContent = `${ocupacion.ocupacion_registrada} de ${ocupacion.aforo_maximo}`;
@@ -44,6 +107,9 @@ function actualizarBotones() {
 }
 
 function dibujarVisitas(visitas) {
+  visitasEscena = visitas;
+  actualizarPorZona();
+  escena?.actualizar(visitas);
   $("[data-visitas]").replaceChildren();
   $("[data-vacio]").hidden = visitas.length !== 0;
   for (const visita of visitas) {
@@ -77,7 +143,7 @@ function dibujarVisitas(visitas) {
     verTarjeta.type = "button";
     verTarjeta.textContent = "Ver tarjeta contextual";
     verTarjeta.setAttribute("aria-label", `Ver tarjeta contextual de ${visita.nombre}`);
-    verTarjeta.addEventListener("click", () => abrirTarjeta(visita.socio_id));
+    verTarjeta.addEventListener("click", () => seleccionarVisita(visita));
     tarjeta.append(verTarjeta);
     if (visita.por_conciliar) {
       const marca = document.createElement("strong");
@@ -112,6 +178,7 @@ async function actualizar() {
     $("#socio").value = seleccion;
     dibujarVisitas(visitas);
     $("[data-contenido]").hidden = false;
+    iniciarEscena();
     return true;
   } catch (error) {
     $("[data-error]").textContent = error.message;
@@ -269,10 +336,12 @@ async function iniciar() {
     }
     autorizada = true;
     if (!sondeos.length) sondeos = [
-      crearSondeo({ url: "/api/ocupacion", alCambiar: dibujarOcupacion }),
-      crearSondeo({ url: "/api/visitas?abiertas=1", alCambiar: ({ visitas }) => { dibujarVisitas(visitas); actualizarBotones(); } }),
+      crearSondeo({ url: "/api/ocupacion", puedeConsultar: () => !cargando && !control.enCurso, alCambiar: dibujarOcupacion }),
+      crearSondeo({ url: "/api/visitas?abiertas=1", puedeConsultar: () => !cargando && !control.enCurso, alCambiar: ({ visitas }) => { dibujarVisitas(visitas); actualizarBotones(); } }),
     ];
-    if (await actualizar()) $("[data-estado]").textContent = "Recepción lista.";
+    if (await actualizar()) {
+      $("[data-estado]").textContent = "Recepción lista.";
+    }
   } catch (error) { $("[data-error]").textContent = error.message; }
 }
 iniciar();

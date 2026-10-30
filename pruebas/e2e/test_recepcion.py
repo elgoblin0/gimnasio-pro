@@ -12,6 +12,80 @@ expect = pytest.importorskip("playwright.sync_api").expect
 pytestmark = pytest.mark.e2e
 
 
+@pytest.mark.parametrize("ancho,alto", [(1440, 900), (390, 844)])
+def test_escena_entrada_sin_recarga_y_seleccion_por_teclado(pagina_demo, demo_aislada, ancho, alto):
+    pagina = pagina_demo
+    pagina.set_viewport_size({"width": ancho, "height": alto})
+    ingresar(pagina, demo_aislada)
+    escena = pagina.locator('[data-escena-ocupacion][data-lista="true"]')
+    expect(escena).to_be_visible()
+    expect(pagina.locator("[data-punto-visita]")).to_have_count(0)
+    pagina.evaluate("window.recepcionSinRecargar = true")
+    pagina.get_by_role("button", name="Registrar entrada", exact=True).click()
+    punto = pagina.locator("[data-punto-visita]")
+    expect(punto).to_have_count(1)
+    expect(punto).not_to_have_attribute("aria-label", re.compile("Lucía"))
+    pagina.keyboard.press("Escape")
+    # Desde el selector: Tab llega a registrar entrada y luego al punto anónimo.
+    pagina.get_by_label("Socio", exact=True).focus()
+    pagina.keyboard.press("Tab")
+    pagina.keyboard.press("Tab")
+    expect(punto).to_be_focused()
+    pagina.keyboard.press("Enter")
+    expect(pagina.locator("[data-tarjeta-contextual]")).to_contain_text("Lucía Benítez")
+    expect(pagina.locator("[data-rotulo-visita]")).to_contain_text("Lucía Benítez")
+    assert pagina.evaluate("window.recepcionSinRecargar === true")
+    pagina.keyboard.press("Escape")
+    lista = pagina.locator('[aria-labelledby="titulo-zonas"]')
+    expect(lista).to_be_visible()
+    if ancho <= 600:
+        assert escena.bounding_box()["y"] + escena.bounding_box()["height"] <= lista.bounding_box()["y"]
+    assert pagina.evaluate("document.documentElement.scrollWidth <= innerWidth")
+
+
+def test_escena_movimiento_reducido_ubica_entrada_inmediatamente(pagina_demo, demo_aislada):
+    pagina = pagina_demo
+    pagina.emulate_media(reduced_motion="reduce")
+    ingresar(pagina, demo_aislada)
+    expect(pagina.locator('[data-escena-ocupacion][data-lista="true"]')).to_be_visible()
+    pagina.get_by_role("button", name="Registrar entrada", exact=True).click()
+    punto = pagina.locator("[data-punto-visita]")
+    expect(punto).to_be_visible()
+    pagina.keyboard.press("Escape")
+    # Dos cuadros consecutivos tienen la misma posición: no recorre la puerta.
+    posiciones = punto.evaluate("""async elemento => {
+      await new Promise(requestAnimationFrame);
+      await new Promise(requestAnimationFrame);
+      const antes = [elemento.style.left, elemento.style.top];
+      await new Promise(requestAnimationFrame);
+      return [antes, [elemento.style.left, elemento.style.top]];
+    }""")
+    assert posiciones[0] == posiciones[1]
+    expect(pagina.get_by_role("heading", name="Por zona", exact=True)).to_be_visible()
+    pagina.locator('[data-elegir-zona="en_la_sede"]').click()
+    pagina.locator("[data-visita-zona]").click()
+    expect(pagina.locator("[data-tarjeta-contextual]")).to_contain_text("Lucía Benítez")
+
+
+def test_escena_sin_webgl_conserva_seleccion_por_zona(pagina_demo, demo_aislada):
+    pagina = pagina_demo
+    pagina.add_init_script("""(() => {
+      const original = HTMLCanvasElement.prototype.getContext;
+      HTMLCanvasElement.prototype.getContext = function(tipo, ...opciones) {
+        return tipo.startsWith('webgl') ? null : original.call(this, tipo, ...opciones);
+      };
+    })();""")
+    ingresar(pagina, demo_aislada)
+    expect(pagina.locator("[data-alternativa-escena]")).to_be_visible()
+    expect(pagina.locator("[data-escena-ocupacion]")).to_be_hidden()
+    expect(pagina.get_by_role("heading", name="Por zona", exact=True)).to_be_visible()
+    pagina.get_by_role("button", name="Registrar entrada", exact=True).click()
+    pagina.keyboard.press("Escape")
+    pagina.locator('[data-elegir-zona="en_la_sede"]').click()
+    pagina.locator("[data-visita-zona]").click()
+    expect(pagina.locator("[data-tarjeta-contextual]")).to_contain_text("Lucía Benítez")
+
+
 def test_visitas_simuladas_a_las_diecinueve_y_entrada_real(pagina_demo, demo_aislada):
     # Preparar el salto de diez horas fuera de la espera de la interfaz.
     # La consulta de recepción todavía genera el último minuto por la API real.
@@ -96,6 +170,7 @@ def test_sondeo_entre_recepciones_y_ocupacion_del_socio(pagina_demo, demo_aislad
         segunda.bring_to_front()
         expect(segunda.locator("[data-ocupacion]")).to_have_text("1 de 60", timeout=9000)
         expect(segunda.get_by_role("button", name="Registrar salida de Lucía Benítez")).to_be_visible()
+        expect(segunda.locator("[data-punto-visita]")).to_have_count(1)
         pagina_socio = socio.new_page()
         pagina_socio.goto(demo_aislada.url)
         pagina_socio.get_by_role("button", name="Entrar como socio", exact=True).click()
@@ -112,6 +187,7 @@ def test_sondeo_entre_recepciones_y_ocupacion_del_socio(pagina_demo, demo_aislad
         segunda.bring_to_front()
         expect(segunda.locator('[data-zona-sede="peso_libre"] span')).to_have_text("1", timeout=9000)
         expect(segunda.get_by_role("progressbar", name="Peso libre", exact=True)).to_have_attribute("value", "1")
+        expect(segunda.locator("[data-punto-visita]")).to_have_attribute("aria-label", re.compile("Peso libre"))
     finally:
         segunda.close()
         socio.close()

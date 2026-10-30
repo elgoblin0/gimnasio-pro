@@ -1,5 +1,5 @@
 // Peticiones cortas sin solaparse; el navegador oculto no consume consultas.
-export function crearSondeo({ url, cadaMs = 5000, alCambiar }) {
+export function crearSondeo({ url, cadaMs = 5000, alCambiar, puedeConsultar = () => true }) {
   let etiqueta;
   let espera = cadaMs;
   let temporizador;
@@ -15,6 +15,7 @@ export function crearSondeo({ url, cadaMs = 5000, alCambiar }) {
 
   async function actualizar() {
     if (detenido || documento?.hidden || enCurso) return;
+    if (!puedeConsultar()) { programar(); return; }
     clearTimeout(temporizador);
     enCurso = true;
     const actual = generacion;
@@ -26,7 +27,7 @@ export function crearSondeo({ url, cadaMs = 5000, alCambiar }) {
       if (respuesta.status !== 304) {
         if (respuesta.status !== 200) throw new Error("No se pudo consultar.");
         const datos = await respuesta.json();
-        if (!detenido && actual === generacion) {
+        if (!detenido && actual === generacion && puedeConsultar()) {
           alCambiar(datos);
           etiqueta = respuesta.headers.get("ETag");
         }
