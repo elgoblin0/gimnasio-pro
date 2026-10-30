@@ -8,6 +8,51 @@ from gimnasio.comun.ids import a_bytes, nuevo_id
 from gimnasio.entrenamiento.servicio import preparar_historial
 
 
+def test_reproyeccion_dolor_con_equipo_no_disponible_conserva_pendiente():
+    import json
+
+    from gimnasio.comun.tipos import EjercicioCatalogo
+    from gimnasio.entrenamiento.servicio import proyectar_dolor
+
+    original = EjercicioCatalogo(
+        "original", "Original", None, "barra", "sentadilla", ("gluteos", "rodillas"), ("alternativa",)
+    )
+    alternativa = EjercicioCatalogo("alternativa", "Alternativa", None, "prensa", "sentadilla", ("gluteos",))
+    efectiva = {
+        "ejercicios": json.dumps(
+            [
+                {
+                    "id": "planificado",
+                    "ejercicio_id": "original",
+                    "ejercicio_hecho_id": "alternativa",
+                    "objetivos": {
+                        "series": 2,
+                        "repeticiones_minimas": 8,
+                        "repeticiones_maximas": 12,
+                        "carga": None,
+                        "rir_objetivo": 2,
+                        "descanso": 60,
+                    },
+                    "explicacion": [],
+                }
+            ]
+        )
+    }
+    for zonas, no_disponible in ((("rodillas",), True), (("rodillas", "gluteos"), False)):
+        ejercicio = proyectar_dolor(
+            None,
+            None,
+            efectiva,
+            zonas=zonas,
+            catalogos={"original": (original, alternativa)},
+            restricciones=(),
+            equipos=frozenset({"prensa"}),
+        )[0]
+        assert ejercicio["objetivos"]["series"] == (2 if no_disponible else 0)
+        assert ejercicio.get("no_disponible", False) is no_disponible
+    assert json.loads(efectiva["ejercicios"])[0]["objetivos"]["series"] == 2
+
+
 def test_historial_agrupa_sesiones_y_acredita_al_planificado(reloj_fijo):
     ids = [a_bytes(nuevo_id(reloj_fijo)) for _ in range(8)]
     momento = datetime(2026, 10, 26, 2, 59, tzinfo=UTC).replace(tzinfo=None)

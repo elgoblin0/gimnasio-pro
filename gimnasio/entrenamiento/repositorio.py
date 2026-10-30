@@ -353,7 +353,16 @@ def obtener_prescripcion(cursor, sesion_id):
 
 def listar_prescripciones(cursor, socio_id):
     cursor.execute(
-        """SELECT p.*, s.sesion_planificada_id, s.creada_en AS sesion_creada_en FROM prescripciones_efectivas p
+        """SELECT p.*, s.sesion_planificada_id, s.creada_en AS sesion_creada_en,
+                  (SELECT MAX(d.registrado_en) FROM dolores_reportados d
+                   WHERE d.sesion_realizada_id=s.id) AS ultimo_dolor,
+                  (SELECT JSON_OBJECTAGG(LOWER(BIN_TO_UUID(v.ejercicio_planificado_id)),
+                                        LOWER(BIN_TO_UUID(v.ejercicio_hecho_id)))
+                   FROM sustituciones v WHERE v.sesion_realizada_id=s.id AND NOT EXISTS (
+                       SELECT 1 FROM sustituciones n WHERE n.sesion_realizada_id=v.sesion_realizada_id
+                       AND n.ejercicio_planificado_id=v.ejercicio_planificado_id
+                       AND (n.registrada_en,n.id)>(v.registrada_en,v.id))) AS sustituciones_vigentes
+           FROM prescripciones_efectivas p
            JOIN sesiones_realizadas s ON s.id=p.sesion_realizada_id WHERE s.socio_id=%s""",
         (a_bytes(socio_id),),
     )
@@ -457,6 +466,14 @@ def dolores_sesion(cursor, sesion_id, fecha):
     if chequeo:
         zonas.update(zonas_chequeo(cursor, desde_bytes(chequeo["id"])))
     return tuple(sorted(zonas))
+
+
+def ultimo_momento_dolor(cursor, sesion_id):
+    cursor.execute(
+        "SELECT MAX(registrado_en) AS momento FROM dolores_reportados WHERE sesion_realizada_id=%s",
+        (a_bytes(sesion_id),),
+    )
+    return cursor.fetchone()["momento"]
 
 
 def listar_dolores_socio(cursor, socio_id):

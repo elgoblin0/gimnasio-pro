@@ -16,7 +16,9 @@ def excluido(ejercicio, restricciones):
     )
 
 
-def aplicar_restricciones(prescripcion, ejercicio, catalogo, restricciones, zonas_dolor=()):
+def aplicar_restricciones(
+    prescripcion, ejercicio, catalogo, restricciones, zonas_dolor=(), equipos_fuera_de_servicio=frozenset()
+):
     hecho = next((e for e in catalogo if e.ejercicio_id == prescripcion.ejercicio_hecho_id), ejercicio)
     if not excluido(hecho, restricciones):
         return prescripcion, (), ()
@@ -28,6 +30,7 @@ def aplicar_restricciones(prescripcion, ejercicio, catalogo, restricciones, zona
         zonas_excluidas=zonas,
         ejercicios_excluidos=excluidos,
         motivo="restriccion_salud",
+        equipos_fuera_de_servicio=equipos_fuera_de_servicio,
     )
     hecho_id = alternativas[0].ejercicio_id if alternativas and prescripcion.series else None
     prescripcion = replace(prescripcion, ejercicio_hecho_id=hecho_id, series=prescripcion.series if hecho_id else 0)

@@ -1,5 +1,6 @@
 """Equipos del catálogo, permisos e historial idempotente de estados."""
 
+from datetime import timedelta
 from uuid import uuid4
 
 import pytest
@@ -63,6 +64,27 @@ def test_cambios_estado_equipo_idempotentes(equipos):
     with app.app_context():
         demo.reiniciar()
         assert servicio.equipos_fuera_de_servicio() == frozenset()
+
+
+def test_estado_equipo_al_momento_del_dolor(equipos, reloj_fijo):
+    app, cliente, equipo = equipos
+    inicio = reloj_fijo.ahora().replace(tzinfo=None)
+    reloj_fijo.avanzar(timedelta(seconds=1))
+    assert cambiar(cliente, equipo, "fuera_de_servicio").status_code == 200
+    dolor = reloj_fijo.ahora().replace(tzinfo=None)
+    reloj_fijo.avanzar(timedelta(seconds=1))
+    assert cambiar(cliente, equipo, "disponible").status_code == 200
+    reparacion = reloj_fijo.ahora().replace(tzinfo=None)
+    with app.app_context(), transaccion() as cursor:
+        assert servicio.equipos_fuera_de_servicio(cursor, momento=inicio) == frozenset()
+        assert servicio.equipos_fuera_de_servicio(cursor, momento=dolor) == frozenset({equipo["nombre"]})
+        assert servicio.equipos_fuera_de_servicio(momento=dolor) == frozenset({equipo["nombre"]})
+        assert servicio.equipos_fuera_de_servicio(cursor) == frozenset()
+        assert servicio.equipos_fuera_de_servicio_en_momentos(cursor, [inicio, dolor, reparacion]) == {
+            inicio: frozenset(),
+            dolor: frozenset({equipo["nombre"]}),
+            reparacion: frozenset(),
+        }
 
 
 @pytest.mark.parametrize(

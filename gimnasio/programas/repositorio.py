@@ -3,17 +3,22 @@
 from gimnasio.comun.ids import a_bytes
 
 
-def leer_equipos(cursor, equipo_id=None):
+def leer_equipos(cursor, equipo_id=None, *, momento=None):
     filtro = " WHERE e.id = %s" if equipo_id is not None else ""
+    hasta = " AND registrado_en <= %s" if momento is not None else ""
+    parametros = (momento,) if momento is not None else ()
+    if equipo_id is not None:
+        parametros += (a_bytes(equipo_id),)
     cursor.execute(
         """SELECT e.id, e.nombre, COALESCE(c.estado, 'disponible') AS estado,
                   c.registrado_en AS ultimo_cambio, c.autor_id, c.motivo
            FROM equipos e LEFT JOIN cambios_estado_equipo c ON c.id = (
-               SELECT id FROM cambios_estado_equipo WHERE equipo_id = e.id
-               ORDER BY registrado_en DESC, id DESC LIMIT 1)"""
+               SELECT id FROM cambios_estado_equipo WHERE equipo_id = e.id"""
+        + hasta
+        + " ORDER BY registrado_en DESC, id DESC LIMIT 1)"
         + filtro
         + " ORDER BY e.nombre",
-        (a_bytes(equipo_id),) if equipo_id is not None else (),
+        parametros,
     )
     return cursor.fetchall()
 
@@ -21,6 +26,21 @@ def leer_equipos(cursor, equipo_id=None):
 def bloquear_equipo(cursor, equipo_id):
     cursor.execute("SELECT id FROM equipos WHERE id = %s FOR UPDATE", (a_bytes(equipo_id),))
     return cursor.fetchone()
+
+
+def leer_equipos_en_momentos(cursor, momentos):
+    cursor.execute(
+        "WITH momentos AS ("
+        + " UNION ".join("SELECT CAST(%s AS DATETIME(6)) AS momento" for _ in momentos)
+        + """
+        ) SELECT m.momento, e.nombre FROM momentos m CROSS JOIN equipos e
+          JOIN cambios_estado_equipo c ON c.id=(
+              SELECT id FROM cambios_estado_equipo WHERE equipo_id=e.id AND registrado_en<=m.momento
+              ORDER BY registrado_en DESC,id DESC LIMIT 1)
+          WHERE c.estado='fuera_de_servicio' AND e.nombre NOT IN ('','sin equipo')""",
+        tuple(momentos),
+    )
+    return cursor.fetchall()
 
 
 def insertar_cambio_estado(cursor, cambio_id, equipo_id, estado, motivo, autor_id, momento):

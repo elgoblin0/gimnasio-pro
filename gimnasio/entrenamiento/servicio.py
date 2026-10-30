@@ -4,7 +4,7 @@ import json
 from bisect import bisect_right
 from collections import Counter, defaultdict
 from contextlib import nullcontext
-from dataclasses import asdict
+from dataclasses import asdict, replace
 from datetime import UTC
 from decimal import Decimal
 from zoneinfo import ZoneInfo
@@ -30,13 +30,19 @@ from gimnasio.comun.tipos import (
 )
 from gimnasio.entrenamiento import repositorio
 from gimnasio.permisos.servicio import tiene_asignacion_vigente, tiene_consentimiento
-from gimnasio.programas.servicio import OBJETIVOS, listar_programas
+from gimnasio.programas.servicio import (
+    OBJETIVOS,
+    equipos_fuera_de_servicio,
+    equipos_fuera_de_servicio_en_momentos,
+    listar_programas,
+)
 from gimnasio.reglas.alternativas import elegir_alternativas
 from gimnasio.reglas.dolor import aplicar_dolor
 from gimnasio.reglas.progresion import historial_para_sesion
 from gimnasio.reglas.records import detectar_records
 from gimnasio.reglas.restricciones import aplicar_restricciones, excluido
 from gimnasio.reglas.sesion import proponer_sesion
+from gimnasio.reglas.version import VERSION_REGLAS
 from gimnasio.salud.servicio import restricciones_vigentes
 
 
@@ -283,6 +289,7 @@ def consultar_propuesta(socio_texto, usuario, planificada_id=None, *, cursor=Non
     with nullcontext(cursor) if cursor is not None else transaccion() as lectura:
         autorizar_socio(lectura, socio_id, usuario)
         restricciones = restricciones_vigentes(socio_id, cursor=lectura)
+        equipos_no_disponibles = equipos_fuera_de_servicio(lectura)
         sede = repositorio.obtener_sede(lectura)
         if sede is None:
             raise ErrorDeDominio("sede_inexistente", "La sede no existe.", 404)
@@ -307,6 +314,10 @@ def consultar_propuesta(socio_texto, usuario, planificada_id=None, *, cursor=Non
         dolores = preparar_dolores_sesiones(
             efectivas, repositorio.listar_dolores_socio(lectura, socio_id), ZoneInfo(sede["zona_horaria"])
         )
+        efectivas_guardadas = efectivas
+        equipos_por_momento = equipos_fuera_de_servicio_en_momentos(
+            lectura, [e["ultimo_dolor"] or e["sesion_creada_en"] for e in efectivas]
+        )
         efectivas = [
             {
                 **efectiva,
@@ -318,6 +329,7 @@ def consultar_propuesta(socio_texto, usuario, planificada_id=None, *, cursor=Non
                         zonas=dolores[efectiva["sesion_realizada_id"]],
                         catalogos=catalogos,
                         restricciones=restricciones,
+                        equipos=equipos_por_momento[efectiva["ultimo_dolor"] or efectiva["sesion_creada_en"]],
                     ),
                     default=str,
                 ),
@@ -344,10 +356,12 @@ def consultar_propuesta(socio_texto, usuario, planificada_id=None, *, cursor=Non
         # Conservamos cantidades reales para la pantalla y acreditamos solo ante el motor.
         originales = {e.ejercicio_id: e.series for s in programa_motor.sesiones for e in s.ejercicios}
         quitadas = {}
-        for efectiva in efectivas:
+        # La indisponibilidad actual no revoca las reducciones congeladas al iniciar.
+        # Solo las reducciones adicionales de la proyección dependen de su disponibilidad.
+        for efectiva in efectivas_guardadas + efectivas:
             planificada = str(desde_bytes(efectiva["sesion_planificada_id"]))
             for ejercicio in json.loads(efectiva["ejercicios"]):
-                if ejercicio["id"] not in originales:
+                if ejercicio["id"] not in originales or ejercicio.get("no_disponible"):
                     continue
                 clave = (planificada, ejercicio["id"])
                 quitadas[clave] = max(
@@ -380,6 +394,7 @@ def consultar_propuesta(socio_texto, usuario, planificada_id=None, *, cursor=Non
             actuales,
             anteriores,
             restricciones,
+            equipos_no_disponibles,
         )
     )
     respuesta = {
@@ -413,6 +428,7 @@ def consultar_propuesta(socio_texto, usuario, planificada_id=None, *, cursor=Non
             "id": e["id"],
             "ejercicio_id": e["ejercicio_id"],
             "ejercicio_hecho_id": prescripciones[e["id"]].ejercicio_hecho_id,
+            "no_disponible": prescripciones[e["id"]].no_disponible,
             "carga_anterior": anteriores.get(e["ejercicio_id"]),
             "nombre": e["nombre"],
             "posicion": e["posicion"],
@@ -571,6 +587,8 @@ def registrar_serie(sesion_texto, datos, usuario):
         efectiva = repositorio.obtener_prescripcion(cursor, sesion_id)
         ejercicios = proyectar_dolor(cursor, sesion, efectiva) if efectiva else []
         prescrito = next((e for e in ejercicios if e["id"] == str(ejercicio_id)), None)
+        if prescrito and prescrito.get("no_disponible"):
+            raise ErrorDeDominio("ejercicio_no_disponible", "El ejercicio no está disponible y sigue pendiente.", 409)
         if prescrito and prescrito["objetivos"]["series"] == 0:
             if any(r["regla"] == "restriccion_salud" for r in prescrito["explicacion"]):
                 raise ErrorDeDominio(
@@ -739,6 +757,7 @@ def _alternativas(cursor, ejercicio, zonas_excluidas=(), *, socio_id):
         zonas_excluidas=zonas_excluidas,
         ejercicios_excluidos=tuple(e.ejercicio_id for e in catalogo if excluido(e, restricciones)),
         motivo="dolor_reportado" if zonas_excluidas else "maquina_ocupada",
+        equipos_fuera_de_servicio=equipos_fuera_de_servicio(cursor),
     )
     return [
         {
@@ -951,19 +970,26 @@ def guardar_sustituciones_dolor(cursor, sesion_id, ejercicios, usuario, ahora):
             identificar(hecho),
             identificar(usuario["id"]),
             ahora,
-            motivo="restriccion_salud"
+            motivo="equipo_fuera_de_servicio"
+            if any(r["regla"] == "equipo_fuera_de_servicio" for r in ejercicio["explicacion"])
+            else "restriccion_salud"
             if any(r["regla"] == "restriccion_salud" for r in ejercicio["explicacion"])
             else "dolor_reportado",
         )
 
 
-def proyectar_dolor(cursor, sesion, efectiva, *, zonas=None, catalogos=None, restricciones=None):
+def proyectar_dolor(cursor, sesion, efectiva, *, zonas=None, catalogos=None, restricciones=None, equipos=None):
     """Proyecta el freno sin modificar la prescripción guardada al iniciar."""
     ejercicios = json.loads(efectiva["ejercicios"])
     if zonas is None:
         zonas = dolores_de_sesion(cursor, sesion, repositorio.obtener_sede(cursor))
     if not zonas:
         return ejercicios
+    sesion_id = desde_bytes(sesion["id"] if sesion else efectiva["sesion_realizada_id"]) if cursor else None
+    momento = None
+    sustituciones = (
+        json.loads(efectiva["sustituciones_vigentes"] or "{}") if "sustituciones_vigentes" in efectiva else None
+    )
     catalogos = {} if catalogos is None else catalogos
     if restricciones is None:
         restricciones = restricciones_vigentes(desde_bytes(sesion["socio_id"]), cursor=cursor)
@@ -982,9 +1008,57 @@ def proyectar_dolor(cursor, sesion, efectiva, *, zonas=None, catalogos=None, res
         )
         # Las razones congeladas conservan la carga base previa a cualquier suba.
         razones = tuple(Razon(r["regla"], r["version"], tuple(r["datos"].items())) for r in ejercicio["explicacion"])
-        ajustada, explicacion, _ = aplicar_dolor(prescripcion, original, catalogo, zonas, (), razones)
-        ajustada, razones_salud, _ = aplicar_restricciones(ajustada, original, catalogo, restricciones, zonas)
+        if ejercicio.get("no_disponible"):
+            continue
+        if sustituciones is not None:
+            hecho_id = sustituciones.get(ejercicio["id"])
+        else:
+            vigente = (
+                repositorio.sustitucion_vigente(cursor, sesion_id, identificar(ejercicio["id"])) if cursor else None
+            )
+            hecho_id = str(desde_bytes(vigente["ejercicio_hecho_id"])) if vigente else None
+        hecho = next((e for e in catalogo if e.ejercicio_id == hecho_id), None)
+        if hecho and set(hecho.zonas).isdisjoint(zonas) and not excluido(hecho, restricciones):
+            # Conserva la alternativa guardada mientras los frenos la permitan.
+            prescripcion = replace(prescripcion, ejercicio_hecho_id=hecho_id)
+            original = replace(original, alternativas=(hecho_id,))
+            catalogo = (original, hecho)
+            equipos_ejercicio = frozenset()
+        else:
+            if equipos is None:
+                if momento is None:
+                    momento = repositorio.ultimo_momento_dolor(cursor, sesion_id) or (
+                        sesion["creada_en"] if sesion else efectiva["sesion_creada_en"]
+                    )
+                equipos = equipos_fuera_de_servicio(cursor, momento=momento)
+            equipos_ejercicio = equipos
+        ajustada, explicacion, _ = aplicar_dolor(
+            prescripcion, original, catalogo, zonas, (), razones, equipos_ejercicio
+        )
+        ajustada, razones_salud, _ = aplicar_restricciones(
+            ajustada, original, catalogo, restricciones, zonas, equipos_ejercicio
+        )
         explicacion += razones_salud
+        if equipos_ejercicio and prescripcion.series and not ajustada.series:
+            # La falta de equipo no dispensa trabajo: distinguimos ese caso de
+            # un ejercicio quitado por dolor o restricción aun con equipos disponibles.
+            disponible, _, _ = aplicar_dolor(prescripcion, original, catalogo, zonas, (), razones)
+            disponible, _, _ = aplicar_restricciones(disponible, original, catalogo, restricciones, zonas)
+            if disponible.series:
+                ejercicio["no_disponible"] = True
+                ejercicio["explicacion"].append(
+                    {
+                        "regla": "ejercicio_no_disponible",
+                        "version": razones[0].version if razones else VERSION_REGLAS,
+                        "datos": {
+                            "ejercicio_id": ejercicio["id"],
+                            "explicacion": (
+                                "El equipo está fuera de servicio y no hay alternativa disponible. Sigue pendiente."
+                            ),
+                        },
+                    }
+                )
+                continue
         if not explicacion:
             continue
         for campo in ("series", "carga", "repeticiones_minimas"):

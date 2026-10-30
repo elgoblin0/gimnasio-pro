@@ -5,8 +5,9 @@ from datetime import timedelta
 from decimal import Decimal
 
 from gimnasio.comun.tipos import PrescripcionEjercicio, Razon
+from gimnasio.reglas.alternativas import elegir_alternativas
 from gimnasio.reglas.dolor import aplicar_dolor
-from gimnasio.reglas.restricciones import aplicar_restricciones
+from gimnasio.reglas.restricciones import aplicar_restricciones, excluido
 from gimnasio.reglas.version import VERSION_REGLAS
 
 
@@ -299,10 +300,81 @@ def ajustar_ejercicio(planificado, entrada, sesion_planificada_id):
                 frenos + ("restriccion_salud",),
             )
         return ajustada, razones, frenos
+    antes_frenos = ajustada
     ajustada, razones_dolor, frenos_dolor = aplicar_dolor(
-        ajustada, ejercicio, entrada.catalogo, entrada.dolores_actuales, entrada.dolores_anteriores, razones
+        ajustada,
+        ejercicio,
+        entrada.catalogo,
+        entrada.dolores_actuales,
+        entrada.dolores_anteriores,
+        razones,
+        entrada.equipos_fuera_de_servicio,
     )
     ajustada, razones_salud, frenos_salud = aplicar_restricciones(
-        ajustada, ejercicio, entrada.catalogo, entrada.restricciones, entrada.dolores_actuales
+        ajustada,
+        ejercicio,
+        entrada.catalogo,
+        entrada.restricciones,
+        entrada.dolores_actuales,
+        entrada.equipos_fuera_de_servicio,
     )
-    return ajustada, razones + razones_dolor + razones_salud, frenos + frenos_dolor + frenos_salud
+    if entrada.equipos_fuera_de_servicio and antes_frenos.series and not ajustada.series:
+        # La falta de equipo no quita trabajo: comprobamos si existe una
+        # alternativa segura aun cuando su equipo esté fuera de servicio.
+        disponible, dolor_disponible, frenos_dolor_disponible = aplicar_dolor(
+            antes_frenos,
+            ejercicio,
+            entrada.catalogo,
+            entrada.dolores_actuales,
+            entrada.dolores_anteriores,
+            razones,
+        )
+        disponible, salud_disponible, frenos_salud_disponible = aplicar_restricciones(
+            disponible, ejercicio, entrada.catalogo, entrada.restricciones, entrada.dolores_actuales
+        )
+        if disponible.series:
+            ajustada = replace(disponible, ejercicio_hecho_id=None, no_disponible=True)
+            # Conserva los frenos sin anunciar una sustitución que no se puede hacer.
+            razones_dolor = tuple(
+                razon("dolor_reportado", ajustada, "Dolor reportado: no se sube la carga. Se avisa al entrenador.")
+                for _ in dolor_disponible
+            )
+            razones_salud = tuple(
+                razon(
+                    "restriccion_salud", ajustada, "Restricción registrada por tu entrenador. Se avisa al entrenador."
+                )
+                for _ in salud_disponible
+            )
+            frenos_dolor = frenos_dolor_disponible
+            frenos_salud = frenos_salud_disponible
+            razones += (
+                razon(
+                    "ejercicio_no_disponible",
+                    ajustada,
+                    "El equipo está fuera de servicio y no hay alternativa disponible. Sigue pendiente.",
+                ),
+            )
+    razones += razones_dolor + razones_salud
+    hecho = next((e for e in entrada.catalogo if e.ejercicio_id == ajustada.ejercicio_hecho_id), ejercicio)
+    if ajustada.series and not ajustada.no_disponible and hecho.equipo in entrada.equipos_fuera_de_servicio:
+        alternativas, explicacion = elegir_alternativas(
+            ejercicio.ejercicio_id,
+            entrada.catalogo,
+            zonas_excluidas=entrada.dolores_actuales,
+            ejercicios_excluidos=tuple(e.ejercicio_id for e in entrada.catalogo if excluido(e, entrada.restricciones)),
+            motivo="equipo_fuera_de_servicio",
+            equipos_fuera_de_servicio=entrada.equipos_fuera_de_servicio,
+        )
+        if alternativas:
+            ajustada = replace(ajustada, ejercicio_hecho_id=alternativas[0].ejercicio_id)
+            razones += (replace(explicacion, datos=(("ejercicio_id", ajustada.ejercicio_id),) + explicacion.datos[1:]),)
+        else:
+            ajustada = replace(ajustada, no_disponible=True)
+            razones += (
+                razon(
+                    "ejercicio_no_disponible",
+                    ajustada,
+                    "El equipo está fuera de servicio y no hay alternativa disponible. Sigue pendiente.",
+                ),
+            )
+    return ajustada, razones, frenos + frenos_dolor + frenos_salud

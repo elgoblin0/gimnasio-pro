@@ -36,12 +36,12 @@ def listar_equipos():
         return [_equipo_publico(fila) for fila in repositorio.leer_equipos(cursor)]
 
 
-def equipos_fuera_de_servicio(cursor=None):
-    """Nombres de equipos no disponibles; puede compartir la transacción del llamador."""
+def equipos_fuera_de_servicio(cursor=None, *, momento=None):
+    """Nombres no disponibles al momento indicado, o actuales si se omite."""
     with nullcontext(cursor) if cursor is not None else transaccion() as cursor:
         return frozenset(
             fila["nombre"]
-            for fila in repositorio.leer_equipos(cursor)
+            for fila in repositorio.leer_equipos(cursor, momento=momento)
             if fila["estado"] == "fuera_de_servicio" and fila["nombre"] not in ("", "sin equipo")
         )
 
@@ -70,6 +70,15 @@ def cambiar_estado_equipo(equipo_id, datos, usuario):
             cursor, nuevo_id(reloj), equipo_id, estado, motivo, desde_texto(usuario["id"]), reloj.ahora()
         )
         return _equipo_publico(repositorio.leer_equipos(cursor, equipo_id)[0])
+
+
+def equipos_fuera_de_servicio_en_momentos(cursor, momentos):
+    """Resuelve el historial de sesiones en una sola lectura."""
+    por_momento = dict.fromkeys(momentos, frozenset())
+    if por_momento:
+        for fila in repositorio.leer_equipos_en_momentos(cursor, por_momento):
+            por_momento[fila["momento"]] |= {fila["nombre"]}
+    return por_momento
 
 
 def validar_medidas_aplicables(medidas):

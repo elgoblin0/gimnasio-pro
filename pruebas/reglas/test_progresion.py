@@ -13,6 +13,7 @@ from gimnasio.comun.tipos import (
     EjercicioPlanificado,
     HistorialEjercicio,
     ProgramaEntrenamiento,
+    RestriccionSalud,
     SerieRealizada,
     SesionPlanificada,
     SubaCarga,
@@ -22,6 +23,79 @@ from gimnasio.reglas.sesion import proponer_sesion
 LUNES = date(2026, 10, 26)
 EJERCICIO = EjercicioPlanificado("planificado", 3, 8, 12, Decimal("40"), 2, 90, ejercicio_catalogo_id="sentadilla")
 CATALOGO = (EjercicioCatalogo("sentadilla", "sentadilla", Decimal("2.5")),)
+
+
+@pytest.mark.parametrize(
+    "equipos,hecho,no_disponible",
+    [
+        ((), None, False),
+        (("barra",), "primera", False),
+        (("barra", "prensa"), "segunda", False),
+        (("barra", "prensa", "mancuernas"), None, True),
+    ],
+)
+def test_sustitucion_equipo_fuera_de_servicio(equipos, hecho, no_disponible):
+    catalogo = (
+        EjercicioCatalogo(
+            "sentadilla", "Sentadilla", Decimal("2.5"), "barra", "sentadilla", ("cuadriceps",), ("primera", "segunda")
+        ),
+        EjercicioCatalogo("segunda", "Segunda", Decimal("2.5"), "mancuernas", "sentadilla", ("cuadriceps",)),
+        EjercicioCatalogo("primera", "Primera", Decimal("2.5"), "prensa", "sentadilla", ("cuadriceps",)),
+    )
+    datos = replace(entrada(), catalogo=catalogo, equipos_fuera_de_servicio=frozenset(equipos))
+    propuesta = proponer_sesion(datos)
+    prescripcion = propuesta.prescripcion[0]
+    assert prescripcion.ejercicio_hecho_id == hecho
+    assert prescripcion.no_disponible == no_disponible
+    assert propuesta.pendientes[0].series == (1, 2, 3)
+    assert propuesta.frenos == ()
+    reglas = {r.regla for r in propuesta.explicacion}
+    assert ("equipo_fuera_de_servicio" in reglas) == (hecho is not None)
+    assert ("ejercicio_no_disponible" in reglas) == no_disponible
+    if not equipos:
+        assert propuesta == proponer_sesion(replace(datos, equipos_fuera_de_servicio=frozenset()))
+
+
+@pytest.mark.parametrize("dolor,restriccion", [(True, False), (False, True), (True, True)])
+@pytest.mark.parametrize("alternativa_segura", [True, False])
+@pytest.mark.parametrize("equipo_disponible", [True, False])
+def test_frenos_iniciales_conservan_pendiente_si_solo_falta_equipo(
+    dolor, restriccion, alternativa_segura, equipo_disponible
+):
+    original = EjercicioCatalogo(
+        "sentadilla", "Sentadilla", Decimal("2.5"), "barra", "sentadilla", ("rodillas", "gluteos"), ("alternativa",)
+    )
+    alternativa = replace(
+        original,
+        ejercicio_id="alternativa",
+        nombre="Alternativa ficticia",
+        equipo="prensa",
+        zonas=("gluteos",) if alternativa_segura else ("rodillas",),
+        alternativas=(),
+    )
+    datos = replace(
+        entrada(),
+        catalogo=(original, alternativa),
+        dolores_actuales=("rodillas",) if dolor else (),
+        restricciones=(RestriccionSalud(zona="rodillas"),) if restriccion else (),
+        equipos_fuera_de_servicio=frozenset() if equipo_disponible else frozenset({"prensa"}),
+    )
+    propuesta = proponer_sesion(datos)
+    prescripcion = propuesta.prescripcion[0]
+    assert prescripcion.series == (3 if alternativa_segura else 0)
+    assert prescripcion.no_disponible == (alternativa_segura and not equipo_disponible)
+    assert propuesta.pendientes[0].series == (1, 2, 3)
+    assert ("dolor_reportado" in propuesta.frenos) == dolor
+    if restriccion and not dolor:
+        assert "restriccion_salud" in propuesta.frenos
+    assert set(propuesta.frenos) <= {"dolor_reportado", "restriccion_salud"}
+    if dolor:
+        assert prescripcion.carga == Decimal("40")
+    reglas = {r.regla for r in propuesta.explicacion}
+    assert ("ejercicio_no_disponible" in reglas) == prescripcion.no_disponible
+    if prescripcion.no_disponible:
+        assert all("Alternativa ficticia" not in str(r.datos) for r in propuesta.explicacion)
+        assert all(not dict(r.datos).get("ejercicio_hecho_id") for r in propuesta.explicacion)
 
 
 def historial(repeticiones=(12, 12, 12), rir=(2, 2, 2), *, fecha=LUNES - timedelta(days=1), identificador="anterior"):
@@ -62,7 +136,7 @@ def entrada(sesiones=None, subas=(), fecha=LUNES):
 )
 def test_vectores_progresion(repeticiones, rir, carga, piso, regla):
     propuesta = proponer_sesion(entrada((historial(repeticiones, rir),)))
-    assert propuesta.version == "2.4.0"
+    assert propuesta.version == "3.0.0"
     assert propuesta.prescripcion[0].carga == Decimal(carga)
     assert propuesta.prescripcion[0].repeticiones_minimas == piso
     assert propuesta.prescripcion[0].repeticiones_maximas == 12
@@ -73,7 +147,7 @@ def test_vectores_progresion(repeticiones, rir, carga, piso, regla):
         assert razones[regla]["rir_minimo"] == "1"
         assert razones[regla]["rir_objetivo"] == "2"
     assert propuesta.frenos == ()
-    assert all(r.version == "2.4.0" and dict(r.datos)["explicacion"] for r in propuesta.explicacion)
+    assert all(r.version == "3.0.0" and dict(r.datos)["explicacion"] for r in propuesta.explicacion)
 
 
 def test_bajar_carga_tras_dos_fallos_y_nunca_menor_que_cero():
@@ -155,7 +229,7 @@ def test_carga_base_minima_no_depende_del_orden(cargas):
     razon = next(r for r in propuesta.explicacion if r.regla == "subir_carga")
     assert dict(razon.datos)["carga_base"] == "35"
     assert "35 kg" in dict(razon.datos)["explicacion"]
-    assert propuesta.version == "2.4.0"
+    assert propuesta.version == "3.0.0"
 
 
 @pytest.mark.parametrize(
