@@ -155,6 +155,22 @@ def convertir_programa(programa):
     )
 
 
+def cargas_ultima_sesion(cursor, socio_id):
+    """Menor carga vigente de la última sesión de cada ejercicio, incluidas sustituciones."""
+    por_ejercicio = {}
+    for fila in repositorio.listar_series_vigentes(cursor, socio_id):
+        if fila["carga"] is None:
+            continue
+        ejercicio = str(desde_bytes(fila["ejercicio_hecho_resuelto_id"]))
+        sesion = (fila["sesion_creada_en"], fila["sesion_realizada_id"])
+        anterior = por_ejercicio.get(ejercicio)
+        if anterior is None or sesion > anterior[0]:
+            por_ejercicio[ejercicio] = (sesion, fila["carga"])
+        elif sesion == anterior[0]:
+            por_ejercicio[ejercicio] = (sesion, min(anterior[1], fila["carga"]))
+    return {ejercicio: carga for ejercicio, (_, carga) in por_ejercicio.items()}
+
+
 def convertir_series(filas):
     cantidades = Counter()
     series = []

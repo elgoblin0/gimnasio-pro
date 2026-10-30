@@ -306,7 +306,7 @@ def test_reiniciar_demo_borra_programas_antes_de_los_socios(app_con_bd, programa
                 ("ejercicios_planificados", 13),
                 ("sesiones_planificadas", 7),
                 ("programas_entrenamiento", 2),
-                ("ejercicios", 5),
+                ("ejercicios", 7),
             ):
                 cursor.execute(f"SELECT COUNT(*) AS cantidad FROM {tabla}")
                 assert cursor.fetchone()["cantidad"] == cantidad

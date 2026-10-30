@@ -4,6 +4,10 @@ import json
 
 import pytest
 
+from gimnasio.comun.bd import transaccion
+from gimnasio.comun.ids import nuevo_id
+from gimnasio.entrenamiento import repositorio
+
 expect = pytest.importorskip("playwright.sync_api").expect
 pytestmark = pytest.mark.e2e
 
@@ -51,7 +55,7 @@ def test_propuesta_explicacion_recarga_y_cierre(pagina_demo, demo_aislada, progr
         (
             "secuencia_realizada",
             "Secuencia realizada",
-            "No queda trabajo pendiente en la secuencia del programa; no se reinicia automáticamente.",
+            "Terminaste tu programa; tu entrenador prepara el siguiente",
         ),
     ],
 )
@@ -77,6 +81,9 @@ def test_estados_vacios_con_respuesta_controlada(pagina_demo, demo_aislada, regl
     ingresar(pagina_demo, demo_aislada)
     expect(pagina_demo.get_by_role("heading", name=titulo, exact=True)).to_be_visible()
     expect(pagina_demo.get_by_text(mensaje, exact=True)).to_be_visible()
+    if regla == "secuencia_realizada":
+        expect(pagina_demo.locator("[data-iniciar]")).to_be_hidden()
+        expect(pagina_demo.locator("[data-ejercicios]")).to_be_empty()
 
 
 def test_error_legible_y_reintento_recupera_propuesta_real(pagina_demo, demo_aislada, programa_demo):
@@ -98,6 +105,41 @@ def test_error_legible_y_reintento_recupera_propuesta_real(pagina_demo, demo_ais
     expect(pagina_demo.get_by_role("alert")).to_have_text("No se pudo leer la propuesta.")
     pagina_demo.get_by_role("button", name="Actualizar propuesta", exact=True).click()
     expect(pagina_demo.get_by_role("heading", name="Fuerza y cardio", exact=True)).to_be_visible()
+    expect(pagina_demo.get_by_role("alert")).to_be_empty()
+
+
+def test_secuencia_terminada_con_historial_real(pagina_demo, demo_aislada, programa_demo):
+    with demo_aislada.app.app_context(), transaccion() as cursor:
+        reloj = demo_aislada.app.extensions["reloj"]
+        realizada = nuevo_id(reloj)
+        repositorio.insertar_sesion(cursor, realizada, programa_demo.socio, programa_demo.planificada, reloj.ahora())
+        for _ in range(2):
+            repositorio.insertar_serie(
+                cursor,
+                nuevo_id(reloj),
+                realizada,
+                programa_demo.ejercicios[0],
+                programa_demo.socio,
+                reloj.ahora(),
+                repeticiones=12,
+                carga=20.5,
+            )
+        repositorio.insertar_serie(
+            cursor,
+            nuevo_id(reloj),
+            realizada,
+            programa_demo.ejercicios[1],
+            programa_demo.socio,
+            reloj.ahora(),
+            duracion=120,
+            distancia=1500.25,
+        )
+    ingresar(pagina_demo, demo_aislada)
+    expect(
+        pagina_demo.get_by_text("Terminaste tu programa; tu entrenador prepara el siguiente", exact=True)
+    ).to_be_visible()
+    expect(pagina_demo.locator("[data-iniciar]")).to_be_hidden()
+    expect(pagina_demo.locator("[data-ejercicios]")).to_be_empty()
     expect(pagina_demo.get_by_role("alert")).to_be_empty()
 
 

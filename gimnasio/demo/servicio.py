@@ -102,6 +102,7 @@ def _cargar_programas(cursor, socios, siguiente_id, ahora):
     )
     repositorio.insertar_alternativa(cursor, fuerza, cajon, 2)
     repositorio.insertar_alternativa(cursor, cajon, fuerza, 1)
+    _cargar_plantillas(cursor, siguiente_id, ahora, fuerza)
     for socio_id in socios[:2]:
         programa, primera, segunda = siguiente_id(), siguiente_id(), siguiente_id()
         repositorio.insertar_programa(cursor, programa, socio_id, ahora)
@@ -196,6 +197,33 @@ def _cargar_programas(cursor, socios, siguiente_id, ahora):
             repositorio.insertar_parcial(
                 cursor, siguiente_id(), siguiente_id(), socio_id, primera, ejercicio_fuerza, ahora
             )
+
+
+def _cargar_plantillas(cursor, siguiente_id, ahora, fuerza):
+    empuje, traccion = siguiente_id(), siguiente_id()
+    for identificador, nombre, patron, zonas in (
+        (empuje, "Press con mancuernas ficticio", "empuje horizontal", ("pecho", "hombros", "triceps")),
+        (traccion, "Remo con mancuernas ficticio", "tracción horizontal", ("espalda_alta", "dorsales", "biceps")),
+    ):
+        repositorio.insertar_ejercicio(
+            cursor,
+            identificador,
+            nombre,
+            ["repeticiones", "carga"],
+            ahora,
+            patron_movimiento=patron,
+            equipo="mancuernas",
+            incremento_carga="2.50",
+            zonas=zonas,
+        )
+    for nombre, dias in (("Inicial de cuerpo completo", 2), ("3 días", 3), ("4 días", 4)):
+        plantilla = siguiente_id()
+        repositorio.insertar_plantilla(cursor, plantilla, nombre, "Semana tipo ficticia de fuerza.", ahora)
+        for posicion in range(1, dias + 1):
+            sesion = siguiente_id()
+            repositorio.insertar_sesion_plantilla(cursor, sesion, plantilla, posicion, f"Fuerza {posicion}")
+            for orden, ejercicio in enumerate((fuerza, empuje, traccion), start=1):
+                repositorio.insertar_ejercicio_plantilla(cursor, siguiente_id(), sesion, ejercicio, orden)
 
 
 class LimitePorIp:

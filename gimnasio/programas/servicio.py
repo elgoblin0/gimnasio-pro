@@ -3,11 +3,13 @@
 import json
 from contextlib import nullcontext
 from datetime import UTC
+from decimal import Decimal, InvalidOperation
 
 from gimnasio.comun.bd import transaccion
 from gimnasio.comun.errores import ErrorDeDominio
 from gimnasio.comun.ids import desde_bytes, desde_texto, nuevo_id
 from gimnasio.comun.reloj import reloj_actual
+from gimnasio.permisos.servicio import tiene_asignacion_vigente
 from gimnasio.programas import repositorio
 
 MEDIDAS = ("repeticiones", "carga", "duracion", "distancia")
@@ -188,6 +190,7 @@ def _leer(socio_id, version=None, *, cursor=None):
                 "id": programa_id,
                 "socio_id": str(desde_bytes(fila["socio_id"])),
                 "version": fila["version"],
+                "duracion_semanas": fila.get("duracion_semanas"),
                 "creado_en": fila["creado_en"].replace(tzinfo=UTC),
                 "sesiones_planificadas": [],
             }
@@ -198,6 +201,7 @@ def _leer(socio_id, version=None, *, cursor=None):
             sesiones[sesion_id] = {
                 "id": sesion_id,
                 "posicion": fila["sesion_posicion"],
+                "semana": fila.get("semana"),
                 "nombre": fila["sesion_nombre"],
                 "ejercicios_planificados": [],
             }
@@ -230,3 +234,168 @@ def _leer(socio_id, version=None, *, cursor=None):
             }
         )
     return list(programas.values())
+
+
+def _programa_invalido(detalle):
+    raise ErrorDeDominio("programa_invalido", detalle, 422)
+
+
+def _validar_numero(valor, campo, minimo, maximo, *, entero=False):
+    if isinstance(valor, bool) or (entero and type(valor) is not int):
+        _programa_invalido(f"{campo}: enviá un número válido.")
+    try:
+        numero = Decimal(str(valor))
+    except (InvalidOperation, ValueError):
+        _programa_invalido(f"{campo}: enviá un número válido.")
+    if not numero.is_finite() or not minimo <= numero <= maximo:
+        _programa_invalido(f"{campo}: debe estar entre {minimo} y {maximo}.")
+
+
+def _validar_publicacion(datos, catalogo, cargas):
+    if not isinstance(datos, dict) or set(datos) != {"version_base", "semanas", "sesiones"}:
+        _programa_invalido("Enviá version_base, semanas y sesiones.")
+    if datos["version_base"] is not None and (type(datos["version_base"]) is not int or datos["version_base"] < 1):
+        _programa_invalido("version_base: debe ser un entero positivo o null.")
+    _validar_numero(datos["semanas"], "semanas", 4, 12, entero=True)
+    sesiones = datos["sesiones"]
+    if not isinstance(sesiones, list) or not 1 <= len(sesiones) <= 6:
+        _programa_invalido("Enviá entre 1 y 6 sesiones.")
+    resultado = []
+    for sesion in sesiones:
+        if not isinstance(sesion, dict) or set(sesion) != {"nombre", "ejercicios"}:
+            _programa_invalido("Cada sesión debe tener nombre y ejercicios.")
+        nombre = sesion["nombre"]
+        if not isinstance(nombre, str) or not nombre.strip() or len(nombre.strip()) > 108:
+            _programa_invalido("El nombre de la sesión debe tener entre 1 y 108 caracteres.")
+        ejercicios = sesion["ejercicios"]
+        if not isinstance(ejercicios, list) or not 1 <= len(ejercicios) <= 12:
+            _programa_invalido("Enviá entre 1 y 12 ejercicios por sesión.")
+        validados = []
+        for ejercicio in ejercicios:
+            if not isinstance(ejercicio, dict) or set(ejercicio) - {"ejercicio_id", "series", *OBJETIVOS}:
+                _programa_invalido("El ejercicio tiene campos desconocidos.")
+            identificador = ejercicio.get("ejercicio_id")
+            if not isinstance(identificador, str) or identificador not in catalogo:
+                _programa_invalido("El ejercicio debe pertenecer al catálogo.")
+            _validar_numero(ejercicio.get("series"), "series", 1, 10, entero=True)
+            medidas = catalogo[identificador]["medidas_aplicables"]
+            validado = {**ejercicio}
+            for medida in MEDIDAS:
+                campos = ("repeticiones_minimas", "repeticiones_maximas") if medida == "repeticiones" else (medida,)
+                for campo in campos:
+                    valor = ejercicio.get(campo)
+                    if medida not in medidas:
+                        if valor is not None:
+                            _programa_invalido(f"{campo}: no es aplicable al ejercicio.")
+                        continue
+                    if campo == "carga" and valor is None:
+                        valor = cargas.get(identificador)
+                        if valor is None:
+                            _programa_invalido("carga: es obligatoria si el socio no tiene historial del ejercicio.")
+                        validado[campo] = valor
+                    maximo = (
+                        Decimal("999999.99")
+                        if campo == "carga"
+                        else (Decimal("99999999.99") if campo == "distancia" else 2147483647)
+                    )
+                    minimo = 0 if campo == "carga" else (Decimal("0.01") if campo == "distancia" else 1)
+                    _validar_numero(
+                        valor,
+                        campo,
+                        minimo,
+                        maximo,
+                        entero=campo in ("repeticiones_minimas", "repeticiones_maximas", "duracion"),
+                    )
+            if "repeticiones" in medidas and ejercicio["repeticiones_minimas"] > ejercicio["repeticiones_maximas"]:
+                _programa_invalido("El mínimo de repeticiones no puede superar el máximo.")
+            for campo, minimo, maximo in (("rir_objetivo", 0, 5), ("descanso", 0, 2147483647)):
+                if ejercicio.get(campo) is not None:
+                    _validar_numero(ejercicio[campo], campo, minimo, maximo, entero=True)
+            validados.append(validado)
+        resultado.append({"nombre": nombre.strip(), "ejercicios": validados})
+    return resultado
+
+
+def _comprobar_asignacion(cursor, socio_id, usuario):
+    if not tiene_asignacion_vigente(cursor, socio_id, desde_texto(usuario["id"])):
+        raise ErrorDeDominio("sin_asignacion", "El socio no tiene una asignación vigente con el entrenador.", 403)
+
+
+def _semana_tipo(programa):
+    return {
+        **{campo: programa[campo] for campo in ("id", "version", "duracion_semanas")},
+        "sesiones": [
+            {
+                "nombre": sesion["nombre"].split(" · ", 1)[1] if sesion["semana"] == 1 else sesion["nombre"],
+                "ejercicios": sesion["ejercicios_planificados"],
+            }
+            for sesion in programa["sesiones_planificadas"]
+            if sesion["semana"] in (None, 1)
+        ],
+    }
+
+
+def programa_vigente(socio_id, usuario):
+    socio_id = _id_socio(socio_id)
+    with transaccion() as cursor:
+        _comprobar_asignacion(cursor, socio_id, usuario)
+        programas = listar_programas(socio_id, cursor=cursor)
+        return _semana_tipo(programas[-1]) if programas else None
+
+
+def _id_socio(texto):
+    try:
+        return desde_texto(texto)
+    except (ValueError, AttributeError) as error:
+        raise ErrorDeDominio("programa_invalido", "El socio debe identificarse con un UUIDv7.", 422) from error
+
+
+def publicar_programa(socio_id, datos, usuario):
+    # Importación local para componer ambos servicios sin un ciclo al cargar los módulos.
+    from gimnasio.entrenamiento.servicio import cargas_ultima_sesion
+
+    socio_id = _id_socio(socio_id)
+    reloj = reloj_actual()
+    with transaccion() as cursor:
+        # También serializa la primera publicación, cuando todavía no hay programa que bloquear.
+        repositorio.bloquear_socio(cursor, socio_id)
+        vigente = repositorio.version_vigente(cursor, socio_id)
+        _comprobar_asignacion(cursor, socio_id, usuario)
+        sesiones = _validar_publicacion(datos, _leer_catalogo(cursor), cargas_ultima_sesion(cursor, socio_id))
+        if datos["version_base"] != vigente:
+            raise ErrorDeDominio("version_desactualizada", "La versión vigente cambió; volvé a leer el programa.", 409)
+        programa_id = nuevo_id(reloj)
+        version = (vigente or 0) + 1
+        repositorio.insertar_programa(cursor, programa_id, socio_id, version, datos["semanas"], reloj.ahora())
+        posicion = 0
+        for semana in range(1, datos["semanas"] + 1):
+            for sesion in sesiones:
+                posicion += 1
+                sesion_id = nuevo_id(reloj)
+                repositorio.insertar_sesion(
+                    cursor, sesion_id, programa_id, posicion, semana, f"Semana {semana} · {sesion['nombre']}"
+                )
+                for orden, ejercicio in enumerate(sesion["ejercicios"], start=1):
+                    repositorio.insertar_ejercicio_planificado(cursor, nuevo_id(reloj), sesion_id, orden, ejercicio)
+        programa = _leer(socio_id, version, cursor=cursor)[0]
+        return _semana_tipo(programa)
+
+
+def listar_plantillas():
+    with transaccion() as cursor:
+        plantillas, sesiones, ejercicios = repositorio.leer_plantillas(cursor)
+    por_sesion = {}
+    for sesion in sesiones:
+        sesion["id"] = str(desde_bytes(sesion["id"]))
+        sesion["plantilla_id"] = str(desde_bytes(sesion["plantilla_id"]))
+        sesion["ejercicios"] = []
+        por_sesion[sesion["id"]] = sesion
+    for ejercicio in ejercicios:
+        for campo in ("id", "sesion_id", "ejercicio_id"):
+            ejercicio[campo] = str(desde_bytes(ejercicio[campo]))
+        por_sesion[ejercicio["sesion_id"]]["ejercicios"].append(ejercicio)
+    for plantilla in plantillas:
+        plantilla["id"] = str(desde_bytes(plantilla["id"]))
+        plantilla["creada_en"] = plantilla["creada_en"].replace(tzinfo=UTC).isoformat()
+        plantilla["sesiones"] = [s for s in sesiones if s["plantilla_id"] == plantilla["id"]]
+    return plantillas

@@ -1622,7 +1622,7 @@ def test_dolor_conserva_sustitucion_tras_cambio_equipo(dolor_api, reparar_primer
     if reparar_primera:
         # Dos alternativas seguras, en equipos distintos y con orden explícito.
         with datos.app.app_context(), transaccion() as cursor:
-            cursor.execute("SELECT id FROM ejercicios WHERE equipo='mancuernas'")
+            cursor.execute("SELECT id FROM ejercicios WHERE nombre='Sentadilla con mancuernas ficticia'")
             primera = cursor.fetchone()["id"]
             cursor.execute("DELETE FROM zonas_ejercicio WHERE ejercicio_id=%s", (primera,))
             cursor.execute(
