@@ -130,7 +130,10 @@ def prompt_para_codex(pedido, revisiones=""):
         "completa y los e2e los corre el CI, no los repitas. No lances revisiones aparte: las hace la cadena.\n"
         "Lista de control: si tocás algo de `gimnasio/static/` que no sea una prueba, subí `VERSION` en "
         "`gimnasio/static/sw.js` (si no, los navegadores con el service worker viejo no reciben el cambio); "
-        "el implementador lo verifica antes de subir y el CI lo exige.\n\n"
+        "el implementador lo verifica antes de subir y el CI lo exige.\n"
+        "Si te falta una decisión, una duda solo se reconoce si una línea empieza exactamente con "
+        f"`{cadena.PEDIDO_CRITERIO}`, sin adornos antes. Decirla de otro modo no sirve: terminar sin cambios "
+        "en la rama y sin esa línea cuenta como fallo del pedido, aunque dejes el cuerpo del PR.\n\n"
     )
     detalle = f"\n\n--- Revisiones del PR a atender ---\n{revisiones}" if revisiones else ""
     return encabezado + texto + detalle
@@ -175,8 +178,11 @@ def subir_version_sw(codigo):
     return VERSION_SW.sub(lambda m: f"{m[1]}{int(m[2]) + 1}{m[3]}", codigo, count=1)
 
 
-def etapa_del_pr(etiquetas, hay_pedido, checks, sensible):
-    """En qué paso de la cadena está un PR de Codex y qué espera. `checks` son los de statusCheckRollup."""
+def etapa_del_pr(etiquetas, hay_pedido, checks, sensible, parada=False):
+    """En qué paso de la cadena está un PR de Codex y qué espera. `checks` son los de statusCheckRollup.
+
+    `parada`: la corrección pendiente ya se pidió y su pedido se cerró sin commit (ver cadena.correccion_parada).
+    """
     estados = [(c.get("conclusion") or c.get("state") or "").upper() for c in checks]
     en_curso = any(c.get("status") not in (None, "COMPLETED") for c in checks) or "PENDING" in estados
     rojo = any(e in ("FAILURE", "ERROR", "TIMED_OUT", "CANCELLED", "STARTUP_FAILURE") for e in estados)
@@ -186,6 +192,8 @@ def etapa_del_pr(etiquetas, hay_pedido, checks, sensible):
         return "pedido pendiente: lo atiende el implementador"
     if en_curso:
         return "esperando el CI"
+    if parada:
+        return "corrección parada: su pedido se cerró sin commit y nadie la va a volver a pedir; le toca al dueño"
     if rojo:
         return "CI en rojo: la cadena va a pedir una corrección"
     if "correccion-pendiente" in etiquetas:
@@ -689,13 +697,11 @@ def atender(pr, pedido, nivel=None):
     informe, bien = verificar(carpeta)
     paso("\n".join(informe))
     paso("Haciendo commit y push de los cambios…")
-    if subir_cambios(carpeta, rama, f"{pr['title']} (#{numero_issue})"):
-        resumen = git("show", "--stat", "--format=", "HEAD", cwd=carpeta).stdout.strip()
-        paso(f"Cambios subidos:\n{resumen}")
-    elif cuerpo:  # el pedido era solo corregir el cuerpo del PR: no hay código que subir
-        paso("Sin cambios de código: el pedido solo corregía el cuerpo del PR.")
-    else:
-        raise RuntimeError(f"Codex terminó con código {codigo} y no dejó cambios que subir.\n\n{texto[-1500:]}")
+    if not subir_cambios(carpeta, rama, f"{pr['title']} (#{numero_issue})"):
+        # Sin commit no hay CI ni revisión nueva: un «hecho» dejaría el PR parado, aunque Codex haya escrito el cuerpo.
+        raise RuntimeError(f"Codex terminó sin cambios y sin una línea `{cadena.PEDIDO_CRITERIO}`.\n\n{texto[-1500:]}")
+    resumen = git("show", "--stat", "--format=", "HEAD", cwd=carpeta).stdout.strip()
+    paso(f"Cambios subidos:\n{resumen}")
     if cuerpo:
         paso("Actualizando el cuerpo del PR…")
         cadena.gh("pr", "edit", str(numero), "--body", cuerpo)
@@ -797,9 +803,11 @@ def mostrar_estado():
     if not prs:
         paso("No hay PR de Codex abiertos.")
     for pr in prs:
-        pedido, _ = pedido_pendiente(cadena.comentarios_del_pr(pr["number"]))
+        comentarios = cadena.comentarios_rest(pr["number"])
+        pedido, _ = pedido_pendiente([c["body"] for c in comentarios])
         sensible = cadena.es_sensible(cadena.archivos_del_pr(pr["number"]))
-        etapa = etapa_del_pr(cadena.etiquetas_de(pr), pedido is not None, pr["statusCheckRollup"], sensible)
+        parada = pedido is None and cadena.correccion_parada(pr, comentarios) is not None
+        etapa = etapa_del_pr(cadena.etiquetas_de(pr), pedido is not None, pr["statusCheckRollup"], sensible, parada)
         paso(f"PR #{pr['number']} ({pr['headRefName']}) {pr['title'][:50]}\n    → {etapa}")
 
 

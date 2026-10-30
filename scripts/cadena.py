@@ -206,6 +206,33 @@ def demora(pedido, ahora, ocupado):
     return "sin-tomar" if minutos >= SIN_TOMAR_MINUTOS else None
 
 
+def pedido_cerrado_sin_commit(comentarios, ultimo_commit):
+    """El «hecho» del último pedido si la rama no recibió un commit después de ese pedido, o None.
+
+    Sin commit no hay CI ni revisión nueva: nadie vuelve a pedir nada. `avisado`, si ya se avisó tras ese pedido.
+    """
+    pedido = hecho = None
+    avisado = False
+    for comentario in comentarios:
+        cuerpo = comentario["body"] or ""
+        if MARCA_PEDIDO in cuerpo or MARCA_CORREGIR in cuerpo:
+            pedido, hecho, avisado = comentario, None, False
+        elif MARCA_HECHO in cuerpo:
+            hecho = comentario
+        elif MARCA_AVISO in cuerpo:
+            avisado = True
+    if hecho is None or pedido is None or fecha(ultimo_commit) > fecha(pedido["created_at"]):
+        return None
+    return {**hecho, "avisado": avisado}
+
+
+def parada_por_avisar(hecho, ahora):
+    """El margen deja que `arrancar` reanude un PR cuya duda acaba de resolverse."""
+    if hecho is None or hecho["avisado"]:
+        return False
+    return (ahora - fecha(hecho["created_at"])).total_seconds() / 60 >= SIN_TOMAR_MINUTOS
+
+
 def issue_de_cierre(issues):
     """El issue «Cierre de etapa …» entre los de Opus de la etapa, o None."""
     return next((i for i in issues if i["title"].lower().startswith("cierre de etapa")), None)
@@ -265,6 +292,21 @@ def comentarios_del_pr(numero):
 def comentarios_rest(numero):
     """Los comentarios del PR con id, fecha y reacciones (`gh pr view` no trae reacciones)."""
     return gh_json("api", f"repos/{repo()}/issues/{numero}/comments?per_page=100")
+
+
+def ultimo_commit(numero):
+    return gh_json("pr", "view", str(numero), "--json", "commits")["commits"][-1]["committedDate"]
+
+
+def correccion_parada(pr, comentarios):
+    """El «hecho» que dejó parado un PR con `correccion-pendiente`, o None. Una duda abierta no cuenta: la ve Opus."""
+    if "correccion-pendiente" not in etiquetas_de(pr):
+        return None
+    hecho = pedido_cerrado_sin_commit(comentarios, ultimo_commit(pr["number"]))
+    if hecho is None:
+        return None
+    issue = gh_json("issue", "view", str(numero_de_rama(pr["headRefName"])), "--json", "labels")
+    return None if "necesita-criterio" in etiquetas_de(issue) else hecho
 
 
 def marcar_tomado(numero, cuerpo):
@@ -520,15 +562,23 @@ def fusionar_adr(rama):
 
 
 def vigilar(ahora=None):
-    """Corre cada 15 minutos: avisa si un pedido no lo toma nadie (implementador apagado) o no termina (colgado)."""
+    """Corre cada 15 minutos: avisa si un pedido no lo toma nadie (implementador apagado), no termina (colgado)
+    o se cerró sin commit con la corrección pendiente (nadie la vuelve a pedir)."""
     ahora = ahora or datetime.now(UTC)
-    pendientes = [
-        (pr, pedido_en_espera(comentarios_rest(pr["number"])))
-        for pr in prs_de_codex()
-        if "bloqueado" not in etiquetas_de(pr)
+    comentarios_por_pr = [
+        (pr, comentarios_rest(pr["number"])) for pr in prs_de_codex() if "bloqueado" not in etiquetas_de(pr)
     ]
-    ocupado = any(pedido and tomado(pedido) for _, pedido in pendientes)
-    for pr, pedido in pendientes:
+    pendientes = [(pr, comentarios, pedido_en_espera(comentarios)) for pr, comentarios in comentarios_por_pr]
+    ocupado = any(pedido and tomado(pedido) for _, _, pedido in pendientes)
+    for pr, comentarios, pedido in pendientes:
+        if pedido is None:
+            if parada_por_avisar(correccion_parada(pr, comentarios), ahora):
+                texto = (
+                    "La corrección pendiente se cerró sin commit: sin CI ni revisión nueva, nadie la vuelve a pedir."
+                )
+                comentar(pr["number"], f"{MARCA_AVISO}\n{texto}")
+                notificar(f"PR #{pr['number']} parado", texto, url_del_pr(pr["number"]))
+            continue
         tipo = demora(pedido, ahora, ocupado)
         if tipo == "sin-tomar":
             texto = f"Nadie tomó el pedido en {SIN_TOMAR_MINUTOS} minutos: ¿está corriendo el implementador?"
