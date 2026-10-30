@@ -28,6 +28,7 @@ import time
 from pathlib import Path, PurePosixPath
 
 import cadena
+import verificar_cache_pwa
 
 RAIZ = Path(__file__).resolve().parent.parent
 CARPETA_TRABAJO = RAIZ / ".implementador"
@@ -38,11 +39,11 @@ INACTIVIDAD_AVISO_MINUTOS = 10  # sin una línea nueva de Codex: se avisa
 INACTIVIDAD_CORTE_MINUTOS = 20  # sin una línea nueva de Codex: se lo mata y cuenta como fallo del pedido
 CUENTA_REGRESIVA_SEGUNDOS = 5 * 60
 LIMITE_PRUEBAS_MINUTOS = 20
-SERVICE_WORKER = "gimnasio/static/sw.js"
+SERVICE_WORKER = verificar_cache_pwa.SERVICE_WORKER
 VERSION_SW = re.compile(r'(const VERSION = ")(\d+)(")')
-SESION = {"inicio": time.time(), "atendidos": [], "fallos": [], "sin_cupo": 0}
-MARCA_HECHO = "<!-- implementador:hecho -->"
-MARCA_FALLO = "<!-- implementador:fallo -->"
+SESION = {"inicio": time.time(), "atendidos": [], "fallos": [], "sin_cupo": 0, "sin_borrar": set()}
+MARCA_HECHO = cadena.MARCA_HECHO
+MARCA_FALLO = cadena.MARCA_FALLO
 MAX_FALLOS = 2
 LIMITE_MINUTOS = 60
 ESPERA_SEGUNDOS = 60
@@ -50,6 +51,7 @@ LIMITE_REVISIONES = 20000
 ARCHIVO_CUERPO = ".implementador-cuerpo.md"
 ESPERA_CUPO_SEGUNDOS = 15 * 60
 ESFUERZO_POR_DEFECTO = "low"  # el cupo de Codex rinde más; GIMNASIO_CODEX_ESFUERZO lo cambia (low|medium|high)
+ESCALA_ESFUERZO = ("low", "medium", "high")
 PEDIDO = re.compile(r"^\s*@codex\s+(?!review\b)\S", re.IGNORECASE)
 
 
@@ -126,7 +128,7 @@ def prompt_para_codex(pedido, revisiones=""):
         "completa y los e2e los corre el CI, no los repitas. No lances revisiones aparte: las hace la cadena.\n"
         "Lista de control: si tocás algo de `gimnasio/static/` que no sea una prueba, subí `VERSION` en "
         "`gimnasio/static/sw.js` (si no, los navegadores con el service worker viejo no reciben el cambio); "
-        "el implementador lo verifica antes de subir.\n\n"
+        "el implementador lo verifica antes de subir y el CI lo exige.\n\n"
     )
     detalle = f"\n\n--- Revisiones del PR a atender ---\n{revisiones}" if revisiones else ""
     return encabezado + texto + detalle
@@ -161,10 +163,7 @@ def contar_pruebas(salida):
 
 def necesita_subir_cache(archivos):
     """Tocar recursos de la PWA sin subir VERSION deja a los navegadores con el service worker viejo."""
-    toca = any(
-        a.startswith("gimnasio/static/") and a != SERVICE_WORKER and not a.endswith(".test.js") for a in archivos
-    )
-    return toca and SERVICE_WORKER not in archivos
+    return verificar_cache_pwa.toca_recursos_pwa(archivos) and SERVICE_WORKER not in archivos
 
 
 def subir_version_sw(codigo):
@@ -254,11 +253,37 @@ def preparar_worktree(rama, numero):
     return carpeta
 
 
-def esfuerzo():
-    return os.environ.get("GIMNASIO_CODEX_ESFUERZO") or ESFUERZO_POR_DEFECTO
+def carpetas_sobrantes(nombres, abiertos):
+    """Las carpetas de trabajo (`issue-N` y los reintentos `issue-N-k`) de issues sin PR abierto."""
+    sobran = []
+    for nombre in nombres:
+        encontrado = re.fullmatch(r"issue-(\d+)(-\d+)?", nombre)
+        if encontrado and int(encontrado[1]) not in abiertos:
+            sobran.append(nombre)
+    return sorted(sobran)
 
 
-def comando_codex(binario, carpeta, salida):
+def medida_de_codex(minutos, tokens, nivel):
+    """Marca oculta en el comentario «hecho»: la suma `scripts/informe_cadena.py` al informe de la etapa."""
+    return f"<!-- implementador:codex minutos={minutos:.1f} tokens={tokens} esfuerzo={nivel} -->"
+
+
+def esfuerzo(fallos=0, previas=0):
+    """Bajo para que rinda el cupo; un nivel más por cada fallo del pedido o corrección repetida del mismo origen."""
+    base = os.environ.get("GIMNASIO_CODEX_ESFUERZO") or ESFUERZO_POR_DEFECTO
+    if base not in ESCALA_ESFUERZO:
+        return base
+    indice = min(ESCALA_ESFUERZO.index(base) + fallos + previas, len(ESCALA_ESFUERZO) - 1)
+    return ESCALA_ESFUERZO[indice]
+
+
+def correcciones_previas(pedido, comentarios):
+    """Cuántas veces antes se pidió una corrección del mismo origen que `pedido` (0 si es de implementar)."""
+    origen = cadena.origen_de(pedido)
+    return max(cadena.correcciones_pedidas(comentarios, origen) - 1, 0) if origen else 0
+
+
+def comando_codex(binario, carpeta, salida, nivel=None):
     return [
         binario,
         "exec",
@@ -267,7 +292,7 @@ def comando_codex(binario, carpeta, salida):
         "-s",
         "workspace-write",
         "-c",
-        f'model_reasoning_effort="{esfuerzo()}"',
+        f'model_reasoning_effort="{nivel or esfuerzo()}"',
     ] + [
         "-o",
         str(salida),
@@ -275,13 +300,13 @@ def comando_codex(binario, carpeta, salida):
     ]
 
 
-def correr_codex(carpeta, prompt):
+def correr_codex(carpeta, prompt, nivel=None):
     binario = binario_codex()
     if binario is None:
         raise RuntimeError("No encuentro Codex: definí GIMNASIO_CODEX_BIN con la ruta de codex.exe.")
     salida = carpeta / ".implementador-ultimo.txt"
     proceso = subprocess.Popen(
-        comando_codex(binario, carpeta, salida),
+        comando_codex(binario, carpeta, salida, nivel),
         stdin=subprocess.PIPE,
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
@@ -541,17 +566,22 @@ def revisiones_pendientes(numero):
     return texto_de_revisiones(resenas, en_linea, desde)
 
 
-def atender(pr, pedido):
+def atender(pr, pedido, nivel=None):
     numero, rama = pr["number"], pr["headRefName"]
+    nivel = nivel or esfuerzo()
+    try:
+        cadena.marcar_tomado(numero, pedido)
+    except RuntimeError as error:  # sin la marca, `vigilar` puede avisar de más; no frena el trabajo
+        paso(f"No pude marcar el pedido como tomado: {error}")
     numero_issue = cadena.numero_de_rama(rama)
     comienzo = time.monotonic()
     paso(f"Preparando el worktree de {rama} (fetch + fusión con main)…")
     carpeta = preparar_worktree(rama, numero_issue)
     paso("Leyendo las revisiones pendientes del PR…")
     prompt = prompt_para_codex(pedido, revisiones_pendientes(numero))
-    paso(f"Corriendo Codex (esfuerzo {esfuerzo()}, límite {LIMITE_MINUTOS} min); su salida va con │:")
+    paso(f"Corriendo Codex (esfuerzo {nivel}, límite {LIMITE_MINUTOS} min); su salida va con │:")
     inicio = time.monotonic()
-    codigo, texto, tokens = correr_codex(carpeta, prompt)
+    codigo, texto, tokens = correr_codex(carpeta, prompt, nivel)
     minutos_codex = (time.monotonic() - inicio) / 60
     paso(f"Codex terminó con código {codigo} en {minutos_codex:.1f} min ({tokens:,} tokens).")
     archivo_cuerpo = carpeta / ARCHIVO_CUERPO
@@ -563,7 +593,11 @@ def atender(pr, pedido):
         cadena.etiquetar(
             numero_issue, agregar=["necesita-criterio"], quitar=["estado:en-curso", "agente:codex"], tipo="issue"
         )
-        cadena.comentar(numero, f"{MARCA_HECHO}\nCodex tiene una duda de criterio; quedó en el issue #{numero_issue}.")
+        cadena.comentar(
+            numero,
+            f"{MARCA_HECHO}\n{medida_de_codex(minutos_codex, tokens, nivel)}\n"
+            f"Codex tiene una duda de criterio; quedó en el issue #{numero_issue}.",
+        )
         paso(f"Duda de criterio: quedó en el issue #{numero_issue} (necesita-criterio).")
         avisar("Implementador", f"PR #{numero}: Codex tiene una duda de criterio.")
         SESION["atendidos"].append({"pr": numero, "resultado": "duda", "minutos": minutos_codex, "tokens": tokens})
@@ -585,7 +619,8 @@ def atender(pr, pedido):
     verificacion = "\n".join(f"- {linea}" for linea in informe)
     cadena.comentar(
         numero,
-        f"{MARCA_HECHO}\nImplementado en esta PC con Codex.\n\n{texto[-1500:]}\n\n"
+        f"{MARCA_HECHO}\n{medida_de_codex(minutos_codex, tokens, nivel)}\n"
+        f"Implementado en esta PC con Codex.\n\n{texto[-1500:]}\n\n"
         f"Verificación del implementador (fuera del sandbox):\n{verificacion}",
     )
     git("worktree", "remove", "--force", str(carpeta), chequear=False)
@@ -594,6 +629,26 @@ def atender(pr, pedido):
     SESION["atendidos"].append({"pr": numero, "resultado": resultado, "minutos": minutos_codex, "tokens": tokens})
     paso(f"Listo el PR #{numero} ({minutos:.1f} min en total).")
     avisar("Implementador", f"PR #{numero} {resultado} ({minutos:.0f} min). Queda la revisión de la cadena.")
+
+
+def limpiar_carpetas():
+    """Borra las carpetas de trabajo de los PR cerrados; las que el sandbox de Codex deja trabadas se avisan una vez."""
+    if not CARPETA_TRABAJO.exists():
+        return
+    abiertos = {cadena.numero_de_rama(pr["headRefName"]) for pr in cadena.prs_de_codex()}
+    nombres = [c.name for c in CARPETA_TRABAJO.iterdir() if c.is_dir()]
+    for nombre in carpetas_sobrantes(nombres, abiertos):
+        if nombre in SESION["sin_borrar"]:
+            continue
+        carpeta = CARPETA_TRABAJO / nombre
+        git("worktree", "remove", "--force", str(carpeta), chequear=False)
+        shutil.rmtree(carpeta, ignore_errors=True)
+        if carpeta.exists():
+            SESION["sin_borrar"].add(nombre)
+            paso(f"No pude borrar {carpeta} (quedan archivos del sandbox de Codex): borrala a mano.")
+        else:
+            paso(f"Borré {carpeta}: su PR ya se cerró.")
+    git("worktree", "prune", chequear=False)
 
 
 def una_vuelta(solo_pr=None, simular=False):
@@ -605,7 +660,8 @@ def una_vuelta(solo_pr=None, simular=False):
             if solo_pr is not None:
                 paso(f"El PR #{pr['number']} está `bloqueado`: lo desbloquea el dueño.")
             continue
-        pedido, fallos = pedido_pendiente(cadena.comentarios_del_pr(pr["number"]))
+        comentarios = cadena.comentarios_del_pr(pr["number"])
+        pedido, fallos = pedido_pendiente(comentarios)
         if simular:
             if pedido is None:
                 paso(f"[simulación] PR #{pr['number']}: sin pedidos pendientes.")
@@ -624,7 +680,7 @@ def una_vuelta(solo_pr=None, simular=False):
             continue
         paso(f"Atendiendo el PR #{pr['number']} ({pr['headRefName']}); fallos previos: {fallos}/{MAX_FALLOS}")
         try:
-            atender(pr, pedido)
+            atender(pr, pedido, esfuerzo(fallos, correcciones_previas(pedido, comentarios)))
         except SinCupo as aviso:  # no cuenta como fallo: se reintenta cuando se renueve el cupo
             avisar("Implementador", "Codex sin cupo; espero a que se renueve.")
             SESION["sin_cupo"] += 1
@@ -704,6 +760,7 @@ def main(argv=None):
                     paso("Nada pendiente.")
                 return 0
             if not trabajo:
+                limpiar_carpetas()
                 paso(f"Nada pendiente; vuelvo a mirar en {ESPERA_SEGUNDOS} s.")
                 time.sleep(ESPERA_SEGUNDOS)
     except KeyboardInterrupt:

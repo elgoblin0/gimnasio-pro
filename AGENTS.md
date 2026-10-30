@@ -64,7 +64,7 @@ Todo PR que las toque necesita, además de la revisión de Codex, la de Opus sob
 7. Revisión cruzada aprobada.
 
 ## Protocolo
-Opus planifica, decide y escribe los issues; Codex los implementa desde la app, un issue a la vez. Roles, etiquetas, revisión y bloqueos: `docs/protocolo-agentes.md`. Leelo al retomar trabajo, planificar o escribir un issue.
+Opus planifica, decide y escribe los issues; Codex los implementa cuando la cadena automática se lo pide en el PR. Para implementar alcanza con este archivo. La orquestación (cadena, etiquetas, revisión, bloqueos) está en `docs/protocolo-agentes.md`: leelo al planificar, escribir un issue o tocar la cadena.
 
 ## Lo que Codex no hace
 - Decidir diseño, producto, alcance o términos nuevos: etiqueta `necesita-criterio`, explica la duda en un comentario y se detiene; decide Opus.
@@ -75,4 +75,4 @@ Opus planifica, decide y escribe los issues; Codex los implementa desde la app, 
 - Desactivar pruebas, bajar umbrales del CI o usar `# noqa` sin explicación.
 
 ## Al terminar
-El PR empieza con `Closes #N` (en inglés: GitHub solo reconoce sus palabras clave). Al terminar, informá los PR fusionados y los pendientes. En "Notas para el próximo agente", contá qué quedó a medias, qué decidiste sin ADR y qué trampas encontraste. Si decidiste algo no cubierto por un ADR, escribí un ADR provisional (solo Opus) o etiquetá `necesita-criterio` (Codex).
+El PR empieza con `Closes #N` (en inglés: GitHub solo reconoce sus palabras clave). En "Notas para el próximo agente", contá qué quedó a medias, qué decidiste sin ADR y qué trampas encontraste. Si decidiste algo no cubierto por un ADR, escribí un ADR provisional (solo Opus) o etiquetá `necesita-criterio` (Codex).
