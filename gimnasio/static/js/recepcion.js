@@ -1,3 +1,4 @@
+import { actualizarMejoresHorarios } from "@comun/horarios.js";
 import { llamarApi } from "@comun/api.js";
 import { formatearCedula, formatearFechaHora } from "@comun/formatos.js";
 import { crearControlDeOperacion, cerrarSesion } from "@comun/operaciones.js";
@@ -81,6 +82,7 @@ function dibujarVisitas(visitas) {
 async function actualizar() {
   if (!autorizada || cargando || control.enCurso) return;
   cargando = true;
+  actualizarMejoresHorarios();
   actualizarBotones();
   try {
     const [ocupacion, { visitas }, { socios }] = await Promise.all([

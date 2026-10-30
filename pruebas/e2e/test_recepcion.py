@@ -270,3 +270,18 @@ def test_conciliar_salida_desaparece_sin_recargar(pagina_demo, demo_aislada):
     expect(pagina.locator("[data-ocupacion]")).to_have_text("0 de 60")
     expect(pagina.locator("[data-visitas] li")).to_have_count(0)
     assert contar(demo_aislada, "salidas") == 1
+
+
+@pytest.mark.parametrize("rol,pantalla", [("socio", "entrenamiento"), ("recepcion", "recepcion")])
+def test_mejores_horarios_con_etiqueta_prevision(pagina_demo, demo_aislada, rol, pantalla):
+    pagina = pagina_demo
+    pagina.goto(demo_aislada.url)
+    pagina.locator(f"[data-rol='{rol}']").click()
+    expect(pagina.locator("[data-bienvenida]")).to_be_visible()
+    pagina.goto(demo_aislada.url + f"/{pantalla}.html")
+    bloque = pagina.locator("[data-mejores-horarios]")
+    expect(bloque).to_be_visible()
+    expect(bloque.get_by_role("heading", level=2)).to_contain_text("previsi")
+    expect(bloque.get_by_role("heading", name="Hoy", exact=True)).to_be_visible()
+    expect(bloque.locator("[data-horarios-manana] h3")).to_be_visible()
+    expect(bloque.locator("li")).to_have_count(6)

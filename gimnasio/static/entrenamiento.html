@@ -28,6 +28,14 @@
       <progress data-aforo max="1" value="0" aria-label="Ocupación registrada respecto del aforo máximo"></progress>
     </section>
 
+    <section class="tarjeta" data-mejores-horarios hidden aria-labelledby="titulo-horarios">
+      <h2 id="titulo-horarios">Mejores horarios · previsión</h2>
+      <p data-horarios-estado role="status">Cargando previsión…</p>
+      <div class="grilla">
+        <div data-horarios-hoy></div>
+        <div data-horarios-manana></div>
+      </div>
+    </section>
   <div class="barra" data-reintento hidden>
     <button type="button" data-reintentar>Reintentar operación</button>
     <button type="button" data-descartar>Descartar reintento</button>

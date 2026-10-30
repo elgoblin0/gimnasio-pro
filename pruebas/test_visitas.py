@@ -372,3 +372,29 @@ def test_los_errores_de_integridad_no_se_ocultan(reloj_fijo, tipo):
             repositorio.insertar_entrada(cursor, *identificadores, registrada_en=reloj_fijo.ahora())
         else:
             repositorio.insertar_salida(cursor, *identificadores[:3], registrada_en=reloj_fijo.ahora())
+
+
+@pytest.mark.bd
+def test_visitas_confiables_para_prevision_respetan_estado_sede_y_rango(historial):
+    datos = historial
+    desde = datos.momento - timedelta(hours=1)
+    hasta = datos.momento + timedelta(hours=1)
+    # Una visita que empieza antes del rango sigue presente dentro de este.
+    vigente = entrada(datos, registrada_en=desde - timedelta(minutes=30))
+    anterior = salida(datos, vigente, registrada_en=datos.momento)
+    salida(datos, vigente, corrige_a=anterior, motivo="Salida corregida", registrada_en=hasta)
+    entrada(datos)  # La visita abierta no es confiable para la prevision.
+    anulada = entrada(datos)
+    salida(datos, anulada)
+    entrada(datos, corrige_a=anulada, motivo="Entrada anulada", anulada=True)
+    ajena = entrada(datos, sede_id=datos.otra_sede_id)
+    salida(datos, ajena)
+    futura = entrada(datos)
+    salida(datos, futura, registrada_en=hasta + timedelta(minutes=1))
+    filas = repositorio.listar_visitas_confiables(datos.cursor, datos.sede_id, desde, hasta)
+    assert filas == [
+        {
+            "registrada_en": (desde - timedelta(minutes=30)).replace(tzinfo=None),
+            "salida_registrada_en": hasta.replace(tzinfo=None),
+        }
+    ]
