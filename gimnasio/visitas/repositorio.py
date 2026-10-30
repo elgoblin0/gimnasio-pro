@@ -191,6 +191,27 @@ def listar_socios_activos(cursor):
     return cursor.fetchall()
 
 
+def buscar_socio_para_tarjeta(cursor, socio_id):
+    cursor.execute(
+        """SELECT u.id, p.nombre, p.apellido, p.cedula
+           FROM usuarios u JOIN personas p ON p.id = u.persona_id
+           WHERE u.id = %s AND u.rol = 'socio'""",
+        (a_bytes(socio_id),),
+    )
+    return cursor.fetchone()
+
+
+def listar_visitas_del_socio(cursor, socio_id, hasta):
+    cursor.execute(
+        _ESTADOS_VIGENTES
+        + """SELECT entrada_id, registrada_en, salida_registrada_en, abierta
+             FROM estados_vigentes WHERE socio_id = %s AND anulada = FALSE
+             AND registrada_en <= %s ORDER BY registrada_en DESC, entrada_id DESC""",
+        (a_bytes(socio_id), _fecha_utc(hasta)),
+    )
+    return cursor.fetchall()
+
+
 def listar_duraciones_confiables(cursor, sede_id, desde, hasta, socio_id=None):
     """Entrada y salida vigentes de las últimas ocho semanas, sin anulaciones.
 

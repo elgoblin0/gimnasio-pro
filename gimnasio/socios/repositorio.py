@@ -12,3 +12,14 @@ def buscar_membresia_vigente(cursor, socio_id, fecha_local):
         (a_bytes(socio_id), fecha_local, fecha_local),
     )
     return cursor.fetchone()
+
+
+def buscar_ultima_membresia(cursor, socio_id, fecha_local):
+    cursor.execute(
+        """SELECT m.desde, m.hasta, u.rol, u.activo
+           FROM membresias m JOIN usuarios u ON u.id = m.socio_id
+           WHERE m.socio_id = %s AND m.desde <= %s
+           ORDER BY m.hasta DESC, m.desde DESC LIMIT 1""",
+        (a_bytes(socio_id), fecha_local),
+    )
+    return cursor.fetchone()

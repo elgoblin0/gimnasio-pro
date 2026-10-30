@@ -9,6 +9,12 @@ from gimnasio.visitas import servicio
 bp = Blueprint("visitas", __name__, url_prefix="/api")
 
 
+@bp.get("/socios/<socio_id>/tarjeta")
+@requiere("socios.ver_tarjeta")
+def consultar_tarjeta(socio_id):
+    return jsonify(servicio.consultar_tarjeta(socio_id))
+
+
 @bp.post("/entradas")
 @requiere("visitas.registrar")
 def registrar_entrada():

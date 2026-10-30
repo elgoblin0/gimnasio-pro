@@ -62,6 +62,12 @@ function dibujarVisitas(visitas) {
       enviar();
     });
     tarjeta.append(titulo, detalle);
+    const verTarjeta = document.createElement("button");
+    verTarjeta.type = "button";
+    verTarjeta.textContent = "Ver tarjeta contextual";
+    verTarjeta.setAttribute("aria-label", `Ver tarjeta contextual de ${visita.nombre}`);
+    verTarjeta.addEventListener("click", () => abrirTarjeta(visita.socio_id));
+    tarjeta.append(verTarjeta);
     if (visita.por_conciliar) {
       const marca = document.createElement("strong");
       marca.className = "por-conciliar";
@@ -122,6 +128,7 @@ async function enviar() {
     if (operacion.ruta.endsWith("/conciliacion")) $("[data-conciliacion]").close();
     $("[data-estado]").textContent = operacion.ruta === "/api/entradas" ? "Entrada registrada." : "Salida registrada.";
     $("#socio").focus();
+    if (operacion.ruta === "/api/entradas") abrirTarjeta(operacion.cuerpo.socio_id);
   } catch (error) {
     control.finalizar(error);
     $("[data-error]").textContent = error.message;
@@ -131,6 +138,55 @@ async function enviar() {
     actualizarBotones();
   }
 }
+
+let consultaTarjeta = 0;
+let focoAnteriorTarjeta;
+async function abrirTarjeta(socioId) {
+  const consulta = ++consultaTarjeta;
+  const panel = $("[data-tarjeta-contextual]");
+  $("[data-tarjeta-datos]").textContent = "Cargando tarjeta contextual…";
+  if (!panel.open) {
+    focoAnteriorTarjeta = document.activeElement;
+    panel.show();
+  }
+  $("[data-cerrar-tarjeta]").focus();
+  try {
+    const datos = await llamarApi(`/api/socios/${socioId}/tarjeta`);
+    if (consulta !== consultaTarjeta || !panel.open) return;
+    const contenido = $("[data-tarjeta-datos]");
+    contenido.replaceChildren();
+    const agregar = (texto, clase = "") => {
+      const parrafo = document.createElement("p");
+      parrafo.textContent = texto;
+      parrafo.className = clase;
+      contenido.append(parrafo);
+    };
+    agregar(`${datos.socio.nombre} ${datos.socio.apellido} · Cédula ${datos.socio.cedula}`);
+    const membresia = datos.membresia;
+    if (membresia) {
+      const estado = !membresia.vigente ? "vencida" : membresia.dias_restantes <= 7 ? "por vencer" : "vigente";
+      const hasta = membresia.hasta.split("-").reverse().join("/");
+      agregar(`Membresía ${estado} · hasta ${hasta} · ${membresia.dias_restantes} días restantes`, `membresia-${estado.replaceAll(" ", "-")}`);
+    } else agregar("Sin membresía iniciada.");
+    if (datos.visita_abierta) agregar(`Visita abierta desde ${formatearFechaHora(datos.visita_abierta.desde)} · ${datos.visita_abierta.minutos} min`);
+    else if (datos.ultima_visita) agregar(`Última visita: ${formatearFechaHora(datos.ultima_visita.desde)} a ${formatearFechaHora(datos.ultima_visita.hasta)}`);
+    else agregar("Sin visitas registradas.");
+    agregar(`Visitas de las últimas cuatro semanas: ${datos.visitas_ultimas_4_semanas}`);
+    const habitual = datos.permanencia_habitual;
+    agregar(habitual.suficiente ? `Permanencia habitual: ${habitual.mediana} min` : `Permanencia habitual: datos insuficientes (${habitual.observaciones} visitas)`);
+  } catch (error) {
+    if (consulta === consultaTarjeta && panel.open) $("[data-tarjeta-datos]").textContent = error.message;
+  }
+}
+$("[data-cerrar-tarjeta]").addEventListener("click", () => $("[data-tarjeta-contextual]").close());
+$("[data-tarjeta-contextual]").addEventListener("close", () => {
+  (focoAnteriorTarjeta?.isConnected ? focoAnteriorTarjeta : $("#socio")).focus();
+});
+document.addEventListener("keydown", (evento) => {
+  if (evento.key === "Escape" && $("[data-tarjeta-contextual]").open) {
+    $("[data-tarjeta-contextual]").close();
+  }
+});
 
 function abrirConciliacion(visita) {
   if (control.actual || cargando) return;

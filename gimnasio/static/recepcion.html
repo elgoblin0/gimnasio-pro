@@ -12,6 +12,11 @@
   <link rel="stylesheet" href="/estilos/recorrido.css">
   <script type="importmap">{"imports":{"@comun/":"/js/comun/"}}</script>
   <script type="module" src="/js/recepcion.js"></script>
+  <style>
+    [data-tarjeta-contextual] { position: fixed; inset: 0 0 0 auto; margin: 0; height: 100dvh; max-height: 100dvh; width: min(26rem, 100%); padding: var(--espacio-5); background: var(--superficie-elevada); color: var(--texto); border: 1px solid var(--borde); overflow: auto; z-index: 2; }
+    .membresia-por-vencer { color: var(--alerta); font-weight: bold; }
+    .membresia-vencida { color: var(--peligro); font-weight: bold; }
+  </style>
 </head>
 <body>
 <main>
@@ -58,6 +63,11 @@
       <ul class="lista" data-visitas></ul>
     </section>
   </div>
+<dialog data-tarjeta-contextual aria-labelledby="titulo-tarjeta">
+  <button type="button" data-cerrar-tarjeta>Cerrar tarjeta contextual</button>
+  <h2 id="titulo-tarjeta">Tarjeta contextual</h2>
+  <div data-tarjeta-datos role="status" aria-live="polite"></div>
+</dialog>
 <dialog data-conciliacion aria-labelledby="titulo-conciliacion">
   <h2 id="titulo-conciliacion">Conciliar salida</h2>
   <form data-formulario-conciliacion>

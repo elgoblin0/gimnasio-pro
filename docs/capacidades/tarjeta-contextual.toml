@@ -2,5 +2,5 @@ id = "tarjeta-contextual"
 nombre = "Tarjeta contextual en recepción"
 grupo = "Recepción"
 etapa = 3
-nivel = "pendiente"
-prueba = ""
+nivel = "funcional"
+prueba = "pruebas/test_tarjeta_contextual.py"
