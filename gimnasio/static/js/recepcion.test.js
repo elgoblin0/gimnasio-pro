@@ -23,10 +23,16 @@ function preparar() {
     document: { querySelector: obtener, querySelectorAll: () => [],
       createElement: () => ({}), addEventListener() {} },
     window: { addEventListener() {} }, registrarPwa() {},
+    actualizarMejoresHorarios() {}, crearSondeo: () => ({}),
+    Option: class {},
     crearControlDeOperacion: () => ({ comenzar: () => operacion, finalizar() {} }),
     formatearFechaHora: (fecha) => fecha,
     llamarApi: async (ruta, opciones) => {
       if (opciones) return { ocupacion: {}, visitas: [] };
+      if (ruta === "/api/sesion") return { usuario: { rol: "recepcion" } };
+      if (ruta === "/api/estado" || ruta === "/api/ocupacion") return {};
+      if (ruta === "/api/visitas?abiertas=1") return { visitas: [] };
+      if (ruta === "/api/visitas/socios") return { socios: [] };
       consultas.push(ruta);
       return { socio: {}, visita_abierta: consultas.length === 1 ? { desde: "entrada", minutos: 5 } : null,
         ultima_visita: { desde: "entrada", hasta: "salida" }, permanencia_habitual: {} };
@@ -56,4 +62,17 @@ test("una salida no vuelve a abrir una tarjeta cerrada", async () => {
   await pantalla.operar("/api/salidas");
   assert.equal(pantalla.consultas.length, 1);
   assert.equal(pantalla.obtener("[data-tarjeta-contextual]").open, false);
+});
+
+test("la escena se inicia después de mostrar los datos de recepción", async () => {
+  const pantalla = preparar();
+  pantalla.obtener("[data-contenido]").hidden = true;
+  pantalla.ejecutar(`
+    iniciarEscena = () => {
+      globalThis.ocultaAlIniciarEscena = document.querySelector('[data-contenido]').hidden;
+    };
+  `);
+  await pantalla.ejecutar("iniciar()");
+  assert.equal(pantalla.ejecutar("ocultaAlIniciarEscena"), false);
+  assert.equal(pantalla.obtener("[data-estado]").textContent, "Recepción lista.");
 });

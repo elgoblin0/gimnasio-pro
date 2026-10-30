@@ -331,12 +331,14 @@ async function iniciar() {
       return;
     }
     autorizada = true;
-    iniciarEscena();
     if (!sondeos.length) sondeos = [
       crearSondeo({ url: "/api/ocupacion", alCambiar: dibujarOcupacion }),
       crearSondeo({ url: "/api/visitas?abiertas=1", alCambiar: ({ visitas }) => { dibujarVisitas(visitas); actualizarBotones(); } }),
     ];
-    if (await actualizar()) $("[data-estado]").textContent = "Recepción lista.";
+    if (await actualizar()) {
+      $("[data-estado]").textContent = "Recepción lista.";
+      iniciarEscena();
+    }
   } catch (error) { $("[data-error]").textContent = error.message; }
 }
 iniciar();
