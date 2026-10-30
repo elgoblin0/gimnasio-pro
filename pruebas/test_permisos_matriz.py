@@ -16,6 +16,7 @@ ESPERADO = {
     "consentimientos.gestionar_propios": {S},
     "visitas.registrar": {R},
     "visitas.ver": {R},
+    "ocupacion.ver": {S, R, E, A},
     "socios.ver_tarjeta": {R, A},
     "pagos.registrar": {R, A},
     "clases.gestionar_reservas": {R},

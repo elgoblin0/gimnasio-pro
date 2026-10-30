@@ -212,3 +212,14 @@ def listar_duraciones_confiables(cursor, sede_id, desde, hasta, socio_id=None):
         parametros,
     )
     return cursor.fetchall()
+
+
+def obtener_version(cursor, ahora):
+    """Cuenta todos los hechos, incluidas correcciones con fechas anteriores."""
+    cursor.execute(
+        "SELECT (SELECT COUNT(*) FROM entradas) + (SELECT COUNT(*) FROM salidas) AS hechos, "
+        "(SELECT aforo_maximo FROM sedes ORDER BY id LIMIT 1) AS aforo"
+    )
+    fila = cursor.fetchone()
+    # El minuto invalida duraciones y visitas por conciliar aunque no haya hechos nuevos.
+    return f"{fila['hechos']}-{fila['aforo']}-{int(ahora.timestamp()) // 60}"

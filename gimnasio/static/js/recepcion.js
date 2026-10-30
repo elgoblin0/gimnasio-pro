@@ -3,7 +3,14 @@ import { formatearCedula, formatearFechaHora } from "@comun/formatos.js";
 import { crearControlDeOperacion, cerrarSesion } from "@comun/operaciones.js";
 import { registrarPwa } from "@comun/pwa.js";
 
+import { crearSondeo } from "@comun/sondeo.js";
+
 registrarPwa();
+let sondeos = [];
+function dibujarOcupacion(ocupacion) {
+  sedeId = ocupacion.sede_id;
+  $("[data-ocupacion]").textContent = `${ocupacion.ocupacion_registrada} de ${ocupacion.aforo_maximo}`;
+}
 const $ = (selector) => document.querySelector(selector);
 const control = crearControlDeOperacion();
 let sedeId;
@@ -79,8 +86,7 @@ async function actualizar() {
     const [ocupacion, { visitas }, { socios }] = await Promise.all([
       llamarApi("/api/ocupacion"), llamarApi("/api/visitas?abiertas=1"), llamarApi("/api/visitas/socios"),
     ]);
-    sedeId = ocupacion.sede_id;
-    $("[data-ocupacion]").textContent = `${ocupacion.ocupacion_registrada} de ${ocupacion.aforo_maximo}`;
+    dibujarOcupacion(ocupacion);
     const seleccion = $("#socio").value;
     $("#socio").replaceChildren(new Option("Elegí un socio", ""), ...socios.map((socio) =>
       new Option(`${socio.nombre} · ${formatearCedula(socio.cedula)}`, socio.id)));
@@ -106,11 +112,13 @@ async function enviar() {
   $("[data-error]").textContent = "";
   $("[data-estado]").textContent = "Registrando…";
   try {
-    await llamarApi(operacion.ruta, { metodo: "POST", cuerpo: operacion.cuerpo, clave: operacion.clave });
+    const datos = await llamarApi(operacion.ruta, { metodo: "POST", cuerpo: operacion.cuerpo, clave: operacion.clave });
+    sondeos.forEach((sondeo) => sondeo.invalidar());
+    dibujarOcupacion(datos.ocupacion);
+    dibujarVisitas(datos.visitas);
     control.finalizar();
     if (operacion.ruta.endsWith("/conciliacion")) $("[data-conciliacion]").close();
     $("[data-estado]").textContent = operacion.ruta === "/api/entradas" ? "Entrada registrada." : "Salida registrada.";
-    await actualizar();
     $("#socio").focus();
   } catch (error) {
     control.finalizar(error);
@@ -187,6 +195,10 @@ async function iniciar() {
       return;
     }
     autorizada = true;
+    if (!sondeos.length) sondeos = [
+      crearSondeo({ url: "/api/ocupacion", alCambiar: dibujarOcupacion }),
+      crearSondeo({ url: "/api/visitas?abiertas=1", alCambiar: ({ visitas }) => { dibujarVisitas(visitas); actualizarBotones(); } }),
+    ];
     if (await actualizar()) $("[data-estado]").textContent = "Recepción lista.";
   } catch (error) { $("[data-error]").textContent = error.message; }
 }

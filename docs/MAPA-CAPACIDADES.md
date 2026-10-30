@@ -38,7 +38,7 @@ Generado por `scripts/mapa_capacidades.py` desde `docs/capacidades/`. No editar 
 | Capacidad | Etapa | Nivel | Prueba |
 |---|---|---|---|
 | Entrada del socio por recepción con membresía y aforo | 1 | validada | `pruebas/e2e/test_esqueleto_andante.py` · https://github.com/elgoblin0/gimnasio-pro/issues/52 |
-| Pantalla de recepción para entrada, salida, permanencia habitual y conciliación de salida | 1 | validada | `pruebas/e2e/test_recepcion.py` · https://github.com/elgoblin0/gimnasio-pro/issues/52 |
+| Pantalla de recepción con sondeo de ocupación registrada y visitas abiertas, entrada, salida y conciliación | 1 | validada | `pruebas/e2e/test_recepcion.py` · https://github.com/elgoblin0/gimnasio-pro/issues/52 |
 | Salida confirmada del socio y lecturas para recepción | 1 | validada | `pruebas/e2e/test_esqueleto_andante.py` · https://github.com/elgoblin0/gimnasio-pro/issues/52 |
 | Clases y reservas con lista de espera | 5 | pendiente | — |
 | Ficha completa con salud y consentimientos | 5 | pendiente | — |
@@ -49,7 +49,7 @@ Generado por `scripts/mapa_capacidades.py` desde `docs/capacidades/`. No editar 
 | Capacidad | Etapa | Nivel | Prueba |
 |---|---|---|---|
 | Persistencia de sesiones realizadas y series realizadas | 1 | funcional | `pruebas/test_entrenamiento_repositorio.py` |
-| Pantalla del socio con propuesta, explicación y pendientes | 1 | validada | `pruebas/e2e/test_entrenamiento.py` · https://github.com/elgoblin0/gimnasio-pro/issues/52 |
+| Pantalla del socio con propuesta, explicación, pendientes y ocupación registrada | 1 | validada | `pruebas/e2e/test_entrenamiento.py` · https://github.com/elgoblin0/gimnasio-pro/issues/52 |
 | Registro idempotente de sesiones y series realizadas con RIR opcional y prescripción efectiva guardada | 1 | validada | `pruebas/e2e/test_esqueleto_andante.py` · https://github.com/elgoblin0/gimnasio-pro/issues/52 |
 | Sesión propuesta según la secuencia, con rango de repeticiones y catálogo | 1 | validada | `pruebas/e2e/test_esqueleto_andante.py` · https://github.com/elgoblin0/gimnasio-pro/issues/52 |
 | Chequeo del día | 2 | validada | `pruebas/e2e/test_recorrido_lucia.py::test_recorrido_lucia_etapa_2` · https://github.com/elgoblin0/gimnasio-pro/issues/136 |

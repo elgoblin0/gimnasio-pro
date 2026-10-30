@@ -13,13 +13,14 @@ bp = Blueprint("visitas", __name__, url_prefix="/api")
 @requiere("visitas.registrar")
 def registrar_entrada():
     entrada = servicio.registrar_entrada(request.get_json(silent=True), usuario_actual())
-    return jsonify({"entrada": entrada}), 201
+    return jsonify({"entrada": entrada, **_estado_recepcion()}), 201
 
 
 @bp.post("/salidas")
 @requiere("visitas.registrar")
 def registrar_salida():
-    return jsonify({"salida": servicio.registrar_salida(request.get_json(silent=True), usuario_actual())}), 201
+    salida = servicio.registrar_salida(request.get_json(silent=True), usuario_actual())
+    return jsonify({"salida": salida, **_estado_recepcion()}), 201
 
 
 @bp.get("/visitas")
@@ -27,13 +28,17 @@ def registrar_salida():
 def listar_visitas():
     if request.args.get("abiertas", "1") != "1":
         raise ErrorDeDominio("consulta_invalida", "Esta lectura requiere abiertas=1.", 422)
-    return jsonify({"visitas": servicio.listar_visitas()})
+    return _respuesta_condicional(servicio.consultar_visitas())
 
 
 @bp.get("/ocupacion")
-@requiere("visitas.ver")
+@requiere("ocupacion.ver")
 def consultar_ocupacion():
-    return jsonify(servicio.consultar_ocupacion())
+    datos = servicio.consultar_ocupacion()
+    if usuario_actual()["rol"] != "recepcion":
+        datos.pop("por_conciliar")
+        datos.pop("sede_id")
+    return _respuesta_condicional(datos)
 
 
 @bp.get("/visitas/socios")
@@ -46,4 +51,18 @@ def listar_socios():
 @requiere("visitas.registrar")
 def conciliar_salida(entrada_id):
     salida = servicio.conciliar_salida(entrada_id, request.get_json(silent=True), usuario_actual())
-    return jsonify({"salida": salida}), 201
+    return jsonify({"salida": salida, **_estado_recepcion()}), 201
+
+
+def _estado_recepcion():
+    return {"ocupacion": servicio.consultar_ocupacion(), "visitas": servicio.listar_visitas()}
+
+
+def _respuesta_condicional(datos):
+    respuesta = jsonify(datos)
+    etiqueta = datos["version"]
+    # Las duraciones pueden variar en segundos dentro de la misma versión por minuto.
+    respuesta.set_etag(etiqueta, weak=True)
+    respuesta.cache_control.private = True
+    respuesta.cache_control.no_cache = True
+    return respuesta.make_conditional(request)

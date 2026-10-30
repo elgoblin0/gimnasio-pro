@@ -10,7 +10,9 @@ import { crearDescanso } from "@comun/descanso.js";
 import { crearReloj } from "@comun/reloj.js";
 
 const $ = (selector) => document.querySelector(selector);
+import { crearSondeo } from "@comun/sondeo.js";
 registrarPwa();
+let sondeoOcupacion;
 const actualizarProgreso = prepararProgreso();
 let progresoVisible = false;
 $("[data-ver-progreso]").addEventListener("click", () => {
@@ -272,6 +274,13 @@ async function iniciar() {
       return;
     }
     autorizada = true;
+    sondeoOcupacion ??= crearSondeo({ url: "/api/ocupacion", alCambiar: (datos) => {
+      $("[data-ocupacion-ahora]").hidden = false;
+      $("[data-ocupacion]").textContent = `${datos.ocupacion_registrada} de ${datos.aforo_maximo}`;
+      const barra = $("[data-aforo]");
+      barra.max = datos.aforo_maximo;
+      barra.value = datos.ocupacion_registrada;
+    } });
     $("[data-chequeo]").hidden = chequeoResuelto;
     $("[data-ver-progreso]").hidden = false;
     await actualizar();

@@ -22,6 +22,12 @@
   <p data-record role="status" aria-live="polite" aria-atomic="true"></p>
   <p data-estado role="status" aria-live="polite">Cargando tu propuesta…</p>
   <p data-error role="alert"></p>
+    <section class="tarjeta" data-ocupacion-ahora hidden aria-labelledby="ocupacion-titulo">
+      <h2 id="ocupacion-titulo">Ocupación ahora</h2>
+      <p>Ocupación registrada: <span data-ocupacion></span></p>
+      <progress data-aforo max="1" value="0" aria-label="Ocupación registrada respecto del aforo máximo"></progress>
+    </section>
+
   <div class="barra" data-reintento hidden>
     <button type="button" data-reintentar>Reintentar operación</button>
     <button type="button" data-descartar>Descartar reintento</button>

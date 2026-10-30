@@ -257,12 +257,13 @@ def test_salida_cierra_visita_y_lectura_calcula_duracion_sin_escribir(visitas_ap
         "ocupacion_registrada": 1,
         "aforo_maximo": 1,
         "por_conciliar": 0,
+        "version": cliente.get("/api/ocupacion").json["version"],
     }
     respuesta = enviar_salida(cliente, {"id": str(nuevo_id(datos.reloj)), "entrada_id": entrada_id})
     assert respuesta.status_code == 201
     assert respuesta.json["salida"]["entrada_id"] == entrada_id
     assert cliente.get("/api/ocupacion").json["ocupacion_registrada"] == 0
-    assert cliente.get("/api/visitas?abiertas=1").json == {"visitas": []}
+    assert cliente.get("/api/visitas?abiertas=1").json["visitas"] == []
     assert contar(datos, "series_realizadas") == 0
     assert contar(datos, "salidas") == 1
 
@@ -287,7 +288,7 @@ def test_salida_idempotente_y_cuerpo_invalido(visitas_api):
 def test_lecturas_y_salida_solo_para_recepcion(visitas_api, rol):
     datos = visitas_api
     cliente = datos.cliente(rol)
-    for ruta in ("/api/visitas?abiertas=1", "/api/ocupacion", "/api/visitas/socios"):
+    for ruta in ("/api/visitas?abiertas=1", "/api/visitas/socios"):
         assert cliente.get(ruta).status_code == 403
     assert (
         enviar_salida(cliente, {"id": str(nuevo_id(datos.reloj)), "entrada_id": str(nuevo_id(datos.reloj))}).status_code
@@ -537,3 +538,55 @@ def test_conciliacion_exige_clave(visitas_api):
         f"/api/visitas/{entrada_id}/conciliacion", json=cuerpo, headers={"X-Gimnasio": "1"}
     )
     assert respuesta.status_code == 428
+
+
+@pytest.mark.parametrize("ruta", ["/api/ocupacion", "/api/visitas?abiertas=1"])
+def test_lectura_condicional_cambia_con_entrada_y_salida(visitas_api, ruta):
+    cliente = visitas_api.cliente()
+    inicial = cliente.get(ruta)
+    assert inicial.status_code == 200
+    etiqueta = inicial.headers["ETag"]
+    repetida = cliente.get(ruta, headers={"If-None-Match": etiqueta})
+    assert repetida.status_code == 304
+    assert repetida.data == b""
+    entrada = enviar(cliente, visitas_api.cuerpo())
+    assert entrada.status_code == 201
+    assert entrada.json["ocupacion"]["ocupacion_registrada"] == 1
+    assert len(entrada.json["visitas"]) == 1
+    nueva = cliente.get(ruta, headers={"If-None-Match": etiqueta})
+    assert nueva.status_code == 200
+    assert nueva.headers["ETag"] != etiqueta
+    salida = cliente.post(
+        "/api/salidas",
+        json={"id": str(nuevo_id(visitas_api.reloj)), "entrada_id": entrada.json["entrada"]["id"]},
+        headers={"X-Gimnasio": "1", "Idempotency-Key": str(uuid4())},
+    )
+    assert salida.status_code == 201
+    assert salida.json["ocupacion"]["ocupacion_registrada"] == 0
+    assert salida.json["visitas"] == []
+    assert cliente.get(ruta, headers={"If-None-Match": nueva.headers["ETag"]}).status_code == 200
+
+
+@pytest.mark.parametrize("rol", ["socio", "entrenador", "administracion"])
+def test_ocupacion_sin_datos_personales(visitas_api, rol):
+    cliente = visitas_api.cliente(rol)
+    respuesta = cliente.get("/api/ocupacion")
+    assert respuesta.status_code == 200
+    assert set(respuesta.json) == {"ocupacion_registrada", "aforo_maximo", "version"}
+    assert cliente.get("/api/visitas").status_code == 403
+    assert cliente.get("/api/visitas/socios").status_code == 403
+
+
+def test_version_compartida_invalida_aforo_y_paso_del_tiempo(visitas_api):
+    from datetime import timedelta
+
+    cliente = visitas_api.cliente()
+    inicial = cliente.get("/api/ocupacion")
+    assert inicial.headers["ETag"] == cliente.get("/api/visitas").headers["ETag"]
+    with visitas_api.app.app_context(), transaccion() as cursor:
+        cursor.execute("UPDATE sedes SET aforo_maximo = 2 WHERE id = %s", (a_bytes(visitas_api.sede),))
+    nueva = cliente.get("/api/ocupacion", headers={"If-None-Match": inicial.headers["ETag"]})
+    assert nueva.status_code == 200
+    assert nueva.json["aforo_maximo"] == 2
+    visitas_api.reloj.avanzar(timedelta(minutes=1))
+    assert cliente.get("/api/ocupacion", headers={"If-None-Match": nueva.headers["ETag"]}).status_code == 200
