@@ -1,5 +1,5 @@
 id = "pantalla-recepcion"
-nombre = "Pantalla de recepción con sondeo de ocupación registrada y visitas abiertas, entrada, salida y conciliación"
+nombre = "Pantalla de recepción con sondeo de ocupación registrada por zona de la sede y visitas abiertas, entrada, salida y conciliación"
 grupo = "Operación"
 etapa = 1
 nivel = "validada"

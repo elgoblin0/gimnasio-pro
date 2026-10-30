@@ -238,12 +238,39 @@ def listar_duraciones_confiables(cursor, sede_id, desde, hasta, socio_id=None):
 def obtener_version(cursor, ahora):
     """Cuenta todos los hechos, incluidas correcciones con fechas anteriores."""
     cursor.execute(
-        "SELECT (SELECT COUNT(*) FROM entradas) + (SELECT COUNT(*) FROM salidas) AS hechos, "
+        "SELECT (SELECT COUNT(*) FROM entradas) + (SELECT COUNT(*) FROM salidas) "
+        "+ (SELECT COUNT(*) FROM series_realizadas) AS hechos, "
         "(SELECT aforo_maximo FROM sedes ORDER BY id LIMIT 1) AS aforo"
     )
     fila = cursor.fetchone()
     # El minuto invalida duraciones y visitas por conciliar aunque no haya hechos nuevos.
     return f"{fila['hechos']}-{fila['aforo']}-{int(ahora.timestamp()) // 60}"
+
+
+def listar_series_para_ubicacion(cursor, ahora):
+    """Resuelve correcciones antes de excluir anulaciones y series antiguas."""
+    cursor.execute(
+        """WITH RECURSIVE historial AS (
+            SELECT id AS serie_original_id, id FROM series_realizadas WHERE corrige_a IS NULL
+            UNION ALL
+            SELECT h.serie_original_id, s.id FROM historial h
+            JOIN series_realizadas s ON s.corrige_a = h.id
+        ), ordenadas AS (
+            SELECT s.*, ROW_NUMBER() OVER (
+                PARTITION BY h.serie_original_id ORDER BY s.registrada_en DESC, s.id DESC
+            ) AS orden
+            FROM historial h JOIN series_realizadas s ON s.id = h.id
+        )
+        SELECT sr.socio_id, s.registrada_en, e.equipo FROM ordenadas s
+        JOIN sesiones_realizadas sr ON sr.id = s.sesion_realizada_id
+        JOIN ejercicios_planificados ep ON ep.id = s.ejercicio_planificado_id
+        JOIN ejercicios e ON e.id = COALESCE(s.ejercicio_hecho_id, ep.ejercicio_id)
+        WHERE s.orden = 1 AND s.anulada = FALSE
+          AND s.registrada_en BETWEEN %s - INTERVAL 20 MINUTE AND %s
+        ORDER BY s.registrada_en, s.id""",
+        (_fecha_utc(ahora), _fecha_utc(ahora)),
+    )
+    return cursor.fetchall()
 
 
 def listar_visitas_confiables(cursor, sede_id, desde, hasta):

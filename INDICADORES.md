@@ -17,24 +17,24 @@ Guía para explicar el recorrido de etapa 1. Las referencias `archivo:línea` se
 |---|---|
 | Manejo de rutas | Fábrica y blueprints: `gimnasio/__init__.py:25`. Entradas, salidas y consultas: `gimnasio/visitas/rutas.py:18`. Propuesta: `gimnasio/entrenamiento/rutas.py:23`. Inicio de sesión realizada y series: `gimnasio/entrenamiento/rutas.py:36`. |
 | Conexión y paso de información con el cliente | Las rutas reciben JSON y responden JSON con códigos HTTP: `gimnasio/visitas/rutas.py:20`, `gimnasio/entrenamiento/rutas.py:38`. Errores JSON: `gimnasio/comun/errores.py:17`. La fábrica sirve los estáticos de `gimnasio/static/`. |
-| Iteradores y condicionales | Selección de primera sesión pendiente y composición de doble progresión: `gimnasio/reglas/sesion.py:7`. Vigencia, visita abierta y aforo: `gimnasio/visitas/servicio.py:88`. Serialización de programa: `gimnasio/entrenamiento/servicio.py:124`. |
+| Iteradores y condicionales | Selección de primera sesión pendiente y composición de doble progresión: `gimnasio/reglas/sesion.py:7`. Vigencia, visita abierta y aforo: `gimnasio/visitas/servicio.py:90`. Serialización de programa: `gimnasio/entrenamiento/servicio.py:124`. |
 | Comportamiento comprobado | E2E integrado con MySQL real y ambos anchos: `pruebas/e2e/test_esqueleto_andante.py:110`. Comprobación de solo inserciones: `pruebas/test_historial_inserciones.py:1`. Los resultados concretos se verifican en los checks del PR; las pruebas omitidas no acreditan el recorrido. |
 
 ## JavaScript (5 pts)
 
 | Indicador | Evidencia vigente |
 |---|---|
-| Iteradores y condicionales | Renderizado de visitas: `gimnasio/static/js/recepcion.js:40`. Formularios según medidas aplicables: `gimnasio/static/js/entrenamiento.js:60`. Explicación y ejercicios: `gimnasio/static/js/entrenamiento.js:128`. |
-| Comunicación y errores | Cliente fetch común, encabezados de escritura y lectura JSON: `gimnasio/static/js/comun/api.js:17`. Actualización de recepción: `gimnasio/static/js/recepcion.js:88`. Actualización del entrenamiento: `gimnasio/static/js/entrenamiento.js:182`. |
+| Iteradores y condicionales | Renderizado de visitas: `gimnasio/static/js/recepcion.js:46`. Formularios según medidas aplicables: `gimnasio/static/js/entrenamiento.js:60`. Explicación y ejercicios: `gimnasio/static/js/entrenamiento.js:128`. |
+| Comunicación y errores | Cliente fetch común, encabezados de escritura y lectura JSON: `gimnasio/static/js/comun/api.js:17`. Actualización de recepción: `gimnasio/static/js/recepcion.js:94`. Actualización del entrenamiento: `gimnasio/static/js/entrenamiento.js:182`. |
 | Persistencia y reintentos | Operaciones con cuerpo, identificador y clave conservados: `gimnasio/static/js/comun/operaciones.js:4`. Recuperación de sesión realizada desde la URL: `gimnasio/static/js/entrenamiento.js:182`. Cerrar sesión solo borra la sesión de usuario: `gimnasio/static/js/comun/operaciones.js:31`. |
 
 ## HTML (5 pts)
 
 | Indicador | Evidencia vigente |
 |---|---|
-| Construcción y estructura | Inicio con idioma español, viewport y dirección B: `gimnasio/static/index.html:2`. Formulario de ingreso: `gimnasio/static/index.html:30`. Recepción y entrenamiento usan `main`, `header`, secciones y controles etiquetados: `gimnasio/static/recepcion.html:22`, `gimnasio/static/entrenamiento.html:17`. |
-| Coordinación con el servidor | Formulario de entrada y selección de socio: `gimnasio/static/recepcion.html:43`, conectado por el módulo de recepción. Los formularios de series se crean según la respuesta real: `gimnasio/static/js/entrenamiento.js:60`. |
-| Navegación | La pantalla inicial ofrece enlaces según rol; recepción y entrenamiento vuelven a inicio y permiten cerrar sesión: `gimnasio/static/recepcion.html:23`, `gimnasio/static/entrenamiento.html:18`. |
+| Construcción y estructura | Inicio con idioma español, viewport y dirección B: `gimnasio/static/index.html:2`. Formulario de ingreso: `gimnasio/static/index.html:30`. Recepción y entrenamiento usan `main`, `header`, secciones y controles etiquetados: `gimnasio/static/recepcion.html:27`, `gimnasio/static/entrenamiento.html:17`. |
+| Coordinación con el servidor | Formulario de entrada y selección de socio: `gimnasio/static/recepcion.html:55`, conectado por el módulo de recepción. Los formularios de series se crean según la respuesta real: `gimnasio/static/js/entrenamiento.js:60`. |
+| Navegación | La pantalla inicial ofrece enlaces según rol; recepción y entrenamiento vuelven a inicio y permiten cerrar sesión: `gimnasio/static/recepcion.html:29`, `gimnasio/static/entrenamiento.html:18`. |
 
 ## Hojas de estilo y CSS (5 + 5 pts)
 
@@ -58,7 +58,7 @@ El motor 2.0 agrega doble progresión con RIR y tope semanal (ADR 0012, 0015 y 0
 | Si piden… | Punto de cambio |
 |---|---|
 | Una regla de propuesta | Motor puro `gimnasio/reglas/sesion.py:7`, con issue explícito y revisión independiente. |
-| Un cambio en entrada o salida | `gimnasio/visitas/rutas.py:18` → `gimnasio/visitas/servicio.py:88` → `gimnasio/visitas/repositorio.py:72`. |
+| Un cambio en entrada o salida | `gimnasio/visitas/rutas.py:18` → `gimnasio/visitas/servicio.py:90` → `gimnasio/visitas/repositorio.py:72`. |
 | Un campo persistido | Nueva migración hacia adelante, servicio/repositorio del módulo y pruebas; conservar los hechos existentes. |
 | Una acción de entrenamiento | `gimnasio/entrenamiento/rutas.py:36`, `gimnasio/static/js/entrenamiento.js:217` y pantalla correspondiente. |
 | Un cambio visual | Tokens y estilos compartidos en `gimnasio/static/estilos/`, manteniendo la dirección B. |

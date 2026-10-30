@@ -42,6 +42,7 @@ def listar_visitas():
 def consultar_ocupacion():
     datos = servicio.consultar_ocupacion()
     if usuario_actual()["rol"] != "recepcion":
+        datos.pop("por_zona")
         datos.pop("por_conciliar")
         datos.pop("sede_id")
     return _respuesta_condicional(datos)

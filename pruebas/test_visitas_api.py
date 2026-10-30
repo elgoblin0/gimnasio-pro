@@ -230,6 +230,7 @@ def test_salida_cierra_visita_y_lectura_calcula_duracion_sin_escribir(visitas_ap
     assert visitas[0]["entrada"].endswith("+00:00")
     assert visitas[0]["entrada_local"].endswith("-03:00")
     assert set(visitas[0]) == {
+        "zona",
         "id",
         "socio_id",
         "nombre",
@@ -253,6 +254,7 @@ def test_salida_cierra_visita_y_lectura_calcula_duracion_sin_escribir(visitas_ap
     assert visitas[0]["por_conciliar"] is False
     assert cliente.get("/api/visitas?abiertas=1").json["visitas"] == visitas
     assert cliente.get("/api/ocupacion").json == {
+        "por_zona": {"musculacion": 0, "peso_libre": 0, "cardio": 0, "funcional": 0, "en_la_sede": 1},
         "sede_id": str(datos.sede),
         "ocupacion_registrada": 1,
         "aforo_maximo": 1,
