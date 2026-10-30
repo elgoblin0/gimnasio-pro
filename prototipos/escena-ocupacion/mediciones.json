@@ -1,0 +1,46 @@
+[
+  {
+    "direccion": "a",
+    "dispositivo": "escritorio",
+    "equipo": "Windows-11-10.0.26200-SP0",
+    "procesador": "AMD64 Family 26 Model 68 Stepping 0, AuthenticAMD",
+    "promedio": 99.4820932232198,
+    "percentil_5": 99.00990099009545,
+    "segundos": 10,
+    "bytes_descargados": 2139672,
+    "navegador": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/156.0.0.0 Safari/537.36"
+  },
+  {
+    "direccion": "a",
+    "dispositivo": "celular",
+    "equipo": "Windows-11-10.0.26200-SP0",
+    "procesador": "AMD64 Family 26 Model 68 Stepping 0, AuthenticAMD",
+    "promedio": 99.08216521026216,
+    "percentil_5": 99.00990099009545,
+    "segundos": 10,
+    "bytes_descargados": 2139672,
+    "navegador": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/156.0.0.0 Safari/537.36"
+  },
+  {
+    "direccion": "b",
+    "dispositivo": "escritorio",
+    "equipo": "Windows-11-10.0.26200-SP0",
+    "procesador": "AMD64 Family 26 Model 68 Stepping 0, AuthenticAMD",
+    "promedio": 99.58207522645924,
+    "percentil_5": 99.00990099009545,
+    "segundos": 10,
+    "bytes_descargados": 18795,
+    "navegador": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/156.0.0.0 Safari/537.36"
+  },
+  {
+    "direccion": "b",
+    "dispositivo": "celular",
+    "equipo": "Windows-11-10.0.26200-SP0",
+    "procesador": "AMD64 Family 26 Model 68 Stepping 0, AuthenticAMD",
+    "promedio": 98.78221920054389,
+    "percentil_5": 99.00990099009545,
+    "segundos": 10,
+    "bytes_descargados": 18795,
+    "navegador": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/156.0.0.0 Safari/537.36"
+  }
+]

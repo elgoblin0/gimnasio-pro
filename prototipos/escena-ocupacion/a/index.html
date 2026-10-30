@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="es" data-direccion="b">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>A · plano 3D isométrico · Escena de ocupación</title>
+<link rel="stylesheet" href="../escena.css">
+<link rel="icon" href="data:,">
+<script type="importmap">{"imports":{"three":"../../../gimnasio/static/vendor/three@0.186.0/three.module.js"}}</script>
+<body data-escena="a">
+<main>
+<header><span>Gimnasio Pro / Escena de ocupación</span><small>Demo · datos ficticios</small></header>
+<nav aria-label="Comparar direcciones"><a href="../a/">A · 3D isométrico</a><a href="../b/">B · 2D con profundidad</a></nav>
+<h1>A · plano 3D isométrico</h1>
+<p>Prototipo descartable · misma sede, mismas visitas, dos direcciones para comparar.</p>
+<div class="datos"><div><strong id="total">40 de 80</strong><br>Ocupación registrada / aforo máximo</div><output id="fps">Midiendo fps…</output></div>
+<div class="plano"><canvas aria-label="Plano de la sede"></canvas><div id="personas" role="group" aria-label="Visitas en la sede"></div></div>
+<div id="zonas"></div>
+<output id="rotulo" aria-live="polite"></output>
+<p id="evento" aria-live="polite">Puerta · zona de la sede · cambios cada 2 s</p>
+<p>Punto verde: visita · cuadrado terracota: visita simulada. Tab y Enter para seleccionar. Con movimiento reducido, los cambios son inmediatos.</p>
+</main><script type="module" src="../escena.js"></script>
+</body></html>

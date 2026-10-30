@@ -12,6 +12,7 @@ import pytest
 PROTOTIPOS = Path(__file__).resolve().parent.parent / "prototipos"
 DIRECCIONES = sorted(PROTOTIPOS.glob("direccion-*/index.html"))
 CUERPOS = sorted(PROTOTIPOS.glob("cuerpo-3d/*/index.html"))
+ESCENAS = sorted(PROTOTIPOS.glob("escena-ocupacion/*/index.html"))
 CASOS = """
 const chequeo = (sueno, energia, dolor) => ({ sueno, energia, dolor });
 console.log(JSON.stringify({
@@ -46,14 +47,29 @@ def test_permanece_b_y_se_retiro_a():
     assert {"--superficie", "--texto", "--acento", "--freno", "--foco"} <= tokens_semanticos(b)
 
 
-@pytest.mark.parametrize("archivo", DIRECCIONES + CUERPOS, ids=lambda d: d.parent.name)
+@pytest.mark.parametrize("archivo", DIRECCIONES + CUERPOS + ESCENAS, ids=lambda d: d.parent.name)
 def test_sin_recursos_externos_y_con_movimiento_reducido(archivo):
     html = leer(archivo)
     assert not re.search(r"""(src|href)=["']https?:|url\(["']?https?:""", html)
-    assert "prefers-reduced-motion: reduce" in html or (
-        archivo in CUERPOS and "prefers-reduced-motion: reduce" in leer(PROTOTIPOS / "cuerpo-3d/cuerpo.css")
+    assert (
+        "prefers-reduced-motion: reduce" in html
+        or (archivo in CUERPOS and "prefers-reduced-motion: reduce" in leer(PROTOTIPOS / "cuerpo-3d/cuerpo.css"))
+        or (archivo in ESCENAS and "prefers-reduced-motion: reduce" in leer(PROTOTIPOS / "escena-ocupacion/escena.css"))
     )
     assert "Demo · datos ficticios" in html
+
+
+def test_escena_ocupacion_compara_dos_direcciones_con_los_mismos_datos():
+    assert {p.parent.name for p in ESCENAS} == {"a", "b"}
+    datos = json.loads(leer(PROTOTIPOS / "escena-ocupacion/personas.json"))
+    assert len(datos["personas"]) == 40
+    assert datos["aforo_maximo"] >= 40
+    assert len({p["id"] for p in datos["personas"]}) == 40
+    assert {p["zona"] for p in datos["personas"]} == {"Musculación", "Peso libre", "Cardio", "Funcional", "En la sede"}
+    assert {p["simulada"] for p in datos["personas"]} == {True, False}
+    assert all(p["minutos"] >= 0 for p in datos["personas"])
+    for archivo in ESCENAS:
+        assert 'src="../escena.js"' in leer(archivo)
 
 
 def test_cuerpo_3d_tiene_dos_versiones_y_las_zonas_del_catalogo():
@@ -66,6 +82,37 @@ def test_cuerpo_3d_tiene_dos_versiones_y_las_zonas_del_catalogo():
     assert "zona-seleccionada" in codigo
     assert (PROTOTIPOS / "cuerpo-3d/recursos/cuerpo.glb").read_bytes()[:4] == b"glTF"
     assert "CC0" in leer(PROTOTIPOS / "cuerpo-3d/recursos/LICENCIA.txt")
+
+
+def test_escena_no_superpone_visitas_en_la_franja_tras_secuencia_prolongada():
+    node = shutil.which("node")
+    if not node:
+        pytest.skip("sin Node")
+    codigo = leer(PROTOTIPOS / "escena-ocupacion/escena.js")
+    datos = leer(PROTOTIPOS / "escena-ocupacion/personas.json")
+    inicio = codigo[codigo.index("let personas =") : codigo.index("let proyectar =")]
+    casos = """
+personas.forEach(p => {p.posicion = destino(p); p.boton = {};});
+for (let paso = 0; paso < 600; paso++) {
+  avanzar();
+  personas = personas.filter(p => !p.saliendo);
+  personas.forEach(p => {p.posicion = p.hasta || p.posicion; p.hasta = null;});
+  const franja = personas.filter(p => p.zona === nombres[4]);
+  const coordenadas = franja.map(p => `${p.posicion.x},${p.posicion.y}`);
+  assert.equal(new Set(coordenadas).size, franja.length, `paso ${paso}`);
+  assert.ok(franja.every(p => p.posicion.x >= 12 && p.posicion.x <= 88
+    && p.posicion.y >= 84 && p.posicion.y <= 96));
+}
+"""
+    entorno = """
+const assert = require('node:assert/strict');
+const elemento = {dataset:{}, style:{}, setAttribute(){}, addEventListener(){}, append(){}};
+const document = {body:elemento, querySelector:() => elemento, createElement:() => elemento};
+const contenedor = elemento;
+const nombres = ['Musculación', 'Peso libre', 'Cardio', 'Funcional', 'En la sede'];
+const zonas = [[12,12,34,30],[54,12,34,30],[12,48,34,30],[54,48,34,30],[12,84,76,12]];
+"""
+    subprocess.run([node, "-e", entorno + "const datos = " + datos + ";" + inicio + casos], check=True)
 
 
 @pytest.mark.e2e
