@@ -1,4 +1,4 @@
-"""Lectura de programas por socio y versión, y gestión del estado de equipos."""
+"""Programas por socio y versión, catálogo, alternativas y estado de equipos."""
 
 import json
 from contextlib import nullcontext
@@ -20,6 +20,78 @@ OBJETIVOS = (
     "duracion",
     "distancia",
 )
+
+
+def _leer_catalogo(cursor):
+    estados = {fila["nombre"]: fila["estado"] for fila in repositorio.leer_equipos(cursor)}
+    ejercicios = {}
+    for fila in repositorio.leer_ejercicios(cursor):
+        identificador = str(desde_bytes(fila["id"]))
+        ejercicios[identificador] = {
+            **fila,
+            "id": identificador,
+            "medidas_aplicables": json.loads(fila["medidas_aplicables"]),
+            "zonas": sorted(json.loads(fila["zonas"])),
+            "estado_equipo": estados.get(fila["equipo"], "disponible"),
+            "alternativas": [],
+        }
+    for fila in repositorio.leer_alternativas(cursor):
+        ejercicios[str(desde_bytes(fila["ejercicio_id"]))]["alternativas"].append(
+            str(desde_bytes(fila["alternativa_id"]))
+        )
+    return ejercicios
+
+
+def listar_ejercicios():
+    with transaccion() as cursor:
+        return list(_leer_catalogo(cursor).values())
+
+
+def _rechazar_alternativa(identificador, motivo):
+    raise ErrorDeDominio("alternativa_invalida", f"{identificador}: {motivo}", 422)
+
+
+def _id_alternativa(identificador):
+    try:
+        if not isinstance(identificador, str):
+            raise ValueError
+        return desde_texto(identificador)
+    except (ValueError, AttributeError) as error:
+        raise ErrorDeDominio(
+            "alternativa_invalida", f"{identificador}: el identificador debe ser un UUIDv7.", 422
+        ) from error
+
+
+def reemplazar_alternativas(ejercicio_id, datos):
+    original_id = _id_alternativa(ejercicio_id)
+    if not isinstance(datos, dict) or set(datos) != {"alternativas"} or not isinstance(datos["alternativas"], list):
+        _rechazar_alternativa(ejercicio_id, "enviá una lista de alternativas.")
+    alternativas = datos["alternativas"]
+    if len(alternativas) > 8:
+        _rechazar_alternativa(ejercicio_id, "se permiten hasta 8 alternativas.")
+    with transaccion() as cursor:
+        # Serializa reemplazos antes de abrir la lectura consistente del catálogo.
+        if repositorio.bloquear_ejercicio(cursor, original_id) is None:
+            _rechazar_alternativa(ejercicio_id, "el ejercicio no existe.")
+        catalogo = _leer_catalogo(cursor)
+        original = catalogo[str(original_id)]
+        identificadores = []
+        for texto in alternativas:
+            identificador = _id_alternativa(texto)
+            alternativa = catalogo.get(str(identificador))
+            if alternativa is None:
+                _rechazar_alternativa(texto, "el ejercicio no existe.")
+            if identificador == original_id:
+                _rechazar_alternativa(texto, "no puede ser el mismo ejercicio.")
+            if identificador in identificadores:
+                _rechazar_alternativa(texto, "la alternativa está repetida.")
+            if alternativa["patron_movimiento"] != original["patron_movimiento"]:
+                _rechazar_alternativa(texto, "debe tener igual patrón de movimiento.")
+            if alternativa["equipo"] == original["equipo"]:
+                _rechazar_alternativa(texto, "debe tener distinto equipo.")
+            identificadores.append(identificador)
+        repositorio.reemplazar_alternativas(cursor, original_id, identificadores)
+        return {**original, "alternativas": [str(identificador) for identificador in identificadores]}
 
 
 def _equipo_publico(fila):
