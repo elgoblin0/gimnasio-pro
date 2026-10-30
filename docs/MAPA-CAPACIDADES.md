@@ -70,8 +70,8 @@ Generado por `scripts/mapa_capacidades.py` desde `docs/capacidades/`. No editar 
 |---|---|---|---|
 | Historial de entradas y salidas con ocupación registrada y visitas simuladas en modo demo | 1 | funcional | `pruebas/test_visitas.py` |
 | Consulta de membresía de acceso por vigencia, sin cupo de entradas | 1 | funcional | `pruebas/test_socios_membresia.py` |
-| Aforo en vivo y mejores horarios | 3 | funcional | `pruebas/test_mejores_horarios.py` |
-| Tarjeta contextual en recepción | 3 | funcional | `pruebas/test_tarjeta_contextual.py` |
+| Aforo en vivo y mejores horarios | 3 | validada | `pruebas/test_mejores_horarios.py` · https://github.com/elgoblin0/gimnasio-pro/issues/154 |
+| Tarjeta contextual en recepción | 3 | validada | `pruebas/test_tarjeta_contextual.py` · https://github.com/elgoblin0/gimnasio-pro/issues/154 |
 
 ## Entrenador
 
@@ -88,7 +88,7 @@ Generado por `scripts/mapa_capacidades.py` desde `docs/capacidades/`. No editar 
 |---|---|---|---|
 | PWA instalable en escritorio, con pantallas que se adaptan a tablet y celular | 1 | validada | `pruebas/e2e/test_pwa.py` · https://github.com/elgoblin0/gimnasio-pro/issues/52 |
 | Cuerpo 3D muscular | 2 | validada | `pruebas/e2e/test_recorrido_lucia.py::test_recorrido_lucia_etapa_2` · https://github.com/elgoblin0/gimnasio-pro/issues/136 |
-| Escena de ocupación | 3 | funcional | `pruebas/e2e/test_recepcion.py::test_escena_entrada_sin_recarga_y_seleccion_por_teclado` |
+| Escena de ocupación | 3 | validada | `pruebas/e2e/test_recepcion.py::test_escena_entrada_sin_recarga_y_seleccion_por_teclado` · https://github.com/elgoblin0/gimnasio-pro/issues/154 |
 | Movimiento cuidado y alternativa sin efectos | 7 | pendiente | — |
 | Recorrido guiado de dos minutos | 7 | pendiente | — |
 

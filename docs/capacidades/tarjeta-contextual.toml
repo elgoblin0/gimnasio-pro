@@ -2,7 +2,8 @@ id = "tarjeta-contextual"
 nombre = "Tarjeta contextual en recepción"
 grupo = "Recepción"
 etapa = 3
-nivel = "funcional"
+nivel = "validada"
+validacion = "https://github.com/elgoblin0/gimnasio-pro/issues/154"
 prueba = "pruebas/test_tarjeta_contextual.py"
 # La tarjeta abierta se actualiza tras confirmar una salida o conciliación.
 # Regresión: gimnasio/static/js/recepcion.test.js
