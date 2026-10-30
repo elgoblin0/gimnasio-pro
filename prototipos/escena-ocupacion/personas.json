@@ -1,0 +1,245 @@
+{
+  "aforo_maximo": 80,
+  "personas": [
+    {
+      "id": 1,
+      "zona": "Musculación",
+      "simulada": false,
+      "minutos": 7
+    },
+    {
+      "id": 2,
+      "zona": "Peso libre",
+      "simulada": false,
+      "minutos": 9
+    },
+    {
+      "id": 3,
+      "zona": "Cardio",
+      "simulada": true,
+      "minutos": 11
+    },
+    {
+      "id": 4,
+      "zona": "Funcional",
+      "simulada": false,
+      "minutos": 13
+    },
+    {
+      "id": 5,
+      "zona": "En la sede",
+      "simulada": false,
+      "minutos": 15
+    },
+    {
+      "id": 6,
+      "zona": "Musculación",
+      "simulada": true,
+      "minutos": 17
+    },
+    {
+      "id": 7,
+      "zona": "Peso libre",
+      "simulada": false,
+      "minutos": 19
+    },
+    {
+      "id": 8,
+      "zona": "Cardio",
+      "simulada": false,
+      "minutos": 21
+    },
+    {
+      "id": 9,
+      "zona": "Funcional",
+      "simulada": true,
+      "minutos": 23
+    },
+    {
+      "id": 10,
+      "zona": "En la sede",
+      "simulada": false,
+      "minutos": 25
+    },
+    {
+      "id": 11,
+      "zona": "Musculación",
+      "simulada": false,
+      "minutos": 27
+    },
+    {
+      "id": 12,
+      "zona": "Peso libre",
+      "simulada": true,
+      "minutos": 29
+    },
+    {
+      "id": 13,
+      "zona": "Cardio",
+      "simulada": false,
+      "minutos": 31
+    },
+    {
+      "id": 14,
+      "zona": "Funcional",
+      "simulada": false,
+      "minutos": 33
+    },
+    {
+      "id": 15,
+      "zona": "En la sede",
+      "simulada": true,
+      "minutos": 35
+    },
+    {
+      "id": 16,
+      "zona": "Musculación",
+      "simulada": false,
+      "minutos": 37
+    },
+    {
+      "id": 17,
+      "zona": "Peso libre",
+      "simulada": false,
+      "minutos": 39
+    },
+    {
+      "id": 18,
+      "zona": "Cardio",
+      "simulada": true,
+      "minutos": 41
+    },
+    {
+      "id": 19,
+      "zona": "Funcional",
+      "simulada": false,
+      "minutos": 43
+    },
+    {
+      "id": 20,
+      "zona": "En la sede",
+      "simulada": false,
+      "minutos": 45
+    },
+    {
+      "id": 21,
+      "zona": "Musculación",
+      "simulada": true,
+      "minutos": 47
+    },
+    {
+      "id": 22,
+      "zona": "Peso libre",
+      "simulada": false,
+      "minutos": 49
+    },
+    {
+      "id": 23,
+      "zona": "Cardio",
+      "simulada": false,
+      "minutos": 51
+    },
+    {
+      "id": 24,
+      "zona": "Funcional",
+      "simulada": true,
+      "minutos": 53
+    },
+    {
+      "id": 25,
+      "zona": "En la sede",
+      "simulada": false,
+      "minutos": 55
+    },
+    {
+      "id": 26,
+      "zona": "Musculación",
+      "simulada": false,
+      "minutos": 57
+    },
+    {
+      "id": 27,
+      "zona": "Peso libre",
+      "simulada": true,
+      "minutos": 59
+    },
+    {
+      "id": 28,
+      "zona": "Cardio",
+      "simulada": false,
+      "minutos": 61
+    },
+    {
+      "id": 29,
+      "zona": "Funcional",
+      "simulada": false,
+      "minutos": 63
+    },
+    {
+      "id": 30,
+      "zona": "En la sede",
+      "simulada": true,
+      "minutos": 65
+    },
+    {
+      "id": 31,
+      "zona": "Musculación",
+      "simulada": false,
+      "minutos": 67
+    },
+    {
+      "id": 32,
+      "zona": "Peso libre",
+      "simulada": false,
+      "minutos": 69
+    },
+    {
+      "id": 33,
+      "zona": "Cardio",
+      "simulada": true,
+      "minutos": 71
+    },
+    {
+      "id": 34,
+      "zona": "Funcional",
+      "simulada": false,
+      "minutos": 73
+    },
+    {
+      "id": 35,
+      "zona": "En la sede",
+      "simulada": false,
+      "minutos": 75
+    },
+    {
+      "id": 36,
+      "zona": "Musculación",
+      "simulada": true,
+      "minutos": 77
+    },
+    {
+      "id": 37,
+      "zona": "Peso libre",
+      "simulada": false,
+      "minutos": 79
+    },
+    {
+      "id": 38,
+      "zona": "Cardio",
+      "simulada": false,
+      "minutos": 81
+    },
+    {
+      "id": 39,
+      "zona": "Funcional",
+      "simulada": true,
+      "minutos": 83
+    },
+    {
+      "id": 40,
+      "zona": "En la sede",
+      "simulada": false,
+      "minutos": 85
+    }
+  ]
+}
