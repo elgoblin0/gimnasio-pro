@@ -1,0 +1,24 @@
+main { max-width: 90rem; }
+.ocupacion-distribucion { display: grid; grid-template-columns: minmax(0, 1fr) minmax(14rem, 20rem); gap: var(--espacio-4); margin-block: var(--espacio-5); }
+.ocupacion-distribucion > section { min-width: 0; }
+.escena-ocupacion { position: relative; height: 38rem; overflow: hidden; padding: 0; background: var(--superficie); }
+.escena-ocupacion h2 { position: absolute; top: var(--espacio-3); left: var(--espacio-4); margin: 0; z-index: 1; pointer-events: none; }
+.escena-ocupacion canvas { display: block; width: 100%; height: 100%; }
+[data-puntos] { position: absolute; inset: 0; pointer-events: none; }
+.punto-visita { position: absolute; width: 24px; height: 30px; padding: 0; transform: translate(-50%, -50%); background: transparent; border: 0; border-radius: var(--radio-3); pointer-events: auto; }
+.punto-visita:hover, .punto-visita:focus-visible { outline: 2px solid var(--foco); outline-offset: 2px; background: transparent; }
+[data-rotulo-visita] { position: absolute; max-width: min(22rem, 90%); transform: translate(-50%, -100%); padding: var(--espacio-2); background: var(--superficie-elevada); color: var(--texto); border: 1px solid var(--borde); border-radius: var(--radio-1); pointer-events: none; z-index: 2; }
+.leyenda-escena { position: absolute; bottom: var(--espacio-2); left: var(--espacio-3); right: var(--espacio-3); margin: 0; font-size: .8rem; color: var(--texto-suave); pointer-events: none; }
+.rotulo-zona-escena { position: absolute; transform: translate(-50%, -50%); background: var(--superficie-elevada); color: var(--texto); border-radius: var(--radio-3); padding: 1px 6px; font-size: .75rem; white-space: nowrap; pointer-events: none; }
+[data-zona-sede] { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; border-bottom: 1px solid var(--borde); padding-block: var(--espacio-2); }
+[data-zona-sede] > button { text-align: left; color: var(--texto); background: transparent; border: 0; padding: var(--espacio-2); }
+[data-zona-sede] > span { font-family: var(--fuente-numeros); font-size: 1.3rem; }
+[data-zona-sede] progress { grid-column: 1 / -1; display: block; width: 100%; height: .35rem; }
+[data-zona-sede] ul { grid-column: 1 / -1; list-style: none; margin: 0; padding: 0; }
+[data-zona-sede] li button { width: 100%; text-align: left; font-size: .85rem; }
+.ocupacion-distribucion:has([data-escena-ocupacion][hidden]) { grid-template-columns: minmax(0, 1fr); }
+@media (max-width: 600px) {
+  .ocupacion-distribucion { grid-template-columns: minmax(0, 1fr); }
+  .escena-ocupacion { height: 24rem; }
+  .escena-ocupacion h2 { font-size: 1.2rem; }
+}

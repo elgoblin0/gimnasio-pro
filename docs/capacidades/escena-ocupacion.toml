@@ -2,5 +2,5 @@ id = "escena-ocupacion"
 nombre = "Escena de ocupación"
 grupo = "Experiencia"
 etapa = 3
-nivel = "pendiente"
-prueba = ""
+nivel = "funcional"
+prueba = "pruebas/e2e/test_recepcion.py::test_escena_entrada_sin_recarga_y_seleccion_por_teclado"
