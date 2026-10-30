@@ -16,7 +16,7 @@ Corre en GitHub Actions y todo queda a la vista en los comentarios de cada PR y 
 | `necesita-criterio` en un issue | `opus.yml` → `criterio` | Opus decide, comenta, abre un ADR provisional si hace falta y deja el issue `estado:listo`; la cadena reanuda el PR. |
 | CI verde en un PR `opus/adr-*` | `cadena.yml` → `fusionar-adr` | Si el PR toca solo `docs/adr/` y `GLOSSARY.md`, activa la fusión automática con squash (el dueño revisa los ADR provisionales al cierre de la etapa). |
 | `revisado:codex` en un PR sensible | `opus.yml` → `revisar` | Opus lee el diff: `revisado:opus` o hallazgos con `correccion-pendiente`. |
-| `revisado:codex` (y `revisado:opus` si es sensible) | `cadena.yml` → `etiqueta` | Activa la fusión automática con squash, con el cuerpo del PR como mensaje; el ruleset de main espera calidad, pruebas, e2e y secretos. |
+| `revisado:codex` (y `revisado:opus` si es sensible) | `cadena.yml` → `etiqueta` | Si está `revisado:opus`, descarta los pedidos de cambios de `claude[bot]` anteriores a esa etiqueta. Activa la fusión automática con squash, con el cuerpo del PR como mensaje; el ruleset de main espera calidad, pruebas, e2e y secretos. |
 | `bloqueado` en un PR | `cadena.yml` → `etiqueta` | Avisa al dueño en el celular (ver Avisos). |
 | Último issue `ejecutor:codex` de un milestone cerrado | `cadena.yml` → `cierre` | Publica el informe de la etapa (`scripts/informe_cadena.py`) en el issue «Cierre de etapa …» del milestone y avisa al dueño que toca revisar los ADR provisionales. |
 | Cada 15 minutos | `cadena.yml` → `vigilar` | Si un pedido lleva 15 minutos sin que el implementador lo tome (y no está ocupado con otro PR), o lo tomó y no terminó en 75, lo comenta en el PR y avisa al dueño. Una vez por pedido. |
@@ -89,7 +89,7 @@ Las pruebas de MySQL saltadas en local no sustituyen el CI de GitHub. Se mantien
 
 ## Revisión y rutas sensibles
 
-Codex revisa todos los PR. Los que tocan reglas, migraciones, permisos, salud o `comun/migrar.py` necesitan además la revisión de Opus: con `revisado:codex` puesto, `opus.yml` lee su diff y pone `revisado:opus` o deja hallazgos. Si pidió correcciones, deja en el PR la marca `<!-- opus:revisado <sha> -->`, y en la vuelta siguiente lee solo lo que cambió desde ese commit en los archivos del PR, no el diff entero.
+Codex revisa todos los PR. Los que tocan reglas, migraciones, permisos, salud o `comun/migrar.py` necesitan además la revisión de Opus: con `revisado:codex` puesto, `opus.yml` lee su diff y pone `revisado:opus` o deja hallazgos. Opus aprueba con la etiqueta, sin revisión formal, y un pedido de cambios vigente frena la fusión aunque el ruleset no exija aprobaciones: por eso la cadena descarta los suyos anteriores a la etiqueta, con un mensaje que cita la aprobación. Los posteriores y los de otras cuentas siguen frenando. Si pidió correcciones, deja en el PR la marca `<!-- opus:revisado <sha> -->`, y en la vuelta siguiente lee solo lo que cambió desde ese commit en los archivos del PR, no el diff entero.
 
 Un commit nuevo invalida las aprobaciones: la cadena quita `revisado:codex` y `revisado:opus` y pide revisar de nuevo.
 

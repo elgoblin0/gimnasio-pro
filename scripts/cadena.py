@@ -27,6 +27,7 @@ from pathlib import Path
 
 PREFIJO_RAMA = "codex/issue-"
 BOT_CODEX = "chatgpt-codex-connector[bot]"
+BOT_OPUS = "claude[bot]"
 RUTAS_SENSIBLES = (
     "gimnasio/reglas/",
     "migraciones/",
@@ -126,6 +127,29 @@ def lista_para_fusionar(etiquetas, archivos):
     """Un PR sin archivos nunca se fusiona: cerraría su issue sin implementarlo (#127)."""
     sensible = es_sensible(archivos)
     return bool(archivos) and "revisado:codex" in etiquetas and (not sensible or "revisado:opus" in etiquetas)
+
+
+def aprobacion_de_opus(eventos):
+    """La última vez que se puso `revisado:opus`, de los eventos del PR en orden, o None."""
+    puestas = [e for e in eventos if e["event"] == "labeled" and e["label"]["name"] == "revisado:opus"]
+    return puestas[-1] if puestas else None
+
+
+def revisiones_a_descartar(revisiones, aprobacion):
+    """Los pedidos de cambios vigentes de Opus anteriores a su aprobación.
+
+    Opus aprueba con una etiqueta, sin revisión formal: su pedido de cambios sigue vigente y GitHub frena la fusión
+    (#191). Uno posterior a la aprobación es un cambio de opinión y sigue frenando; los de otras cuentas no se tocan.
+    """
+    if aprobacion is None:
+        return []
+    return [
+        r
+        for r in revisiones
+        if r["state"] == "CHANGES_REQUESTED"
+        and (r["user"] or {}).get("login") == BOT_OPUS
+        and fecha(r["submitted_at"]) < fecha(aprobacion["created_at"])
+    ]
 
 
 def encabezado_de_pedido():
@@ -349,6 +373,24 @@ def estado_de_fusion(numero, intentos=6):
     return datos
 
 
+def descartar_pedidos_de_opus(numero):
+    """Descarta los pedidos de cambios que Opus ya dio por atendidos al poner `revisado:opus`."""
+    paginas = gh_json("api", f"repos/{repo()}/issues/{numero}/events?per_page=100", "--paginate", "--slurp")
+    aprobacion = aprobacion_de_opus([e for pagina in paginas for e in pagina])
+    revisiones = gh_json("api", f"repos/{repo()}/pulls/{numero}/reviews?per_page=100")
+    for revision_vieja in revisiones_a_descartar(revisiones, aprobacion):
+        mensaje = f"Superada: {aprobacion['actor']['login']} puso revisado:opus el {aprobacion['created_at']}."
+        gh(
+            "api",
+            "--method",
+            "PUT",
+            f"repos/{repo()}/pulls/{numero}/reviews/{revision_vieja['id']}/dismissals",
+            "-f",
+            f"message={mensaje}",
+        )
+        print(f"Descartado el pedido de cambios {revision_vieja['id']} de Opus en el PR #{numero}.")
+
+
 def pedir_resolver_conflicto(pr):
     """Con dos PR en curso, fusionar uno puede dejar al otro en conflicto, y así no corre su CI ni se fusiona."""
     if "bloqueado" in etiquetas_de(pr):
@@ -503,6 +545,8 @@ def etiqueta(numero, nombre):
     if lista_para_fusionar(etiquetas_de(pr), archivos_del_pr(numero)):
         # Una revisión pedida a mano puede llegar con el PR aún en borrador; GitHub no fusiona borradores.
         gh("pr", "ready", str(numero))
+        if "revisado:opus" in etiquetas_de(pr):
+            descartar_pedidos_de_opus(numero)
         gh("pr", "merge", str(numero), "--squash", "--auto", "--delete-branch", "--body", cuerpo_de_fusion(pr["body"]))
         print(f"Fusión automática activada en el PR #{numero}.")
 
