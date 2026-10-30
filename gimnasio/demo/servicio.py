@@ -361,15 +361,16 @@ def poner_al_dia():
     if not current_app.config.get("MODO_DEMO"):
         return
     with transaccion() as cursor:
+        # Mismo orden que recepción: sede y luego simulación, incluso con idempotencia.
+        sede, abiertas = visitas.estado_para_simulacion(cursor)
+        if sede is None:
+            return
         estado = repositorio.bloquear_simulacion(cursor)
         if estado is None:
             return
         ahora = reloj_actual().ahora()
         desde = estado["generada_hasta"].replace(tzinfo=UTC)
         if desde >= ahora:
-            return
-        sede, abiertas = visitas.estado_para_simulacion(cursor)
-        if sede is None:
             return
         zona = ZoneInfo(sede["zona_horaria"])
         desde = max(desde, ahora - timedelta(hours=24)).astimezone(zona)
