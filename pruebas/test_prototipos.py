@@ -72,6 +72,17 @@ def test_escena_ocupacion_compara_dos_direcciones_con_los_mismos_datos():
         assert 'src="../escena.js"' in leer(archivo)
 
 
+def test_maqueta_de_la_sede_no_contradice_los_frenos_y_usa_los_mismos_datos():
+    carpeta = PROTOTIPOS / "escena-ocupacion-maqueta"
+    html = leer(carpeta / "index.html")
+    assert not re.search(r"""(src|href)=["']https?:|url\(["']?https?:""", html + leer(carpeta / "maqueta.css"))
+    assert "Demo · datos ficticios" in html
+    assert "prefers-reduced-motion: reduce" in leer(carpeta / "maqueta.css")
+    codigo = leer(carpeta / "maqueta.js")
+    assert "../escena-ocupacion/personas.json" in codigo
+    assert "prefers-reduced-motion: reduce" in codigo
+
+
 def test_cuerpo_3d_tiene_dos_versiones_y_las_zonas_del_catalogo():
     from gimnasio.comun.tipos import ZONAS_CUERPO
 

@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="es" data-direccion="b" data-luz="noche">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Maqueta de la sede · Escena de ocupación</title>
+<link rel="stylesheet" href="maqueta.css">
+<link rel="icon" href="data:,">
+<script type="importmap">{"imports":{"three":"../../gimnasio/static/vendor/three@0.186.0/three.module.js"}}</script>
+</head>
+<body>
+<main>
+  <section class="escena" aria-label="Escena de ocupación">
+    <canvas aria-hidden="true"></canvas>
+    <div id="rotulos" aria-hidden="true"></div>
+
+    <header class="cabecera">
+      <p class="antetitulo">Escena de ocupación <span>Demo · datos ficticios</span></p>
+      <p class="cifra"><strong id="total">0</strong> <span>de <span id="aforo">80</span></span></p>
+      <div class="barra" aria-hidden="true"><i id="barra"></i></div>
+      <p class="pie-cifra">Ocupación registrada / aforo máximo</p>
+    </header>
+
+    <div id="personas" role="group" aria-label="Visitas en la sede"></div>
+    <output id="tarjeta" aria-live="polite" hidden></output>
+
+    <aside class="controles">
+      <p id="evento" aria-live="polite">Abriendo la sede…</p>
+      <div class="fila">
+        <div class="grupo" role="group" aria-label="Ocupación de ejemplo">
+          <button type="button" data-objetivo="14">Baja</button>
+          <button type="button" data-objetivo="40" aria-pressed="true">Media</button>
+          <button type="button" data-objetivo="76">Alta</button>
+        </div>
+        <button type="button" id="luz">Ver de día</button>
+        <button type="button" id="pausa">Pausar</button>
+      </div>
+    </aside>
+  </section>
+
+  <section class="por-zona" aria-labelledby="t-por-zona">
+    <h2 id="t-por-zona">Por zona</h2>
+    <ul id="zonas"></ul>
+    <ul class="leyenda">
+      <li><i class="marca visita"></i>Visita</li>
+      <li><i class="marca simulada"></i>Visita simulada</li>
+      <li><i class="marca conciliar"></i>Visita por conciliar</li>
+    </ul>
+    <p id="fps" class="fps">Midiendo fps…</p>
+  </section>
+</main>
+<script type="module" src="maqueta.js"></script>
+</body>
+</html>
