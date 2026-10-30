@@ -6,7 +6,7 @@ from flask import request
 from werkzeug.exceptions import RequestEntityTooLarge
 
 from gimnasio.comun.errores import respuesta_de_error
-from gimnasio.demo.servicio import LimitePorIp
+from gimnasio.demo.servicio import SOLICITUDES_POR_MINUTO, LimitePorIp
 
 MAXIMO_BYTES_POR_SOLICITUD = 1_000_000
 
@@ -33,7 +33,11 @@ def registrar_limites(app):
         espera = limite.espera(_ip_de_la_solicitud(app))
         if espera:
             respuesta = app.make_response(
-                respuesta_de_error("demasiadas_solicitudes", "La demo admite 60 solicitudes por minuto por IP.", 429)
+                respuesta_de_error(
+                    "demasiadas_solicitudes",
+                    f"La demo admite {SOLICITUDES_POR_MINUTO} solicitudes por minuto por IP.",
+                    429,
+                )
             )
             respuesta.headers["Retry-After"] = str(espera)
             return respuesta

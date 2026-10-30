@@ -115,4 +115,4 @@ La etiqueta `base-original` conserva el punto de partida académico. `base_datos
 - Base inexistente: crear la base vacía indicada por `GIMNASIO_BD_NOMBRE` y aplicar migraciones.
 - Acceso denegado: revisar el usuario y sus permisos; configurar la clave en el entorno.
 - No aparecen accesos demo: comprobar `MODO_DEMO=1` y cargar la semilla solo en la base ficticia elegida.
-- Respuesta 429: esperar el plazo `Retry-After`; la demo admite 60 solicitudes por IP por minuto, incluidos los estáticos.
+- Respuesta 429: esperar el plazo `Retry-After`; la demo admite 240 solicitudes por IP por minuto, incluidos los estáticos.
