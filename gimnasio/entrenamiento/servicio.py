@@ -37,6 +37,7 @@ from gimnasio.reglas.progresion import historial_para_sesion
 from gimnasio.reglas.records import detectar_records
 from gimnasio.reglas.restricciones import aplicar_restricciones, excluido
 from gimnasio.reglas.sesion import proponer_sesion
+from gimnasio.reglas.version import VERSION_REGLAS
 from gimnasio.salud.servicio import restricciones_vigentes
 
 
@@ -998,6 +999,26 @@ def proyectar_dolor(cursor, sesion, efectiva, *, zonas=None, catalogos=None, res
         ajustada, explicacion, _ = aplicar_dolor(prescripcion, original, catalogo, zonas, (), razones, equipos)
         ajustada, razones_salud, _ = aplicar_restricciones(ajustada, original, catalogo, restricciones, zonas, equipos)
         explicacion += razones_salud
+        if equipos and prescripcion.series and not ajustada.series:
+            # La falta de equipo no dispensa trabajo: distinguimos ese caso de
+            # un ejercicio quitado por dolor o restricción aun con equipos disponibles.
+            disponible, _, _ = aplicar_dolor(prescripcion, original, catalogo, zonas, (), razones)
+            disponible, _, _ = aplicar_restricciones(disponible, original, catalogo, restricciones, zonas)
+            if disponible.series:
+                ejercicio["no_disponible"] = True
+                ejercicio["explicacion"].append(
+                    {
+                        "regla": "ejercicio_no_disponible",
+                        "version": razones[0].version if razones else VERSION_REGLAS,
+                        "datos": {
+                            "ejercicio_id": ejercicio["id"],
+                            "explicacion": (
+                                "El equipo está fuera de servicio y no hay alternativa disponible. Sigue pendiente."
+                            ),
+                        },
+                    }
+                )
+                continue
         if not explicacion:
             continue
         for campo in ("series", "carga", "repeticiones_minimas"):

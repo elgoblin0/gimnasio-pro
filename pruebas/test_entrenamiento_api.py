@@ -1426,6 +1426,29 @@ def dolor_api(entrenamiento_api):
     return datos
 
 
+def test_alternativa_por_dolor_no_disponible_conserva_pendiente(dolor_api, monkeypatch):
+    from gimnasio.entrenamiento import servicio
+
+    datos = dolor_api
+    cliente, ruta = datos.cliente_dolor, datos.ruta_dolor
+    assert escribir(cliente, ruta + "/dolores", datos.cuerpo_dolor).status_code == 201
+    inicial = cliente.get(ruta).json
+    primero = inicial["ejercicios"][0]
+    assert primero["ejercicio_hecho_id"]
+    with datos.app.app_context(), transaccion() as cursor:
+        cursor.execute("SELECT DISTINCT equipo FROM ejercicios")
+        equipos = frozenset(fila["equipo"] for fila in cursor.fetchall())
+    monkeypatch.setattr(servicio, "equipos_fuera_de_servicio", lambda cursor: equipos)
+    lectura = cliente.get(ruta).json
+    assert lectura["ejercicios"][0]["no_disponible"]
+    assert lectura["ejercicios"][0]["pendiente"] == primero["pendiente"] > 0
+    propuesta = cliente.get("/api/entrenamiento/propuesta").json
+    assert propuesta["sesion_planificada"]["id"] == inicial["sesion_planificada"]["id"]
+    ejercicio = next(e for e in propuesta["ejercicios"] if e["id"] == primero["id"])
+    assert ejercicio["pendiente"] == primero["pendiente"]
+    assert cliente.get(ruta).json["prescripcion_efectiva"] == inicial["prescripcion_efectiva"]
+
+
 def test_dolor_sustitucion_aviso_atomicos_e_idempotentes(dolor_api):
     datos = dolor_api
     cliente, ruta = datos.cliente_dolor, datos.ruta_dolor
