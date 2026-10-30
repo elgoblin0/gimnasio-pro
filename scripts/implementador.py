@@ -13,7 +13,8 @@ Uso:
   python scripts/implementador.py --simular  # dice qué haría, sin tocar nada
   python scripts/implementador.py --estado   # en qué paso está cada PR de Codex y qué espera
 
-Todo lo que muestra también queda en `.implementador/registro.log`. Solo corre una instancia a la vez.
+Todo lo que muestra también queda en `.implementador/registro.log`; la salida completa de Codex, en
+`.implementador/codex-crudo.log` (con GIMNASIO_IMPL_VERBOSO=1 se muestra entera). Solo corre una instancia a la vez.
 """
 
 import argparse
@@ -34,6 +35,7 @@ RAIZ = Path(__file__).resolve().parent.parent
 CARPETA_TRABAJO = RAIZ / ".implementador"
 REGISTRO = CARPETA_TRABAJO / "registro.log"
 BLOQUEO = CARPETA_TRABAJO / "bloqueo.pid"
+CRUDO = CARPETA_TRABAJO / "codex-crudo.log"  # la salida completa de Codex; en pantalla va resumida
 SONDEO_SEGUNDOS = 30  # cada cuánto se revisa si Codex sigue dando señales
 INACTIVIDAD_AVISO_MINUTOS = 10  # sin una línea nueva de Codex: se avisa
 INACTIVIDAD_CORTE_MINUTOS = 20  # sin una línea nueva de Codex: se lo mata y cuenta como fallo del pedido
@@ -195,6 +197,75 @@ def etapa_del_pr(etiquetas, hay_pedido, checks, sensible):
     return "lista: la fusión automática debería ocurrir"
 
 
+class ResumenDeCodex:
+    """Reduce la salida de `codex exec` a lo que Codex hace, línea a línea.
+
+    `codex exec` imprime bloques que empiezan con una marca (`user`, `codex`, `exec`, `apply patch`, `tokens used`):
+    el prompt entero, cada archivo que lee y cada diff. Aquí queda una línea por mensaje, comando y parche,
+    y de un comando que falla, las primeras líneas de su salida. Lo crudo va a `CRUDO`.
+    """
+
+    MARCAS = {"user", "codex", "exec", "apply patch", "file update", "thinking", "tokens used"}
+    COMANDO = re.compile(r'^"[^"]*powershell\.exe" -Command ')
+    CARPETA_AL_FINAL = re.compile(r" in [A-Za-z]:\\.*$")
+    RESULTADO = re.compile(r"^\s*(succeeded|exited (\d+)) in ([\d.]+m?s):")
+    CARPETA_DE_ISSUE = re.compile(r"issue-\d+(?:-\d+)?[\\/](.*)$")
+    ANCHO = 150
+    LINEAS_DE_ERROR = 2
+
+    def __init__(self):
+        self.bloque = "encabezado"
+        self.linea_del_bloque = 0
+        self.errores_por_mostrar = 0
+
+    def _corto(self, texto):
+        texto = " ".join(texto.split())
+        return texto if len(texto) <= self.ANCHO else texto[: self.ANCHO - 1] + "…"
+
+    def procesar(self, linea):
+        """Las líneas a mostrar para esta línea cruda de Codex (casi siempre ninguna)."""
+        texto = linea.rstrip()
+        if texto.strip() in self.MARCAS:
+            self.bloque, self.linea_del_bloque, self.errores_por_mostrar = texto.strip(), 0, 0
+            return []
+        self.linea_del_bloque += 1
+        if self.bloque == "encabezado":
+            clave = texto.split(":", 1)[0]
+            return [texto] if clave in ("model", "reasoning effort") else []
+        if self.bloque == "codex" and self.linea_del_bloque == 1:
+            return [f"💬 {self._corto(texto)}"]
+        if self.bloque == "tokens used" and self.linea_del_bloque == 1:
+            return [f"tokens: {texto.strip()}"]
+        if self.bloque == "exec":
+            return self._exec(texto)
+        if self.bloque == "apply patch":
+            return self._parche(texto)
+        return []
+
+    def _exec(self, texto):
+        if self.linea_del_bloque == 1:
+            comando = self.CARPETA_AL_FINAL.sub("", self.COMANDO.sub("", texto))
+            return [f"$ {self._corto(comando)}"]
+        if (resultado := self.RESULTADO.match(texto)) is not None:
+            if resultado[2] in (None, "0"):
+                return [f"  ✓ {resultado[3]}"]
+            self.errores_por_mostrar = self.LINEAS_DE_ERROR
+            return [f"  ✗ código {resultado[2]} ({resultado[3]})"]
+        if self.errores_por_mostrar and texto.strip():
+            self.errores_por_mostrar -= 1
+            return [f"    {self._corto(texto)}"]
+        return []
+
+    def _parche(self, texto):
+        if texto.startswith("diff --git"):
+            self.bloque = "diff"  # el resto del bloque es el diff: no se muestra
+            return []
+        if self.linea_del_bloque == 1 or not texto.strip():  # «patch: completed»
+            return []
+        encontrado = self.CARPETA_DE_ISSUE.search(texto)
+        return [f"✎ edita {encontrado[1] if encontrado else texto.strip()}"]
+
+
 def formatear_resumen(sesion, fusionados, ahora):
     """El resumen de lo que hizo esta corrida del implementador, para la consola y el registro."""
     atendidos = sesion["atendidos"]
@@ -351,6 +422,13 @@ def _seguir_a_codex(proceso, lineas):
     inicio = ultima_senal = time.monotonic()
     avisado = False
     registro = []
+    resumen = None if os.environ.get("GIMNASIO_IMPL_VERBOSO") else ResumenDeCodex()
+    CARPETA_TRABAJO.mkdir(exist_ok=True)
+    with CRUDO.open("a", encoding="utf-8", newline="\n") as crudo:
+        return _vigilar_lineas(proceso, lineas, registro, resumen, crudo, inicio, ultima_senal, avisado)
+
+
+def _vigilar_lineas(proceso, lineas, registro, resumen, crudo, inicio, ultima_senal, avisado):
     while True:
         try:
             linea = lineas.get(timeout=SONDEO_SEGUNDOS)
@@ -361,7 +439,10 @@ def _seguir_a_codex(proceso, lineas):
             return registro
         if linea:
             registro.append(linea)
-            mostrar(f"   │ {linea.rstrip()}")
+            crudo.write(linea if linea.endswith("\n") else linea + "\n")
+            crudo.flush()
+            for visible in [linea.rstrip()] if resumen is None else resumen.procesar(linea):
+                mostrar(f"   │ {visible}")
             ultima_senal, avisado = ahora, False
         mudo = (ahora - ultima_senal) / 60
         if ahora - inicio > LIMITE_MINUTOS * 60:
