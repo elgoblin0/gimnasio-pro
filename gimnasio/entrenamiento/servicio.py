@@ -309,6 +309,7 @@ def consultar_propuesta(socio_texto, usuario, planificada_id=None, *, cursor=Non
         dolores = preparar_dolores_sesiones(
             efectivas, repositorio.listar_dolores_socio(lectura, socio_id), ZoneInfo(sede["zona_horaria"])
         )
+        efectivas_guardadas = efectivas
         efectivas = [
             {
                 **efectiva,
@@ -347,7 +348,9 @@ def consultar_propuesta(socio_texto, usuario, planificada_id=None, *, cursor=Non
         # Conservamos cantidades reales para la pantalla y acreditamos solo ante el motor.
         originales = {e.ejercicio_id: e.series for s in programa_motor.sesiones for e in s.ejercicios}
         quitadas = {}
-        for efectiva in efectivas:
+        # La indisponibilidad actual no revoca las reducciones congeladas al iniciar.
+        # Solo las reducciones adicionales de la proyección dependen de su disponibilidad.
+        for efectiva in efectivas_guardadas + efectivas:
             planificada = str(desde_bytes(efectiva["sesion_planificada_id"]))
             for ejercicio in json.loads(efectiva["ejercicios"]):
                 if ejercicio["id"] not in originales or ejercicio.get("no_disponible"):
