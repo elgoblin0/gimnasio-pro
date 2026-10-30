@@ -7,11 +7,12 @@ from zoneinfo import ZoneInfo
 
 from gimnasio.comun.bd import transaccion
 from gimnasio.comun.errores import ErrorDeDominio
+from gimnasio.comun.formatos import formatear_cedula
 from gimnasio.comun.ids import desde_bytes, desde_texto
 from gimnasio.comun.reloj import fecha_local, reloj_actual
 from gimnasio.reglas.horarios import calcular_mejores_horarios
 from gimnasio.reglas.permanencia import calcular_permanencia_habitual, es_visita_por_conciliar
-from gimnasio.socios.servicio import consultar_membresia
+from gimnasio.socios.servicio import consultar_membresia, membresia_para_tarjeta
 from gimnasio.visitas import repositorio
 
 
@@ -22,6 +23,50 @@ def identificar(texto):
         return desde_texto(texto)
     except (ValueError, AttributeError) as error:
         raise ErrorDeDominio("id_invalido", "El identificador debe ser un UUIDv7.", 422) from error
+
+
+def consultar_tarjeta(socio_id):
+    socio_id = identificar(socio_id)
+    ahora = reloj_actual().ahora()
+    with transaccion() as cursor:
+        socio = repositorio.buscar_socio_para_tarjeta(cursor, socio_id)
+        if socio is None:
+            raise ErrorDeDominio("socio_inexistente", "El socio no existe.", 404)
+        sede = repositorio.obtener_sede(cursor)
+        if sede is None:
+            raise ErrorDeDominio("sede_inexistente", "La sede no existe.", 404)
+        visitas = repositorio.listar_visitas_del_socio(cursor, socio_id, ahora)
+        duraciones = repositorio.listar_duraciones_confiables(
+            cursor, desde_bytes(sede["id"]), ahora - timedelta(weeks=8), ahora, socio_id
+        )
+    abierta = next((visita for visita in visitas if visita["abierta"]), None)
+    ultima = next((visita for visita in visitas if visita["salida_registrada_en"] is not None), None)
+    return {
+        "socio": {
+            "id": str(socio_id),
+            "nombre": socio["nombre"],
+            "apellido": socio["apellido"],
+            "cedula": formatear_cedula(socio["cedula"]),
+        },
+        "membresia": membresia_para_tarjeta(socio_id, fecha_local(ahora, ZoneInfo(sede["zona_horaria"]))),
+        "visita_abierta": {
+            "entrada_id": str(desde_bytes(abierta["entrada_id"])),
+            "desde": abierta["registrada_en"].replace(tzinfo=UTC).isoformat(),
+            "minutos": max(0, int((ahora - abierta["registrada_en"].replace(tzinfo=UTC)).total_seconds()) // 60),
+        }
+        if abierta
+        else None,
+        "ultima_visita": {
+            "desde": ultima["registrada_en"].replace(tzinfo=UTC).isoformat(),
+            "hasta": ultima["salida_registrada_en"].replace(tzinfo=UTC).isoformat(),
+        }
+        if ultima
+        else None,
+        "visitas_ultimas_4_semanas": sum(
+            visita["registrada_en"].replace(tzinfo=UTC) >= ahora - timedelta(weeks=4) for visita in visitas
+        ),
+        "permanencia_habitual": asdict(calcular_permanencia_habitual(tuple(fila["minutos"] for fila in duraciones))),
+    }
 
 
 def validar_cuerpo(datos, campos):

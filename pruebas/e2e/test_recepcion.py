@@ -40,6 +40,27 @@ def contar(instancia, tabla):
         return cursor.fetchone()["cantidad"]
 
 
+@pytest.mark.parametrize("ancho,alto", [(1440, 900), (390, 844)])
+def test_entrada_abre_tarjeta_y_escape_la_cierra(pagina_demo, demo_aislada, ancho, alto):
+    pagina = pagina_demo
+    pagina.set_viewport_size({"width": ancho, "height": alto})
+    ingresar(pagina, demo_aislada)
+    pagina.get_by_role("button", name="Registrar entrada", exact=True).click()
+    tarjeta = pagina.locator("[data-tarjeta-contextual]")
+    expect(tarjeta).to_be_visible()
+    expect(tarjeta).to_contain_text("Membresía")
+    expect(tarjeta).to_contain_text("Lucía Benítez")
+    # La tarjeta abierta no debe tapar las operaciones de recepción (regresión del CI).
+    for nombre in ("Cerrar sesión", "Registrar entrada", "Registrar salida de Lucía Benítez"):
+        pagina.get_by_role("button", name=nombre, exact=True).click(trial=True)
+    assert pagina.evaluate("document.documentElement.scrollWidth <= window.innerWidth")
+    pagina.keyboard.press("Escape")
+    expect(tarjeta).not_to_be_visible()
+    pagina.get_by_role("button", name="Ver tarjeta contextual de Lucía Benítez").focus()
+    pagina.keyboard.press("Enter")
+    expect(tarjeta).to_be_visible()
+
+
 def test_sondeo_entre_recepciones_y_ocupacion_del_socio(pagina_demo, demo_aislada):
     primera = pagina_demo
     segunda = primera.context.new_page()

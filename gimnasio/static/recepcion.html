@@ -12,6 +12,17 @@
   <link rel="stylesheet" href="/estilos/recorrido.css">
   <script type="importmap">{"imports":{"@comun/":"/js/comun/"}}</script>
   <script type="module" src="/js/recepcion.js"></script>
+  <style>
+    [data-recepcion]:has([data-tarjeta-contextual][open]) { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 26rem); gap: var(--espacio-5); align-items: start; }
+    [data-recepcion] > [data-contenido] { grid-column: 1; grid-row: 1; min-width: 0; }
+    [data-tarjeta-contextual] { position: sticky; top: var(--espacio-4); grid-column: 2; grid-row: 1; margin: 0; max-height: calc(100dvh - 2 * var(--espacio-4)); width: 100%; min-width: 0; padding: var(--espacio-5); background: var(--superficie-elevada); color: var(--texto); border: 1px solid var(--borde); overflow: auto; }
+    @media (max-width: 60rem) {
+      [data-recepcion]:has([data-tarjeta-contextual][open]) { display: block; }
+      [data-tarjeta-contextual] { position: static; max-height: none; margin-block: var(--espacio-5); }
+    }
+    .membresia-por-vencer { color: var(--alerta); font-weight: bold; }
+    .membresia-vencida { color: var(--peligro); font-weight: bold; }
+  </style>
 </head>
 <body>
 <main>
@@ -26,6 +37,12 @@
     <button type="button" data-descartar>Descartar reintento</button>
   </div>
   <button type="button" data-actualizar>Actualizar visitas</button>
+  <div data-recepcion>
+    <dialog data-tarjeta-contextual aria-labelledby="titulo-tarjeta">
+      <button type="button" data-cerrar-tarjeta>Cerrar tarjeta contextual</button>
+      <h2 id="titulo-tarjeta">Tarjeta contextual</h2>
+      <div data-tarjeta-datos role="status" aria-live="polite"></div>
+    </dialog>
   <div data-contenido hidden>
     <div class="grilla">
       <section aria-labelledby="titulo-ocupacion">
@@ -57,6 +74,7 @@
       <p data-vacio hidden>No hay visitas abiertas.</p>
       <ul class="lista" data-visitas></ul>
     </section>
+  </div>
   </div>
 <dialog data-conciliacion aria-labelledby="titulo-conciliacion">
   <h2 id="titulo-conciliacion">Conciliar salida</h2>
