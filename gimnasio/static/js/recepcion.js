@@ -68,6 +68,11 @@ function dibujarVisitas(visitas) {
       enviar();
     });
     tarjeta.append(titulo, detalle);
+    if (visita.simulada) {
+      const marca = document.createElement("strong");
+      marca.textContent = "simulada";
+      tarjeta.append(marca);
+    }
     const verTarjeta = document.createElement("button");
     verTarjeta.type = "button";
     verTarjeta.textContent = "Ver tarjeta contextual";
@@ -170,6 +175,7 @@ async function abrirTarjeta(socioId, enfocar = true) {
       parrafo.className = clase;
       contenido.append(parrafo);
     };
+    if (datos.socio.simulada) agregar("Socio simulado de la demo");
     agregar(`${datos.socio.nombre} ${datos.socio.apellido} · Cédula ${datos.socio.cedula}`);
     const membresia = datos.membresia;
     if (membresia) {

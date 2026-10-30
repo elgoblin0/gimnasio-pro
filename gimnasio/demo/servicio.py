@@ -1,5 +1,6 @@
 """Recorrido ficticio reiniciable; identidades estables y credenciales opacas nuevas."""
 
+import json
 import random
 import secrets
 from collections import OrderedDict, deque
@@ -7,18 +8,21 @@ from datetime import UTC, datetime, time, timedelta
 from itertools import count
 from math import ceil
 from threading import Lock
+from zoneinfo import ZoneInfo
 
 from flask import current_app
 
 from gimnasio.comun.bd import transaccion
 from gimnasio.comun.errores import ErrorDeDominio
 from gimnasio.comun.formatos import normalizar_cedula, normalizar_telefono
-from gimnasio.comun.ids import desde_texto
+from gimnasio.comun.ids import desde_bytes, desde_texto, nuevo_id
 from gimnasio.comun.reloj import ZONA_SEDE, fecha_local, reloj_actual
 from gimnasio.comun.tipos import ZONAS_CUERPO
 from gimnasio.demo import repositorio
 from gimnasio.demo.nombres import APELLIDOS, NOMBRES
 from gimnasio.permisos import servicio as permisos
+from gimnasio.reglas.simulacion import simular_visitas
+from gimnasio.visitas import servicio as visitas
 
 USUARIOS_DEMO = (
     ("Lucía", "Benítez", "socio"),
@@ -326,3 +330,89 @@ def reiniciar():
             permisos.registrar_consentimiento(
                 cursor, socio_id, "salud", True, "demo-1", socio_id, identificador=siguiente_id()
             )
+
+        _cargar_simulacion(cursor, siguiente_id, ahora)
+
+
+def _cargar_simulacion(cursor, siguiente_id, ahora):
+    for indice in range(61):
+        persona = {
+            "nombre": "Simulación" if indice == 60 else NOMBRES[indice % len(NOMBRES)],
+            "apellido": "demo" if indice == 60 else APELLIDOS[indice % len(APELLIDOS)],
+            "cedula": str(97_000_000 + indice),
+            "telefono": f"+595970{indice:06d}",
+            "correo": "simulacion@demo.gimnasio.invalid" if indice == 60 else f"simulada{indice}@demo.gimnasio.invalid",
+        }
+        usuario_id = permisos.crear_usuario(
+            cursor,
+            persona,
+            "recepcion" if indice == 60 else "socio",
+            identificadores=(siguiente_id(), siguiente_id()),
+        )
+        if indice < 60:
+            repositorio.marcar_simulada(cursor, usuario_id)
+            desde = fecha_local(ahora)
+            repositorio.insertar_membresia(cursor, siguiente_id(), usuario_id, desde, desde + timedelta(days=29), ahora)
+    repositorio.iniciar_simulacion(cursor, ahora)
+
+
+def poner_al_dia():
+    """Agrega visitas en una transacción serializada, exclusivamente en la demo."""
+    if not current_app.config.get("MODO_DEMO"):
+        return
+    with transaccion() as cursor:
+        estado = repositorio.bloquear_simulacion(cursor)
+        if estado is None:
+            return
+        ahora = reloj_actual().ahora()
+        desde = estado["generada_hasta"].replace(tzinfo=UTC)
+        if desde >= ahora:
+            return
+        sede, abiertas = visitas.estado_para_simulacion(cursor)
+        if sede is None:
+            return
+        zona = ZoneInfo(sede["zona_horaria"])
+        desde = max(desde, ahora - timedelta(hours=24)).astimezone(zona)
+        hasta = ahora.astimezone(zona)
+        horario = json.loads(sede["horario"]) if isinstance(sede["horario"], (str, bytes)) else sede["horario"]
+        simulados = [desde_bytes(fila["id"]) for fila in repositorio.listar_simulados(cursor)]
+        autor = desde_bytes(repositorio.obtener_autor_simulacion(cursor)["id"])
+        presentes = {
+            desde_bytes(fila["socio_id"]): fila["registrada_en"].replace(tzinfo=UTC).astimezone(zona)
+            for fila in abiertas
+            if fila["simulada"]
+        }
+        entradas = {
+            desde_bytes(fila["socio_id"]): desde_bytes(fila["entrada_id"]) for fila in abiertas if fila["simulada"]
+        }
+        ocupacion_real = sum(not fila["simulada"] for fila in abiertas)
+        while desde < hasta:
+            fin = min(hasta, datetime.combine(desde.date() + timedelta(days=1), time(), zona))
+            eventos = simular_visitas(
+                desde,
+                fin,
+                horario,
+                sede["aforo_maximo"],
+                simulados,
+                presentes,
+                ocupacion_real,
+                int(desde.strftime("%Y%m%d")),
+            )
+            for tipo, socio, instante in eventos:
+                if tipo == "entrada":
+                    entrada_id = nuevo_id()
+                    visitas.registrar_entrada_en_transaccion(
+                        cursor,
+                        {"id": entrada_id, "socio_id": socio, "sede_id": desde_bytes(sede["id"])},
+                        {"id": str(autor)},
+                        instante.astimezone(UTC),
+                    )
+                    entradas[socio] = entrada_id
+                    presentes[socio] = instante
+                else:
+                    visitas.registrar_salida_en_transaccion(
+                        cursor, entradas.pop(socio), autor, instante.astimezone(UTC)
+                    )
+                    presentes.pop(socio)
+            desde = fin
+        repositorio.avanzar_simulacion(cursor, ahora)

@@ -17,6 +17,7 @@ def insertar_restriccion(cursor, identificador, socio_id, autor_id, ahora):
 
 def vaciar_datos(cursor):
     """Borra en orden de dependencias, conservando migraciones_aplicadas y las claves foráneas."""
+    cursor.execute("DELETE FROM simulacion_demo")
     cursor.execute("DELETE FROM solicitudes_idempotentes")
     while True:
         cursor.execute(
@@ -210,3 +211,39 @@ def insertar_visitas(cursor, sede_id, autor_id, visitas, siguiente_id):
         "INSERT INTO entradas (id,socio_id,sede_id,autor_id,registrada_en) VALUES (%s,%s,%s,%s,%s)", entradas
     )
     cursor.executemany("INSERT INTO salidas (id,entrada_id,autor_id,registrada_en) VALUES (%s,%s,%s,%s)", salidas)
+
+
+def marcar_simulada(cursor, usuario_id):
+    cursor.execute(
+        "UPDATE personas p JOIN usuarios u ON u.persona_id=p.id SET p.simulada=TRUE WHERE u.id=%s",
+        (a_bytes(usuario_id),),
+    )
+
+
+def iniciar_simulacion(cursor, ahora):
+    cursor.execute("INSERT INTO simulacion_demo (generada_hasta) VALUES (%s)", (ahora.replace(tzinfo=None),))
+
+
+def bloquear_simulacion(cursor):
+    cursor.execute("SELECT generada_hasta FROM simulacion_demo WHERE unica=TRUE FOR UPDATE")
+    return cursor.fetchone()
+
+
+def avanzar_simulacion(cursor, ahora):
+    cursor.execute("UPDATE simulacion_demo SET generada_hasta=%s WHERE unica=TRUE", (ahora.replace(tzinfo=None),))
+
+
+def listar_simulados(cursor):
+    cursor.execute(
+        "SELECT u.id FROM usuarios u JOIN personas p ON p.id=u.persona_id "
+        "WHERE p.simulada=TRUE AND u.rol='socio' AND u.activo=TRUE ORDER BY u.id"
+    )
+    return cursor.fetchall()
+
+
+def obtener_autor_simulacion(cursor):
+    cursor.execute(
+        "SELECT u.id FROM usuarios u JOIN personas p ON p.id=u.persona_id "
+        "WHERE p.correo='simulacion@demo.gimnasio.invalid'"
+    )
+    return cursor.fetchone()

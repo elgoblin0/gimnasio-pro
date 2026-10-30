@@ -13,6 +13,7 @@ from gimnasio.comun.ids import desde_bytes, desde_texto
 from gimnasio.comun.reloj import fecha_local, reloj_actual
 from gimnasio.reglas.horarios import calcular_mejores_horarios
 from gimnasio.reglas.permanencia import calcular_permanencia_habitual, es_visita_por_conciliar
+from gimnasio.reglas.simulacion import zona_simulada
 from gimnasio.reglas.zonas_sede import NOMBRES_ZONAS_SEDE, ubicar_en_zona
 from gimnasio.socios.servicio import consultar_membresia, membresia_para_tarjeta
 from gimnasio.visitas import repositorio
@@ -49,6 +50,7 @@ def consultar_tarjeta(socio_id):
             "nombre": socio["nombre"],
             "apellido": socio["apellido"],
             "cedula": formatear_cedula(socio["cedula"]),
+            "simulada": bool(socio["simulada"]),
         },
         "membresia": membresia_para_tarjeta(socio_id, fecha_local(ahora, ZoneInfo(sede["zona_horaria"]))),
         "visita_abierta": {
@@ -91,28 +93,31 @@ def registrar_entrada(datos, usuario):
     ids = validar_cuerpo(datos, ("id", "socio_id", "sede_id"))
     ahora = reloj_actual().ahora()
     with transaccion() as cursor:
-        sede = repositorio.bloquear_sede(cursor, ids["sede_id"])
-        if sede is None:
-            raise ErrorDeDominio("sede_inexistente", "La sede no existe.", 404)
-        socio = repositorio.bloquear_socio(cursor, ids["socio_id"])
-        if socio is None or socio["rol"] != "socio":
-            raise ErrorDeDominio("socio_inexistente", "El socio no existe.", 404)
-        anterior = repositorio.obtener_entrada(cursor, ids["id"])
-        if anterior is not None:
-            if anterior["socio_id"] != socio["id"] or anterior["sede_id"] != sede["id"]:
-                raise ErrorDeDominio("id_ajeno", "El identificador corresponde a otra entrada.", 403)
-            return entrada_publica(anterior)
-        membresia = consultar_membresia(ids["socio_id"], fecha_local(ahora, ZoneInfo(sede["zona_horaria"])))
-        if not socio["activo"] or membresia is None:
-            raise ErrorDeDominio("membresia_no_vigente", "El socio no tiene una membresía vigente.", 422)
-        if repositorio.tiene_visita_abierta(cursor, ids["socio_id"]):
-            raise ErrorDeDominio("visita_abierta", "El socio ya tiene una visita abierta.", 409)
-        if repositorio.contar_ocupacion_registrada(cursor, ids["sede_id"]) >= sede["aforo_maximo"]:
-            raise ErrorDeDominio("aforo_alcanzado", "Se alcanzó el aforo máximo. No se registró la entrada.", 409)
-        repositorio.insertar_entrada(
-            cursor, ids["id"], ids["socio_id"], ids["sede_id"], identificar(usuario["id"]), ahora
-        )
-        return entrada_publica(repositorio.obtener_entrada(cursor, ids["id"]))
+        return registrar_entrada_en_transaccion(cursor, ids, usuario, ahora)
+
+
+def registrar_entrada_en_transaccion(cursor, ids, usuario, ahora):
+    """Comparte las reglas de entrada conservando la transacción del llamador."""
+    sede = repositorio.bloquear_sede(cursor, ids["sede_id"])
+    if sede is None:
+        raise ErrorDeDominio("sede_inexistente", "La sede no existe.", 404)
+    socio = repositorio.bloquear_socio(cursor, ids["socio_id"])
+    if socio is None or socio["rol"] != "socio":
+        raise ErrorDeDominio("socio_inexistente", "El socio no existe.", 404)
+    anterior = repositorio.obtener_entrada(cursor, ids["id"])
+    if anterior is not None:
+        if anterior["socio_id"] != socio["id"] or anterior["sede_id"] != sede["id"]:
+            raise ErrorDeDominio("id_ajeno", "El identificador corresponde a otra entrada.", 403)
+        return entrada_publica(anterior)
+    membresia = consultar_membresia(ids["socio_id"], fecha_local(ahora, ZoneInfo(sede["zona_horaria"])), cursor=cursor)
+    if not socio["activo"] or membresia is None:
+        raise ErrorDeDominio("membresia_no_vigente", "El socio no tiene una membresía vigente.", 422)
+    if repositorio.tiene_visita_abierta(cursor, ids["socio_id"]):
+        raise ErrorDeDominio("visita_abierta", "El socio ya tiene una visita abierta.", 409)
+    if repositorio.contar_ocupacion_registrada(cursor, ids["sede_id"]) >= sede["aforo_maximo"]:
+        raise ErrorDeDominio("aforo_alcanzado", "Se alcanzó el aforo máximo. No se registró la entrada.", 409)
+    repositorio.insertar_entrada(cursor, ids["id"], ids["socio_id"], ids["sede_id"], identificar(usuario["id"]), ahora)
+    return entrada_publica(repositorio.obtener_entrada(cursor, ids["id"]))
 
 
 def salida_publica(fila):
@@ -217,7 +222,14 @@ def _listar_visitas(cursor, ahora):
             {
                 "id": str(desde_bytes(fila["entrada_id"])),
                 "socio_id": str(desde_bytes(fila["socio_id"])),
-                "zona": ubicar_en_zona(
+                "simulada": bool(fila["simulada"]),
+                "zona": zona_simulada(
+                    str(desde_bytes(fila["socio_id"])),
+                    ahora.astimezone(ZoneInfo(fila["zona_horaria"])),
+                    int(fecha_local(ahora).strftime("%Y%m%d")),
+                )
+                if fila["simulada"]
+                else ubicar_en_zona(
                     series_por_socio.get(fila["socio_id"], []), ahora, fila["registrada_en"].replace(tzinfo=UTC)
                 ),
                 "nombre": fila["nombre"],
@@ -238,12 +250,14 @@ def _listar_visitas(cursor, ahora):
 
 
 def listar_visitas():
+    _poner_al_dia_demo()
     ahora = reloj_actual().ahora()
     with transaccion() as cursor:
         return _listar_visitas(cursor, ahora)
 
 
 def consultar_ocupacion():
+    _poner_al_dia_demo()
     ahora = reloj_actual().ahora()
     with transaccion() as cursor:
         sede = repositorio.obtener_sede(cursor)
@@ -267,6 +281,7 @@ def listar_socios():
 
 
 def consultar_visitas():
+    _poner_al_dia_demo()
     ahora = reloj_actual().ahora()
     with transaccion() as cursor:
         visitas = _listar_visitas(cursor, ahora)
@@ -301,3 +316,24 @@ def consultar_mejores_horarios():
             sorted((int(dia), tuple(tuple(franja) for franja in franjas)) for dia, franjas in horario_json.items())
         )
         return asdict(calcular_mejores_horarios(visitas, ahora_local, horario))
+
+
+def _poner_al_dia_demo():
+    # Importación diferida: demo también usa el servicio de visitas.
+    from gimnasio.demo.servicio import poner_al_dia
+
+    poner_al_dia()
+
+
+def estado_para_simulacion(cursor):
+    """Bloquea la sede antes de leer ocupación; coordina con entradas reales."""
+    sede = repositorio.bloquear_primera_sede(cursor)
+    if sede is None:
+        return None, []
+    return sede, repositorio.listar_visitas_abiertas(cursor)
+
+
+def registrar_salida_en_transaccion(cursor, entrada_id, autor_id, instante):
+    from gimnasio.comun.ids import nuevo_id
+
+    repositorio.insertar_salida(cursor, nuevo_id(), entrada_id, autor_id, instante)

@@ -165,7 +165,7 @@ def obtener_salida(cursor, salida_id):
 def listar_visitas_abiertas(cursor):
     cursor.execute(
         _ESTADOS_VIGENTES
-        + """SELECT v.*, CONCAT(p.nombre, ' ', p.apellido) AS nombre, p.cedula,
+        + """SELECT v.*, CONCAT(p.nombre, ' ', p.apellido) AS nombre, p.cedula, p.simulada,
                                      s.zona_horaria
                               FROM estados_vigentes v
                               JOIN usuarios u ON u.id = v.socio_id
@@ -182,6 +182,11 @@ def obtener_sede(cursor):
     return cursor.fetchone()
 
 
+def bloquear_primera_sede(cursor):
+    cursor.execute("SELECT * FROM sedes ORDER BY id LIMIT 1 FOR UPDATE")
+    return cursor.fetchone()
+
+
 def listar_socios_activos(cursor):
     cursor.execute(
         """SELECT u.id, CONCAT(p.nombre, ' ', p.apellido) AS nombre, p.cedula
@@ -193,7 +198,7 @@ def listar_socios_activos(cursor):
 
 def buscar_socio_para_tarjeta(cursor, socio_id):
     cursor.execute(
-        """SELECT u.id, p.nombre, p.apellido, p.cedula
+        """SELECT u.id, p.nombre, p.apellido, p.cedula, p.simulada
            FROM usuarios u JOIN personas p ON p.id = u.persona_id
            WHERE u.id = %s AND u.rol = 'socio'""",
         (a_bytes(socio_id),),

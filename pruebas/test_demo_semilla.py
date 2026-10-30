@@ -63,7 +63,7 @@ def datos_semilla(app):
         "personas": consultar(
             app,
             """SELECT p.nombre, p.apellido, p.cedula, p.telefono, p.correo, p.creada_en, p.actualizada_en,
-                      u.rol, u.es_demo, u.activo, u.creado_en, u.actualizado_en
+                      p.simulada, u.rol, u.es_demo, u.activo, u.creado_en, u.actualizado_en
                FROM personas p JOIN usuarios u ON u.persona_id = p.id ORDER BY p.cedula""",
         ),
         "asignaciones": consultar(
@@ -200,17 +200,17 @@ def test_dos_reinicios_dejan_los_mismos_datos(app_con_bd, reloj_fijo):
         }
     ]
     socios = [p for p in primera["personas"] if p["rol"] == "socio"]
-    assert len(socios) == 77
-    assert {a["cedula"] for a in primera["asignaciones"]} == {p["cedula"] for p in socios}
+    assert len(socios) == 137
+    assert {a["cedula"] for a in primera["asignaciones"]} == {p["cedula"] for p in socios if not p["simulada"]}
     assert all(a["rol"] == "entrenador" and a["hasta"] is None for a in primera["asignaciones"])
     assert len(primera["membresias"]) == len(socios)
     assert {m["cedula"] for m in primera["membresias"]} == {p["cedula"] for p in socios}
     assert all(m["hasta"] - m["desde"] == timedelta(days=29) for m in primera["membresias"])
-    assert len(primera["consentimientos"]) == round(len(socios) * 0.8) == 62
+    assert len(primera["consentimientos"]) == round(sum(not p["simulada"] for p in socios) * 0.8) == 62
     assert all(c["tipo"] == "salud" and c["otorgado"] and c["propio"] for c in primera["consentimientos"])
     assert all(p["activo"] for p in primera["personas"])
     assert len({c["clave_hash"] for c in claves if c["clave_hash"]}) == 80
-    assert {c["clave_hash"] for c in claves}.isdisjoint(
+    assert {c["clave_hash"] for c in claves if c["clave_hash"]}.isdisjoint(
         c["clave_hash"] for c in consultar(app_con_bd, "SELECT clave_hash FROM usuarios")
     )
 
@@ -270,11 +270,11 @@ def test_membresias_de_semilla_sin_superposiciones_y_sin_depender_de_salud(app_c
             membresias = cursor.fetchall()
             cursor.execute("SELECT DISTINCT socio_id FROM consentimientos WHERE tipo = 'salud'")
             con_salud = {fila["socio_id"] for fila in cursor.fetchall()}
-        assert len(membresias) == 77
+        assert len(membresias) == 137
         assert all(m["cantidad"] == 1 for m in membresias)
         assert len(con_salud) < len(membresias)
         vigentes = [
             consultar_membresia(desde_bytes(m["socio_id"]), fecha_local(reloj_fijo.ahora())) for m in membresias
         ]
-        assert sum(m is not None for m in vigentes) == 76
+        assert sum(m is not None for m in vigentes) == 136
         assert sum(m is None for m in vigentes) == 1  # Caso explícito de membresía vencida de #48.

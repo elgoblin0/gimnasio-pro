@@ -1,5 +1,5 @@
 id = "historial-visitas"
-nombre = "Historial de entradas y salidas con ocupación registrada"
+nombre = "Historial de entradas y salidas con ocupación registrada y visitas simuladas en modo demo"
 grupo = "Recepción"
 etapa = 1
 # La integración exige MySQL real; las pruebas saltadas no acreditan un nivel.

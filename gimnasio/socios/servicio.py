@@ -25,14 +25,17 @@ def membresia_para_tarjeta(socio_id: UUID, fecha_local: date) -> dict | None:
     }
 
 
-def consultar_membresia(socio_id: UUID, fecha_local: date) -> dict | None:
+def consultar_membresia(socio_id: UUID, fecha_local: date, *, cursor=None) -> dict | None:
     """Devuelve la membresía vigente del socio activo, o None si no autoriza por vigencia.
 
     El llamador pasa el día en America/Asuncion. Ambos extremos son inclusivos;
     las visitas anteriores no consumen cupo. Visita abierta y aforo se comprueban
     en el servicio de visitas (#40). Las superposiciones quedan fuera de etapa 1.
     """
-    with transaccion() as cursor:
+    if cursor is None:
+        with transaccion() as lectura:
+            membresia = repositorio.buscar_membresia_vigente(lectura, socio_id, fecha_local)
+    else:
         membresia = repositorio.buscar_membresia_vigente(cursor, socio_id, fecha_local)
     if membresia is None or membresia["rol"] != "socio" or not membresia["activo"]:
         return None

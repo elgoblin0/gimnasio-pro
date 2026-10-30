@@ -19,12 +19,15 @@ def test_zonas_de_la_semilla_y_ejercicio_hecho(app_con_bd, reloj_fijo):
     app_con_bd.config["MODO_DEMO"] = True
     with app_con_bd.app_context():
         reiniciar()
+        # Este vector verifica series reales y retrocede el reloj; la simulación
+        # se verifica por separado en test_simulacion_demo.py.
+        app_con_bd.config["MODO_DEMO"] = False
         with transaccion() as cursor:
             cursor.execute("SELECT DISTINCT equipo FROM ejercicios")
             assert {fila["equipo"] for fila in cursor.fetchall()} <= ZONA_POR_EQUIPO.keys()
             cursor.execute("SELECT id FROM usuarios WHERE rol='socio' AND es_demo=TRUE")
             socio = desde_bytes(cursor.fetchone()["id"])
-            cursor.execute("SELECT id FROM usuarios WHERE rol='recepcion'")
+            cursor.execute("SELECT id FROM usuarios WHERE rol='recepcion' AND es_demo=TRUE")
             autor = desde_bytes(cursor.fetchone()["id"])
             sede = desde_bytes(repositorio.obtener_sede(cursor)["id"])
             repositorio.insertar_entrada(cursor, nuevo_id(reloj_fijo), socio, sede, autor, reloj_fijo.ahora())
