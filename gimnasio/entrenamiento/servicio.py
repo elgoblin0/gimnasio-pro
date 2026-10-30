@@ -1018,6 +1018,9 @@ def proyectar_dolor(cursor, sesion, efectiva, *, zonas=None, catalogos=None, res
             )
             hecho_id = str(desde_bytes(vigente["ejercicio_hecho_id"])) if vigente else None
         hecho = next((e for e in catalogo if e.ejercicio_id == hecho_id), None)
+        if hecho is None and hecho_id and cursor is not None:
+            # La edición de alternativas afecta propuestas nuevas, no el hecho registrado.
+            hecho = catalogo_ejercicio(cursor, {"ejercicio_id": hecho_id})[0]
         if hecho and set(hecho.zonas).isdisjoint(zonas) and not excluido(hecho, restricciones):
             # Conserva la alternativa guardada mientras los frenos la permitan.
             prescripcion = replace(prescripcion, ejercicio_hecho_id=hecho_id)

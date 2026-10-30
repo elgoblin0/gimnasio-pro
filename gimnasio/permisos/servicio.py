@@ -159,9 +159,11 @@ def cambiar_figura_cuerpo(figura):
     return g.usuario
 
 
-def requiere(permiso):
-    """Decorador de rutas: 401 sin sesión, 403 si el rol no tiene el permiso de la matriz."""
+def requiere(permiso, *alternativos):
+    """Exige sesión y al menos uno de los permisos indicados en la matriz."""
     puede(ROLES[0], permiso)  # falla al importar si el permiso no existe
+    for alternativo in alternativos:
+        puede(ROLES[0], alternativo)
 
     def decorador(funcion):
         @wraps(funcion)
@@ -169,7 +171,7 @@ def requiere(permiso):
             usuario = usuario_actual()
             if usuario is None:
                 raise ErrorDeDominio("sin_sesion", "Tenés que iniciar sesión.", 401)
-            if not puede(usuario["rol"], permiso):
+            if not any(puede(usuario["rol"], opcion) for opcion in (permiso, *alternativos)):
                 raise ErrorDeDominio("sin_permiso", "Tu rol no permite esta acción.", 403)
             return funcion(*argumentos, **nombrados)
 

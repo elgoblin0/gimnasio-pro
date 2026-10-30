@@ -24,6 +24,7 @@ ESPERADO = {
     "entrenamiento.ver_asignados": {E},
     "salud.ver_asignados": {E},
     "programas.editar": {E},
+    "alternativas.editar": {E, A},
     "equipos.gestionar": {E, A},
     "configuracion.editar": {A},
     "usuarios.administrar": {A},
@@ -79,3 +80,18 @@ def test_rechaza_roles_y_permisos_desconocidos():
         puede(S, "todo.hacer")
     with pytest.raises(ValueError):
         requiere("todo.hacer")
+
+
+@pytest.mark.parametrize("rol,estado", [(None, 401), (S, 403), (R, 403), (E, 204), (A, 204)])
+def test_catalogo_admite_cualquiera_de_los_dos_permisos(monkeypatch, rol, estado):
+    app = crear_app({"ENTORNO": "prueba", "SECRET_KEY": "solo-pruebas"})
+    monkeypatch.setattr(servicio, "usuario_actual", lambda: {"rol": rol} if rol else None)
+    # Hace independientes los permisos para comprobar las dos vías de acceso.
+    monkeypatch.setitem(PERMISOS, "alternativas.editar", {A})
+
+    @app.get("/api/prueba/catalogo")
+    @requiere("alternativas.editar", "programas.editar")
+    def catalogo():
+        return "", 204
+
+    assert app.test_client().get("/api/prueba/catalogo").status_code == estado

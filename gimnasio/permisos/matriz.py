@@ -24,6 +24,7 @@ PERMISOS = {
     "socios.ver_asignados": {"entrenador"},
     "salud.ver_asignados": {"entrenador"},
     "programas.editar": {"entrenador"},
+    "alternativas.editar": {"entrenador", "administracion"},
     "equipos.gestionar": {"entrenador", "administracion"},
     # Administración
     "configuracion.editar": {"administracion"},

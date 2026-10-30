@@ -1,6 +1,35 @@
-"""Lectura SQL de programas y equipos; los cambios de estado solo se insertan."""
+"""Programas y catálogo; las alternativas se reemplazan y los cambios de estado se insertan."""
 
 from gimnasio.comun.ids import a_bytes
+
+
+def leer_ejercicios(cursor):
+    cursor.execute(
+        """SELECT e.id, e.nombre, e.medidas_aplicables, e.patron_movimiento, e.equipo, e.incremento_carga,
+                  COALESCE((SELECT JSON_ARRAYAGG(z.zona) FROM zonas_ejercicio z
+                            WHERE z.ejercicio_id=e.id), JSON_ARRAY()) AS zonas
+           FROM ejercicios e ORDER BY e.nombre, e.id"""
+    )
+    return cursor.fetchall()
+
+
+def leer_alternativas(cursor):
+    cursor.execute("SELECT ejercicio_id, alternativa_id FROM alternativas_ejercicio ORDER BY ejercicio_id, orden")
+    return cursor.fetchall()
+
+
+def bloquear_ejercicio(cursor, ejercicio_id):
+    cursor.execute("SELECT id FROM ejercicios WHERE id=%s FOR UPDATE", (a_bytes(ejercicio_id),))
+    return cursor.fetchone()
+
+
+def reemplazar_alternativas(cursor, ejercicio_id, alternativas):
+    cursor.execute("DELETE FROM alternativas_ejercicio WHERE ejercicio_id=%s", (a_bytes(ejercicio_id),))
+    for orden, alternativa in enumerate(alternativas, start=1):
+        cursor.execute(
+            "INSERT INTO alternativas_ejercicio (ejercicio_id, alternativa_id, orden) VALUES (%s,%s,%s)",
+            (a_bytes(ejercicio_id), a_bytes(alternativa), orden),
+        )
 
 
 def leer_equipos(cursor, equipo_id=None, *, momento=None):

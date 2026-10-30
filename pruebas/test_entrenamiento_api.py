@@ -939,6 +939,30 @@ def test_lectura_de_sesion_con_sustitucion_cuya_alternativa_salio_del_catalogo(a
     assert lectura.json["sustituciones"][ejercicio]["nombre"] == "Alternativa ficticia 1"
 
 
+def test_edicion_alternativas_cambia_siguiente_maquina_ocupada(alternativas_api):
+    datos = alternativas_api
+    cliente = datos.cliente()
+    sesion = iniciar(datos)
+    ejercicio = str(datos.ejercicios[0][0])
+    ruta = f"/api/entrenamiento/sesiones/{sesion}/ejercicios/{ejercicio}/alternativas"
+    assert [a["ejercicio_id"] for a in cliente.get(ruta).json["alternativas"]] == list(map(str, datos.alternativas))
+    with datos.app.app_context(), transaccion() as cursor:
+        cursor.execute("SELECT ejercicio_id FROM ejercicios_planificados LIMIT 1")
+        original = str(desde_bytes(cursor.fetchone()["ejercicio_id"]))
+    entrenador = datos.cliente("entrenador")
+    respuesta = escribir(
+        entrenador,
+        f"/api/ejercicios/{original}/alternativas",
+        {"alternativas": [str(datos.alternativas[1])]},
+    )
+    assert respuesta.status_code == 200
+    propuesta = cliente.get(ruta)
+    assert propuesta.status_code == 200
+    assert [a["ejercicio_id"] for a in propuesta.json["alternativas"]] == [str(datos.alternativas[1])]
+    assert escribir(entrenador, f"/api/ejercicios/{original}/alternativas", {"alternativas": []}).status_code == 200
+    assert cliente.get(ruta).json["alternativas"] == []
+
+
 def test_sustitucion_idempotente_compatible_y_series_acreditadas(alternativas_api):
     datos = alternativas_api
     cliente = datos.cliente()
