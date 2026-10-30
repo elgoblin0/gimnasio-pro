@@ -19,6 +19,8 @@ def vaciar_datos(cursor):
     """Borra en orden de dependencias, conservando migraciones_aplicadas y las claves foráneas."""
     cursor.execute("DELETE FROM simulacion_demo")
     cursor.execute("DELETE FROM solicitudes_idempotentes")
+    cursor.execute("DELETE FROM cambios_estado_equipo")
+    cursor.execute("DELETE FROM equipos")
     while True:
         cursor.execute(
             "DELETE original FROM restricciones_salud original "
@@ -108,6 +110,18 @@ def insertar_alternativa(cursor, ejercicio_id, alternativa_id, orden):
     cursor.execute(
         "INSERT INTO alternativas_ejercicio (ejercicio_id,alternativa_id,orden) VALUES (%s,%s,%s)",
         (a_bytes(ejercicio_id), a_bytes(alternativa_id), orden),
+    )
+
+
+def nombres_equipos_catalogo(cursor):
+    cursor.execute("SELECT DISTINCT equipo FROM ejercicios WHERE equipo NOT IN ('', 'sin equipo') ORDER BY equipo")
+    return [fila["equipo"] for fila in cursor.fetchall()]
+
+
+def insertar_equipo(cursor, equipo_id, nombre, momento):
+    cursor.execute(
+        "INSERT INTO equipos (id, nombre, creado_en) VALUES (%s, %s, %s)",
+        (a_bytes(equipo_id), nombre, momento),
     )
 
 

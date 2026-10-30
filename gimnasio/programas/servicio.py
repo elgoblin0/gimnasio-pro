@@ -1,11 +1,13 @@
-"""Lectura por socio y versión para entrenamiento, sin rutas de edición."""
+"""Lectura de programas por socio y versión, y gestión del estado de equipos."""
 
 import json
 from contextlib import nullcontext
 from datetime import UTC
 
 from gimnasio.comun.bd import transaccion
-from gimnasio.comun.ids import desde_bytes
+from gimnasio.comun.errores import ErrorDeDominio
+from gimnasio.comun.ids import desde_bytes, desde_texto, nuevo_id
+from gimnasio.comun.reloj import reloj_actual
 from gimnasio.programas import repositorio
 
 MEDIDAS = ("repeticiones", "carga", "duracion", "distancia")
@@ -18,6 +20,56 @@ OBJETIVOS = (
     "duracion",
     "distancia",
 )
+
+
+def _equipo_publico(fila):
+    return {
+        **fila,
+        "id": str(desde_bytes(fila["id"])),
+        "autor_id": str(desde_bytes(fila["autor_id"])) if fila["autor_id"] else None,
+        "ultimo_cambio": fila["ultimo_cambio"].replace(tzinfo=UTC).isoformat() if fila["ultimo_cambio"] else None,
+    }
+
+
+def listar_equipos():
+    with transaccion() as cursor:
+        return [_equipo_publico(fila) for fila in repositorio.leer_equipos(cursor)]
+
+
+def equipos_fuera_de_servicio(cursor=None):
+    """Nombres de equipos no disponibles; puede compartir la transacción del llamador."""
+    with nullcontext(cursor) if cursor is not None else transaccion() as cursor:
+        return frozenset(
+            fila["nombre"]
+            for fila in repositorio.leer_equipos(cursor)
+            if fila["estado"] == "fuera_de_servicio" and fila["nombre"] not in ("", "sin equipo")
+        )
+
+
+def cambiar_estado_equipo(equipo_id, datos, usuario):
+    try:
+        equipo_id = desde_texto(equipo_id)
+    except (ValueError, AttributeError) as error:
+        raise ErrorDeDominio("id_invalido", "El identificador debe ser un UUIDv7.", 422) from error
+    if not isinstance(datos, dict) or set(datos) - {"estado", "motivo"}:
+        raise ErrorDeDominio("cuerpo_invalido", "Enviá estado y un motivo opcional.", 422)
+    estado, motivo = datos.get("estado"), datos.get("motivo")
+    if estado not in ("disponible", "fuera_de_servicio"):
+        raise ErrorDeDominio("estado_invalido", "Elegí disponible o fuera_de_servicio.", 422)
+    if motivo is not None and (not isinstance(motivo, str) or len(motivo) > 500):
+        raise ErrorDeDominio("motivo_invalido", "El motivo debe ser texto de hasta 500 caracteres.", 422)
+    reloj = reloj_actual()
+    with transaccion() as cursor:
+        # Primera lectura: serializa cambios antes de abrir la lectura consistente del historial.
+        if repositorio.bloquear_equipo(cursor, equipo_id) is None:
+            raise ErrorDeDominio("equipo_inexistente", "El equipo no existe.", 404)
+        equipo = repositorio.leer_equipos(cursor, equipo_id)[0]
+        if equipo["estado"] == estado:
+            raise ErrorDeDominio("estado_sin_cambio", "El equipo ya tiene ese estado.", 409)
+        repositorio.insertar_cambio_estado(
+            cursor, nuevo_id(reloj), equipo_id, estado, motivo, desde_texto(usuario["id"]), reloj.ahora()
+        )
+        return _equipo_publico(repositorio.leer_equipos(cursor, equipo_id)[0])
 
 
 def validar_medidas_aplicables(medidas):
