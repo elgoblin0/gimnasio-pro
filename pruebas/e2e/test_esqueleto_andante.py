@@ -122,7 +122,11 @@ def test_recorrido_parcial_salida_reingreso_y_cierre(pagina_demo, demo_aislada, 
     ingresar(pagina, demo_aislada, "socio")
     antes = consulta(pagina, demo_aislada, "/api/entrenamiento/propuesta")
     expect(pagina.locator("[data-ajuste]").first).to_contain_text("Subís")
-    assert pagina.request.get(demo_aislada.url + "/api/ocupacion").status == 403
+    ocupacion = consulta(pagina, demo_aislada, "/api/ocupacion")
+    assert ocupacion["ocupacion_registrada"] == inicial + 1
+    assert ocupacion["aforo_maximo"] == 60
+    assert set(ocupacion) == {"ocupacion_registrada", "aforo_maximo", "version"}
+    assert pagina.request.get(demo_aislada.url + "/api/visitas").status == 403
     assert pagina.locator("[data-salida], [data-entrada]").count() == 0
     if pagina.locator("[data-chequeo]").is_visible():
         pagina.get_by_role("button", name="Saltear", exact=True).click()
