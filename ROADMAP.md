@@ -39,7 +39,7 @@ Cada etapa es un milestone de GitHub y termina con un issue "Cierre de etapa N",
 2. **Socio + cuerpo 3D:** sesión en vivo completa, chequeo del día, "me duele" / "máquina ocupada", doble progresión con RPE/RIR y frenos, récords y progreso, cuerpo 3D muscular.
 3. **Recepción + escena de ocupación:** tarjeta contextual, aforo en vivo, mejores horarios, escena de ocupación.
 4. **Entrenador:** programas desde plantillas, bandeja priorizada, revisión de ajustes frenados, equipos y alternativas.
-5. **Operación:** clases y reservas con lista de espera, registro de pagos en guaraníes, ficha completa con salud y consentimientos.
+5. **Operación:** clases y reservas con lista de espera, registro de pagos en guaraníes, ficha completa con salud y consentimientos, gestión de plantillas y configuración de aforo y usuarios por administración.
 6. **Acompañamiento:** incorporación de 90 días, riesgo de abandono, resumen semanal.
 7. **Pulido y recorrido guiado:** recorrido guiado de dos minutos, movimiento cuidado en todo el producto, rendimiento, accesibilidad y alternativa sin efectos.
 

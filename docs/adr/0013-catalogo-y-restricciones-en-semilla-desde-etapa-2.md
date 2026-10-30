@@ -1,6 +1,6 @@
 # 0013. Adelantar a la etapa 2 el catálogo estructurado y las restricciones, solo como datos
 
-- Estado: aceptado
+- Estado: aceptado; el ADR 0021 recorta la gestión del catálogo prevista para la etapa 4
 - Fecha: 2026-10-27
 - Decide: usuario
 - Etiquetas: modulo:entrenamiento, modulo:reglas; rutas sensibles: `migraciones/`, `gimnasio/salud/`

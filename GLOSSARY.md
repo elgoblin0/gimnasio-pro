@@ -111,7 +111,7 @@ Reemplazo de un ejercicio planificado por una alternativa equivalente, por freno
 Aviso del socio de que el equipo de un ejercicio no está disponible en ese momento. Produce una sustitución, no un cambio en el programa.
 
 **Equipo**:
-Máquina o implemento del gimnasio, con su estado (disponible o fuera de servicio).
+Tipo de máquina o implemento del gimnasio (por ejemplo, prensa), con su estado (disponible o fuera de servicio). No distingue unidades físicas.
 
 **Alternativa**:
 Ejercicio que puede reemplazar a otro porque comparte patrón de movimiento con equipamiento distinto. Por máquina ocupada tiene las mismas zonas del cuerpo; por dolor reportado involucra solo zonas del original, sin las zonas con dolor (ADR 0017).
@@ -130,6 +130,10 @@ Paso fijo en que sube o baja la carga de un ejercicio, según su equipamiento. E
 Registro que deja un freno de seguridad al actuar, con el socio, el freno y su explicación, para que el entrenador lo revise.
 _Evitar_: Alerta, notificación.
 
+**Aviso revisado**:
+Aviso al entrenador sobre el que el entrenador dejó constancia de haberlo visto, con una nota opcional. No deshace lo que hizo el freno.
+_Evitar_: Ajuste frenado, aviso resuelto.
+
 **Explicación**:
 Lista de las reglas del motor que produjeron una propuesta o un ajuste, con los datos que usaron.
 
@@ -141,8 +145,18 @@ Mejor marca registrada de un socio en un ejercicio para una medida (carga, repet
 **Plantilla de programa**:
 Programa genérico que el entrenador usa como base para armar el programa de entrenamiento de un socio.
 
+**Semana tipo**:
+Conjunto de sesiones que el entrenador arma para una semana y que se repite durante toda la duración del programa de entrenamiento.
+
+**Secuencia terminada**:
+Estado de un programa de entrenamiento sin trabajo planificado pendiente. El socio no recibe propuesta hasta que el entrenador publica una versión nueva.
+_Evitar_: Programa vencido, programa completado.
+
+**Carga de partida**:
+Carga que el entrenador fija para un ejercicio en una versión del programa. Vale hasta la primera serie registrada de ese ejercicio en esa versión; con historial, solo puede dejar la carga igual o más baja que la del motor.
+
 **Bandeja del entrenador**:
-Lista priorizada de socios que requieren atención: frenos activados, socios sin programa, riesgo de abandono.
+Lista priorizada de socios asignados que requieren atención: avisos sin revisar, socios sin programa, secuencia terminada, ejercicios sin alternativa disponible y riesgo de abandono.
 
 **Incorporación**:
 Primeros 90 días de un socio desde su alta, con seguimiento específico.
