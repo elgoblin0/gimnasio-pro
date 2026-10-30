@@ -300,6 +300,7 @@ def ajustar_ejercicio(planificado, entrada, sesion_planificada_id):
                 frenos + ("restriccion_salud",),
             )
         return ajustada, razones, frenos
+    antes_frenos = ajustada
     ajustada, razones_dolor, frenos_dolor = aplicar_dolor(
         ajustada,
         ejercicio,
@@ -317,9 +318,34 @@ def ajustar_ejercicio(planificado, entrada, sesion_planificada_id):
         entrada.dolores_actuales,
         entrada.equipos_fuera_de_servicio,
     )
+    if entrada.equipos_fuera_de_servicio and antes_frenos.series and not ajustada.series:
+        # La falta de equipo no quita trabajo: comprobamos si existe una
+        # alternativa segura aun cuando su equipo esté fuera de servicio.
+        disponible, dolor_disponible, frenos_dolor_disponible = aplicar_dolor(
+            antes_frenos,
+            ejercicio,
+            entrada.catalogo,
+            entrada.dolores_actuales,
+            entrada.dolores_anteriores,
+            razones,
+        )
+        disponible, salud_disponible, frenos_salud_disponible = aplicar_restricciones(
+            disponible, ejercicio, entrada.catalogo, entrada.restricciones, entrada.dolores_actuales
+        )
+        if disponible.series:
+            ajustada = replace(disponible, ejercicio_hecho_id=None, no_disponible=True)
+            razones_dolor, frenos_dolor = dolor_disponible, frenos_dolor_disponible
+            razones_salud, frenos_salud = salud_disponible, frenos_salud_disponible
+            razones += (
+                razon(
+                    "ejercicio_no_disponible",
+                    ajustada,
+                    "El equipo está fuera de servicio y no hay alternativa disponible. Sigue pendiente.",
+                ),
+            )
     razones += razones_dolor + razones_salud
     hecho = next((e for e in entrada.catalogo if e.ejercicio_id == ajustada.ejercicio_hecho_id), ejercicio)
-    if ajustada.series and hecho.equipo in entrada.equipos_fuera_de_servicio:
+    if ajustada.series and not ajustada.no_disponible and hecho.equipo in entrada.equipos_fuera_de_servicio:
         alternativas, explicacion = elegir_alternativas(
             ejercicio.ejercicio_id,
             entrada.catalogo,

@@ -1426,6 +1426,73 @@ def dolor_api(entrenamiento_api):
     return datos
 
 
+@pytest.mark.parametrize("freno", ["dolor_reportado", "restriccion_salud"])
+def test_alternativa_inicial_no_disponible_conserva_pendiente(alternativas_api, freno):
+    from gimnasio.permisos.servicio import registrar_consentimiento
+
+    datos = alternativas_api
+    cliente = datos.cliente()
+    with datos.app.app_context(), transaccion() as cursor:
+        cursor.execute("SELECT ejercicio_id FROM ejercicios_planificados LIMIT 1")
+        original = cursor.fetchone()["ejercicio_id"]
+        for zona in ("rodillas", "gluteos"):
+            cursor.execute("INSERT INTO zonas_ejercicio VALUES (%s,%s)", (original, zona))
+        for alternativa in datos.alternativas:
+            cursor.execute("INSERT INTO zonas_ejercicio VALUES (%s,'gluteos')", (a_bytes(alternativa),))
+        equipo = nuevo_id(datos.reloj)
+        cursor.execute(
+            "INSERT INTO equipos (id,nombre,creado_en) VALUES (%s,'mancuernas',%s)",
+            (a_bytes(equipo), datos.reloj.ahora()),
+        )
+        if freno == "restriccion_salud":
+            cursor.execute(
+                "INSERT INTO restricciones_salud (id,socio_id,zona,descripcion,registrada_en,autor_id) "
+                "VALUES (%s,%s,'rodillas','Restricción ficticia',%s,%s)",
+                (
+                    a_bytes(nuevo_id(datos.reloj)),
+                    a_bytes(datos.usuarios["socio"]),
+                    datos.reloj.ahora(),
+                    a_bytes(datos.usuarios["entrenador"]),
+                ),
+            )
+        else:
+            socio = datos.usuarios["socio"]
+            registrar_consentimiento(cursor, socio, "salud", True, "1", socio)
+    assert (
+        escribir(
+            datos.cliente("entrenador"), f"/api/equipos/{equipo}/estado", {"estado": "fuera_de_servicio"}
+        ).status_code
+        == 200
+    )
+    if freno == "dolor_reportado":
+        respuesta = escribir(
+            cliente,
+            "/api/entrenamiento/chequeos",
+            {"id": str(nuevo_id(datos.reloj)), "sueno": 5, "energia": 5, "zonas": ["rodillas"]},
+        )
+        assert respuesta.status_code == 201
+    propuesta = cliente.get("/api/entrenamiento/propuesta").json
+    assert freno in propuesta["frenos"]
+    assert all(e["no_disponible"] and e["objetivos"]["series"] == 2 for e in propuesta["ejercicios"])
+    sesion = iniciar(datos)
+    ruta = f"/api/entrenamiento/sesiones/{sesion}"
+    lectura = cliente.get(ruta).json
+    assert all(e["no_disponible"] and e["pendiente"] == 2 for e in lectura["ejercicios"])
+    congelada = lectura["prescripcion_efectiva"]
+    assert all(e["no_disponible"] and e["objetivos"]["series"] == 2 for e in congelada["ejercicios"])
+    respuesta = escribir(cliente, ruta + "/series", cuerpo_serie(datos))
+    assert respuesta.status_code == 409
+    assert respuesta.json["error"]["codigo"] == "ejercicio_no_disponible"
+    siguiente = cliente.get("/api/entrenamiento/propuesta").json
+    assert siguiente["sesion_planificada"]["id"] == propuesta["sesion_planificada"]["id"]
+    assert all(e["pendiente"] == 2 for e in siguiente["ejercicios"])
+    assert cliente.get(ruta).json["prescripcion_efectiva"] == congelada
+    assert cantidad(datos) == 0
+    with datos.app.app_context(), transaccion() as cursor:
+        cursor.execute("SELECT COUNT(*) AS cantidad FROM sustituciones")
+        assert cursor.fetchone()["cantidad"] == 0
+
+
 def test_alternativa_por_dolor_no_disponible_conserva_pendiente(dolor_api, monkeypatch):
     from gimnasio.entrenamiento import servicio
 

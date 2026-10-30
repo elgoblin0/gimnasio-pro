@@ -13,6 +13,7 @@ from gimnasio.comun.tipos import (
     EjercicioPlanificado,
     HistorialEjercicio,
     ProgramaEntrenamiento,
+    RestriccionSalud,
     SerieRealizada,
     SesionPlanificada,
     SubaCarga,
@@ -53,6 +54,44 @@ def test_sustitucion_equipo_fuera_de_servicio(equipos, hecho, no_disponible):
     assert ("ejercicio_no_disponible" in reglas) == no_disponible
     if not equipos:
         assert propuesta == proponer_sesion(replace(datos, equipos_fuera_de_servicio=frozenset()))
+
+
+@pytest.mark.parametrize("dolor,restriccion", [(True, False), (False, True), (True, True)])
+@pytest.mark.parametrize("alternativa_segura", [True, False])
+@pytest.mark.parametrize("equipo_disponible", [True, False])
+def test_frenos_iniciales_conservan_pendiente_si_solo_falta_equipo(
+    dolor, restriccion, alternativa_segura, equipo_disponible
+):
+    original = EjercicioCatalogo(
+        "sentadilla", "Sentadilla", Decimal("2.5"), "barra", "sentadilla", ("rodillas", "gluteos"), ("alternativa",)
+    )
+    alternativa = replace(
+        original,
+        ejercicio_id="alternativa",
+        equipo="prensa",
+        zonas=("gluteos",) if alternativa_segura else ("rodillas",),
+        alternativas=(),
+    )
+    datos = replace(
+        entrada(),
+        catalogo=(original, alternativa),
+        dolores_actuales=("rodillas",) if dolor else (),
+        restricciones=(RestriccionSalud(zona="rodillas"),) if restriccion else (),
+        equipos_fuera_de_servicio=frozenset() if equipo_disponible else frozenset({"prensa"}),
+    )
+    propuesta = proponer_sesion(datos)
+    prescripcion = propuesta.prescripcion[0]
+    assert prescripcion.series == (3 if alternativa_segura else 0)
+    assert prescripcion.no_disponible == (alternativa_segura and not equipo_disponible)
+    assert propuesta.pendientes[0].series == (1, 2, 3)
+    assert ("dolor_reportado" in propuesta.frenos) == dolor
+    if restriccion and not dolor:
+        assert "restriccion_salud" in propuesta.frenos
+    assert set(propuesta.frenos) <= {"dolor_reportado", "restriccion_salud"}
+    if dolor:
+        assert prescripcion.carga == Decimal("40")
+    reglas = {r.regla for r in propuesta.explicacion}
+    assert ("ejercicio_no_disponible" in reglas) == prescripcion.no_disponible
 
 
 def historial(repeticiones=(12, 12, 12), rir=(2, 2, 2), *, fecha=LUNES - timedelta(days=1), identificador="anterior"):
