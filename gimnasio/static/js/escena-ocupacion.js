@@ -24,6 +24,8 @@ export function crearEscena(contenedorEscena, alElegir, alAvisar = () => {}) {
   const DIRECCION = new T.Vector3(1, 1.02, 1).normalize();
   const vista = {x: .6, z: 1.2, zoom: 1, destino: null};
   const reducido = matchMedia('(prefers-reduced-motion: reduce)');
+  // Sin GPU cada cuadro animado ocupa todos los núcleos: los cambios se muestran sin recorrido.
+  const sinMovimiento = () => porSoftware || reducido.matches;
   const oscuro = matchMedia('(prefers-color-scheme: dark)');
   const {lugares, materialVentana} = construirMaqueta(escena);
   const auxiliar = new T.Object3D();
@@ -249,7 +251,7 @@ export function crearEscena(contenedorEscena, alElegir, alAvisar = () => {}) {
     // Al llegar, se orienta hacia su equipo.
     for (const p of personas) {
       if (p.camino || !p.lugar) continue;
-      if (reducido.matches) { p.giro = p.lugar.giro; continue; }
+      if (sinMovimiento()) { p.giro = p.lugar.giro; continue; }
       let delta = p.lugar.giro - p.giro;
       delta = Math.atan2(Math.sin(delta), Math.cos(delta));
       if (Math.abs(delta) > .01) { p.giro += delta * Math.min(1, dt * 7); moviendo = true; }
@@ -358,7 +360,7 @@ export function crearEscena(contenedorEscena, alElegir, alAvisar = () => {}) {
     if (seleccion === p) { seleccion = null; tarjeta.hidden = true; }
   }
   function caminar(p, camino) {
-    if (reducido.matches) {
+    if (sinMovimiento()) {
       Object.assign(p, {x: camino.at(-1).x, z: camino.at(-1).z, camino: null, zonaFisica: p.zonaDestino});
       if (p.saliendo) quitar(p);
       return;
@@ -406,7 +408,7 @@ export function crearEscena(contenedorEscena, alElegir, alAvisar = () => {}) {
       capaPersonas.append(p.boton);
       personas.push(p);
       if (inicial) Object.assign(p, p.lugar, {zonaFisica: p.zona});
-      else { continuar(p); brilloPuerta = reducido.matches ? 0 : 1; }
+      else { continuar(p); brilloPuerta = sinMovimiento() ? 0 : 1; }
     }
     for (const dato of actuales) {
       const p = personas.find(persona => persona.id === dato.id);
@@ -422,7 +424,7 @@ export function crearEscena(contenedorEscena, alElegir, alAvisar = () => {}) {
         p.retirar = true;
         p.boton.disabled = true;
         continuar(p);
-        brilloPuerta = reducido.matches ? 0 : 1;
+        brilloPuerta = sinMovimiento() ? 0 : 1;
       }
     }
     // Sin nombres: los puntos de la escena son anónimos hasta elegirlos.
@@ -451,7 +453,7 @@ export function crearEscena(contenedorEscena, alElegir, alAvisar = () => {}) {
     for (const e of [...estelas]) {
       e.vida -= dt;
       e.material.opacity = Math.max(0, e.vida / 2.6) * .7;
-      if (e.vida <= 0 || reducido.matches) {
+      if (e.vida <= 0 || sinMovimiento()) {
         escena.remove(e); e.geometry.dispose(); e.material.dispose(); estelas.splice(estelas.indexOf(e), 1);
       } else seguir = true;
     }
@@ -461,7 +463,7 @@ export function crearEscena(contenedorEscena, alElegir, alAvisar = () => {}) {
       rotulos[nombre].lastElementChild.textContent = cuantos;
       const meta = tema.focoBase + tema.focoPorVisita * cuantos;
       // La luz solo se anima con un cambio de ocupación, no al abrir la pantalla.
-      f.actual += (meta - f.actual) * (reducido.matches || !yaDibujo ? 1 : Math.min(1, dt * 2.5));
+      f.actual += (meta - f.actual) * (sinMovimiento() || !yaDibujo ? 1 : Math.min(1, dt * 2.5));
       f.luz.intensity = f.actual;
       if (Math.abs(meta - f.actual) > 1) seguir = true;
     }
@@ -469,7 +471,7 @@ export function crearEscena(contenedorEscena, alElegir, alAvisar = () => {}) {
     halo.material.opacity = (oscuro.matches ? .28 : .05) + brilloPuerta * .5;
     if (brilloPuerta > 0) seguir = true;
     if (vista.destino) {
-      const k = reducido.matches ? 1 : Math.min(1, dt * 4.5);
+      const k = sinMovimiento() ? 1 : Math.min(1, dt * 4.5);
       vista.x += (vista.destino.x - vista.x) * k;
       vista.z += (vista.destino.z - vista.z) * k;
       vista.zoom += (vista.destino.zoom - vista.zoom) * k;
@@ -508,7 +510,7 @@ export function crearEscena(contenedorEscena, alElegir, alAvisar = () => {}) {
     pedirCuadro();
   }
   function inmovilizar() {
-    if (reducido.matches) {
+    if (sinMovimiento()) {
       for (const p of [...personas]) {
         if (p.retirar) { quitar(p); continue; }
         p.camino = null; p.zonaFisica = p.zona;

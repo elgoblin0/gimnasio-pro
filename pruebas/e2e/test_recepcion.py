@@ -45,9 +45,23 @@ def test_escena_entrada_sin_recarga_y_seleccion_por_teclado(pagina_demo, demo_ai
     assert pagina.evaluate("document.documentElement.scrollWidth <= innerWidth")
 
 
-def test_escena_movimiento_reducido_ubica_entrada_inmediatamente(pagina_demo, demo_aislada):
+# Sin GPU un cuadro animado ocupa todos los núcleos: la escena se comporta como con movimiento reducido.
+SIMULAR_SIN_GPU = """(() => {
+  const original = WebGL2RenderingContext.prototype.getParameter;
+  WebGL2RenderingContext.prototype.getParameter = function(parametro) {
+    const renderizador = this.getExtension('WEBGL_debug_renderer_info')?.UNMASKED_RENDERER_WEBGL;
+    return parametro === renderizador ? 'ANGLE (SwiftShader Device)' : original.call(this, parametro);
+  };
+})();"""
+
+
+@pytest.mark.parametrize("sin_gpu", [False, True], ids=["movimiento_reducido", "sin_gpu"])
+def test_escena_sin_movimiento_ubica_entrada_inmediatamente(pagina_demo, demo_aislada, sin_gpu):
     pagina = pagina_demo
-    pagina.emulate_media(reduced_motion="reduce")
+    if sin_gpu:
+        pagina.add_init_script(SIMULAR_SIN_GPU)
+    else:
+        pagina.emulate_media(reduced_motion="reduce")
     ingresar(pagina, demo_aislada)
     expect(pagina.locator('[data-escena-ocupacion][data-lista="true"]')).to_be_visible()
     pagina.get_by_role("button", name="Registrar entrada", exact=True).click()
