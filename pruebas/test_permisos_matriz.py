@@ -24,6 +24,7 @@ ESPERADO = {
     "entrenamiento.ver_asignados": {E},
     "salud.ver_asignados": {E},
     "programas.editar": {E},
+    "equipos.gestionar": {E, A},
     "configuracion.editar": {A},
     "usuarios.administrar": {A},
 }

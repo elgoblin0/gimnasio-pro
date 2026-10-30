@@ -325,6 +325,8 @@ def reiniciar():
         historial = generar_visitas(ahora, socios[SOCIOS_ADICIONALES + 1 :])
         repositorio.insertar_visitas(cursor, sede_id, recepcion_id, historial, siguiente_id)
         _cargar_programas(cursor, socios, siguiente_id, ahora)
+        for nombre in repositorio.nombres_equipos_catalogo(cursor):
+            repositorio.insertar_equipo(cursor, siguiente_id(), nombre, ahora)
         repositorio.insertar_restriccion(cursor, siguiente_id(), socios[1], entrenador_id, ahora)
         # El 80 % se redondea al entero más cercano.
         for socio_id in socios[: round(len(socios) * 0.8)]:

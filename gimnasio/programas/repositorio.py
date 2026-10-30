@@ -1,6 +1,34 @@
-"""Lectura SQL del programa de entrenamiento, sin modificar lo planificado."""
+"""Lectura SQL de programas y equipos; los cambios de estado solo se insertan."""
 
 from gimnasio.comun.ids import a_bytes
+
+
+def leer_equipos(cursor, equipo_id=None):
+    filtro = " WHERE e.id = %s" if equipo_id is not None else ""
+    cursor.execute(
+        """SELECT e.id, e.nombre, COALESCE(c.estado, 'disponible') AS estado,
+                  c.registrado_en AS ultimo_cambio, c.autor_id, c.motivo
+           FROM equipos e LEFT JOIN cambios_estado_equipo c ON c.id = (
+               SELECT id FROM cambios_estado_equipo WHERE equipo_id = e.id
+               ORDER BY registrado_en DESC, id DESC LIMIT 1)"""
+        + filtro
+        + " ORDER BY e.nombre",
+        (a_bytes(equipo_id),) if equipo_id is not None else (),
+    )
+    return cursor.fetchall()
+
+
+def bloquear_equipo(cursor, equipo_id):
+    cursor.execute("SELECT id FROM equipos WHERE id = %s FOR UPDATE", (a_bytes(equipo_id),))
+    return cursor.fetchone()
+
+
+def insertar_cambio_estado(cursor, cambio_id, equipo_id, estado, motivo, autor_id, momento):
+    cursor.execute(
+        """INSERT INTO cambios_estado_equipo (id, equipo_id, estado, motivo, autor_id, registrado_en)
+           VALUES (%s, %s, %s, %s, %s, %s)""",
+        (a_bytes(cambio_id), a_bytes(equipo_id), estado, motivo, a_bytes(autor_id), momento),
+    )
 
 
 def leer_por_socio(cursor, socio_id, version=None):
