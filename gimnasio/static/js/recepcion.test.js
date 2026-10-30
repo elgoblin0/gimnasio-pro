@@ -119,3 +119,26 @@ test("la escena se inicia después de mostrar los datos de recepción", async ()
   assert.equal(pantalla.ejecutar("ocultaAlIniciarEscena"), false);
   assert.equal(pantalla.obtener("[data-estado]").textContent, "Recepción lista.");
 });
+
+for (const consulta of ["/api/ocupacion", "/api/visitas?abiertas=1", "/api/visitas/socios"]) {
+  test('inicia la escena al recuperar la primera lectura fallida de ' + consulta, async () => {
+    const pantalla = preparar();
+    pantalla.ejecutar(`
+      globalThis.apiOriginal = llamarApi;
+      globalThis.esperas = 0;
+      setTimeout = () => { esperas++; };
+      llamarApi = async (ruta, opciones) => {
+        if (ruta === ${JSON.stringify(consulta)}) throw new Error('Lectura fallida');
+        return apiOriginal(ruta, opciones);
+      };
+    `);
+    await pantalla.ejecutar("iniciar()");
+    assert.equal(pantalla.ejecutar("escenaIniciada"), false);
+    pantalla.ejecutar("llamarApi = apiOriginal");
+    assert.equal(await pantalla.ejecutar("actualizar()"), true);
+    assert.equal(pantalla.ejecutar("escenaIniciada"), true);
+    assert.equal(pantalla.obtener("[data-contenido]").hidden, false);
+    await pantalla.ejecutar("actualizar()");
+    assert.equal(pantalla.ejecutar("esperas"), 1);
+  });
+}

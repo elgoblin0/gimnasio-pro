@@ -178,6 +178,7 @@ async function actualizar() {
     $("#socio").value = seleccion;
     dibujarVisitas(visitas);
     $("[data-contenido]").hidden = false;
+    iniciarEscena();
     return true;
   } catch (error) {
     $("[data-error]").textContent = error.message;
@@ -340,7 +341,6 @@ async function iniciar() {
     ];
     if (await actualizar()) {
       $("[data-estado]").textContent = "Recepción lista.";
-      iniciarEscena();
     }
   } catch (error) { $("[data-error]").textContent = error.message; }
 }

@@ -333,15 +333,23 @@ export function crearEscena(contenedorEscena, alElegir) {
     caminar(p, ruta({x: p.x, z: p.z}, desde, p.saliendo ? PUERTA : p.lugar, hasta));
   }
   function lugarLibre(zona, persona) {
-    const usados = new Set(personas.filter(p => p !== persona && !p.retirar && p.zona === zona).map(p => p.lugar));
-    const libre = lugares[zona].find(lugar => !usados.has(lugar));
+    const usados = personas.filter(p => p !== persona && !p.retirar && p.lugar).map(p => p.lugar);
+    const disponible = lugar => !usados.some(usado => usado.x === lugar.x && usado.z === lugar.z);
+    const libre = lugares[zona].find(disponible);
     if (libre) return libre;
     const sala = SALAS[zona];
-    // Si se ocupan todos los equipos, distribuir a los demas sobre el pasillo.
-    const indice = personas.filter(p => p !== persona && p.zona === zona).length;
-    return {x: sala.x0 + 1 + indice % Math.max(1, Math.floor(sala.x1 - sala.x0 - 2)),
-      z: sala.pasillo ?? -11 + indice % 22, giro: 0};
+    // Buscar también entre los lugares alternativos ya asignados. Si se llena
+    // la sala, refinar la distribución sin salir de sus límites.
+    for (let paso = 1.5; ; paso /= 2) {
+      for (let z = sala.z0 + 1; z < sala.z1 - 1; z += paso) {
+        for (let x = sala.x0 + 1; x < sala.x1 - 1; x += paso) {
+          const lugar = {x, z, giro: 0};
+          if (disponible(lugar)) return lugar;
+        }
+      }
+    }
   }
+
   function quitar(p) {
     p.boton.remove();
     personas = personas.filter(persona => persona !== p);
