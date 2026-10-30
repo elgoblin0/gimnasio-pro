@@ -129,6 +129,7 @@ async function enviar() {
     $("[data-estado]").textContent = operacion.ruta === "/api/entradas" ? "Entrada registrada." : "Salida registrada.";
     $("#socio").focus();
     if (operacion.ruta === "/api/entradas") abrirTarjeta(operacion.cuerpo.socio_id);
+    else if ($("[data-tarjeta-contextual]").open) await abrirTarjeta(socioTarjeta, false);
   } catch (error) {
     control.finalizar(error);
     $("[data-error]").textContent = error.message;
@@ -141,7 +142,9 @@ async function enviar() {
 
 let consultaTarjeta = 0;
 let focoAnteriorTarjeta;
-async function abrirTarjeta(socioId) {
+let socioTarjeta;
+async function abrirTarjeta(socioId, enfocar = true) {
+  socioTarjeta = socioId;
   const consulta = ++consultaTarjeta;
   const panel = $("[data-tarjeta-contextual]");
   $("[data-tarjeta-datos]").textContent = "Cargando tarjeta contextual…";
@@ -149,7 +152,7 @@ async function abrirTarjeta(socioId) {
     focoAnteriorTarjeta = document.activeElement;
     panel.show();
   }
-  $("[data-cerrar-tarjeta]").focus();
+  if (enfocar) $("[data-cerrar-tarjeta]").focus();
   try {
     const datos = await llamarApi(`/api/socios/${socioId}/tarjeta`);
     if (consulta !== consultaTarjeta || !panel.open) return;

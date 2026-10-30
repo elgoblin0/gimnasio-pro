@@ -4,3 +4,5 @@ grupo = "Recepción"
 etapa = 3
 nivel = "funcional"
 prueba = "pruebas/test_tarjeta_contextual.py"
+# La tarjeta abierta se actualiza tras confirmar una salida o conciliación.
+# Regresión: gimnasio/static/js/recepcion.test.js
