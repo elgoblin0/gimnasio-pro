@@ -4,6 +4,8 @@ from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 from zoneinfo import ZoneInfo
 
+import pytest
+
 from gimnasio.comun.ids import a_bytes, nuevo_id
 from gimnasio.entrenamiento.servicio import preparar_historial
 
@@ -140,3 +142,42 @@ def test_subas_salen_de_prescripciones_y_excluyen_frenadas_y_otra_semana(reloj_f
     assert len(subas) == 1
     assert subas[0].fecha_local == date(2026, 10, 26)
     assert subas[0].ejercicio_id == "catalogo"
+
+
+@pytest.mark.parametrize("carga,registrado,esperada", [("10", False, "10"), ("60", False, "40"), ("10", True, "40")])
+def test_carga_de_partida_publicada_con_historial(carga, registrado, esperada):
+    from gimnasio.comun.tipos import DatosPropuesta, EjercicioCatalogo, HistorialEjercicio, SerieRealizada
+    from gimnasio.entrenamiento.servicio import convertir_programa
+    from gimnasio.reglas.sesion import proponer_sesion
+
+    ejercicio = dict(
+        id="nuevo",
+        ejercicio_id="catalogo",
+        series=3,
+        repeticiones_minimas=8,
+        repeticiones_maximas=12,
+        carga=Decimal(carga),
+        rir_objetivo=2,
+        descanso=60,
+        duracion=None,
+        distancia=None,
+    )
+    programa = dict(duracion_semanas=4, sesiones_planificadas=[dict(id="nueva", ejercicios_planificados=[ejercicio])])
+    historial = HistorialEjercicio(
+        "catalogo",
+        "anterior",
+        "anterior",
+        date(2026, 10, 25),
+        tuple(SerieRealizada("anterior", "viejo", n, 10, Decimal("40"), rir=2) for n in range(1, 4)),
+    )
+    propuesta = proponer_sesion(
+        DatosPropuesta(
+            convertir_programa(programa, {"catalogo"} if registrado else ()),
+            date(2026, 10, 26),
+            date(2026, 10, 26),
+            historial=(historial,),
+            catalogo=(EjercicioCatalogo("catalogo", "Ejercicio", Decimal("2.5")),),
+        )
+    )
+    assert propuesta.prescripcion[0].carga == Decimal(esperada)
+    assert ("carga_de_partida" in {r.regla for r in propuesta.explicacion}) == (not registrado)

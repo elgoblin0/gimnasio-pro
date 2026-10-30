@@ -187,9 +187,11 @@ def _ajustar_ejercicio(planificado, entrada, sesion_planificada_id):
             prescripcion,
             (
                 razon(
-                    "respeto_programa_entrenador",
+                    "carga_de_partida" if planificado.carga_de_partida is not None else "respeto_programa_entrenador",
                     prescripcion,
-                    "Se respeta el plan del entrenador sin ajustes de carga, repeticiones, series ni volumen.",
+                    "El entrenador fij? la carga de partida; sin historial se respeta esa carga."
+                    if planificado.carga_de_partida is not None
+                    else "Se respeta el plan del entrenador sin ajustes de carga, repeticiones, series ni volumen.",
                 ),
             ),
             (),
@@ -235,6 +237,27 @@ def _ajustar_ejercicio(planificado, entrada, sesion_planificada_id):
     if prescripcion.rir_objetivo is not None and any(s.rir is None for h in decisivas for s in h.series):
         ajustada, explicacion_rir = sin_rir(ajustada, ejercicio, decisivas)
         razones += (explicacion_rir,)
+    if planificado.carga_de_partida is not None:
+        carga = min(planificado.carga_de_partida, ajustada.carga)
+        razones += (
+            razon(
+                "carga_de_partida",
+                ajustada,
+                "El entrenador fij? la carga de partida; se usa el menor valor con la propuesta del motor.",
+                carga_de_partida=planificado.carga_de_partida,
+                carga_motor=ajustada.carga,
+                carga=carga,
+            ),
+        )
+        ajustada = replace(ajustada, carga=carga)
+        prescripcion = replace(prescripcion, carga=min(prescripcion.carga, carga))
+        # Los frenos posteriores que anulan una suba tampoco pueden recuperar una carga mayor.
+        razones = tuple(
+            replace(r, datos=tuple((k, str(prescripcion.carga) if k == "carga_base" else v) for k, v in r.datos))
+            if r.regla == "subir_carga"
+            else r
+            for r in razones
+        )
     ajustada, razones_freno, frenos = aplicar_frenos(
         ajustada, prescripcion, ejercicio, entrada, explicacion.regla == "subir_carga", sesion_planificada_id
     )

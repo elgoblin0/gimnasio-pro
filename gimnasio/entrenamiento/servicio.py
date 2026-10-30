@@ -127,7 +127,7 @@ def autorizar_socio(cursor, socio_id, usuario):
     raise ErrorDeDominio("sin_alcance", "No tenés acceso al entrenamiento de este socio.", 403)
 
 
-def convertir_programa(programa):
+def convertir_programa(programa, ejercicios_con_series=()):
     if programa is None:
         return None
     return ProgramaEntrenamiento(
@@ -146,6 +146,12 @@ def convertir_programa(programa):
                         duracion=ejercicio["duracion"],
                         distancia=ejercicio["distancia"],
                         ejercicio_catalogo_id=ejercicio["ejercicio_id"],
+                        carga_de_partida=(
+                            ejercicio["carga"]
+                            if programa.get("duracion_semanas") is not None
+                            and ejercicio["ejercicio_id"] not in ejercicios_con_series
+                            else None
+                        ),
                     )
                     for ejercicio in sesion["ejercicios_planificados"]
                 ),
@@ -356,8 +362,23 @@ def consultar_propuesta(socio_texto, usuario, planificada_id=None, *, cursor=Non
         ]
     programas = listar_programas(socio_id, cursor=cursor)
     programa = programas[-1] if programas else None
+    programa_version = programa
     if planificada_id is not None:
-        programa = next(p for p in programas if any(s["id"] == str(planificada_id) for s in p["sesiones_planificadas"]))
+        programa_version = next(
+            p for p in programas if any(s["id"] == str(planificada_id) for s in p["sesiones_planificadas"])
+        )
+    planificados_version = {
+        e["id"]: e["ejercicio_id"]
+        for s in (programa_version or {}).get("sesiones_planificadas", [])
+        for e in s["ejercicios_planificados"]
+    }
+    ejercicios_con_series = {
+        planificados_version[identificador]
+        for fila in filas
+        if (identificador := str(desde_bytes(fila["ejercicio_planificado_id"]))) in planificados_version
+    }
+    if planificada_id is not None:
+        programa = programa_version
         programa = {
             **programa,
             "sesiones_planificadas": [s for s in programa["sesiones_planificadas"] if s["id"] == str(planificada_id)],
@@ -366,7 +387,7 @@ def consultar_propuesta(socio_texto, usuario, planificada_id=None, *, cursor=Non
     series, cantidades = convertir_series(filas)
     if planificada_id is not None:
         series = ()
-    programa_motor = convertir_programa(programa)
+    programa_motor = convertir_programa(programa, ejercicios_con_series)
     if programa_motor is not None and planificada_id is None:
         # Las series que una prescripción efectiva quitó ya no son trabajo pendiente.
         # Conservamos cantidades reales para la pantalla y acreditamos solo ante el motor.

@@ -40,6 +40,7 @@ class EjercicioPlanificado:
     duracion: int | None = None
     distancia: Decimal | None = None
     ejercicio_catalogo_id: str | None = None
+    carga_de_partida: Decimal | None = None
 
 
 @dataclass(frozen=True)

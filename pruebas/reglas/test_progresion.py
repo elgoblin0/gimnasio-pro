@@ -353,3 +353,27 @@ def test_suba_de_sesion_a_frena_sesion_b_en_la_misma_semana():
     assert propuesta.prescripcion[0].carga == Decimal("23")
     assert propuesta.frenos == ("tope_semanal",)
     assert {r.regla for r in propuesta.explicacion} >= {"subir_carga", "tope_semanal"}
+
+
+@pytest.mark.parametrize("freno", ["ninguno", "tope_semanal", "chequeo_desfavorable", "dolor_reportado"])
+def test_carga_de_partida_conserva_frenos_posteriores(freno):
+    from gimnasio.comun.tipos import Chequeo
+
+    datos = entrada()
+    datos = replace(
+        datos,
+        programa=ProgramaEntrenamiento(
+            (SesionPlanificada("proxima", (replace(EJERCICIO, carga_de_partida=Decimal("10")),)),)
+        ),
+    )
+    if freno == "tope_semanal":
+        datos = replace(datos, subas=(SubaCarga("sentadilla", LUNES, "otra"),))
+    elif freno == "chequeo_desfavorable":
+        datos = replace(datos, chequeo=Chequeo(1, 1))
+    elif freno == "dolor_reportado":
+        datos = replace(datos, catalogo=(replace(CATALOGO[0], zonas=("rodillas",)),), dolores_anteriores=("rodillas",))
+    propuesta = proponer_sesion(datos)
+    assert propuesta.prescripcion[0].carga == Decimal("10")
+    assert propuesta.prescripcion[0].series == (2 if freno == "chequeo_desfavorable" else 3)
+    if freno != "ninguno":
+        assert freno in propuesta.frenos
