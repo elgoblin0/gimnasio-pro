@@ -77,3 +77,34 @@ test("una respuesta anterior al registro no pisa su resultado y no hay consultas
   for (let i = 0; i < 8; i++) await Promise.resolve();
   assert.equal(cambios.length, 0);
 });
+
+test("espera el permiso de consulta y descarta respuestas recibidas sin permiso", async (t) => {
+  t.mock.timers.enable({ apis: ["setTimeout"] });
+  let permitido = false;
+  let resolver;
+  const consultas = [];
+  const cambios = [];
+  t.mock.method(globalThis, "fetch", (url, opciones) => {
+    consultas.push(opciones);
+    return new Promise((aceptar) => { resolver = aceptar; });
+  });
+  const sondeo = crearSondeo({ url: "/api/ocupacion", puedeConsultar: () => permitido,
+    alCambiar: (datos) => cambios.push(datos) });
+  t.after(() => sondeo.detener());
+  const vaciar = async () => { for (let i = 0; i < 8; i++) await Promise.resolve(); };
+  t.mock.timers.tick(5000);
+  assert.equal(consultas.length, 0);
+  permitido = true;
+  t.mock.timers.tick(5000);
+  assert.equal(consultas.length, 1);
+  permitido = false;
+  resolver({ status: 200, headers: new Headers({ ETag: '"anterior"' }), json: async () => ({ cantidad: 0 }) });
+  await vaciar();
+  assert.equal(cambios.length, 0);
+  permitido = true;
+  t.mock.timers.tick(5000);
+  assert.deepEqual(consultas[1].headers, {});
+  resolver({ status: 200, headers: new Headers({ ETag: '"actual"' }), json: async () => ({ cantidad: 1 }) });
+  await vaciar();
+  assert.deepEqual(cambios, [{ cantidad: 1 }]);
+});

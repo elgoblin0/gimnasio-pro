@@ -332,8 +332,8 @@ async function iniciar() {
     }
     autorizada = true;
     if (!sondeos.length) sondeos = [
-      crearSondeo({ url: "/api/ocupacion", alCambiar: dibujarOcupacion }),
-      crearSondeo({ url: "/api/visitas?abiertas=1", alCambiar: ({ visitas }) => { dibujarVisitas(visitas); actualizarBotones(); } }),
+      crearSondeo({ url: "/api/ocupacion", puedeConsultar: () => !cargando && !control.enCurso, alCambiar: dibujarOcupacion }),
+      crearSondeo({ url: "/api/visitas?abiertas=1", puedeConsultar: () => !cargando && !control.enCurso, alCambiar: ({ visitas }) => { dibujarVisitas(visitas); actualizarBotones(); } }),
     ];
     if (await actualizar()) {
       $("[data-estado]").textContent = "Recepción lista.";
