@@ -32,6 +32,7 @@ function actualizarPorZona() {
       boton.addEventListener('click', () => {
         zonaElegida = zonaElegida === clave ? null : clave;
         escena?.abrirZona(zonaElegida ? nombre : null);
+        $('.sede-maqueta').toggleAttribute('data-acercada', Boolean(zonaElegida && escena));
         actualizarPorZona();
       });
       fila.prepend(boton);
@@ -48,6 +49,9 @@ function actualizarPorZona() {
       elegir.type = 'button';
       elegir.dataset.visitaZona = v.id;
       elegir.textContent = `${v.nombre} · ${v.minutos} min${v.simulada ? ' · Visita simulada' : ''}${v.por_conciliar ? ' · Por conciliar' : ''}`;
+      const marca = document.createElement('i');
+      marca.className = `marca ${v.por_conciliar ? 'conciliar' : v.simulada ? 'simulada' : 'visita'}`;
+      elegir.prepend(marca);
       elegir.addEventListener('click', () => seleccionarVisita(v));
       elemento.append(elegir);
       return elemento;
@@ -63,7 +67,7 @@ async function iniciarEscena() {
     // La escena no compite con la primera lectura: recepción ya es usable sin ella.
     await new Promise(resolver => setTimeout(resolver, ESPERA_ESCENA_MS));
     const {crearEscena} = await import('@escena');
-    escena = crearEscena($('[data-escena-ocupacion]'), visita => abrirTarjeta(visita.socio_id));
+    escena = crearEscena($('[data-escena-ocupacion]'), visita => abrirTarjeta(visita.socio_id), aviso => { $('[data-evento]').textContent = aviso; });
     escena.actualizar(visitasEscena);
     $('[data-escena-ocupacion]').dataset.lista = 'true';
   } catch {
@@ -73,7 +77,11 @@ async function iniciarEscena() {
 }
 function dibujarOcupacion(ocupacion) {
   sedeId = ocupacion.sede_id;
-  $("[data-ocupacion]").textContent = `${ocupacion.ocupacion_registrada} de ${ocupacion.aforo_maximo}`;
+  $("[data-ocupacion-cifra]").textContent = ocupacion.ocupacion_registrada;
+  $("[data-ocupacion-aforo]").textContent = `de ${ocupacion.aforo_maximo}`;
+  const marcas = $("[data-barra-aforo]");
+  marcas.style.setProperty("--lugares", ocupacion.aforo_maximo);
+  marcas.style.setProperty("--ocupado", `${Math.min(100, ocupacion.ocupacion_registrada / Math.max(1, ocupacion.aforo_maximo) * 100)}%`);
   for (const barra of document.querySelectorAll("[data-zona-sede]")) {
     const cantidad = ocupacion.por_zona[barra.dataset.zonaSede];
     barra.querySelector("progress").max = Math.max(1, ocupacion.ocupacion_registrada);

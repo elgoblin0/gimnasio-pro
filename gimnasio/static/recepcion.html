@@ -14,30 +14,26 @@
   <script type="importmap">{"imports":{"@comun/":"/js/comun/","@escena":"/js/escena-ocupacion.js","three":"/vendor/three@0.186.0/three.module.js"}}</script>
   <script type="module" src="/js/recepcion.js"></script>
   <style>
-    [data-recepcion]:has([data-tarjeta-contextual][open]) { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 26rem); gap: var(--espacio-5); align-items: start; }
-    [data-recepcion] > [data-contenido] { grid-column: 1; grid-row: 1; min-width: 0; }
-    [data-tarjeta-contextual] { position: sticky; top: var(--espacio-4); grid-column: 2; grid-row: 1; margin: 0; max-height: calc(100dvh - 2 * var(--espacio-4)); width: 100%; min-width: 0; padding: var(--espacio-5); background: var(--superficie-elevada); color: var(--texto); border: 1px solid var(--borde); overflow: auto; }
-    @media (max-width: 60rem) {
-      [data-recepcion]:has([data-tarjeta-contextual][open]) { display: block; }
-      [data-tarjeta-contextual] { position: static; max-height: none; margin-block: var(--espacio-5); }
-    }
     .membresia-por-vencer { color: var(--alerta); font-weight: bold; }
     .membresia-vencida { color: var(--peligro); font-weight: bold; }
   </style>
 </head>
 <body>
 <main>
-  <header class="barra"><a href="/">Gimnasio Pro</a><button type="button" data-cerrar>Cerrar sesión</button></header>
-  <p class="etiqueta">Cuaderno de recepción</p>
-  <h1>Entrada y salida</h1>
-  <p data-demo>Datos ficticios que se reinician cada día. Requiere conexión.</p>
-  <p data-estado role="status" aria-live="polite">Cargando recepción…</p>
+  <header class="barra-recepcion">
+    <a href="/">Gimnasio Pro</a>
+    <p class="etiqueta">Cuaderno de recepción</p>
+    <h1>Entrada y salida</h1>
+    <p data-demo>Datos ficticios que se reinician cada día. Requiere conexión.</p>
+    <p data-estado role="status" aria-live="polite">Cargando recepción…</p>
+    <button type="button" data-actualizar>Actualizar visitas</button>
+    <button type="button" data-cerrar>Cerrar sesión</button>
+  </header>
   <p data-error role="alert"></p>
   <div class="barra" data-reintento hidden>
     <button type="button" data-reintentar>Reintentar operación</button>
     <button type="button" data-descartar>Descartar reintento</button>
   </div>
-  <button type="button" data-actualizar>Actualizar visitas</button>
   <div data-recepcion>
     <dialog data-tarjeta-contextual aria-labelledby="titulo-tarjeta">
       <button type="button" data-cerrar-tarjeta>Cerrar tarjeta contextual</button>
@@ -45,40 +41,49 @@
       <div data-tarjeta-datos role="status" aria-live="polite"></div>
     </dialog>
   <div data-contenido hidden>
-    <div class="grilla">
-      <section aria-labelledby="titulo-ocupacion">
-        <h2 id="titulo-ocupacion">Ocupación registrada</h2>
-        <p class="cifra" data-ocupacion>—</p>
-        <p>Visitas abiertas de socios. El personal no cuenta en el aforo de esta etapa.</p>
-      </section>
-      <section aria-labelledby="titulo-entrada">
-        <h2 id="titulo-entrada">Registrar entrada</h2>
-        <form data-entrada>
-          <label for="socio">Socio</label>
-          <select id="socio" name="socio" required aria-describedby="ayuda-socio"><option value="">Elegí un socio</option></select>
-          <p id="ayuda-socio">Nombre y cédula de los socios activos.</p>
-          <button type="submit">Registrar entrada</button>
-        </form>
+    <div class="sede">
+      <div class="sede-maqueta">
+        <section class="sede-cifras" aria-labelledby="titulo-ocupacion">
+          <p class="cifra-ocupacion" data-ocupacion><strong data-ocupacion-cifra>—</strong> <span data-ocupacion-aforo></span></p>
+          <div class="barra-aforo" data-barra-aforo aria-hidden="true"></div>
+          <h2 id="titulo-ocupacion">Ocupación registrada / aforo máximo</h2>
+        </section>
+        <div class="sede-pie">
+          <p data-evento aria-live="polite"></p>
+          <section aria-labelledby="titulo-entrada">
+            <h2 id="titulo-entrada" class="solo-lector">Registrar entrada</h2>
+            <form data-entrada>
+              <label for="socio" class="solo-lector">Socio</label>
+              <select id="socio" name="socio" required aria-describedby="ayuda-socio"><option value="">Elegí un socio</option></select>
+              <p id="ayuda-socio" class="solo-lector">Nombre y cédula de los socios activos.</p>
+              <button type="submit">Registrar entrada</button>
+            </form>
+          </section>
+        </div>
+        <section class="escena-ocupacion" data-escena-ocupacion aria-labelledby="titulo-escena">
+          <h2 id="titulo-escena" class="solo-lector">Escena de ocupación</h2>
+          <canvas aria-hidden="true"></canvas>
+          <div data-puntos role="group" aria-label="Visitas en la escena"></div>
+          <output data-rotulo-visita aria-live="polite" hidden></output>
+        </section>
+        <p data-alternativa-escena hidden>La escena no está disponible. Elegí una visita en Por zona o en Visitas abiertas.</p>
+      </div>
+      <section class="por-zona" aria-labelledby="titulo-zonas">
+        <h2 id="titulo-zonas">Por zona</h2>
+        <div data-zona-sede="musculacion"><span>0</span> <progress aria-label="Musculación" max="1" value="0"></progress></div>
+        <div data-zona-sede="peso_libre"><span>0</span> <progress aria-label="Peso libre" max="1" value="0"></progress></div>
+        <div data-zona-sede="cardio"><span>0</span> <progress aria-label="Cardio" max="1" value="0"></progress></div>
+        <div data-zona-sede="funcional"><span>0</span> <progress aria-label="Funcional" max="1" value="0"></progress></div>
+        <div data-zona-sede="en_la_sede"><span>0</span> <progress aria-label="En la sede" max="1" value="0"></progress></div>
+        <ul class="leyenda-escena">
+          <li><i class="marca visita"></i>Visita</li>
+          <li><i class="marca simulada"></i>Visita simulada</li>
+          <li><i class="marca conciliar"></i>Visita por conciliar</li>
+        </ul>
+        <p class="nota-aforo">Visitas abiertas de socios. El personal no cuenta en el aforo de esta etapa.</p>
       </section>
     </div>
-    <div class="ocupacion-distribucion">
-      <section class="escena-ocupacion" data-escena-ocupacion aria-label="Escena de ocupación">
-        <h2>Escena de ocupación</h2>
-        <canvas aria-hidden="true"></canvas>
-        <div data-puntos role="group" aria-label="Visitas en la escena"></div>
-        <p data-rotulo-visita role="status" hidden></p>
-        <p class="leyenda-escena">● Visita · ◆ Visita simulada · ○ Por conciliar</p>
-      </section>
-    <section class="tarjeta" aria-labelledby="titulo-zonas">
-      <h2 id="titulo-zonas">Por zona</h2>
-      <div data-zona-sede="musculacion"><span>0</span> <progress aria-label="Musculación" max="1" value="0"></progress></div>
-      <div data-zona-sede="peso_libre"><span>0</span> <progress aria-label="Peso libre" max="1" value="0"></progress></div>
-      <div data-zona-sede="cardio"><span>0</span> <progress aria-label="Cardio" max="1" value="0"></progress></div>
-      <div data-zona-sede="funcional"><span>0</span> <progress aria-label="Funcional" max="1" value="0"></progress></div>
-      <div data-zona-sede="en_la_sede"><span>0</span> <progress aria-label="En la sede" max="1" value="0"></progress></div>
-    </section>
-    </div>
-    <p data-alternativa-escena hidden>La escena no está disponible. Elegí una visita en Por zona o en Visitas abiertas.</p>
+    <div class="recepcion-detalle">
     <section class="tarjeta" data-mejores-horarios hidden aria-labelledby="titulo-horarios">
       <h2 id="titulo-horarios">Mejores horarios · previsión</h2>
       <p data-horarios-estado role="status">Cargando previsión…</p>
@@ -93,6 +98,7 @@
       <p data-vacio hidden>No hay visitas abiertas.</p>
       <ul class="lista" data-visitas></ul>
     </section>
+    </div>
   </div>
   </div>
 <dialog data-conciliacion aria-labelledby="titulo-conciliacion">
