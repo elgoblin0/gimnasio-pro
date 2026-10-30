@@ -84,6 +84,37 @@ def test_cuerpo_3d_tiene_dos_versiones_y_las_zonas_del_catalogo():
     assert "CC0" in leer(PROTOTIPOS / "cuerpo-3d/recursos/LICENCIA.txt")
 
 
+def test_escena_no_superpone_visitas_en_la_franja_tras_secuencia_prolongada():
+    node = shutil.which("node")
+    if not node:
+        pytest.skip("sin Node")
+    codigo = leer(PROTOTIPOS / "escena-ocupacion/escena.js")
+    datos = leer(PROTOTIPOS / "escena-ocupacion/personas.json")
+    inicio = codigo[codigo.index("let personas =") : codigo.index("let proyectar =")]
+    casos = """
+personas.forEach(p => {p.posicion = destino(p); p.boton = {};});
+for (let paso = 0; paso < 600; paso++) {
+  avanzar();
+  personas = personas.filter(p => !p.saliendo);
+  personas.forEach(p => {p.posicion = p.hasta || p.posicion; p.hasta = null;});
+  const franja = personas.filter(p => p.zona === nombres[4]);
+  const coordenadas = franja.map(p => `${p.posicion.x},${p.posicion.y}`);
+  assert.equal(new Set(coordenadas).size, franja.length, `paso ${paso}`);
+  assert.ok(franja.every(p => p.posicion.x >= 12 && p.posicion.x <= 88
+    && p.posicion.y >= 84 && p.posicion.y <= 96));
+}
+"""
+    entorno = """
+const assert = require('node:assert/strict');
+const elemento = {dataset:{}, style:{}, setAttribute(){}, addEventListener(){}, append(){}};
+const document = {body:elemento, querySelector:() => elemento, createElement:() => elemento};
+const contenedor = elemento;
+const nombres = ['Musculación', 'Peso libre', 'Cardio', 'Funcional', 'En la sede'];
+const zonas = [[12,12,34,30],[54,12,34,30],[12,48,34,30],[54,48,34,30],[12,84,76,12]];
+"""
+    subprocess.run([node, "-e", entorno + "const datos = " + datos + ";" + inicio + casos], check=True)
+
+
 @pytest.mark.e2e
 def test_cuerpo_3d_carga_y_emite_zonas_en_chromium(tmp_path, playwright):
     if not Path(playwright.chromium.executable_path).is_file():

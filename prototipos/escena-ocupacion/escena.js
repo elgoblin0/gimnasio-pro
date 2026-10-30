@@ -19,7 +19,7 @@ function destino(persona) {
   let lugar = 0;
   while (usados.has(lugar)) lugar++;
   persona.lugar = lugar;
-  const columnas = indice === 4 ? 10 : 4;
+  const columnas = indice === 4 ? Math.max(10, lugar+1, ...[...usados].map(l => l+1)) : 4;
   return {x:x+4+(lugar%columnas)*(ancho-8)/(columnas-1), y:indice === 4 ? y+7 : y+11+Math.floor(lugar/columnas)*(alto-15)/2};
 }
 function rotulo() {
@@ -29,6 +29,12 @@ function rotulo() {
     : 'Seleccioná un punto con ratón o Tab y Enter. Cuadrado terracota: visita simulada.';
 }
 function actualizar() {
+  // La franja comparte una fila: redistribuirla al ocupar o liberar lugares.
+  for (const persona of personas.filter(p => p.zona === nombres[4] && !p.saliendo)) {
+    const hasta = destino(persona);
+    const anterior = persona.hasta || persona.posicion;
+    if (anterior.x !== hasta.x || anterior.y !== hasta.y) mover(persona, hasta);
+  }
   document.querySelector('#total').textContent = `${personas.filter(p => !p.saliendo).length} de ${datos.aforo_maximo}`;
   document.querySelector('#zonas').textContent = nombres.map(z => `${z}: ${personas.filter(p => p.zona === z && !p.saliendo).length}`).join(' · ');
   for (const persona of personas) {
