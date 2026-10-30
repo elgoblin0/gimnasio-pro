@@ -195,6 +195,7 @@ def consultar_ocupacion():
         visitas = _listar_visitas(cursor, ahora)
         return {
             "sede_id": str(desde_bytes(sede["id"])),
+            "version": repositorio.obtener_version(cursor, ahora),
             "ocupacion_registrada": repositorio.contar_ocupacion_registrada(cursor, desde_bytes(sede["id"])),
             "aforo_maximo": sede["aforo_maximo"],
             "por_conciliar": sum(visita["por_conciliar"] for visita in visitas),
@@ -205,3 +206,10 @@ def listar_socios():
     with transaccion() as cursor:
         filas = repositorio.listar_socios_activos(cursor)
     return [{"id": str(desde_bytes(fila["id"])), "nombre": fila["nombre"], "cedula": fila["cedula"]} for fila in filas]
+
+
+def consultar_visitas():
+    ahora = reloj_actual().ahora()
+    with transaccion() as cursor:
+        version = repositorio.obtener_version(cursor, ahora)
+        return {"visitas": _listar_visitas(cursor, ahora), "version": version}

@@ -40,6 +40,35 @@ def contar(instancia, tabla):
         return cursor.fetchone()["cantidad"]
 
 
+def test_sondeo_entre_recepciones_y_ocupacion_del_socio(pagina_demo, demo_aislada):
+    primera = pagina_demo
+    segunda = primera.context.new_page()
+    socio = primera.context.browser.new_context()
+    try:
+        ingresar(primera, demo_aislada)
+        # Las pestañas comparten la sesión de recepción del mismo contexto.
+        segunda.goto(demo_aislada.url + "/recepcion.html")
+        expect(segunda.get_by_text("Recepción lista.", exact=True)).to_be_visible()
+        expect(segunda.locator("[data-ocupacion]")).to_have_text("0 de 60")
+        primera.bring_to_front()
+        primera.get_by_role("button", name="Registrar entrada", exact=True).click()
+        expect(primera.locator("[data-ocupacion]")).to_have_text("1 de 60")
+        segunda.bring_to_front()
+        expect(segunda.locator("[data-ocupacion]")).to_have_text("1 de 60", timeout=9000)
+        expect(segunda.get_by_role("button", name="Registrar salida de Lucía Benítez")).to_be_visible()
+        pagina_socio = socio.new_page()
+        pagina_socio.goto(demo_aislada.url)
+        pagina_socio.get_by_role("button", name="Entrar como socio", exact=True).click()
+        expect(pagina_socio.get_by_role("heading", name="Hola, Lucía", exact=True)).to_be_visible()
+        pagina_socio.goto(demo_aislada.url + "/entrenamiento.html")
+        expect(pagina_socio.get_by_role("heading", name="Ocupación ahora")).to_be_visible()
+        expect(pagina_socio.locator("[data-ocupacion]")).to_have_text("1 de 60")
+        expect(pagina_socio.locator("[data-aforo]")).to_have_attribute("value", "1")
+    finally:
+        segunda.close()
+        socio.close()
+
+
 @pytest.mark.parametrize("ancho,alto", [(1440, 900), (390, 844)])
 def test_entrada_salida_recarga_y_teclado(pagina_demo, demo_aislada, ancho, alto):
     pagina = pagina_demo
@@ -166,7 +195,8 @@ def test_foco_durante_post_no_intercala_lecturas_anteriores(pagina_demo, demo_ai
     pagina.evaluate("window.liberarEntrada()")
     expect(pagina.locator("[data-ocupacion]")).to_have_text("1 de 60")
     expect(pagina.get_by_role("button", name="Registrar salida de Lucía Benítez")).to_be_visible()
-    assert pagina.evaluate("window.lecturasDeVisitas") == lecturas + 3
+    # La propia respuesta del POST actualiza la pantalla sin lecturas adicionales.
+    assert pagina.evaluate("window.lecturasDeVisitas") == lecturas
 
 
 def test_reintento_espera_la_lectura_en_curso(pagina_demo, demo_aislada):

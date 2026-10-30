@@ -77,7 +77,7 @@ def test_principal_pendiente_sin_visita_reingresa_y_respeta_plan(recorrido, relo
     propuesta = con_socio.get("/api/entrenamiento/propuesta").json
     assert propuesta["sesion_planificada"] is not None
     assert all(e["realizado"] == 0 and e["pendiente"] == e["objetivos"]["series"] for e in propuesta["ejercicios"])
-    assert con_recepcion.get("/api/visitas?abiertas=1").json == {"visitas": []}
+    assert con_recepcion.get("/api/visitas?abiertas=1").json["visitas"] == []
     assert con_recepcion.get("/api/ocupacion").json["ocupacion_registrada"] == 0
     for _ in range(2):
         entrada = str(nuevo_id(reloj_fijo))
@@ -123,7 +123,7 @@ def test_principal_pendiente_sin_visita_reingresa_y_respeta_plan(recorrido, relo
     with app.app_context():
         demo.reiniciar()
     assert con_socio.get("/api/entrenamiento/propuesta").json == propuesta
-    assert con_recepcion.get("/api/visitas?abiertas=1").json == {"visitas": []}
+    assert con_recepcion.get("/api/visitas?abiertas=1").json["visitas"] == []
 
 
 @pytest.mark.bd

@@ -13,6 +13,7 @@ PERMISOS = {
     "salud.ver_propia": {"socio"},
     "consentimientos.gestionar_propios": {"socio"},
     # Recepción
+    "ocupacion.ver": set(ROLES),
     "visitas.ver": {"recepcion"},
     "visitas.registrar": {"recepcion"},
     "socios.ver_tarjeta": {"recepcion", "administracion"},
