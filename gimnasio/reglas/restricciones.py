@@ -54,3 +54,25 @@ def aplicar_restricciones(
         ),
         ("restriccion_salud",),
     )
+
+
+def choques_con_restricciones(ejercicio_ids, restricciones, catalogo, *, equipos_fuera_de_servicio=frozenset()):
+    """Evalúa cada ejercicio una vez contra las restricciones vigentes recibidas."""
+    choques = []
+    excluidos = tuple(e.ejercicio_id for e in catalogo if excluido(e, restricciones))
+    zonas = tuple(dict.fromkeys(r.zona for r in restricciones if r.zona is not None))
+    for identificador in dict.fromkeys(ejercicio_ids):
+        ejercicio = next(e for e in catalogo if e.ejercicio_id == identificador)
+        coincidentes = tuple(r for r in restricciones if excluido(ejercicio, (r,)))
+        if not coincidentes:
+            continue
+        alternativas, _ = elegir_alternativas(
+            identificador,
+            catalogo,
+            zonas_excluidas=zonas,
+            ejercicios_excluidos=excluidos,
+            motivo="restriccion_salud",
+            equipos_fuera_de_servicio=equipos_fuera_de_servicio,
+        )
+        choques.extend((ejercicio, restriccion, alternativas) for restriccion in coincidentes)
+    return tuple(choques)

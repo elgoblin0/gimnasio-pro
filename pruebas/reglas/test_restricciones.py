@@ -93,3 +93,46 @@ def test_alternativa_no_puede_infringir_otra_restriccion():
         ),
     )
     assert proponer_sesion(datos).prescripcion[0].series == 0
+
+
+@pytest.mark.parametrize("tipo", ["ejercicio", "patron", "zona", "levantada", "sin_choques"])
+def test_choques_publicacion(tipo):
+    from gimnasio.reglas.restricciones import choques_con_restricciones
+
+    original, alternativa = datos_dolor().catalogo
+    alternativa = replace(alternativa, zonas=original.zonas)
+    restricciones = {
+        "ejercicio": (RestriccionSalud(ejercicio_id=original.ejercicio_id),),
+        "patron": (RestriccionSalud(patron_movimiento=original.patron_movimiento),),
+        "zona": (RestriccionSalud(zona="rodillas"),),
+        "levantada": (),
+        "sin_choques": (RestriccionSalud(zona="cuello"),),
+    }[tipo]
+    if tipo == "zona":
+        alternativa = replace(alternativa, zonas=("gluteos", "cuadriceps"))
+    choques = choques_con_restricciones(
+        (original.ejercicio_id, original.ejercicio_id), restricciones, (original, alternativa)
+    )
+    if tipo in ("levantada", "sin_choques"):
+        assert choques == ()
+    else:
+        assert len(choques) == 1
+        assert choques[0][:2] == (original, restricciones[0])
+        assert choques[0][2] == (() if tipo == "patron" else (alternativa,))
+        assert (
+            choques_con_restricciones(
+                (original.ejercicio_id,),
+                restricciones,
+                (original, alternativa),
+                equipos_fuera_de_servicio=frozenset((alternativa.equipo,)),
+            )[0][2]
+            == ()
+        )
+
+
+def test_choques_alternativas_respetan_todas_las_restricciones():
+    from gimnasio.reglas.restricciones import choques_con_restricciones
+
+    original, alternativa = datos_dolor().catalogo
+    restricciones = (RestriccionSalud(zona="rodillas"), RestriccionSalud(ejercicio_id=alternativa.ejercicio_id))
+    assert choques_con_restricciones((original.ejercicio_id,), restricciones, (original, alternativa))[0][2] == ()

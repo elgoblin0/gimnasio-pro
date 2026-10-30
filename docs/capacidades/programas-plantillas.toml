@@ -4,3 +4,5 @@ grupo = "Entrenador"
 etapa = 4
 nivel = "funcional"
 prueba = "pruebas/test_publicar_programas.py"
+
+# La publicación respeta las restricciones de salud vigentes (#180).

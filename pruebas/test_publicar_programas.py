@@ -437,3 +437,86 @@ def test_error_durante_generacion_revierte_toda_la_version(programas_api, monkey
     assert publicar(cliente, socio, publicacion(fuerza)).status_code == 503
     with app.app_context():
         assert [p["version"] for p in servicio.listar_programas(desde_texto(socio))] == [1]
+
+
+@pytest.mark.bd
+@pytest.mark.parametrize("tipo", ["ejercicio", "patron", "zona"])
+@pytest.mark.parametrize("consentimiento", [True, False])
+def test_publicacion_restricciones_y_levantamiento(programas_api, reloj_fijo, tipo, consentimiento):
+    from gimnasio.permisos.servicio import registrar_consentimiento
+
+    app, cliente, socio, fuerza = programas_api
+    catalogo = cliente.get("/api/ejercicios").json["ejercicios"]
+    original = next(e for e in catalogo if e["id"] == fuerza)
+    restriccion = nuevo_id(reloj_fijo)
+    with app.app_context(), transaccion() as cursor:
+        cursor.execute("SELECT id FROM usuarios WHERE rol='entrenador' LIMIT 1")
+        autor = desde_bytes(cursor.fetchone()["id"])
+        registrar_consentimiento(cursor, desde_texto(socio), "salud", consentimiento, "1", autor)
+        cursor.execute(
+            """INSERT INTO restricciones_salud
+               (id,socio_id,ejercicio_id,patron_movimiento,zona,descripcion,registrada_en,autor_id)
+               VALUES (%s,%s,%s,%s,%s,%s,%s,%s)""",
+            (
+                a_bytes(restriccion),
+                a_bytes(desde_texto(socio)),
+                a_bytes(desde_texto(fuerza)) if tipo == "ejercicio" else None,
+                original["patron_movimiento"] if tipo == "patron" else None,
+                original["zonas"][0] if tipo == "zona" else None,
+                "Detalle ficticio reservado",
+                reloj_fijo.ahora(),
+                a_bytes(autor),
+            ),
+        )
+        antes = servicio.listar_programas(desde_texto(socio), cursor=cursor)
+    respuesta = publicar(cliente, socio, publicacion(fuerza))
+    assert respuesta.status_code == 409, respuesta.json
+    error = respuesta.json["error"]
+    assert error["codigo"] == "choque_restriccion"
+    choque = error["choques"][0]
+    assert choque["ejercicio_id"] == fuerza
+    assert original["nombre"] in choque["mensaje"]
+    assert ("Detalle ficticio reservado" in str(respuesta.json)) == consentimiento
+    if tipo == "ejercicio":
+        assert choque["alternativas"]
+        with app.app_context(), transaccion() as cursor:
+            for equipo in {e["equipo"] for e in catalogo if e["id"] in original["alternativas"]}:
+                cursor.execute("SELECT id FROM equipos WHERE nombre=%s", (equipo,))
+                equipo_id = desde_bytes(cursor.fetchone()["id"])
+                servicio.repositorio.insertar_cambio_estado(
+                    cursor, nuevo_id(reloj_fijo), equipo_id, "fuera_de_servicio", None, autor, reloj_fijo.ahora()
+                )
+        sin_equipos = publicar(cliente, socio, publicacion(fuerza))
+        assert sin_equipos.status_code == 409
+        assert sin_equipos.json["error"]["choques"][0]["alternativas"] == []
+    if tipo == "patron":
+        assert choque["alternativas"] == []
+    with app.app_context(), transaccion() as cursor:
+        assert servicio.listar_programas(desde_texto(socio), cursor=cursor) == antes
+        cursor.execute(
+            """INSERT INTO restricciones_salud
+               (id,socio_id,zona,descripcion,registrada_en,autor_id,levanta_a)
+               VALUES (%s,%s,'rodillas','Levantada',%s,%s,%s)""",
+            (
+                a_bytes(nuevo_id(reloj_fijo)),
+                a_bytes(desde_texto(socio)),
+                reloj_fijo.ahora(),
+                a_bytes(autor),
+                a_bytes(restriccion),
+            ),
+        )
+    assert publicar(cliente, socio, publicacion(fuerza)).status_code == 201
+
+    # Una restricción nueva después de publicar sigue actuando en la propuesta.
+    with app.app_context(), transaccion() as cursor:
+        cursor.execute(
+            """INSERT INTO restricciones_salud
+               (id,socio_id,ejercicio_id,patron_movimiento,zona,descripcion,registrada_en,autor_id)
+               SELECT %s,socio_id,ejercicio_id,patron_movimiento,zona,descripcion,%s,autor_id
+               FROM restricciones_salud WHERE id=%s""",
+            (a_bytes(nuevo_id(reloj_fijo)), reloj_fijo.ahora(), a_bytes(restriccion)),
+        )
+    propuesta = cliente.get(f"/api/entrenamiento/socios/{socio}/propuesta")
+    assert propuesta.status_code == 200, propuesta.json
+    assert "restriccion_salud" in propuesta.json["frenos"]
+    assert "Detalle ficticio reservado" not in str(propuesta.json)
