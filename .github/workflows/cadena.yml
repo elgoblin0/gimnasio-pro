@@ -6,6 +6,8 @@ name: Cadena
 
 on:
   workflow_dispatch:
+  schedule:
+    - cron: "*/15 * * * *" # vigilar: pedidos que nadie toma o que no terminan
   issues:
     types: [closed, labeled]
   workflow_run:
@@ -25,6 +27,10 @@ env:
   GH_TOKEN: ${{ secrets.CADENA_TOKEN }}
   GITHUB_REPOSITORY: ${{ github.repository }}
   BOT_CODEX: chatgpt-codex-connector[bot]
+  # Issues en curso a la vez; con la variable del repo CADENA_EN_CURSO=1 vuelve a uno por vez.
+  CADENA_EN_CURSO: ${{ vars.CADENA_EN_CURSO || '2' }}
+  # Tema de ntfy (https://ntfy.sh/<tema-secreto>) para avisar al dueño; sin el secreto, los avisos quedan en Actions.
+  NOTIFICAR_URL: ${{ secrets.NOTIFICAR_URL }}
 
 jobs:
   arrancar:
@@ -85,3 +91,19 @@ jobs:
         env:
           PR: ${{ github.event.pull_request.number }}
           ETIQUETA: ${{ github.event.label.name }}
+
+  cierre:
+    if: github.event_name == 'issues' && github.event.action == 'closed' && github.event.issue.milestone
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: python scripts/cadena.py cierre --issue "$ISSUE"
+        env:
+          ISSUE: ${{ github.event.issue.number }}
+
+  vigilar:
+    if: github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: python scripts/cadena.py vigilar

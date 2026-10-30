@@ -113,7 +113,9 @@ def _codex_falso(monkeypatch, tmp_path, guion):
     archivo = tmp_path / "codex_falso.py"
     archivo.write_text(guion, encoding="utf-8", newline="\n")
     monkeypatch.setattr(
-        implementador, "comando_codex", lambda binario, carpeta, salida: [binario, str(archivo), str(salida)]
+        implementador,
+        "comando_codex",
+        lambda binario, carpeta, salida, nivel=None: [binario, str(archivo), str(salida)],
     )
     carpeta = tmp_path / "arbol"
     carpeta.mkdir()
@@ -207,7 +209,7 @@ def test_pr_filtra_el_pedido_a_atender(entorno, monkeypatch):
     prs = [{"number": n, "headRefName": f"codex/issue-{n}", "labels": [], "title": "t"} for n in (7, 8)]
     monkeypatch.setattr(implementador.cadena, "prs_de_codex", lambda: prs)
     monkeypatch.setattr(implementador.cadena, "comentarios_del_pr", lambda n: ["@codex implementá"])
-    monkeypatch.setattr(implementador, "atender", lambda pr, pedido: atendidos.append(pr["number"]))
+    monkeypatch.setattr(implementador, "atender", lambda pr, pedido, nivel=None: atendidos.append(pr["number"]))
     assert implementador.una_vuelta(solo_pr=8) is True
     assert atendidos == [8]
 
@@ -290,12 +292,41 @@ def test_resumen_de_la_corrida():
 def test_reconoce_los_pedidos_de_la_cadena_sin_mencion():
     issue = {"number": 7, "title": "Alta", "body": "X"}
     assert implementador.es_pedido(implementador.cadena.prompt_implementar(issue))
-    assert implementador.es_pedido(implementador.cadena.prompt_corregir("el CI falló."))
+    assert implementador.es_pedido(implementador.cadena.prompt_corregir("el CI falló.", "ci"))
     assert not implementador.es_pedido("Pedido para el implementador local: sin marca de la cadena")
 
 
 def test_el_prompt_para_codex_no_lleva_el_encabezado_local():
-    pedido = implementador.cadena.prompt_corregir("el CI falló: arreglalo.")
+    pedido = implementador.cadena.prompt_corregir("el CI falló: arreglalo.", "ci")
     prompt = implementador.prompt_para_codex(pedido)
     assert "el CI falló: arreglalo." in prompt
     assert implementador.cadena.ENCABEZADO_LOCAL not in prompt and "<!--" not in prompt
+
+
+def test_el_esfuerzo_sube_con_cada_fallo_o_correccion_repetida(monkeypatch):
+    """Bajo en lo fácil; si un pedido ya falló o la misma corrección se repite, Codex piensa más."""
+    monkeypatch.delenv("GIMNASIO_CODEX_ESFUERZO", raising=False)
+    assert implementador.esfuerzo(fallos=1) == "medium"
+    assert implementador.esfuerzo(previas=1) == "medium"
+    assert implementador.esfuerzo(fallos=1, previas=1) == "high"
+    assert implementador.esfuerzo(previas=5) == "high"
+    monkeypatch.setenv("GIMNASIO_CODEX_ESFUERZO", "medium")
+    assert implementador.esfuerzo(previas=1) == "high"
+
+
+def test_cuenta_las_correcciones_previas_del_mismo_origen():
+    ci = implementador.cadena.prompt_corregir("el CI falló.", "ci")
+    revision = implementador.cadena.prompt_corregir("corregí.", "revision")
+    assert implementador.correcciones_previas(ci, [ci, revision, ci]) == 1
+    assert implementador.correcciones_previas(revision, [ci, revision, ci]) == 0
+    assert implementador.correcciones_previas("<!-- cadena:pedido -->\nimplementá", [ci]) == 0
+
+
+def test_sobran_las_carpetas_de_issues_sin_pr_abierto():
+    nombres = ["issue-89", "issue-89-3", "issue-145", "issue-146-1", "registro.log", "otra"]
+    assert implementador.carpetas_sobrantes(nombres, abiertos={145, 146}) == ["issue-89", "issue-89-3"]
+
+
+def test_el_comentario_hecho_lleva_la_medida_de_codex():
+    marca = implementador.medida_de_codex(4.25, 120345, "medium")
+    assert marca == "<!-- implementador:codex minutos=4.2 tokens=120345 esfuerzo=medium -->"

@@ -77,7 +77,45 @@ def test_el_pedido_de_implementar_incluye_el_issue_y_la_salida_de_criterio():
 
 
 def test_los_pedidos_de_correccion_llevan_la_marca_que_cuenta_intentos():
-    assert cadena.MARCA_CORREGIR in cadena.prompt_corregir("el CI falló.")
+    texto = cadena.prompt_corregir("el CI falló.", "ci")
+    assert cadena.MARCA_CORREGIR in texto and cadena.MARCA_ORIGEN.format(origen="ci") in texto
+
+
+def test_cada_origen_de_correccion_tiene_su_propio_tope():
+    """En #135 una corrección de Opus agotó el tope compartido y el PR quedó bloqueado dos horas."""
+    comentarios = [
+        cadena.prompt_corregir("el CI falló.", "ci"),
+        cadena.prompt_corregir("corregí los hallazgos.", "revision"),
+        cadena.prompt_corregir("atendé a Opus.", "opus"),
+        "<!-- cadena:corregir -->\nPedido de antes, sin origen",
+    ]
+    assert cadena.correcciones_pedidas(comentarios, "ci") == 1
+    assert cadena.correcciones_pedidas(comentarios, "revision") == 1
+    assert cadena.correcciones_pedidas(comentarios, "conflicto") == 0
+    assert set(cadena.MAX_CORRECCIONES) == {"ci", "revision", "opus", "conflicto"}
+
+
+def test_elige_un_segundo_issue_solo_si_no_comparte_modulo_con_los_en_curso():
+    issues = [
+        {"number": 146, "body": "", "labels": [{"name": "modulo:visitas"}, {"name": "modulo:permisos"}]},
+        {"number": 147, "body": "", "labels": [{"name": "modulo:reglas"}]},
+        {"number": 148, "body": "", "labels": [{"name": "tipo:funcion"}]},
+    ]
+    en_curso = [{"modulo:migraciones", "modulo:demo"}]
+    assert cadena.elegir_siguiente(issues, lambda n: True, en_curso)["number"] == 146
+    en_curso = [{"modulo:visitas"}]
+    assert cadena.elegir_siguiente(issues, lambda n: True, en_curso)["number"] == 147
+    # Sin módulo no se sabe qué toca: no corre en paralelo con nada.
+    assert cadena.elegir_siguiente(issues[2:], lambda n: True, [{"modulo:reglas"}]) is None
+    assert cadena.elegir_siguiente(issues[1:2], lambda n: True, [{"tipo:funcion"}]) is None
+
+
+def test_la_rama_vacia_no_dispara_el_ci_y_la_fusion_no_hereda_su_mensaje():
+    """El squash copia los mensajes de los commits: `[skip ci]` en main saltaría su CI."""
+    assert "[skip ci]" in cadena.mensaje_rama_vacia("codex/issue-7")
+    assert "[skip ci]" not in cadena.cuerpo_de_fusion("")
+    assert cadena.cuerpo_de_fusion("Closes #7\n\nNotas") == "Closes #7\n\nNotas"
+    assert "[skip ci]" not in cadena.cuerpo_de_fusion("Closes #7 [skip ci]")
 
 
 def test_un_pr_de_adr_solo_toca_docs_adr_y_glosario():
@@ -98,6 +136,47 @@ def test_el_pedido_menciona_a_codex_solo_si_se_lo_pide(monkeypatch):
     issue = {"number": 7, "title": "Alta", "body": "X"}
     monkeypatch.setenv("CADENA_MENCIONAR_CODEX", "1")
     assert "@codex implementá el issue #7" in cadena.prompt_implementar(issue)
-    assert "@codex el CI falló." in cadena.prompt_corregir("el CI falló.")
+    assert "@codex el CI falló." in cadena.prompt_corregir("el CI falló.", "ci")
     monkeypatch.delenv("CADENA_MENCIONAR_CODEX")
-    assert "@codex" not in cadena.prompt_corregir("el CI falló.")
+    assert "@codex" not in cadena.prompt_corregir("el CI falló.", "ci")
+
+
+def comentario(cuerpo, minuto, ojos=0):
+    return {"body": cuerpo, "created_at": f"2026-10-29T10:{minuto:02d}:00Z", "reactions": {"eyes": ojos}}
+
+
+PEDIDO = f"{cadena.MARCA_PEDIDO}\nimplementá el issue #7"
+AHORA = cadena.fecha("2026-10-29T11:30:00Z")
+
+
+def test_un_pedido_cerrado_con_hecho_no_espera():
+    assert cadena.pedido_en_espera([comentario(PEDIDO, 0), comentario(f"{cadena.MARCA_HECHO}\nlisto", 5)]) is None
+    assert cadena.pedido_en_espera([comentario(PEDIDO, 0)])["body"] == PEDIDO
+
+
+def test_avisa_si_nadie_toma_el_pedido_y_el_implementador_esta_libre():
+    pedido = cadena.pedido_en_espera([comentario(PEDIDO, 50)])
+    assert cadena.demora(pedido, AHORA, ocupado=False) == "sin-tomar"
+    assert cadena.demora(pedido, AHORA, ocupado=True) is None  # atiende otro PR: esperar es normal
+    reciente = cadena.pedido_en_espera([comentario(PEDIDO, 20)])
+    assert cadena.demora(reciente, cadena.fecha("2026-10-29T10:30:00Z"), ocupado=False) is None
+
+
+def test_avisa_si_el_pedido_tomado_no_termina():
+    tomado = cadena.pedido_en_espera([comentario(PEDIDO, 0, ojos=1)])
+    assert cadena.demora(tomado, AHORA, ocupado=True) == "colgado"
+    assert cadena.demora(tomado, cadena.fecha("2026-10-29T11:00:00Z"), ocupado=True) is None
+    # Un fallo reinicia la cuenta: el implementador reintenta.
+    con_fallo = cadena.pedido_en_espera([comentario(PEDIDO, 0, ojos=1), comentario(cadena.MARCA_FALLO, 59)])
+    assert cadena.demora(con_fallo, AHORA, ocupado=True) is None
+
+
+def test_avisa_una_sola_vez_por_pedido():
+    avisado = cadena.pedido_en_espera([comentario(PEDIDO, 0), comentario(f"{cadena.MARCA_AVISO}\nnadie lo tomó", 20)])
+    assert cadena.demora(avisado, AHORA, ocupado=False) is None
+
+
+def test_la_etapa_termina_cuando_no_quedan_issues_de_codex_abiertos():
+    cierres = [{"number": 141, "title": "Especificación: Etapa 3"}, {"number": 154, "title": "Cierre de etapa 3"}]
+    assert cadena.issue_de_cierre(cierres)["number"] == 154
+    assert cadena.issue_de_cierre(cierres[:1]) is None
