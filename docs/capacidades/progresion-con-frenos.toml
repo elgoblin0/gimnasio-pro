@@ -8,6 +8,3 @@ validacion = "https://github.com/elgoblin0/gimnasio-pro/issues/136"
 
 # Motor, chequeo, dolor, restricciones y avisos cubiertos por las pruebas de reglas y API; recorrido integrado de Lucía en etapa 2.
 # Freno 2: pruebas/reglas/test_restricciones.py y pruebas/test_salud.py (#90).
-
-# Carga de partida por versión (ADR 0023): pruebas/test_progresion_servicio.py y pruebas/reglas/test_progresion.py.
-# Solo una suba efectiva consume el tope semanal; bajar o mantener por carga de partida no lo consume.

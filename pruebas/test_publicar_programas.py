@@ -288,10 +288,7 @@ def test_dos_publicaciones_simultaneas_no_duplican_version(programas_api, con_pr
 
 
 @pytest.mark.bd
-@pytest.mark.parametrize("carga_de_partida,carga_esperada", [(20, "20.00"), (40, "23.00")])
-def test_nueva_secuencia_y_progresion_del_historial_anterior(
-    programas_api, reloj_fijo, carga_de_partida, carga_esperada
-):
+def test_nueva_secuencia_y_progresion_del_historial_anterior(programas_api, reloj_fijo):
     _, cliente, socio, fuerza = programas_api
     cliente.post("/api/sesion/demo/socio", headers={"X-Gimnasio": "1"})
     anterior = cliente.get("/api/entrenamiento/propuesta").json
@@ -299,13 +296,13 @@ def test_nueva_secuencia_y_progresion_del_historial_anterior(
     cliente.post("/api/sesion/demo/entrenador", headers={"X-Gimnasio": "1"})
     datos = publicacion(fuerza)
     datos["sesiones"][0]["ejercicios"][0]["series"] = 2
-    datos["sesiones"][0]["ejercicios"][0]["carga"] = carga_de_partida
+    datos["sesiones"][0]["ejercicios"][0]["carga"] = 20
     assert publicar(cliente, socio, datos).status_code == 201
     cliente.post("/api/sesion/demo/socio", headers={"X-Gimnasio": "1"})
     nueva = cliente.get("/api/entrenamiento/propuesta").json
     assert nueva["sesion_planificada"]["nombre"] == "Semana 1 · Fuerza"
     assert nueva["ejercicios"][0]["realizado"] == 0
-    assert nueva["ejercicios"][0]["objetivos"]["carga"] == carga_esperada
+    assert nueva["ejercicios"][0]["objetivos"]["carga"] == "23.00"
     reloj_fijo.avanzar(timedelta(weeks=2))
     pendiente = cliente.get("/api/entrenamiento/propuesta").json
     assert pendiente["sesion_planificada"] == nueva["sesion_planificada"]

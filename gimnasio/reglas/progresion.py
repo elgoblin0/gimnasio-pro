@@ -187,11 +187,9 @@ def _ajustar_ejercicio(planificado, entrada, sesion_planificada_id):
             prescripcion,
             (
                 razon(
-                    "carga_de_partida" if planificado.carga_de_partida is not None else "respeto_programa_entrenador",
+                    "respeto_programa_entrenador",
                     prescripcion,
-                    "El entrenador fij? la carga de partida; sin historial se respeta esa carga."
-                    if planificado.carga_de_partida is not None
-                    else "Se respeta el plan del entrenador sin ajustes de carga, repeticiones, series ni volumen.",
+                    "Se respeta el plan del entrenador sin ajustes de carga, repeticiones, series ni volumen.",
                 ),
             ),
             (),
@@ -237,30 +235,8 @@ def _ajustar_ejercicio(planificado, entrada, sesion_planificada_id):
     if prescripcion.rir_objetivo is not None and any(s.rir is None for h in decisivas for s in h.series):
         ajustada, explicacion_rir = sin_rir(ajustada, ejercicio, decisivas)
         razones += (explicacion_rir,)
-    if planificado.carga_de_partida is not None:
-        carga = min(planificado.carga_de_partida, ajustada.carga)
-        razones += (
-            razon(
-                "carga_de_partida",
-                ajustada,
-                "El entrenador fij? la carga de partida; se usa el menor valor con la propuesta del motor.",
-                carga_de_partida=planificado.carga_de_partida,
-                carga_motor=ajustada.carga,
-                carga=carga,
-            ),
-        )
-        ajustada = replace(ajustada, carga=carga)
-        if carga <= prescripcion.carga:
-            # La carga de partida anuló la suba: no consume el tope semanal.
-            razones = tuple(r for r in razones if r.regla != "subir_carga")
-        prescripcion = replace(prescripcion, carga=min(prescripcion.carga, carga))
     ajustada, razones_freno, frenos = aplicar_frenos(
-        ajustada,
-        prescripcion,
-        ejercicio,
-        entrada,
-        any(r.regla == "subir_carga" for r in razones),
-        sesion_planificada_id,
+        ajustada, prescripcion, ejercicio, entrada, explicacion.regla == "subir_carga", sesion_planificada_id
     )
     return ajustada, razones + razones_freno, frenos
 

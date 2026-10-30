@@ -326,7 +326,9 @@ def _semana_tipo(programa):
         **{campo: programa[campo] for campo in ("id", "version", "duracion_semanas")},
         "sesiones": [
             {
-                "nombre": sesion["nombre"].split(" · ", 1)[1] if sesion["semana"] == 1 else sesion["nombre"],
+                "nombre": (sesion["nombre"].partition(" · ")[2] or sesion["nombre"])
+                if sesion["semana"] == 1
+                else sesion["nombre"],
                 "ejercicios": sesion["ejercicios_planificados"],
             }
             for sesion in programa["sesiones_planificadas"]

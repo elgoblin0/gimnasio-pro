@@ -317,3 +317,14 @@ def test_reiniciar_demo_borra_programas_antes_de_los_socios(app_con_bd, programa
                 for identificador in ids:
                     cursor.execute(f"SELECT COUNT(*) AS cantidad FROM {tabla} WHERE id=%s", (identificador,))
                     assert cursor.fetchone()["cantidad"] == 0
+
+
+@pytest.mark.parametrize("nombre", ["Semana 1 \u00b7 Fuerza", "Fuerza"])
+def test_semana_tipo_conserva_nombre_sin_separador(nombre):
+    programa = {
+        "id": "programa",
+        "version": 1,
+        "duracion_semanas": 4,
+        "sesiones_planificadas": [{"nombre": nombre, "semana": 1, "ejercicios_planificados": []}],
+    }
+    assert servicio._semana_tipo(programa)["sesiones"] == [{"nombre": "Fuerza", "ejercicios": []}]
