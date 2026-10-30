@@ -9,8 +9,11 @@ from gimnasio.comun.bd import transaccion
 from gimnasio.comun.errores import ErrorDeDominio
 from gimnasio.comun.ids import desde_bytes, desde_texto, nuevo_id
 from gimnasio.comun.reloj import reloj_actual
-from gimnasio.permisos.servicio import tiene_asignacion_vigente
+from gimnasio.comun.tipos import EjercicioCatalogo
+from gimnasio.permisos.servicio import tiene_asignacion_vigente, tiene_consentimiento
 from gimnasio.programas import repositorio
+from gimnasio.reglas.restricciones import choques_con_restricciones
+from gimnasio.salud.servicio import restricciones_vigentes
 
 MEDIDAS = ("repeticiones", "carga", "duracion", "distancia")
 OBJETIVOS = (
@@ -363,9 +366,11 @@ def publicar_programa(socio_id, datos, usuario):
         repositorio.bloquear_socio(cursor, socio_id)
         vigente = repositorio.version_vigente(cursor, socio_id)
         _comprobar_asignacion(cursor, socio_id, usuario)
-        sesiones = _validar_publicacion(datos, _leer_catalogo(cursor), cargas_ultima_sesion(cursor, socio_id))
+        catalogo = _leer_catalogo(cursor)
+        sesiones = _validar_publicacion(datos, catalogo, cargas_ultima_sesion(cursor, socio_id))
         if datos["version_base"] != vigente:
             raise ErrorDeDominio("version_desactualizada", "La versión vigente cambió; volvé a leer el programa.", 409)
+        _comprobar_restricciones(cursor, socio_id, sesiones, catalogo)
         programa_id = nuevo_id(reloj)
         version = (vigente or 0) + 1
         repositorio.insertar_programa(cursor, programa_id, socio_id, version, datos["semanas"], reloj.ahora())
@@ -401,3 +406,58 @@ def listar_plantillas():
         plantilla["creada_en"] = plantilla["creada_en"].replace(tzinfo=UTC).isoformat()
         plantilla["sesiones"] = [s for s in sesiones if s["plantilla_id"] == plantilla["id"]]
     return plantillas
+
+
+def _comprobar_restricciones(cursor, socio_id, sesiones, catalogo):
+    ejercicios = tuple(
+        EjercicioCatalogo(
+            e["id"],
+            e["nombre"],
+            e["incremento_carga"],
+            e["equipo"],
+            e["patron_movimiento"],
+            tuple(e["zonas"]),
+            tuple(e["alternativas"]),
+        )
+        for e in catalogo.values()
+    )
+    choques = choques_con_restricciones(
+        (e["ejercicio_id"] for s in sesiones for e in s["ejercicios"]),
+        restricciones_vigentes(socio_id, cursor=cursor),
+        ejercicios,
+        equipos_fuera_de_servicio=frozenset(
+            e["equipo"] for e in catalogo.values() if e["estado_equipo"] == "fuera_de_servicio"
+        ),
+    )
+    if not choques:
+        return
+    consentimiento = tiene_consentimiento(cursor, socio_id, "salud")
+    lista = []
+    for ejercicio, restriccion, alternativas in choques:
+        datos = {
+            "ejercicio_id": restriccion.ejercicio_id,
+            "patron_movimiento": restriccion.patron_movimiento,
+            "zona": restriccion.zona,
+        }
+        if consentimiento:
+            datos["descripcion"] = restriccion.descripcion
+        motivos = [
+            catalogo[restriccion.ejercicio_id]["nombre"] if restriccion.ejercicio_id in catalogo else None,
+            restriccion.patron_movimiento,
+            restriccion.zona,
+        ]
+        lista.append(
+            {
+                "ejercicio_id": ejercicio.ejercicio_id,
+                "nombre": ejercicio.nombre,
+                "restriccion": datos,
+                "mensaje": f"{ejercicio.nombre}: restricción de salud por {', '.join(m for m in motivos if m)}.",
+                "alternativas": [{"ejercicio_id": a.ejercicio_id, "nombre": a.nombre} for a in alternativas],
+            }
+        )
+    raise ErrorDeDominio(
+        "choque_restriccion",
+        "La semana tipo contiene ejercicios con restricciones de salud vigentes.",
+        409,
+        detalles={"choques": lista},
+    )

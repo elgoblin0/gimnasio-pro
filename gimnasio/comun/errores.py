@@ -7,21 +7,22 @@ from werkzeug.exceptions import HTTPException
 class ErrorDeDominio(Exception):
     """Error esperado de un caso de uso. `codigo` es estable y lo usa el frontend."""
 
-    def __init__(self, codigo, mensaje, estado_http=400):
+    def __init__(self, codigo, mensaje, estado_http=400, *, detalles=None):
         super().__init__(mensaje)
         self.codigo = codigo
         self.mensaje = mensaje
         self.estado_http = estado_http
+        self.detalles = detalles
 
 
-def respuesta_de_error(codigo, mensaje, estado_http):
-    return jsonify({"error": {"codigo": codigo, "mensaje": mensaje}}), estado_http
+def respuesta_de_error(codigo, mensaje, estado_http, detalles=None):
+    return jsonify({"error": {"codigo": codigo, "mensaje": mensaje, **(detalles or {})}}), estado_http
 
 
 def registrar_manejadores(app):
     @app.errorhandler(ErrorDeDominio)
     def error_de_dominio(error):
-        return respuesta_de_error(error.codigo, error.mensaje, error.estado_http)
+        return respuesta_de_error(error.codigo, error.mensaje, error.estado_http, error.detalles)
 
     @app.errorhandler(HTTPException)
     def error_http(error):
