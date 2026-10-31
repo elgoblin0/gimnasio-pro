@@ -6,6 +6,15 @@ import vm from "node:vm";
 const codigo = readFileSync(new URL("./inicio.js", import.meta.url), "utf8")
   .replace(/^import .*;\r?\n/gm, "").replace(/iniciar\(\)\.catch\([\s\S]*$/, "");
 
+test("los avisos conservan el recorrido de teclado de mi ficha a salir", () => {
+  const pagina = readFileSync(new URL("../index.html", import.meta.url), "utf8");
+  const ficha = pagina.indexOf("data-mi-ficha");
+  const salir = pagina.indexOf("data-salir");
+  const avisos = pagina.indexOf("data-avisos hidden");
+  assert.ok(ficha >= 0 && salir > ficha && avisos > salir,
+    "La sección de avisos debe seguir a Salir para conservar el recorrido de teclado");
+});
+
 function preparar(pedir) {
   const elementos = new Map();
   const obtener = (selector) => {
