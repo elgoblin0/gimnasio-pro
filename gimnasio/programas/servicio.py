@@ -173,6 +173,11 @@ def listar_programas(socio_id, *, cursor=None):
     return _leer(socio_id, cursor=cursor)
 
 
+def socios_con_programa(cursor, socio_ids):
+    """Cuáles de los socios tienen alguna versión, sin leer sus programas."""
+    return {desde_bytes(fila["socio_id"]) for fila in repositorio.socios_con_programa(cursor, socio_ids)}
+
+
 def obtener_programa(socio_id, version):
     """Lee una versión explícita, o None si no existe para ese socio; nunca elige otra versión."""
     if type(version) is not int:

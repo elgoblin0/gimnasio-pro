@@ -2,7 +2,7 @@
 
 import pytest
 
-from gimnasio.comun.bd import transaccion
+from gimnasio.comun.bd import conexion_actual, transaccion
 from gimnasio.comun.ids import desde_bytes
 from gimnasio.demo.servicio import reiniciar
 from gimnasio.entrenador.servicio import consultar_bandeja, consultar_socio, listar_socios
@@ -64,3 +64,26 @@ def test_bandeja_cubre_estados_y_se_repite(app_con_bd):
         reiniciar()
         assert consultar_bandeja(marcos) == primera
         assert listar_socios(marcos) == asignados
+
+
+def test_bandeja_acota_las_consultas_a_la_base(app_con_bd):
+    """Contra una base remota cada consulta cuesta decenas de milisegundos: en local no se nota."""
+    app_con_bd.config["MODO_DEMO"] = True
+    with app_con_bd.app_context():
+        reiniciar()
+        with transaccion() as cursor:
+            cursor.execute("SELECT id FROM usuarios WHERE rol='entrenador' AND es_demo=TRUE")
+            marcos = {"id": str(desde_bytes(cursor.fetchone()["id"])), "rol": "entrenador"}
+
+        def consultas():
+            cursor = conexion_actual().cursor()
+            cursor.execute("SHOW SESSION STATUS LIKE 'Questions'")
+            total = int(cursor.fetchone()[1])
+            cursor.close()
+            return total
+
+        antes = consultas()
+        bandeja = consultar_bandeja(marcos)
+        hechas = consultas() - antes - 1
+        assert sum(len(grupo["socios"]) for grupo in bandeja["grupos"]) > 80
+        assert hechas <= 110

@@ -32,11 +32,13 @@ def sondeo(monkeypatch, reloj_fijo):
     monkeypatch.setattr(servicio, "transaccion", lectura)
     monkeypatch.setattr(servicio, "listar_equipos", lambda **opciones: [])
     monkeypatch.setattr(servicio, "socios_asignados", lambda *args: [{"id": socio_id}])
-    monkeypatch.setattr(servicio, "avisos_para_entrenador", lambda *args: estado["avisos"])
+    monkeypatch.setattr(servicio, "avisos_para_entrenador_por_socio", lambda cursor, ids: {ids[0]: estado["avisos"]})
     monkeypatch.setattr(servicio.repositorio, "listar_revisiones", lambda *args: [])
-    monkeypatch.setattr(servicio, "listar_programas", lambda *args, **opciones: [])
+    monkeypatch.setattr(servicio, "socios_con_programa", lambda cursor, ids: set())
     monkeypatch.setattr(
-        servicio.repositorio, "fecha_asignacion_vigente", lambda *args: datetime(2026, 10, 30, tzinfo=UTC)
+        servicio.repositorio,
+        "fechas_asignacion_vigente",
+        lambda cursor, ids, entrenador: {ids[0]: datetime(2026, 10, 30, tzinfo=UTC)},
     )
     return app.test_client(), estado, aviso_id
 
@@ -90,7 +92,7 @@ def test_error_tambien_cierra_lectura(sondeo, monkeypatch):
     def fallar(*argumentos, **opciones):
         raise RuntimeError("Error de lectura ficticio")
 
-    monkeypatch.setattr(servicio, "listar_programas", fallar)
+    monkeypatch.setattr(servicio, "socios_con_programa", fallar)
     with pytest.raises(RuntimeError, match="Error de lectura ficticio"):
         cliente.get("/api/entrenador/bandeja")
     assert not estado["abierta"]
@@ -101,7 +103,7 @@ def test_error_tambien_cierra_lectura(sondeo, monkeypatch):
 def test_motivo_solo_por_equipo_necesario_y_trabajo_pendiente(sondeo, monkeypatch, pendiente, equipo_original):
     cliente, _, ejercicio_id = sondeo
     fecha = "2026-10-30T12:00:00+00:00"
-    monkeypatch.setattr(servicio, "listar_programas", lambda *args, **opciones: [{}])
+    monkeypatch.setattr(servicio, "socios_con_programa", lambda cursor, ids: set(ids))
     monkeypatch.setattr(
         servicio,
         "listar_equipos",

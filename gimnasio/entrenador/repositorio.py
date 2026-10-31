@@ -2,7 +2,7 @@
 
 from datetime import UTC
 
-from gimnasio.comun.ids import a_bytes
+from gimnasio.comun.ids import a_bytes, desde_bytes
 
 
 def listar_revisiones(cursor, aviso_ids, *, actual=False):
@@ -30,10 +30,14 @@ def insertar_revision(cursor, identificador, aviso_id, entrenador_id, nota, ahor
     )
 
 
-def fecha_asignacion_vigente(cursor, socio_id, entrenador_id):
+def fechas_asignacion_vigente(cursor, socio_ids, entrenador_id):
+    if not socio_ids:
+        return {}
+    lugares = ",".join(["%s"] * len(socio_ids))
     cursor.execute(
-        """SELECT MIN(desde) AS desde FROM asignaciones_entrenador
-           WHERE socio_id=%s AND entrenador_id=%s AND hasta IS NULL""",
-        (a_bytes(socio_id), a_bytes(entrenador_id)),
+        f"""SELECT socio_id, MIN(desde) AS desde FROM asignaciones_entrenador
+            WHERE socio_id IN ({lugares}) AND entrenador_id=%s AND hasta IS NULL
+            GROUP BY socio_id""",
+        (*(a_bytes(socio_id) for socio_id in socio_ids), a_bytes(entrenador_id)),
     )
-    return cursor.fetchone()["desde"]
+    return {desde_bytes(fila["socio_id"]): fila["desde"] for fila in cursor.fetchall()}

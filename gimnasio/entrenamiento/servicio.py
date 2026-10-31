@@ -1250,17 +1250,26 @@ def historial_para_entrenador(cursor, socio_id):
     return sesiones
 
 
+def _aviso_para_entrenador(fila):
+    return {
+        "id": str(desde_bytes(fila["id"])),
+        "freno": fila["freno"],
+        "explicacion": json.loads(fila["explicacion"]),
+        "creado_en": fila["creado_en"].replace(tzinfo=UTC).isoformat(),
+    }
+
+
 def avisos_para_entrenador(cursor, socio_id, *, bloquear=False):
     """Incluye avisos anteriores a un cambio de entrenador; el alcance es el socio."""
-    return [
-        {
-            "id": str(desde_bytes(f["id"])),
-            "freno": f["freno"],
-            "explicacion": json.loads(f["explicacion"]),
-            "creado_en": f["creado_en"].replace(tzinfo=UTC).isoformat(),
-        }
-        for f in repositorio.listar_avisos(cursor, socio_id, bloquear=bloquear)
-    ]
+    return [_aviso_para_entrenador(f) for f in repositorio.listar_avisos(cursor, socio_id, bloquear=bloquear)]
+
+
+def avisos_para_entrenador_por_socio(cursor, socio_ids):
+    """Lo mismo para varios socios en una sola consulta; el socio sin avisos no aparece."""
+    avisos = {}
+    for fila in repositorio.listar_avisos_de_socios(cursor, socio_ids):
+        avisos.setdefault(desde_bytes(fila["socio_id"]), []).append(_aviso_para_entrenador(fila))
+    return avisos
 
 
 def dolores_para_entrenador(cursor, socio_id):
