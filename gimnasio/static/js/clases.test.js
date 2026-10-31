@@ -8,10 +8,25 @@ const codigo = readFileSync(new URL("./clases.js", import.meta.url), "utf8")
 
 function preparar(error) {
   const elementos = new Map();
+  const documento = { querySelector: (selector) => obtener(selector), activeElement: null };
+  const crear = (etiqueta, propiedades = {}, ...hijos) => ({
+    etiqueta, ...propiedades, hijos, dataset: { focoAgenda: propiedades["data-foco-agenda"] },
+    append(...nuevos) { this.hijos.push(...nuevos); },
+    contains(elemento) { return this === elemento || this.hijos.some((hijo) => hijo?.contains?.(elemento)); },
+    querySelectorAll() {
+      return this.hijos.flatMap((hijo) => hijo?.etiqueta === "button" ? [hijo] : hijo?.querySelectorAll?.() ?? []);
+    },
+    replaceChildren(...nuevos) {
+      if (this.contains(documento.activeElement)) documento.activeElement = null;
+      this.hijos = nuevos;
+    },
+    focus() { documento.activeElement = this; },
+  });
   const obtener = (selector) => {
     if (!elementos.has(selector)) elementos.set(selector, {
+      ...crear("div"),
       disabled: false, hidden: true, value: "", textContent: "",
-      replaceChildren() {}, addEventListener() {}, reset() {},
+      addEventListener() {}, reset() {},
     });
     return elementos.get(selector);
   };
@@ -20,7 +35,7 @@ function preparar(error) {
   let fallo = error;
   let siguienteClave = 0;
   const contexto = vm.createContext({
-    document: { querySelector: obtener }, registrarPwa() {},
+    document: documento, crear, registrarPwa() {},
     crearSondeo: (opciones) => {
       const sondeo = { ...opciones, detenido: false, detener() { this.detenido = true; } };
       sondeos.push(sondeo);
@@ -37,7 +52,7 @@ function preparar(error) {
   });
   vm.runInContext(`${codigo}\nusuario = { rol: "socio" };`, contexto);
   return {
-    envios, obtener, sondeos,
+    envios, obtener, sondeos, documento,
     ejecutar: (texto) => vm.runInContext(texto, contexto),
     enviar: (socio = "primero") => vm.runInContext(
       `escribir("/api/clases/reservas", "POST", { socio_id: ${JSON.stringify(socio)} }, $("[data-boton]"))`, contexto),
@@ -97,3 +112,38 @@ test("sondea la agenda del socio seleccionado y descarta el sondeo anterior", as
   pantalla.ejecutar('enCurso = false; pendiente = { clave: "sin-confirmar" }');
   assert.equal(pantalla.sondeos[1].puedeConsultar(), false);
 });
+
+for (const rol of ["socio", "recepcion"]) {
+  test(`el sondeo conserva el foco por ocurrencia y acción para ${rol}`, async () => {
+    const pantalla = preparar();
+    pantalla.obtener("[data-socio]").value = "socio";
+    await pantalla.ejecutar(`usuario = { rol: "${rol}" }; socios = []; cargar()`);
+    const actualizar = pantalla.sondeos[0].alCambiar;
+    const primera = { clase_id: "clase", fecha: "2026-11-01", libres: 2 };
+    const segunda = { ...primera, fecha: "2026-11-02" };
+    const datos = (ocurrencias) => ({ desde: primera.fecha, hasta: segunda.fecha, ocurrencias });
+    const lista = pantalla.obtener("[data-agenda]");
+    actualizar(datos([primera, segunda]));
+    const indice = rol === "socio" ? 1 : 4;
+    const anterior = lista.querySelectorAll()[indice];
+    anterior.focus();
+    actualizar(datos([{ ...segunda, libres: 1 }, primera]));
+    assert.ok(pantalla.documento.activeElement);
+    assert.notEqual(pantalla.documento.activeElement, anterior);
+    assert.equal(pantalla.documento.activeElement?.dataset.focoAgenda, anterior.dataset.focoAgenda);
+
+    const externo = pantalla.obtener("[data-buscar-socio]");
+    externo.focus();
+    actualizar(datos([primera, segunda]));
+    assert.equal(pantalla.documento.activeElement, externo);
+
+    lista.querySelectorAll()[0].focus();
+    actualizar(datos([{ ...primera, cancelada: true }, segunda]));
+    assert.equal(pantalla.documento.activeElement, null);
+
+    actualizar(datos([primera]));
+    lista.querySelectorAll()[0].focus();
+    actualizar(datos([{ ...primera, reserva: { id: "reserva", estado: "con_lugar" } }]));
+    assert.equal(pantalla.documento.activeElement, null);
+  });
+}

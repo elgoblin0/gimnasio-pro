@@ -57,17 +57,17 @@ function dibujarOcurrencia(fila) {
     ? "Con lugar " : `En espera · Posición ${fila.reserva.posicion} `));
   if (usuario.rol === "socio" || usuario.rol === "recepcion") {
     const reserva = fila.reserva;
-    elemento.append(crear("button", { type: "button", disabled: usuario.rol === "recepcion" && !$("[data-socio]").value,
+    elemento.append(crear("button", { type: "button", "data-foco-agenda": JSON.stringify([fila.clase_id, fila.fecha, reserva ? "cancelar_reserva" : "reservar"]), disabled: usuario.rol === "recepcion" && !$("[data-socio]").value,
       onclick: (evento) => escribir(reserva ? `/api/clases/reservas/${reserva.id}/cancelar` : "/api/clases/reservas", "POST",
         reserva ? undefined : { clase_id: fila.clase_id, fecha: fila.fecha,
           ...(usuario.rol === "recepcion" ? { socio_id: $("[data-socio]").value } : {}) }, evento.currentTarget),
     }, reserva ? "Cancelar reserva" : "Reservar"));
   }
   if (["entrenador", "recepcion", "administracion"].includes(usuario.rol)) {
-    elemento.append(crear("button", { type: "button", onclick: (evento) => verReservas(fila, evento.currentTarget) }, "Ver reservas"));
+    elemento.append(crear("button", { type: "button", "data-foco-agenda": JSON.stringify([fila.clase_id, fila.fecha, "ver_reservas"]), onclick: (evento) => verReservas(fila, evento.currentTarget) }, "Ver reservas"));
   }
   if (["recepcion", "administracion"].includes(usuario.rol)) {
-    elemento.append(crear("button", { type: "button", onclick: (evento) => {
+    elemento.append(crear("button", { type: "button", "data-foco-agenda": JSON.stringify([fila.clase_id, fila.fecha, "cancelar_ocurrencia"]), onclick: (evento) => {
       const motivo = globalThis.prompt("Motivo de la cancelación de esta ocurrencia");
       if (motivo?.trim()) escribir(`/api/clases/${fila.clase_id}/${fila.fecha}/cancelar`, "POST", { motivo }, evento.currentTarget);
     } }, "Cancelar ocurrencia"));
@@ -108,7 +108,12 @@ async function cargar() {
           if (consulta !== consultaAgenda) return;
           $("[data-rango]").textContent = `${fecha(datos.desde)} al ${fecha(datos.hasta)} · ${datos.zona_horaria}`;
           $("[data-vacio]").hidden = datos.ocurrencias.length > 0;
-          $("[data-agenda]").replaceChildren(...datos.ocurrencias.map(dibujarOcurrencia));
+          const lista = $("[data-agenda]");
+          const foco = lista.contains(document.activeElement)
+            ? document.activeElement.dataset.focoAgenda : null;
+          lista.replaceChildren(...datos.ocurrencias.map(dibujarOcurrencia));
+          if (foco) [...lista.querySelectorAll("button")]
+            .find((boton) => boton.dataset.focoAgenda === foco && !boton.disabled)?.focus({ preventScroll: true });
           $("[data-error]").textContent = "";
         },
         alFallar: () => { $("[data-error]").textContent = "No se pudo actualizar la agenda. Se reintentará."; },
