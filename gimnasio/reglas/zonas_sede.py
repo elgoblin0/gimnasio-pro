@@ -17,7 +17,7 @@ ZONA_POR_EQUIPO = {
     "sin equipo": "funcional",
     "cajon": "funcional",
     "polea": "musculacion",
-    "m?quina de remo": "musculacion",
+    "máquina de remo": "musculacion",
 }
 
 
