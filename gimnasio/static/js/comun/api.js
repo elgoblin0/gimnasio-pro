@@ -4,10 +4,11 @@
 const METODOS_QUE_CAMBIAN = new Set(["POST", "PUT", "PATCH", "DELETE"]);
 
 export class ErrorDeApi extends Error {
-  constructor(codigo, mensaje, estadoHttp) {
+  constructor(codigo, mensaje, estadoHttp, detalles = {}) {
     super(mensaje);
     this.codigo = codigo;
     this.estadoHttp = estadoHttp;
+    this.detalles = detalles;
   }
 }
 
@@ -38,7 +39,7 @@ export function crearApi({ fetch: pedir = globalThis.fetch, nuevaClave = () => c
     }
     if (!respuesta.ok) {
       const error = datos?.error ?? {};
-      throw new ErrorDeApi(error.codigo ?? "error", error.mensaje ?? "Error inesperado", respuesta.status);
+      throw new ErrorDeApi(error.codigo ?? "error", error.mensaje ?? "Error inesperado", respuesta.status, error);
     }
     return datos;
   };

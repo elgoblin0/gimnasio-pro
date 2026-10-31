@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="es" data-direccion="b">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Editor de programas · Gimnasio Pro</title>
+  <meta name="theme-color" content="#b2452a">
+  <link rel="icon" href="/iconos/gimnasio-192.png">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="stylesheet" href="/estilos/tokens.css">
+  <link rel="stylesheet" href="/estilos/base.css">
+  <link rel="stylesheet" href="/estilos/recorrido.css">
+  <link rel="stylesheet" href="/estilos/entrenador.css">
+  <script type="importmap">{"imports":{"@comun/":"/js/comun/","three":"/vendor/three@0.186.0/three.module.js"}}</script>
+  <script type="module" src="/js/editor-programa.js"></script>
+</head>
+<body class="personal">
+<header class="personal-barra">
+  <a class="personal-marca" href="/">Gimnasio Pro</a>
+  <nav aria-label="Secciones">
+    <a href="/bandeja.html">Bandeja</a>
+    <a href="/equipos.html">Equipos</a>
+  </nav>
+  <p class="personal-demo" data-demo hidden>Datos ficticios · se reinician cada día</p>
+  <button type="button" data-cerrar>Cerrar sesión</button>
+</header>
+<main class="editor">
+  <header class="editor-cabecera">
+    <a data-volver-socio href="/bandeja.html">← Volver al socio</a>
+    <h1 data-titulo>Programa</h1>
+    <p class="nota-suave" data-base></p>
+    <p class="nota-suave" data-restricciones hidden></p>
+  </header>
+  <p data-estado role="status" aria-live="polite">Cargando el editor…</p>
+  <p data-error role="alert"></p>
+
+  <div class="editor-publicado" data-publicado tabindex="-1" hidden>
+    <h2 data-publicado-titulo></h2>
+    <p data-publicado-texto></p>
+    <a class="boton-tinta" data-publicado-enlace>Volver al socio</a>
+  </div>
+
+  <div class="editor-hojas" data-editor hidden>
+    <form class="editor-semana" data-formulario novalidate>
+      <fieldset class="editor-origen">
+        <legend>Partir de</legend>
+        <div class="origenes" data-origenes></div>
+        <p class="nota-suave" data-recuperado hidden></p>
+        <p class="deshacer" data-deshacer hidden>
+          <span>Reemplazaste la semana tipo.</span>
+          <button type="button" class="boton-enlace" data-deshacer-boton>Deshacer</button>
+        </p>
+      </fieldset>
+
+      <div class="editor-conflicto" data-conflicto role="alert" hidden>
+        <p data-conflicto-texto></p>
+        <div class="editor-acciones">
+          <button type="button" class="boton-tinta" data-conflicto-mantener>Mantener mi semana sobre esa versión</button>
+          <button type="button" class="boton-borde" data-conflicto-cargar>Cargar esa versión</button>
+        </div>
+      </div>
+
+      <div data-sesiones></div>
+      <p class="editor-sin-sesiones nota-suave" data-sin-sesiones hidden>Elegí una plantilla para empezar, o agregá la primera sesión.</p>
+      <button type="button" class="boton-borde" data-agregar-sesion>Agregar sesión</button>
+
+      <div class="editor-publicar">
+        <label class="editor-duracion" for="duracion">Duración
+          <span class="campo-con-unidad"><input id="duracion" name="semanas" type="number" inputmode="numeric" min="4" max="12" step="1" data-duracion> semanas</span>
+        </label>
+        <p class="editor-generadas" data-generadas></p>
+        <button type="submit" class="boton-tinta" data-publicar>Publicar</button>
+        <ul class="editor-problemas" data-problemas role="alert"></ul>
+      </div>
+    </form>
+
+    <aside class="editor-cuerpo" aria-labelledby="titulo-volumen">
+      <h2 id="titulo-volumen">Series semanales por zona del cuerpo</h2>
+      <p class="nota-suave">Color relativo a la zona más trabajada de este programa.</p>
+      <div data-volumen></div>
+    </aside>
+  </div>
+</main>
+</body>
+</html>

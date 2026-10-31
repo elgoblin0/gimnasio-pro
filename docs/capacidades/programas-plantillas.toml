@@ -8,3 +8,5 @@ prueba = "pruebas/test_publicar_programas.py"
 # La publicación respeta las restricciones de salud vigentes (#180).
 
 # Carga de partida del entrenador limitada por el motor, hasta la primera serie en la versión (#181).
+
+# Editor con cuerpo 3D de series por zona y alternativa sin WebGL (#187): pruebas/e2e/test_pantallas_entrenador.py.

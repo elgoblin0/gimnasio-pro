@@ -94,7 +94,43 @@ export function crearResumenZonas(contenedor, trabajadas, dolores) {
   mejorarCuerpo(contenedor, svg, false);
 }
 
-function mejorarCuerpo(contenedor, svg, seleccionable) {
+// Series semanales por zona, para quien arma un programa. La figura es la del socio, no la de la sesión,
+// y no se elige desde acá. Sin WebGL o con movimiento reducido queda la silueta con las series escritas.
+export function crearVolumenZonas(contenedor, figura) {
+  crearSelectorZonas(contenedor);
+  const original = contenedor.querySelector("svg");
+  const svg = original.cloneNode(true);
+  original.replaceWith(svg);
+  svg.setAttribute("role", "img");
+  svg.setAttribute("aria-label", "Series semanales por zona del cuerpo");
+  svg.setAttribute("viewBox", "0 0 640 400");
+  svg.classList.add("silueta-volumen");
+  const controles = [...svg.querySelectorAll("[data-zona]")];
+  for (const control of controles) {
+    control.removeAttribute("role");
+    control.removeAttribute("tabindex");
+    control.removeAttribute("aria-checked");
+    control.removeAttribute("aria-label");
+  }
+  mejorarCuerpo(contenedor, svg, false, { figura: figura ?? null });
+  return {
+    actualizar(volumen, total) {
+      const maximo = Math.max(0, ...volumen.values());
+      svg.dataset.total = String(total);
+      for (const control of controles) {
+        const series = volumen.get(control.dataset.zona) ?? 0;
+        const relativa = maximo ? series / maximo : 0;
+        const zona = ZONAS_CUERPO.find((z) => z.id === control.dataset.zona);
+        control.querySelector("text").textContent = `${zona.nombre} · ${series} ${series === 1 ? "serie" : "series"}`;
+        control.style.setProperty("--volumen", String(relativa));
+        control.dataset.series = String(series);
+        control.dataset.volumen = String(relativa);
+      }
+    },
+  };
+}
+
+function mejorarCuerpo(contenedor, svg, seleccionable, opciones = {}) {
   const ventana = contenedor.ownerDocument.defaultView;
   if (!ventana?.matchMedia || ventana.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
   const prueba = contenedor.ownerDocument.createElement("canvas");
@@ -103,6 +139,10 @@ function mejorarCuerpo(contenedor, svg, seleccionable) {
   if (!contexto) return;
   contexto.getExtension("WEBGL_lose_context")?.loseContext();
   import("./cuerpo-3d.js").then(async ({ crearCuerpo }) => {
+    if ("figura" in opciones) {
+      if (svg.isConnected) return crearCuerpo(contenedor, svg, seleccionable, opciones.figura);
+      return;
+    }
     const usuario = await usuarioDeLaSesion();
     if (svg.isConnected) return crearCuerpo(contenedor, svg, seleccionable, usuario?.figura_cuerpo, usuario ? guardarFigura : undefined);
   }).catch(() => {}); // La silueta conserva su función si falla la carga.

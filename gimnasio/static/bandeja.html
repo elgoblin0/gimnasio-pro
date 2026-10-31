@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="es" data-direccion="b">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Bandeja · Gimnasio Pro</title>
+  <meta name="theme-color" content="#b2452a">
+  <link rel="icon" href="/iconos/gimnasio-192.png">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="stylesheet" href="/estilos/tokens.css">
+  <link rel="stylesheet" href="/estilos/base.css">
+  <link rel="stylesheet" href="/estilos/recorrido.css">
+  <link rel="stylesheet" href="/estilos/entrenador.css">
+  <script type="importmap">{"imports":{"@comun/":"/js/comun/"}}</script>
+  <script type="module" src="/js/bandeja.js"></script>
+</head>
+<body class="personal">
+<header class="personal-barra">
+  <a class="personal-marca" href="/">Gimnasio Pro</a>
+  <nav aria-label="Secciones">
+    <a href="/bandeja.html" aria-current="page">Bandeja</a>
+    <a href="/equipos.html">Equipos</a>
+  </nav>
+  <p class="personal-demo" data-demo hidden>Datos ficticios · se reinician cada día</p>
+  <button type="button" data-cerrar>Cerrar sesión</button>
+</header>
+<main class="bandeja" data-bandeja>
+  <section class="bandeja-lista" aria-labelledby="titulo-bandeja">
+    <h1 id="titulo-bandeja">Bandeja</h1>
+    <p class="bandeja-cifra" data-resumen hidden><strong data-resumen-cifra></strong> <span data-resumen-texto></span></p>
+    <p data-estado role="status" aria-live="polite">Cargando la bandeja…</p>
+    <p data-error role="alert"></p>
+    <div class="bandeja-vacia" data-vacia hidden>
+      <h2>No quedó nada pendiente</h2>
+      <p>Ninguno de tus socios asignados requiere atención ahora. Si llega un aviso, aparece acá sin recargar.</p>
+    </div>
+    <div data-grupos></div>
+  </section>
+
+  <section class="hoja" data-hoja aria-labelledby="hoja-nombre" tabindex="-1">
+    <p class="hoja-indicacion" data-indicacion>Elegí un socio de la bandeja para ver qué hizo y por qué el motor decidió lo que decidió.</p>
+    <a class="hoja-volver" href="/bandeja.html" data-volver>← Volver a la bandeja</a>
+    <p data-socio-error role="alert"></p>
+    <div data-socio hidden>
+      <header class="hoja-cabecera">
+        <div>
+          <h2 id="hoja-nombre" data-socio-nombre></h2>
+          <p data-socio-programa></p>
+        </div>
+        <a class="boton-tinta" data-abrir-editor>Abrir editor</a>
+      </header>
+
+      <section class="pliego pliego-avisos" data-revision aria-labelledby="titulo-sin-revisar" hidden>
+        <h3 id="titulo-sin-revisar">Avisos sin revisar</h3>
+        <ul class="avisos" data-avisos-sin-revisar></ul>
+        <form data-formulario-revision>
+          <label>Nota opcional
+            <textarea name="nota" rows="2" maxlength="500" data-nota></textarea>
+          </label>
+          <p class="nota-suave">Revisar deja constancia de que lo viste. No deshace lo que hizo el freno.</p>
+          <button type="submit" class="boton-tinta" data-revisar>Marcar como revisados</button>
+          <p data-error-revision role="alert"></p>
+        </form>
+      </section>
+
+      <section class="pliego" aria-labelledby="titulo-programa">
+        <h3 id="titulo-programa">Programa vigente</h3>
+        <div data-programa></div>
+      </section>
+
+      <section class="pliego" aria-labelledby="titulo-sesiones">
+        <h3 id="titulo-sesiones">Últimas sesiones realizadas</h3>
+        <div data-sesiones></div>
+      </section>
+
+      <section class="pliego" aria-labelledby="titulo-salud">
+        <h3 id="titulo-salud">Salud <span class="nota-suave">solo lectura</span></h3>
+        <div data-salud></div>
+      </section>
+
+      <section class="pliego" data-historial aria-labelledby="titulo-revisados" hidden>
+        <h3 id="titulo-revisados">Avisos revisados</h3>
+        <ul class="avisos" data-avisos-revisados></ul>
+      </section>
+    </div>
+  </section>
+</main>
+</body>
+</html>

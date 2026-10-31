@@ -1,5 +1,5 @@
 // Peticiones cortas sin solaparse; el navegador oculto no consume consultas.
-export function crearSondeo({ url, cadaMs = 5000, alCambiar, puedeConsultar = () => true }) {
+export function crearSondeo({ url, cadaMs = 5000, alCambiar, alFallar = () => {}, puedeConsultar = () => true }) {
   let etiqueta;
   let espera = cadaMs;
   let temporizador;
@@ -35,6 +35,7 @@ export function crearSondeo({ url, cadaMs = 5000, alCambiar, puedeConsultar = ()
       espera = cadaMs;
     } catch {
       espera = Math.min(30000, espera * 2);
+      alFallar();
     } finally {
       enCurso = false;
       programar();

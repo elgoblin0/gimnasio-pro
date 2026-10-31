@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import { ZONAS_CUERPO } from "./zonas.js";
+import { separarRotulos } from "./volumen-zonas.js";
 
 // Cada zona es una o más elipses sobre el cuerpo en reposo (brazos en cruz), espejadas en x.
 // lado: 1 frente, -1 espalda, 0 ambos; corte: plano z que separa frente y espalda.
@@ -50,8 +51,8 @@ const FIGURAS = {
 };
 
 const TEMAS = {
-  claro: {cuerpo: "#e9dfcd", dolor: "#e0401a", trabajada: "#128a5e", aro: "#b5a993", cielo: 1.7, suelo: "#a89b84", sol: 2.3, solColor: "#fff3e0", contra: 1.2, exposicion: 1, emision: .75, sombra: .22},
-  oscuro: {cuerpo: "#d9cdb8", dolor: "#f0603a", trabajada: "#3fb488", aro: "#5c554a", cielo: 1.2, suelo: "#5c554a", sol: 2.3, solColor: "#ffd9ad", contra: 3, exposicion: 1.05, emision: .4, sombra: .6},
+  claro: {cuerpo: "#e9dfcd", dolor: "#e0401a", trabajada: "#128a5e", volumenBajo: "#dc9273", volumenAlto: "#a12c10", aro: "#b5a993", cielo: 1.7, suelo: "#a89b84", sol: 2.3, solColor: "#fff3e0", contra: 1.2, exposicion: 1, emision: .75, sombra: .22},
+  oscuro: {cuerpo: "#d9cdb8", dolor: "#f0603a", trabajada: "#3fb488", volumenBajo: "#a4583c", volumenAlto: "#f0603a", aro: "#5c554a", cielo: 1.2, suelo: "#5c554a", sol: 2.3, solColor: "#ffd9ad", contra: 3, exposicion: 1.05, emision: .4, sombra: .6},
 };
 
 const suave = t => t * t * (3 - 2 * t);
@@ -241,6 +242,9 @@ export async function crearCuerpo(contenedor, svg, seleccionable, nombreFigura, 
   giro.append(frente, espalda);
   maqueta.append(lienzo, rotulos, cifras, giro);
   const panel = crear("div", "cuerpo-panel");
+  // Con series por zona (el editor de programas) el color es una escala relativa, no un estado.
+  const conVolumen = () => controles.some(control => control.dataset.volumen !== undefined);
+  const seriesDe = control => Number(control.dataset.series ?? 0);
   panel.append(crear("p", "cuerpo-pista", seleccionable ? "Tocá el cuerpo o elegí una zona. Arrastrá para girar." : "Arrastrá para girar."));
   const lista = crear("div", "cuerpo-zonas");
   lista.setAttribute("aria-label", "Zonas del cuerpo");
@@ -327,7 +331,38 @@ export async function crearCuerpo(contenedor, svg, seleccionable, nombreFigura, 
   const conDolor = control => control.getAttribute("aria-checked") === "true" || control.dataset.dolor === "true";
   const trabajada = control => control.dataset.trabajada === "true";
   // Solo lleva color lo que se marcó o se trabajó. Con ambos estados, el dolor queda en el centro.
+  const volumenVisto = new Float32Array(ZONAS_CUERPO.length);
+  const colorBajo = new THREE.Color(), colorAlto = new THREE.Color();
+  // Cada cambio llega al cuerpo en unos cuadros, para que se note qué zona se movió.
+  function avanzarVolumen() {
+    let falta = false;
+    controles.forEach((control, indice) => {
+      const meta = Number(control.dataset.volumen ?? 0);
+      const distancia = meta - volumenVisto[indice];
+      if (Math.abs(distancia) < .006) { volumenVisto[indice] = meta; return; }
+      volumenVisto[indice] += distancia * .24;
+      falta = true;
+    });
+    return falta;
+  }
+  function pintarVolumen(tema) {
+    colorBajo.set(tema.volumenBajo); colorAlto.set(tema.volumenAlto);
+    controles.forEach((control, indice) => {
+      const visto = volumenVisto[indice];
+      color.copy(colorBajo).lerp(colorAlto, visto);
+      color.toArray(compartidos.uRelleno.value, indice * 3);
+      color.toArray(compartidos.uBorde.value, indice * 3);
+      compartidos.uFuerza.value[indice] = visto > .005 ? Math.min(.4 + visto * .58, .98) : 0;
+      const {boton, estado} = filas[indice];
+      const series = seriesDe(control);
+      boton.dataset.estado = series ? "volumen" : "libre";
+      boton.style.order = String(-series);
+      boton.style.setProperty("--volumen", control.dataset.volumen ?? "0");
+      estado.textContent = String(series);
+    });
+  }
   function pintarZonas(tema) {
+    if (conVolumen()) { pintarVolumen(tema); return; }
     controles.forEach((control, indice) => {
       const dolor = conDolor(control), hecha = trabajada(control);
       pintar(compartidos.uRelleno.value, indice, hecha ? tema.trabajada : tema.dolor);
@@ -347,6 +382,11 @@ export async function crearCuerpo(contenedor, svg, seleccionable, nombreFigura, 
   }
 
   function dibujarCifras() {
+    if (conVolumen()) {
+      const total = svg.dataset.total ?? "0";
+      cifras.replaceChildren(crear("strong", "", total), crear("span", "", total === "1" ? "serie por semana" : "series por semana"));
+      return;
+    }
     const dolores = controles.filter(conDolor).length;
     const hechas = controles.filter(trabajada).length;
     if (seleccionable) {
@@ -360,8 +400,11 @@ export async function crearCuerpo(contenedor, svg, seleccionable, nombreFigura, 
   function dibujarRotulos(ancho, alto) {
     const nuevos = [];
     const seno = Math.sin(cuerpo.rotation.y), coseno = Math.cos(cuerpo.rotation.y);
+    const volumen = conVolumen();
+    // Con volumen solo se rotulan las cuatro zonas más trabajadas: el resto está en la lista.
+    const destacadas = volumen ? [...controles].filter(seriesDe).sort((a, b) => seriesDe(b) - seriesDe(a)).slice(0, 4) : [];
     controles.forEach((control, indice) => {
-      if (!conDolor(control) && !trabajada(control)) return;
+      if (volumen ? !destacadas.includes(control) : !conDolor(control) && !trabajada(control)) return;
       const parche = figura.parches.find(p => p.zona === indice);
       // Del lado del cuerpo que mira a la cámara; si ambos se ven, el que queda a la derecha de la pantalla.
       const profundidad = parche.lado === 0 ? .1 : parche.corte + parche.lado * .13;
@@ -372,15 +415,21 @@ export async function crearCuerpo(contenedor, svg, seleccionable, nombreFigura, 
       const lugar = Math.abs(uno.z - otro.z) < .08 ? (uno.x > otro.x ? uno : otro) : (uno.z > otro.z ? uno : otro);
       if (parche.lado !== 0 && lugar.z < 0) return;
       punto.set(lugar.x, lugar.y, lugar.z).project(camara);
-      const rotulo = crear("span", "rotulo-cuerpo", ZONAS_CUERPO[indice].nombre);
+      const rotulo = crear("span", "rotulo-cuerpo", volumen ? `${ZONAS_CUERPO[indice].nombre} ${seriesDe(control)}` : ZONAS_CUERPO[indice].nombre);
       rotulo.style.left = `${(punto.x + 1) / 2 * ancho}px`;
       rotulo.style.top = `${(1 - punto.y) / 2 * alto}px`;
-      nuevos.push(rotulo);
+      nuevos.push({elemento: rotulo, izquierda: (punto.x + 1) / 2 * ancho, arriba: (1 - punto.y) / 2 * alto});
     });
-    rotulos.replaceChildren(...nuevos);
+    rotulos.replaceChildren(...nuevos.map(n => n.elemento));
+    const medidos = nuevos.map(n => ({...n, ancho: n.elemento.offsetWidth, alto: n.elemento.offsetHeight}));
+    for (const {elemento, arriba} of separarRotulos(medidos)) elemento.style.top = `${arriba}px`;
   }
 
+  let cuadroVolumen = 0;
   function dibujar() {
+    if (conVolumen() && avanzarVolumen() && !cuadroVolumen) {
+      cuadroVolumen = ventana.requestAnimationFrame(() => { cuadroVolumen = 0; dibujar(); });
+    }
     const tema = oscuro.matches ? TEMAS.oscuro : TEMAS.claro;
     material.color.set(tema.cuerpo);
     materialAro.color.set(tema.aro);
@@ -461,6 +510,7 @@ export async function crearCuerpo(contenedor, svg, seleccionable, nombreFigura, 
   });
   function restaurar() {
     ventana.cancelAnimationFrame(animacion);
+    ventana.cancelAnimationFrame(cuadroVolumen);
     observador.disconnect(); ajuste.disconnect(); presencia.disconnect();
     preferencia.removeEventListener("change", restaurar);
     oscuro.removeEventListener("change", dibujar);
