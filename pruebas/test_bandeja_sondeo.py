@@ -57,6 +57,25 @@ def test_sondeo_cierra_lectura_en_200_y_304_y_cambia_tras_aviso(sondeo):
     assert [m["tipo"] for m in motivos] == ["aviso_seguridad", "sin_programa"]
 
 
+@pytest.mark.parametrize(
+    ("freno", "tipos"),
+    [
+        ("dolor_reportado", ["aviso_seguridad", "sin_programa"]),
+        ("restriccion_salud", ["aviso_seguridad", "sin_programa"]),
+        ("chequeo_desfavorable", ["aviso_progresion", "sin_programa"]),
+        ("tope_semanal", ["aviso_progresion", "sin_programa"]),
+        ("tope_suba_semanal", ["sin_programa"]),
+    ],
+)
+def test_bandeja_solo_clasifica_frenos_del_motor(sondeo, freno, tipos):
+    cliente, estado, aviso_id = sondeo
+    estado["avisos"] = [{"id": aviso_id, "freno": freno, "creado_en": "2026-10-30T00:00:00+00:00"}]
+    respuesta = cliente.get("/api/entrenador/bandeja")
+    assert respuesta.status_code == 200
+    socios = [socio for grupo in respuesta.json["grupos"] for socio in grupo["socios"]]
+    assert [motivo["tipo"] for motivo in socios[0]["motivos"]] == tipos
+
+
 @pytest.mark.parametrize("rol", ["socio", "recepcion", "administracion"])
 def test_permiso_se_aplica_antes_de_leer(sondeo, rol):
     cliente, estado, _ = sondeo

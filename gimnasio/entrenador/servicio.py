@@ -134,7 +134,6 @@ def consultar_bandeja(usuario):
                     "restriccion_salud",
                     "chequeo_desfavorable",
                     "tope_semanal",
-                    "tope_suba_semanal",
                 }:
                     continue
                 tipo = (
