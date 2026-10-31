@@ -58,7 +58,7 @@ Todo PR que las toque necesita, además de la revisión de Codex, la de Opus sob
 1. Hace lo que pide el issue, sin agregados no pedidos.
 2. Pruebas nuevas que fallaban antes del cambio; `ruff` y `pytest` en verde en el CI.
 3. Migraciones aplicables sobre una base vacía (el CI lo comprueba).
-4. Si cambia una capacidad, se edita su `docs/capacidades/<id>.toml` (ver docstring de `scripts/mapa_capacidades.py`) y se regenera el mapa.
+4. Si cambia una capacidad, se edita su `docs/capacidades/<id>.toml` (ver docstring de `scripts/mapa_capacidades.py`) y se regenera el mapa. El CI exige la ficha con cada prueba e2e nueva, salvo `# Sin ficha: <motivo>` en la prueba. Si cambia un módulo de `reglas/` que registra `VERSION_REGLAS`, se sube (`scripts/verificar_pr.py`).
 5. Si mueve código citado en `INDICADORES.md`, se actualizan sus referencias.
 6. PR con la plantilla completa, incluida "Notas para el próximo agente".
 7. Revisión cruzada aprobada.
@@ -69,7 +69,7 @@ Opus planifica, decide y escribe los issues; Codex los implementa cuando la cade
 ## Lo que Codex no hace
 - Decidir diseño, producto, alcance o términos nuevos: etiqueta `necesita-criterio`, explica la duda en un comentario y se detiene; decide Opus.
 - Escribir ADR, cambiar `VISION.md`, `GLOSSARY.md` o los frenos de seguridad.
-- Crear migraciones que alteren tablas de hechos, o cambiar `reglas/` sin un issue que lo especifique.
+- Crear migraciones que alteren tablas de hechos (el CI las rechaza sin `-- Autoriza Opus: #N`, línea que solo escribe Opus), o cambiar `reglas/` sin un issue que lo especifique.
 - Tocar `.github/workflows/`, salvo que el issue lo autorice por escrito.
 - Agregar dependencias que el issue no nombre.
 - Desactivar pruebas, bajar umbrales del CI o usar `# noqa` sin explicación.
