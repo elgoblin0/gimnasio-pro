@@ -108,8 +108,8 @@ def _equipo_publico(fila):
     }
 
 
-def listar_equipos():
-    with transaccion() as cursor:
+def listar_equipos(*, cursor=None):
+    with nullcontext(cursor) if cursor is not None else transaccion() as cursor:
         return [_equipo_publico(fila) for fila in repositorio.leer_equipos(cursor)]
 
 

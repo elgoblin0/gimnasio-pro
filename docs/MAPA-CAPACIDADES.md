@@ -78,7 +78,7 @@ Generado por `scripts/mapa_capacidades.py` desde `docs/capacidades/`. No editar 
 | Capacidad | Etapa | Nivel | Prueba |
 |---|---|---|---|
 | Lectura del programa de entrenamiento por socio y versión con catálogo y rango de repeticiones | 1 | funcional | `pruebas/test_programas.py` |
-| Bandeja priorizada del entrenador | 4 | pendiente | `pruebas/test_entrenador.py` |
+| Bandeja priorizada del entrenador | 4 | funcional | `pruebas/test_bandeja_api.py` |
 | Equipos y alternativas | 4 | funcional | `pruebas/test_alternativas_api.py` |
 | Programas desde plantillas | 4 | funcional | `pruebas/test_publicar_programas.py` |
 

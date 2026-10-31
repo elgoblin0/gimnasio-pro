@@ -24,3 +24,13 @@ def consultar_socio(socio_id):
 @requiere("avisos.revisar")
 def revisar_avisos(socio_id):
     return jsonify(servicio.revisar_avisos(socio_id, request.get_json(silent=True), usuario_actual()))
+
+
+@bp.get("/bandeja")
+@requiere("socios.ver_asignados")
+def consultar_bandeja():
+    respuesta = jsonify(servicio.consultar_bandeja(usuario_actual()))
+    respuesta.add_etag()
+    respuesta.cache_control.private = True
+    respuesta.cache_control.no_cache = True
+    return respuesta.make_conditional(request)

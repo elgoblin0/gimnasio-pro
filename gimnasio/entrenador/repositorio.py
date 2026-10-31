@@ -28,3 +28,12 @@ def insertar_revision(cursor, identificador, aviso_id, entrenador_id, nota, ahor
             ahora.astimezone(UTC).replace(tzinfo=None),
         ),
     )
+
+
+def fecha_asignacion_vigente(cursor, socio_id, entrenador_id):
+    cursor.execute(
+        """SELECT MIN(desde) AS desde FROM asignaciones_entrenador
+           WHERE socio_id=%s AND entrenador_id=%s AND hasta IS NULL""",
+        (a_bytes(socio_id), a_bytes(entrenador_id)),
+    )
+    return cursor.fetchone()["desde"]

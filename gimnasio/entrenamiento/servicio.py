@@ -307,7 +307,7 @@ def catalogo_programa(programa):
     return tuple(ejercicios.values())
 
 
-def consultar_propuesta(socio_texto, usuario, planificada_id=None, *, cursor=None):
+def consultar_propuesta(socio_texto, usuario, planificada_id=None, *, cursor=None, sin_chequeo=False):
     socio_id = identificar(socio_texto)
     ahora = reloj_actual().ahora()
     with nullcontext(cursor) if cursor is not None else transaccion() as lectura:
@@ -319,7 +319,11 @@ def consultar_propuesta(socio_texto, usuario, planificada_id=None, *, cursor=Non
             raise ErrorDeDominio("sede_inexistente", "La sede no existe.", 404)
         filas = repositorio.listar_series_vigentes(lectura, socio_id)
         efectivas = repositorio.listar_prescripciones(lectura, socio_id)
-        chequeo = repositorio.obtener_chequeo(lectura, socio_id, fecha_local(ahora, ZoneInfo(sede["zona_horaria"])))
+        chequeo = (
+            None
+            if sin_chequeo
+            else repositorio.obtener_chequeo(lectura, socio_id, fecha_local(ahora, ZoneInfo(sede["zona_horaria"])))
+        )
         actuales = repositorio.zonas_chequeo(lectura, desde_bytes(chequeo["id"]) if chequeo else None)
         anterior = repositorio.ultima_sesion(lectura, socio_id)
         anteriores = dolores_de_sesion(lectura, anterior, sede) if anterior else ()
@@ -1257,3 +1261,9 @@ def dolores_para_entrenador(cursor, socio_id):
         }
         for f in repositorio.listar_dolores(cursor, socio_id)
     ]
+
+
+def ultima_serie_para_entrenador(cursor, socio_id):
+    """Fecha de la última serie vigente, sin exponer sus medidas."""
+    filas = repositorio.listar_series_vigentes(cursor, socio_id)
+    return max((f["registrada_en"] for f in filas), default=None)
