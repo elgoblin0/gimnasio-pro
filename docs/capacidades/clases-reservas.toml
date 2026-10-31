@@ -1,6 +1,6 @@
 id = "clases-reservas"
-nombre = "Clases y reservas con lista de espera"
+nombre = "Clases, reservas, cancelaciones de ocurrencias y avisos al socio"
 grupo = "Operación"
 etapa = 5
 nivel = "funcional"
-prueba = "pruebas/test_clases_reservas.py"
+prueba = "pruebas/test_clases_avisos.py"

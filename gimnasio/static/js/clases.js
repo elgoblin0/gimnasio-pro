@@ -1,6 +1,7 @@
 import { llamarApi } from "@comun/api.js";
 import { crear, exigirRol, prepararBarra } from "@comun/personal.js";
 import { registrarPwa } from "@comun/pwa.js";
+import { crearSondeo } from "@comun/sondeo.js";
 
 registrarPwa();
 const $ = (selector) => document.querySelector(selector);
@@ -13,6 +14,7 @@ let pendiente;
 let socios = null;
 let consultaAgenda = 0;
 let enCurso = false;
+let sondeo;
 
 function elegirSocios() {
   const seleccion = $("[data-socio]").value;
@@ -47,18 +49,28 @@ async function verReservas(fila, boton) {
 function dibujarOcurrencia(fila) {
   const elemento = crear("li", {},
     `${fecha(fila.fecha)} · ${fila.hora_inicio} · ${fila.clase} · ${fila.entrenador} · ${fila.duracion_minutos} minutos · Cupo: ${fila.cupo} · Libres: ${fila.libres} · En espera: ${fila.espera} `);
+  if (fila.cancelada) {
+    elemento.append(crear("strong", {}, "Ocurrencia cancelada"));
+    return elemento;
+  }
   if (fila.reserva) elemento.append(crear("span", {}, fila.reserva.estado === "con_lugar"
     ? "Con lugar " : `En espera · Posición ${fila.reserva.posicion} `));
   if (usuario.rol === "socio" || usuario.rol === "recepcion") {
     const reserva = fila.reserva;
-    elemento.append(crear("button", { type: "button", disabled: usuario.rol === "recepcion" && !$("[data-socio]").value,
+    elemento.append(crear("button", { type: "button", "data-foco-agenda": JSON.stringify([fila.clase_id, fila.fecha, reserva ? "cancelar_reserva" : "reservar"]), disabled: usuario.rol === "recepcion" && !$("[data-socio]").value,
       onclick: (evento) => escribir(reserva ? `/api/clases/reservas/${reserva.id}/cancelar` : "/api/clases/reservas", "POST",
         reserva ? undefined : { clase_id: fila.clase_id, fecha: fila.fecha,
           ...(usuario.rol === "recepcion" ? { socio_id: $("[data-socio]").value } : {}) }, evento.currentTarget),
     }, reserva ? "Cancelar reserva" : "Reservar"));
   }
   if (["entrenador", "recepcion", "administracion"].includes(usuario.rol)) {
-    elemento.append(crear("button", { type: "button", onclick: (evento) => verReservas(fila, evento.currentTarget) }, "Ver reservas"));
+    elemento.append(crear("button", { type: "button", "data-foco-agenda": JSON.stringify([fila.clase_id, fila.fecha, "ver_reservas"]), onclick: (evento) => verReservas(fila, evento.currentTarget) }, "Ver reservas"));
+  }
+  if (["recepcion", "administracion"].includes(usuario.rol)) {
+    elemento.append(crear("button", { type: "button", "data-foco-agenda": JSON.stringify([fila.clase_id, fila.fecha, "cancelar_ocurrencia"]), onclick: (evento) => {
+      const motivo = globalThis.prompt("Motivo de la cancelación de esta ocurrencia");
+      if (motivo?.trim()) escribir(`/api/clases/${fila.clase_id}/${fila.fecha}/cancelar`, "POST", { motivo }, evento.currentTarget);
+    } }, "Cancelar ocurrencia"));
   }
   return elemento;
 }
@@ -70,6 +82,7 @@ function nueva() {
 }
 
 async function cargar() {
+  sondeo?.detener();
   const consulta = ++consultaAgenda;
   $("[data-agenda]").replaceChildren();
   $("[data-error]").textContent = "";
@@ -87,6 +100,25 @@ async function cargar() {
     $("[data-rango]").textContent = `${fecha(agenda.desde)} al ${fecha(agenda.hasta)} · ${agenda.zona_horaria}`;
     $("[data-vacio]").hidden = agenda.ocurrencias.length > 0;
     $("[data-agenda]").replaceChildren(...agenda.ocurrencias.map(dibujarOcurrencia));
+    if (["socio", "recepcion"].includes(usuario.rol)) {
+      sondeo = crearSondeo({
+        url: `/api/clases/agenda${socioId ? `?socio_id=${encodeURIComponent(socioId)}` : ""}`,
+        puedeConsultar: () => !enCurso && !pendiente,
+        alCambiar: (datos) => {
+          if (consulta !== consultaAgenda) return;
+          $("[data-rango]").textContent = `${fecha(datos.desde)} al ${fecha(datos.hasta)} · ${datos.zona_horaria}`;
+          $("[data-vacio]").hidden = datos.ocurrencias.length > 0;
+          const lista = $("[data-agenda]");
+          const foco = lista.contains(document.activeElement)
+            ? document.activeElement.dataset.focoAgenda : null;
+          lista.replaceChildren(...datos.ocurrencias.map(dibujarOcurrencia));
+          if (foco) [...lista.querySelectorAll("button")]
+            .find((boton) => boton.dataset.focoAgenda === foco && !boton.disabled)?.focus({ preventScroll: true });
+          $("[data-error]").textContent = "";
+        },
+        alFallar: () => { $("[data-error]").textContent = "No se pudo actualizar la agenda. Se reintentará."; },
+      });
+    }
     $("[data-lista-reservas]").hidden = true;
     if (usuario.rol === "administracion") {
       const datos = await llamarApi("/api/clases");

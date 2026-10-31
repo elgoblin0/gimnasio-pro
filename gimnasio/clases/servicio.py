@@ -5,12 +5,15 @@ from collections import defaultdict
 from datetime import UTC, date, datetime, time, timedelta
 from zoneinfo import ZoneInfo
 
+from mysql.connector import Error as ErrorMySQL
+from mysql.connector.errorcode import ER_LOCK_DEADLOCK as INTERBLOQUEO_MYSQL
+
 from gimnasio.clases import repositorio
 from gimnasio.comun.bd import transaccion
 from gimnasio.comun.errores import ErrorDeDominio
 from gimnasio.comun.ids import desde_bytes, desde_texto, nuevo_id
 from gimnasio.comun.reloj import reloj_actual
-from gimnasio.reglas.clases import estado_reservas, ocurrencias_en_rango
+from gimnasio.reglas.clases import cambios_de_estado, estado_reservas, ocurrencias_en_rango
 from gimnasio.socios import servicio as socios
 
 
@@ -85,13 +88,17 @@ def agenda(usuario=None, socio_texto=None):
         for reserva in repositorio.reservas_en_rango(cursor, desde, hasta):
             reservas[(str(desde_bytes(reserva["clase_id"])), reserva["fecha"])].append(reserva)
     por_id = {clase["id"]: clase for clase in clases}
+    fijadas = {(fila["clase_id"], fila["fecha"]): fila for fila in ocurrencias}
     resultado = []
     for fila in ocurrencias_en_rango(clases, ocurrencias, desde, hasta):
         clase = por_id[fila["clase_id"]]
         if usuario and usuario["rol"] == "entrenador" and clase["entrenador_id"] != usuario["id"]:
             continue
         activas = reservas[(clase["id"], fila["fecha"])]
-        estado = estado_reservas(clase["cupo"], activas)
+        fijada = fijadas.get((clase["id"], fila["fecha"]), {})
+        cupo = fijada.get("cupo", clase["cupo"])
+        cancelada = bool(fijada.get("cancelada", False))
+        estado = estado_reservas(cupo, activas)
         propia = next((r for r in activas if socio_id and r["socio_id"] == socio_id.bytes), None)
         fecha = fila["fecha"].isoformat()
         resultado.append(
@@ -102,8 +109,9 @@ def agenda(usuario=None, socio_texto=None):
                 clase=clase["nombre"],
                 entrenador_id=clase["entrenador_id"],
                 entrenador=f"{clase['entrenador_nombre']} {clase['entrenador_apellido']}",
-                cupo=clase["cupo"],
-                libres=clase["cupo"] - len(estado["con_lugar"]),
+                cupo=cupo,
+                cancelada=cancelada,
+                libres=0 if cancelada else cupo - len(estado["con_lugar"]),
                 espera=len(estado["en_espera"]),
                 reserva=_estado_propio(estado, propia),
             )
@@ -175,6 +183,8 @@ def reservar(datos, usuario):
             raise ErrorDeDominio("clase_inexistente", "La clase no existe.", 404)
         ocurrencia = repositorio.ocurrencia_para_reserva(cursor, clase_id, fecha)
         candidata = ocurrencia or dict(clase, fecha=fecha)
+        if ocurrencia and ocurrencia["cancelada"]:
+            raise ErrorDeDominio("ocurrencia_cancelada", "La ocurrencia de clase está cancelada.", 409)
         hoy = _exigir_sin_empezar(cursor, candidata)
         desde = hoy - timedelta(days=hoy.weekday())
         if not desde <= fecha <= desde + timedelta(days=13) or (
@@ -200,10 +210,20 @@ def reservar(datos, usuario):
             cursor, reserva_id, ocurrencia["id"], socio_id, ahora, identificador(usuario["id"])
         )
         activas = repositorio.reservas_ocurrencia(cursor, ocurrencia["id"])
-        return _estado_propio(estado_reservas(clase["cupo"], activas), {"id": reserva_id.bytes})
+        return _estado_propio(estado_reservas(ocurrencia["cupo"], activas), {"id": reserva_id.bytes})
 
 
 def cancelar(texto_id, usuario):
+    for intento in range(3):
+        try:
+            return _cancelar_en_transaccion(texto_id, usuario)
+        except ErrorMySQL as error:
+            if error.errno != INTERBLOQUEO_MYSQL or intento == 2:
+                raise
+            # transaccion() ya revirtió todo: se releen reservas y se recalculan avisos.
+
+
+def _cancelar_en_transaccion(texto_id, usuario):
     reserva_id = identificador(texto_id)
     with transaccion() as cursor:
         reserva = repositorio.obtener_reserva(cursor, reserva_id)
@@ -216,13 +236,18 @@ def cancelar(texto_id, usuario):
         ocurrencia = repositorio.ocurrencia_para_reserva(cursor, desde_bytes(reserva["clase_id"]), reserva["fecha"])
         _exigir_sin_empezar(cursor, ocurrencia)
         if repositorio.cancelacion(cursor, reserva_id) is None:
+            activas = repositorio.reservas_ocurrencia(cursor, ocurrencia["id"])
+            antes = estado_reservas(ocurrencia["cupo"], activas)
+            ahora = reloj_actual().ahora().astimezone(UTC).replace(tzinfo=None)
             repositorio.cancelar_reserva(
                 cursor,
                 nuevo_id(),
                 reserva_id,
                 identificador(usuario["id"]),
-                reloj_actual().ahora().astimezone(UTC).replace(tzinfo=None),
+                ahora,
             )
+            despues = estado_reservas(ocurrencia["cupo"], [r for r in activas if r["id"] != reserva_id.bytes])
+            _avisar_cambios(cursor, ocurrencia, activas, antes, despues, ahora)
         return {"id": texto_id}
 
 
@@ -235,7 +260,7 @@ def listar_reservas(texto_id, texto_fecha, usuario):
         if usuario["rol"] == "entrenador" and clase["entrenador_id"] != identificador(usuario["id"]).bytes:
             raise ErrorDeDominio("sin_permiso", "Solo podés ver las reservas de tus clases.", 403)
         reservas = repositorio.lista_reservas(cursor, clase_id, fecha)
-        estado = estado_reservas(clase["cupo"], reservas)
+        estado = estado_reservas(reservas[0]["cupo"] if reservas else clase["cupo"], reservas)
         return {
             "reservas": [
                 {"nombre": r["nombre"], **{k: v for k, v in _estado_propio(estado, r).items() if k != "id"}}
@@ -250,10 +275,24 @@ def guardar(datos, texto_id=None):
     clase_id = nuevo_id() if nueva else identificador(texto_id)
     momento = reloj_actual().ahora().astimezone(UTC).replace(tzinfo=None)
     with transaccion() as cursor:
-        if not nueva and repositorio.bloquear(cursor, clase_id) is None:
+        anterior = repositorio.bloquear(cursor, clase_id) if not nueva else None
+        if not nueva and anterior is None:
             raise ErrorDeDominio("clase_inexistente", "La clase no existe.", 404)
         if not repositorio.entrenador_activo(cursor, datos["entrenador_id"]):
             raise ErrorDeDominio("entrenador_invalido", "Elegí un usuario activo con rol entrenador.", 422)
+        if anterior and anterior["cupo"] != datos["cupo"]:
+            ahora_local = (
+                reloj_actual().ahora().astimezone(ZoneInfo(repositorio.zona_horaria(cursor))).replace(tzinfo=None)
+            )
+            for ocurrencia in repositorio.ocurrencias_de_clase(cursor, clase_id):
+                if _inicio(ocurrencia) <= ahora_local:
+                    if ocurrencia["cupo_id"] is None:
+                        repositorio.fijar_cupo(cursor, nuevo_id(), ocurrencia["id"], anterior["cupo"], momento)
+                elif not ocurrencia["cancelada"]:
+                    activas = repositorio.reservas_ocurrencia(cursor, ocurrencia["id"])
+                    antes = estado_reservas(ocurrencia["cupo"], activas)
+                    despues = estado_reservas(datos["cupo"], activas)
+                    _avisar_cambios(cursor, ocurrencia, activas, antes, despues, momento)
         repositorio.guardar(cursor, clase_id, datos, momento, nueva=nueva)
     return {"id": str(clase_id)}
 
@@ -266,3 +305,69 @@ def archivar(texto_id):
             raise ErrorDeDominio("clase_inexistente", "La clase no existe.", 404)
         repositorio.archivar(cursor, clase_id, momento)
     return {"id": str(clase_id), "archivada": True}
+
+
+def _avisar_cambios(cursor, ocurrencia, reservas, antes, despues, ahora):
+    cambios = cambios_de_estado(antes, despues)
+    por_id = {reserva["id"]: reserva["socio_id"] for reserva in reservas}
+    for campo, tipo in (("pasaron_a_tener_lugar", "paso_a_tener_lugar"), ("volvieron_a_espera", "volvio_a_espera")):
+        for reserva_id in cambios[campo]:
+            repositorio.insertar_aviso(cursor, nuevo_id(), por_id[reserva_id], ocurrencia["id"], tipo, ahora)
+
+
+def cancelar_ocurrencia(texto_id, texto_fecha, datos, usuario):
+    motivo = datos.get("motivo") if isinstance(datos, dict) else None
+    if not isinstance(motivo, str) or not motivo.strip():
+        raise ErrorDeDominio("motivo_obligatorio", "Escribí el motivo de la cancelación.", 422)
+    clase_id, fecha = identificador(texto_id), _fecha(texto_fecha)
+    ahora = reloj_actual().ahora().astimezone(UTC).replace(tzinfo=None)
+    autor = identificador(usuario["id"])
+    with transaccion() as cursor:
+        clase = repositorio.clase_para_reserva(cursor, clase_id)
+        if clase is None:
+            raise ErrorDeDominio("clase_inexistente", "La clase no existe.", 404)
+        ocurrencia = repositorio.ocurrencia_para_reserva(cursor, clase_id, fecha)
+        if ocurrencia is None:
+            if clase["archivada"] or fecha.isoweekday() != clase["dia_semana"]:
+                raise ErrorDeDominio("fuera_de_agenda", "Elegí una ocurrencia de la agenda.", 422)
+            repositorio.fijar_ocurrencia(cursor, nuevo_id(), clase, fecha, ahora)
+            ocurrencia = repositorio.ocurrencia_para_reserva(cursor, clase_id, fecha)
+        if not ocurrencia["cancelada"]:
+            activas = repositorio.reservas_ocurrencia(cursor, ocurrencia["id"])
+            repositorio.cancelar_ocurrencia(cursor, nuevo_id(), ocurrencia["id"], motivo.strip(), autor, ahora)
+            for reserva in activas:
+                repositorio.cancelar_reserva(cursor, nuevo_id(), desde_bytes(reserva["id"]), autor, ahora)
+                repositorio.insertar_aviso(
+                    cursor, nuevo_id(), reserva["socio_id"], ocurrencia["id"], "ocurrencia_cancelada", ahora
+                )
+    return {"clase_id": texto_id, "fecha": texto_fecha, "cancelada": True}
+
+
+def avisos_propios(usuario):
+    with transaccion() as cursor:
+        return {
+            "avisos": [
+                {
+                    "id": str(desde_bytes(fila["id"])),
+                    "ocurrencia_id": str(desde_bytes(fila["ocurrencia_id"])),
+                    "tipo": fila["tipo"],
+                    "clase": fila["clase"],
+                    "fecha": fila["fecha"].isoformat(),
+                    "hora_inicio": _hora(fila["hora_inicio"]),
+                    "cupo": fila["cupo"],
+                    "registrado_en": fila["registrado_en"].replace(tzinfo=UTC).isoformat(),
+                }
+                for fila in repositorio.avisos_sin_ver(cursor, identificador(usuario["id"]))
+            ]
+        }
+
+
+def ver_aviso(texto_id, usuario):
+    aviso_id = identificador(texto_id)
+    with transaccion() as cursor:
+        if repositorio.aviso_propio(cursor, aviso_id, identificador(usuario["id"])) is None:
+            raise ErrorDeDominio("aviso_inexistente", "El aviso al socio no existe.", 404)
+        repositorio.marcar_aviso(
+            cursor, nuevo_id(), aviso_id, reloj_actual().ahora().astimezone(UTC).replace(tzinfo=None)
+        )
+    return {"id": texto_id}
