@@ -1,4 +1,5 @@
 import { nuevoId } from "./ids.js";
+import { pausarSondeos } from "./sondeo.js";
 
 // Solo en memoria. Volver a tener conexión nunca dispara un envío.
 export function crearControlDeOperacion(generar = nuevoId) {
@@ -29,5 +30,11 @@ export function crearControlDeOperacion(generar = nuevoId) {
 }
 
 export async function cerrarSesion(pedir) {
-  return pedir("/api/sesion", { metodo: "DELETE" });
+  const reanudar = pausarSondeos();
+  try {
+    return await pedir("/api/sesion", { metodo: "DELETE" });
+  } catch (error) {
+    reanudar();
+    throw error;
+  }
 }

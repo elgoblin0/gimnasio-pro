@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { crearSondeo } from "./sondeo.js";
+import { crearSondeo, pausarSondeos } from "./sondeo.js";
 
 test("200 entrega datos, 304 conserva ETag, pausa y reanuda, errores espacian hasta 30 s", async (t) => {
   t.mock.timers.enable({ apis: ["setTimeout"] });
@@ -107,4 +107,43 @@ test("espera el permiso de consulta y descarta respuestas recibidas sin permiso"
   resolver({ status: 200, headers: new Headers({ ETag: '"actual"' }), json: async () => ({ cantidad: 1 }) });
   await vaciar();
   assert.deepEqual(cambios, [{ cantidad: 1 }]);
+});
+
+test("pausar cancela la consulta en curso sin contarla como fallo y reanudar vuelve a consultar", async (t) => {
+  t.mock.timers.enable({ apis: ["setTimeout"] });
+  const senales = [];
+  let fallos = 0;
+  t.mock.method(globalThis, "fetch", (url, { signal }) => {
+    senales.push(signal);
+    return new Promise((aceptar, rechazar) => {
+      signal.addEventListener("abort", () => rechazar(new DOMException("Cancelada", "AbortError")));
+    });
+  });
+  const vaciar = async () => { for (let i = 0; i < 8; i++) await Promise.resolve(); };
+  const sondeo = crearSondeo({ url: "/api/ocupacion", alCambiar() {}, alFallar: () => { fallos++; } });
+  t.after(() => sondeo.detener());
+  const reanudar = pausarSondeos();
+  assert.equal(senales[0].aborted, true);
+  await vaciar();
+  assert.equal(fallos, 0);
+  t.mock.timers.tick(60000);
+  assert.equal(senales.length, 1);
+  reanudar();
+  assert.equal(senales.length, 2);
+  assert.equal(senales[1].aborted, false);
+});
+
+test("pausar no reanuda un sondeo detenido por su pantalla", async (t) => {
+  t.mock.timers.enable({ apis: ["setTimeout"] });
+  let consultas = 0;
+  t.mock.method(globalThis, "fetch", async () => {
+    consultas++;
+    return { status: 304 };
+  });
+  const sondeo = crearSondeo({ url: "/api/ocupacion", alCambiar() {} });
+  for (let i = 0; i < 8; i++) await Promise.resolve();
+  sondeo.detener();
+  pausarSondeos()();
+  t.mock.timers.tick(60000);
+  assert.equal(consultas, 1);
 });
