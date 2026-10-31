@@ -378,6 +378,8 @@ async function iniciar() {
   $("[data-editor]").hidden = false;
   $("[data-estado]").textContent = "";
   dibujarSemana();
+  // Abrir el editor no es editar: sin cambios no hay formulario que recuperar la próxima vez.
+  if (!conservado) olvidarFormulario(localStorage, socioId);
   pedirSugeridas();
   if (conservado && versionBase !== (vigente?.version ?? null)) await mostrarConflicto();
 }

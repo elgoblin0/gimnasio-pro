@@ -161,6 +161,30 @@ def test_bandeja_recibe_un_aviso_sin_recargar_y_se_revisa_con_teclado(pagina_dem
     assert errores == []
 
 
+def test_bandeja_no_muestra_los_datos_del_socio_anterior_si_falla_la_lectura(pagina_demo, demo_aislada):
+    pagina = pagina_demo
+    entrar(pagina, demo_aislada, "entrenador")
+    pagina.wait_for_url("**/bandeja.html")
+    filas = pagina.locator('[data-grupo="aviso_seguridad"] [data-enlace-socio]')
+    expect(filas.nth(1)).to_be_visible()
+    filas.first.click()
+    expect(pagina.locator("[data-revision]")).to_be_visible()
+
+    otro = filas.nth(1).get_attribute("data-enlace-socio")
+    pagina.route(
+        f"**/api/entrenador/socios/{otro}",
+        lambda ruta: ruta.fulfill(status=500, json={"error": {"codigo": "error", "mensaje": "No se pudo leer."}}),
+    )
+    filas.nth(1).click()
+    expect(pagina.locator("[data-socio-error]")).to_have_text("No se pudo leer.")
+    expect(pagina.locator("[data-socio]")).to_be_hidden()
+
+    pagina.unroute(f"**/api/entrenador/socios/{otro}")
+    pagina.go_back()
+    expect(pagina.locator("[data-socio-error]")).to_have_text("")
+    expect(pagina.locator("[data-socio]")).to_be_visible()
+
+
 @pytest.mark.parametrize("alternativa", ["sin_webgl", "movimiento_reducido"])
 def test_editor_cambia_las_series_por_zona_sin_llamar_a_la_api(pagina_demo, demo_aislada, alternativa):
     pagina = pagina_demo
@@ -225,6 +249,11 @@ def test_editor_conserva_el_formulario_explica_lo_que_falta_y_publica(pagina_dem
     pagina.wait_for_url("**/bandeja.html")
     socio = socios_de_marcos(pagina)["Gabriela González"]
     pagina.goto(f"{demo_aislada.url}/editor-programa.html?socio={socio}")
+    expect(pagina.locator("[data-sin-sesiones]")).to_be_visible()
+    # Abrir el editor no es editar: al volver no hay nada que recuperar.
+    pagina.reload()
+    expect(pagina.locator("[data-sin-sesiones]")).to_be_visible()
+    expect(pagina.locator("[data-recuperado]")).to_be_hidden()
     pagina.get_by_role("button", name=re.compile("^Inicial de cuerpo completo")).click()
     expect(pagina.locator(".fila-plan").first).to_be_visible()
 

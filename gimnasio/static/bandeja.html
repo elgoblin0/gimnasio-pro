@@ -39,8 +39,9 @@
 
   <section class="hoja" data-hoja aria-labelledby="hoja-nombre" tabindex="-1">
     <p class="hoja-indicacion" data-indicacion>Elegí un socio de la bandeja para ver qué hizo y por qué el motor decidió lo que decidió.</p>
+    <a class="hoja-volver" href="/bandeja.html" data-volver>← Volver a la bandeja</a>
+    <p data-socio-error role="alert"></p>
     <div data-socio hidden>
-      <a class="hoja-volver" href="/bandeja.html" data-volver>← Volver a la bandeja</a>
       <header class="hoja-cabecera">
         <div>
           <h2 id="hoja-nombre" data-socio-nombre></h2>
@@ -48,7 +49,6 @@
         </div>
         <a class="boton-tinta" data-abrir-editor>Abrir editor</a>
       </header>
-      <p data-socio-error role="alert"></p>
 
       <section class="pliego pliego-avisos" data-revision aria-labelledby="titulo-sin-revisar" hidden>
         <h3 id="titulo-sin-revisar">Avisos sin revisar</h3>

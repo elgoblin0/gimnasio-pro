@@ -193,9 +193,8 @@ async function leerSocio(id) {
     $("[data-socio-error]").textContent = "";
     dibujarSocio(vista);
   } catch (error) {
-    if (lectura !== lecturaDeSocio) return;
-    $("[data-socio]").hidden = false;
-    $("[data-socio-error]").textContent = error.message;
+    // La hoja sigue oculta si este socio no llegó a dibujarse: no quedan a la vista los datos del anterior.
+    if (lectura === lecturaDeSocio && id === socioAbierto) $("[data-socio-error]").textContent = error.message;
   }
 }
 
@@ -204,6 +203,7 @@ function mostrarSocio(id, { enfocar = false } = {}) {
     if (control.actual && !control.enCurso) control.descartar();
     $("[data-nota]").value = "";
     $("[data-error-revision]").textContent = "";
+    $("[data-socio-error]").textContent = "";
     $("[data-socio]").hidden = true;
   }
   socioAbierto = id;

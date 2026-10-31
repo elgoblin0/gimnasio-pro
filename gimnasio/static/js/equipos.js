@@ -181,8 +181,11 @@ function prepararEventos() {
       const ejercicio = porId.get(mover.dataset.mover);
       const indice = Number(mover.dataset.indice);
       const salto = Number(mover.dataset.salto);
+      const destino = indice + salto;
+      // El foco sigue en la misma flecha; en un extremo esa flecha se apaga y pasa a la otra.
+      const enExtremo = destino === 0 || destino === ejercicio.alternativas.length - 1;
       guardarAlternativas(ejercicio.id, moverEnLista(ejercicio.alternativas, indice, salto),
-        `[data-ejercicio="${ejercicio.id}"] [data-mover][data-indice="${indice + salto}"][data-salto="${salto}"]:not(:disabled), [data-ejercicio="${ejercicio.id}"] [data-mover][data-indice="${indice + salto}"]`);
+        `[data-ejercicio="${ejercicio.id}"] [data-mover][data-indice="${destino}"][data-salto="${enExtremo ? -salto : salto}"]`);
     }
     const quitar = evento.target.closest("[data-quitar]");
     if (quitar) {
