@@ -1,5 +1,6 @@
 import { llamarApi } from "@comun/api.js";
 import { registrarPwa } from "@comun/pwa.js";
+import { crear } from "@comun/personal.js";
 
 registrarPwa();
 
@@ -29,6 +30,41 @@ function mostrarBienvenida(usuario) {
   recorrido.href = usuario.rol === "socio" ? "/entrenamiento.html" : "/recepcion.html";
   recorrido.textContent = usuario.rol === "socio" ? "Ver mi entrenamiento" : "Ir a recepción";
   $("[data-mi-ficha]").hidden = usuario.rol !== "socio";
+  $("[data-avisos]").hidden = usuario.rol !== "socio";
+  if (usuario.rol === "socio") cargarAvisos();
+}
+
+const textosAviso = {
+  paso_a_tener_lugar: "Pasaste a tener lugar",
+  volvio_a_espera: "Volviste a la lista de espera",
+  ocurrencia_cancelada: "Se canceló la ocurrencia",
+};
+
+async function cargarAvisos() {
+  const estado = $("[data-avisos-estado]");
+  const lista = $("[data-avisos-lista]");
+  estado.textContent = "Cargando avisos al socio…";
+  lista.replaceChildren();
+  try {
+    const { avisos } = await llamarApi("/api/yo/avisos");
+    estado.textContent = avisos.length ? "" : "No tenés avisos sin ver.";
+    lista.replaceChildren(...avisos.map((aviso) => {
+      const clave = crypto.randomUUID();
+      const boton = crear("button", { type: "button", onclick: async () => {
+        boton.disabled = true;
+        try {
+          await llamarApi(`/api/yo/avisos/${aviso.id}/visto`, { metodo: "POST", clave });
+          await cargarAvisos();
+        } catch (error) {
+          estado.textContent = error.message;
+          boton.disabled = false;
+        }
+      } }, "Marcar como visto");
+      return crear("li", {}, `${textosAviso[aviso.tipo]} · ${aviso.clase} · ${aviso.fecha.split("-").reverse().join("/")} ${aviso.hora_inicio} `, boton);
+    }));
+  } catch (error) {
+    estado.textContent = error.message;
+  }
 }
 
 function mostrarIngreso(modoDemo) {
@@ -38,6 +74,7 @@ function mostrarIngreso(modoDemo) {
 }
 
 async function iniciar() {
+  $("[data-avisos-reintentar]").addEventListener("click", cargarAvisos);
   const estado = await llamarApi("/api/estado");
   $("[data-estado]").textContent = estado.modo_demo ? "Modo demo: datos ficticios que se reinician cada día." : "";
   const { usuario } = await llamarApi("/api/sesion");

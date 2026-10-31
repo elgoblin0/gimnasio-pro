@@ -16,10 +16,16 @@ function preparar(error) {
     return elementos.get(selector);
   };
   const envios = [];
+  const sondeos = [];
   let fallo = error;
   let siguienteClave = 0;
   const contexto = vm.createContext({
     document: { querySelector: obtener }, registrarPwa() {},
+    crearSondeo: (opciones) => {
+      const sondeo = { ...opciones, detenido: false, detener() { this.detenido = true; } };
+      sondeos.push(sondeo);
+      return sondeo;
+    },
     crypto: { randomUUID: () => String(++siguienteClave) },
     llamarApi: async (ruta, opciones) => {
       if (!opciones) return { desde: "2026-10-26", hasta: "2026-11-08", ocurrencias: [] };
@@ -31,7 +37,8 @@ function preparar(error) {
   });
   vm.runInContext(`${codigo}\nusuario = { rol: "socio" };`, contexto);
   return {
-    envios, obtener,
+    envios, obtener, sondeos,
+    ejecutar: (texto) => vm.runInContext(texto, contexto),
     enviar: (socio = "primero") => vm.runInContext(
       `escribir("/api/clases/reservas", "POST", { socio_id: ${JSON.stringify(socio)} }, $("[data-boton]"))`, contexto),
     reintentar: () => vm.runInContext(
@@ -75,4 +82,18 @@ test("impide enviar dos reservas mientras la primera se confirma", async () => {
   assert.equal(pantalla.envios.length, 1);
   terminar();
   await envio;
+});
+
+test("sondea la agenda del socio seleccionado y descarta el sondeo anterior", async () => {
+  const pantalla = preparar();
+  await pantalla.ejecutar('usuario = { rol: "recepcion" }; socios = []; cargar()');
+  assert.equal(pantalla.sondeos[0].url, "/api/clases/agenda");
+  pantalla.obtener("[data-socio]").value = "segundo";
+  await pantalla.ejecutar("cargar()");
+  assert.equal(pantalla.sondeos[0].detenido, true);
+  assert.equal(pantalla.sondeos[1].url, "/api/clases/agenda?socio_id=segundo");
+  pantalla.ejecutar("enCurso = true");
+  assert.equal(pantalla.sondeos[1].puedeConsultar(), false);
+  pantalla.ejecutar('enCurso = false; pendiente = { clave: "sin-confirmar" }');
+  assert.equal(pantalla.sondeos[1].puedeConsultar(), false);
 });
