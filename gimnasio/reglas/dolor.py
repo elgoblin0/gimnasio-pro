@@ -18,7 +18,7 @@ def aplicar_dolor(
     if suba:
         prescripcion = replace(
             prescripcion,
-            carga=Decimal(dict(suba.datos)["carga_base"]),
+            carga=min(Decimal(str(prescripcion.carga)), Decimal(dict(suba.datos)["carga_base"])),
             repeticiones_minimas=prescripcion.repeticiones_maximas,
         )
     explicacion = "Dolor reportado en la sesión anterior: no sube la carga de esta zona en esta sesión."

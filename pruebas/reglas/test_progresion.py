@@ -353,3 +353,65 @@ def test_suba_de_sesion_a_frena_sesion_b_en_la_misma_semana():
     assert propuesta.prescripcion[0].carga == Decimal("23")
     assert propuesta.frenos == ("tope_semanal",)
     assert {r.regla for r in propuesta.explicacion} >= {"subir_carga", "tope_semanal"}
+
+
+@pytest.mark.parametrize(
+    "partida,registrado,carga,razon",
+    [
+        ("30", False, "30", True),
+        ("50", False, "42.5", False),
+        ("30", True, "42.5", False),
+        ("42.5", False, "42.5", False),
+    ],
+)
+def test_carga_partida_respeta_motor_y_serie_en_version(partida, registrado, carga, razon):
+    planificado = replace(EJERCICIO, carga_partida=Decimal(partida))
+    datos = replace(
+        entrada(),
+        programa=ProgramaEntrenamiento((SesionPlanificada("proxima", (planificado,)),)),
+        ejercicios_con_serie_en_version=frozenset({"sentadilla"}) if registrado else frozenset(),
+    )
+    propuesta = proponer_sesion(datos)
+    assert propuesta.prescripcion[0].carga == Decimal(carga)
+    razones = [r for r in propuesta.explicacion if r.regla == "carga_partida_entrenador"]
+    assert bool(razones) == razon
+    if razones:
+        assert dict(razones[0].datos)["carga_motor"] == "42.5"
+
+
+@pytest.mark.parametrize("freno", ["sin_historial", "dolor", "tope", "chequeo"])
+def test_carga_partida_y_frenos_posteriores(freno):
+    from gimnasio.comun.tipos import Chequeo
+
+    planificado = replace(EJERCICIO, carga_partida=Decimal("30"))
+    datos = replace(
+        entrada(),
+        programa=ProgramaEntrenamiento((SesionPlanificada("proxima", (planificado,)),)),
+        catalogo=(replace(CATALOGO[0], zonas=("rodillas",)),),
+    )
+    if freno == "sin_historial":
+        datos = replace(datos, historial=())
+    elif freno == "dolor":
+        datos = replace(datos, dolores_anteriores=("rodillas",))
+    elif freno == "tope":
+        datos = replace(datos, subas=(SubaCarga("sentadilla", LUNES),))
+    else:
+        datos = replace(datos, chequeo=Chequeo(1, 1))
+    propuesta = proponer_sesion(datos)
+    assert propuesta.prescripcion[0].carga == Decimal("30")
+    assert "tope_semanal" not in propuesta.frenos
+    if freno == "dolor":
+        assert "dolor_reportado" in propuesta.frenos
+    if freno == "chequeo":
+        assert "chequeo_desfavorable" in propuesta.frenos
+
+
+def test_tope_actua_despues_de_partida_que_sigue_siendo_suba():
+    planificado = replace(EJERCICIO, carga_partida=Decimal("41"))
+    datos = replace(
+        entrada(subas=(SubaCarga("sentadilla", LUNES),)),
+        programa=ProgramaEntrenamiento((SesionPlanificada("proxima", (planificado,)),)),
+    )
+    propuesta = proponer_sesion(datos)
+    assert propuesta.prescripcion[0].carga == Decimal("40")
+    assert "tope_semanal" in propuesta.frenos

@@ -40,6 +40,7 @@ class EjercicioPlanificado:
     duracion: int | None = None
     distancia: Decimal | None = None
     ejercicio_catalogo_id: str | None = None
+    carga_partida: Decimal | None = None
 
 
 @dataclass(frozen=True)
@@ -122,6 +123,7 @@ class DatosPropuesta:
     dolores_anteriores: tuple[str, ...] = ()
     restricciones: tuple[RestriccionSalud, ...] = ()
     equipos_fuera_de_servicio: frozenset[str] = frozenset()
+    ejercicios_con_serie_en_version: frozenset[str] = frozenset()
 
 
 @dataclass(frozen=True)

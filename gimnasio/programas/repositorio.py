@@ -89,7 +89,7 @@ def leer_por_socio(cursor, socio_id, version=None):
                   s.id AS sesion_id, s.posicion AS sesion_posicion, s.nombre AS sesion_nombre,
                   ep.id AS planificado_id, ep.posicion AS ejercicio_posicion,
                   ep.series, ep.repeticiones_minimas, ep.repeticiones_maximas, ep.rir_objetivo, ep.descanso,
-                  ep.carga, ep.duracion, ep.distancia,
+                  ep.carga_partida, ep.carga, ep.duracion, ep.distancia,
                   e.id AS ejercicio_id, e.nombre AS ejercicio_nombre, e.medidas_aplicables,
                   e.patron_movimiento, e.equipo, e.incremento_carga,
                   COALESCE((SELECT JSON_ARRAYAGG(z.zona) FROM zonas_ejercicio z
@@ -143,7 +143,8 @@ def insertar_ejercicio_planificado(cursor, identificador, sesion_id, posicion, e
     cursor.execute(
         """INSERT INTO ejercicios_planificados
            (id,sesion_planificada_id,ejercicio_id,posicion,series,repeticiones_minimas,repeticiones_maximas,
-            rir_objetivo,descanso,carga,duracion,distancia) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)""",
+            rir_objetivo,descanso,carga,duracion,distancia,carga_partida)
+           VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)""",
         (a_bytes(identificador), a_bytes(sesion_id), a_bytes(desde_texto(ejercicio["ejercicio_id"])), posicion)
         + tuple(
             ejercicio.get(campo)
@@ -156,6 +157,7 @@ def insertar_ejercicio_planificado(cursor, identificador, sesion_id, posicion, e
                 "carga",
                 "duracion",
                 "distancia",
+                "carga_partida",
             )
         ),
     )

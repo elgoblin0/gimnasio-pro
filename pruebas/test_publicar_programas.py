@@ -520,3 +520,254 @@ def test_publicacion_restricciones_y_levantamiento(programas_api, reloj_fijo, ti
     assert propuesta.status_code == 200, propuesta.json
     assert "restriccion_salud" in propuesta.json["frenos"]
     assert "Detalle ficticio reservado" not in str(propuesta.json)
+
+
+@pytest.mark.parametrize("partida", [-1, True, "NaN", "0.001", "1000000"])
+def test_carga_partida_invalida(partida):
+    datos = publicacion()
+    datos["sesiones"][0]["ejercicios"][0]["carga_partida"] = partida
+    with pytest.raises(ErrorDeDominio):
+        servicio._validar_publicacion(datos, {EJERCICIO: {"medidas_aplicables": ["carga", "repeticiones"]}}, {})
+
+
+@pytest.mark.bd
+def test_carga_partida_publicada_y_segunda_sesion(programas_api, reloj_fijo):
+    app, cliente, socio, fuerza = programas_api
+    datos = publicacion(fuerza)
+    datos["sesiones"][0]["ejercicios"][0].update(series=1, carga_partida=10)
+    assert publicar(cliente, socio, datos).status_code == 201
+    with app.app_context():
+        programa = servicio.listar_programas(desde_texto(socio))[-1]
+        assert {
+            e["carga_partida"] for s in programa["sesiones_planificadas"] for e in s["ejercicios_planificados"]
+        } == {10}
+    cliente.post("/api/sesion/demo/socio", headers={"X-Gimnasio": "1"})
+    propuesta = cliente.get("/api/entrenamiento/propuesta").json
+    ejercicio = propuesta["ejercicios"][0]
+    assert float(ejercicio["objetivos"]["carga"]) == 10
+    assert any(r["regla"] == "carga_partida_entrenador" for r in ejercicio["explicacion"])
+    sesion_id = str(nuevo_id(reloj_fijo))
+    assert (
+        escribir(
+            cliente,
+            "/api/entrenamiento/sesiones",
+            {
+                "id": sesion_id,
+                "sesion_planificada_id": propuesta["sesion_planificada"]["id"],
+            },
+        ).status_code
+        == 201
+    )
+    assert (
+        escribir(
+            cliente,
+            f"/api/entrenamiento/sesiones/{sesion_id}/series",
+            {
+                "id": str(nuevo_id(reloj_fijo)),
+                "ejercicio_planificado_id": ejercicio["id"],
+                "repeticiones": 12,
+                "carga": 10,
+                "rir": 2,
+            },
+        ).status_code
+        == 201
+    )
+    reloj_fijo.avanzar(timedelta(days=1))
+    segunda = cliente.get("/api/entrenamiento/propuesta").json["ejercicios"][0]
+    assert float(segunda["objetivos"]["carga"]) == 12.5
+    assert not any(r["regla"] == "carga_partida_entrenador" for r in segunda["explicacion"])
+
+
+@pytest.mark.bd
+def test_cargas_sugeridas_sin_chequeo_y_asignacion(programas_api):
+    app, cliente, socio, fuerza = programas_api
+    ruta = f"/api/socios/{socio}/programa/cargas-sugeridas?ejercicios={fuerza}"
+    respuesta = cliente.get(ruta)
+    assert respuesta.status_code == 200
+    assert respuesta.json["cargas"][fuerza] is not None
+    datos = publicacion(fuerza)
+    datos["sesiones"][0]["ejercicios"][0]["carga_partida"] = 0
+    assert publicar(cliente, socio, datos).status_code == 201
+    assert float(cliente.get(ruta).json["cargas"][fuerza]) > 0
+    with app.app_context(), transaccion() as cursor:
+        cursor.execute(
+            "UPDATE asignaciones_entrenador SET hasta=desde WHERE socio_id=%s", (a_bytes(desde_texto(socio)),)
+        )
+    assert cliente.get(ruta).status_code == 403
+
+
+@pytest.mark.bd
+def test_cargas_sugeridas_null_sin_historial(programas_api):
+    app, cliente, _, fuerza = programas_api
+    with app.app_context(), transaccion() as cursor:
+        cursor.execute("""SELECT u.id FROM usuarios u LEFT JOIN programas_entrenamiento p ON p.socio_id=u.id
+                          WHERE u.rol='socio' AND p.id IS NULL ORDER BY u.id LIMIT 1""")
+        socio = str(desde_bytes(cursor.fetchone()["id"]))
+    respuesta = cliente.get(f"/api/socios/{socio}/programa/cargas-sugeridas?ejercicios={fuerza}")
+    assert respuesta.status_code == 200 and respuesta.json == {"cargas": {fuerza: None}}
+
+
+@pytest.mark.parametrize("carga,cantidad", [("10", 0), ("41", 1)])
+def test_partida_solo_consume_tope_si_conserva_suba(carga, cantidad, reloj_fijo):
+    import json
+    from datetime import UTC
+    from zoneinfo import ZoneInfo
+
+    fecha = reloj_fijo.ahora()
+    ejercicio_id = str(nuevo_id(reloj_fijo))
+    explicacion = [
+        {"regla": "subir_carga", "datos": {"ejercicio_id": ejercicio_id, "carga_base": "40"}},
+        {"regla": "carga_partida_entrenador", "datos": {"ejercicio_id": ejercicio_id, "carga": carga}},
+    ]
+    efectiva = {
+        "creada_en": fecha.astimezone(UTC).replace(tzinfo=None),
+        "sesion_planificada_id": a_bytes(nuevo_id(reloj_fijo)),
+        "ejercicios": json.dumps(
+            [{"id": ejercicio_id, "ejercicio_id": EJERCICIO, "objetivos": {"carga": carga}, "explicacion": explicacion}]
+        ),
+        "explicacion": json.dumps(explicacion),
+    }
+    local = fecha.astimezone(ZoneInfo("America/Asuncion")).date()
+    assert len(entrenamiento.preparar_subas([efectiva], [], ZoneInfo("America/Asuncion"), local)) == cantidad
+
+
+def test_partida_sin_historial_reemplaza_carga_omitida():
+    datos = publicacion()
+    datos["sesiones"][0]["ejercicios"][0].update(carga=None, carga_partida=0)
+    sesiones = servicio._validar_publicacion(datos, {EJERCICIO: {"medidas_aplicables": ["carga", "repeticiones"]}}, {})
+    assert sesiones[0]["ejercicios"][0]["carga"] == 0
+
+
+def test_partida_se_repite_y_rechaza_valores_distintos():
+    datos = publicacion()
+    datos["sesiones"][0]["ejercicios"][0]["carga_partida"] = 10
+    datos["sesiones"].append(deepcopy(datos["sesiones"][0]))
+    del datos["sesiones"][1]["ejercicios"][0]["carga_partida"]
+    catalogo = {EJERCICIO: {"medidas_aplicables": ["carga", "repeticiones"]}}
+    sesiones = servicio._validar_publicacion(datos, catalogo, {})
+    assert all(s["ejercicios"][0]["carga_partida"] == 10 for s in sesiones)
+    datos["sesiones"][1]["ejercicios"][0]["carga_partida"] = 15
+    with pytest.raises(ErrorDeDominio):
+        servicio._validar_publicacion(datos, catalogo, {})
+
+
+@pytest.mark.bd
+@pytest.mark.parametrize("consumida", [False, True])
+def test_partida_al_iniciar_version_anterior(programas_api, reloj_fijo, consumida):
+    app, cliente, socio, fuerza = programas_api
+    datos = publicacion(fuerza)
+    datos["sesiones"][0]["ejercicios"][0].update(series=1, carga_partida=10)
+    assert publicar(cliente, socio, datos).status_code == 201
+    with app.app_context():
+        anterior = servicio.listar_programas(desde_texto(socio))[-1]
+
+    def registrar(programa):
+        sesion = programa["sesiones_planificadas"][0]
+        sesion_id = str(nuevo_id(reloj_fijo))
+        assert (
+            escribir(
+                cliente,
+                "/api/entrenamiento/sesiones",
+                {
+                    "id": sesion_id,
+                    "sesion_planificada_id": sesion["id"],
+                },
+            ).status_code
+            == 201
+        )
+        assert (
+            escribir(
+                cliente,
+                f"/api/entrenamiento/sesiones/{sesion_id}/series",
+                {
+                    "id": str(nuevo_id(reloj_fijo)),
+                    "ejercicio_planificado_id": sesion["ejercicios_planificados"][0]["id"],
+                    "repeticiones": 12,
+                    "carga": 40,
+                    "rir": 2,
+                },
+            ).status_code
+            == 201
+        )
+
+    cliente.post("/api/sesion/demo/socio", headers={"X-Gimnasio": "1"})
+    if consumida:
+        registrar(anterior)
+    cliente.post("/api/sesion/demo/entrenador", headers={"X-Gimnasio": "1"})
+    datos["version_base"] = anterior["version"]
+    assert publicar(cliente, socio, datos).status_code == 201
+    with app.app_context():
+        nueva = servicio.listar_programas(desde_texto(socio))[-1]
+    cliente.post("/api/sesion/demo/socio", headers={"X-Gimnasio": "1"})
+    if not consumida:
+        registrar(nueva)
+    sesion_id = str(nuevo_id(reloj_fijo))
+    assert (
+        escribir(
+            cliente,
+            "/api/entrenamiento/sesiones",
+            {
+                "id": sesion_id,
+                "sesion_planificada_id": anterior["sesiones_planificadas"][1]["id"],
+            },
+        ).status_code
+        == 201
+    )
+    efectiva = cliente.get(f"/api/entrenamiento/sesiones/{sesion_id}").json
+    assert float(efectiva["prescripcion_efectiva"]["ejercicios"][0]["objetivos"]["carga"]) == (
+        42.5 if consumida else 10
+    )
+
+
+@pytest.mark.bd
+def test_partida_se_conserva_al_retomar_pendiente(programas_api, reloj_fijo):
+    _, cliente, socio, fuerza = programas_api
+    datos = publicacion(fuerza)
+    datos["sesiones"][0]["ejercicios"][0]["carga_partida"] = 10
+    assert publicar(cliente, socio, datos).status_code == 201
+    cliente.post("/api/sesion/demo/socio", headers={"X-Gimnasio": "1"})
+    propuesta = cliente.get("/api/entrenamiento/propuesta").json
+    ejercicio = propuesta["ejercicios"][0]
+    assert float(ejercicio["objetivos"]["carga"]) == 10
+    sesion_id = str(nuevo_id(reloj_fijo))
+    assert (
+        escribir(
+            cliente,
+            "/api/entrenamiento/sesiones",
+            {
+                "id": sesion_id,
+                "sesion_planificada_id": propuesta["sesion_planificada"]["id"],
+            },
+        ).status_code
+        == 201
+    )
+    assert (
+        escribir(
+            cliente,
+            f"/api/entrenamiento/sesiones/{sesion_id}/series",
+            {
+                "id": str(nuevo_id(reloj_fijo)),
+                "ejercicio_planificado_id": ejercicio["id"],
+                "repeticiones": 12,
+                "carga": 10,
+                "rir": 2,
+            },
+        ).status_code
+        == 201
+    )
+    retomada = cliente.get("/api/entrenamiento/propuesta").json
+    assert float(retomada["ejercicios"][0]["objetivos"]["carga"]) == 10
+    otra_id = str(nuevo_id(reloj_fijo))
+    assert (
+        escribir(
+            cliente,
+            "/api/entrenamiento/sesiones",
+            {
+                "id": otra_id,
+                "sesion_planificada_id": retomada["sesion_planificada"]["id"],
+            },
+        ).status_code
+        == 201
+    )
+    efectiva = cliente.get(f"/api/entrenamiento/sesiones/{otra_id}").json
+    assert float(efectiva["prescripcion_efectiva"]["ejercicios"][0]["objetivos"]["carga"]) == 10

@@ -52,3 +52,11 @@ def listar_ejercicios():
 @requiere("alternativas.editar")
 def reemplazar_alternativas(ejercicio_id):
     return jsonify({"ejercicio": servicio.reemplazar_alternativas(ejercicio_id, request.get_json(silent=True))})
+
+
+@bp.get("/socios/<socio_id>/programa/cargas-sugeridas")
+@requiere("programas.editar")
+def cargas_sugeridas(socio_id):
+    return jsonify(
+        {"cargas": servicio.cargas_sugeridas(socio_id, request.args.get("ejercicios", ""), usuario_actual())}
+    )

@@ -228,6 +228,7 @@ def _leer(socio_id, version=None, *, cursor=None):
                 "posicion": fila["ejercicio_posicion"],
                 "medidas_aplicables": medidas,
                 "series": fila["series"],
+                "carga_partida": fila.get("carga_partida"),
                 **{medida: fila[medida] for medida in OBJETIVOS},
                 "patron_movimiento": fila["patron_movimiento"],
                 "equipo": fila["equipo"],
@@ -275,7 +276,12 @@ def _validar_publicacion(datos, catalogo, cargas):
             _programa_invalido("Enviá entre 1 y 12 ejercicios por sesión.")
         validados = []
         for ejercicio in ejercicios:
-            if not isinstance(ejercicio, dict) or set(ejercicio) - {"ejercicio_id", "series", *OBJETIVOS}:
+            if not isinstance(ejercicio, dict) or set(ejercicio) - {
+                "ejercicio_id",
+                "series",
+                "carga_partida",
+                *OBJETIVOS,
+            }:
                 _programa_invalido("El ejercicio tiene campos desconocidos.")
             identificador = ejercicio.get("ejercicio_id")
             if not isinstance(identificador, str) or identificador not in catalogo:
@@ -283,6 +289,13 @@ def _validar_publicacion(datos, catalogo, cargas):
             _validar_numero(ejercicio.get("series"), "series", 1, 10, entero=True)
             medidas = catalogo[identificador]["medidas_aplicables"]
             validado = {**ejercicio}
+            partida = ejercicio.get("carga_partida")
+            if partida is not None:
+                if "carga" not in medidas:
+                    _programa_invalido("carga_partida: no es aplicable al ejercicio.")
+                _validar_numero(partida, "carga_partida", 0, Decimal("999999.99"))
+                if Decimal(str(partida)).as_tuple().exponent < -2:
+                    _programa_invalido("carga_partida: admite hasta dos decimales.")
             for medida in MEDIDAS:
                 campos = ("repeticiones_minimas", "repeticiones_maximas") if medida == "repeticiones" else (medida,)
                 for campo in campos:
@@ -292,7 +305,7 @@ def _validar_publicacion(datos, catalogo, cargas):
                             _programa_invalido(f"{campo}: no es aplicable al ejercicio.")
                         continue
                     if campo == "carga" and valor is None:
-                        valor = cargas.get(identificador)
+                        valor = partida if partida is not None else cargas.get(identificador)
                         if valor is None:
                             _programa_invalido("carga: es obligatoria si el socio no tiene historial del ejercicio.")
                         validado[campo] = valor
@@ -316,6 +329,18 @@ def _validar_publicacion(datos, catalogo, cargas):
                     _validar_numero(ejercicio[campo], campo, minimo, maximo, entero=True)
             validados.append(validado)
         resultado.append({"nombre": nombre.strip(), "ejercicios": validados})
+    partidas = {}
+    for sesion in resultado:
+        for ejercicio in sesion["ejercicios"]:
+            if ejercicio.get("carga_partida") is not None:
+                identificador = ejercicio["ejercicio_id"]
+                partida = Decimal(str(ejercicio["carga_partida"]))
+                if identificador in partidas and partidas[identificador] != partida:
+                    _programa_invalido("carga_partida: debe ser igual en toda la versión.")
+                partidas[identificador] = partida
+    for sesion in resultado:
+        for ejercicio in sesion["ejercicios"]:
+            ejercicio["carga_partida"] = partidas.get(ejercicio["ejercicio_id"])
     return resultado
 
 
@@ -461,3 +486,16 @@ def _comprobar_restricciones(cursor, socio_id, sesiones, catalogo):
         409,
         detalles={"choques": lista},
     )
+
+
+def cargas_sugeridas(socio_id, ejercicios, usuario):
+    from gimnasio.entrenamiento.servicio import sugerir_cargas
+
+    socio_id = _id_socio(socio_id)
+    identificadores = tuple(dict.fromkeys(ejercicios.split(","))) if ejercicios else ()
+    with transaccion() as cursor:
+        _comprobar_asignacion(cursor, socio_id, usuario)
+        catalogo = _leer_catalogo(cursor)
+        if any(i not in catalogo for i in identificadores):
+            _programa_invalido("Los ejercicios deben pertenecer al catálogo.")
+        return sugerir_cargas(cursor, socio_id, identificadores)
