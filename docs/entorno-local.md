@@ -24,7 +24,7 @@ node --test "gimnasio/static/**/*.test.js"
 .\.venv\Scripts\python.exe -m pytest -q            # unitarias y con MySQL
 .\.venv\Scripts\python.exe -m pytest -m e2e -q -rs # Chromium contra el servidor demo
 ```
-En el CI, `pruebas` y `e2e` corren partidos en dos (`GIMNASIO_FRAGMENTO=1/2` y `2/2`, repartidos por un hash del id de cada prueba en `pruebas/conftest.py`); los trabajos `pruebas` y `e2e` son la compuerta que espera los dos. Local no hace falta: corre todo junto.
+En el CI, `pruebas` corre partido en dos y `e2e` en cuatro (`GIMNASIO_FRAGMENTO=k/N`, repartidos por un hash del id de cada prueba en `pruebas/conftest.py`); los trabajos `pruebas` y `e2e` son la compuerta que espera los dos. Local no hace falta: corre todo junto.
 
 `bd_local.ps1 detener` apaga el servidor. Sin `GIMNASIO_BD_*` las pruebas con MySQL y los e2e se saltan en silencio: si ves «skipped», revisá el entorno.
 

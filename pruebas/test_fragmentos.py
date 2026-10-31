@@ -13,7 +13,7 @@ MUESTRA = "pruebas/test_cadena.py"
 
 def test_cada_prueba_cae_en_un_solo_fragmento():
     ids = [f"pruebas/test_x.py::test_{n}[{m}]" for n in range(60) for m in (0, 1)]
-    for total in (2, 3):
+    for total in (2, 3, 4):
         cuenta = [0] * total
         for identificador in ids:
             fragmento = fragmento_de(identificador, total)
