@@ -12,7 +12,14 @@ const NOMBRES_DE_ROL = {
 
 const $ = (selector) => document.querySelector(selector);
 
+// Quien trabaja con una sola pantalla entra directamente a ella.
+const PANTALLA_INICIAL = { entrenador: "/bandeja.html", administracion: "/equipos.html" };
+
 function mostrarBienvenida(usuario) {
+  if (PANTALLA_INICIAL[usuario.rol]) {
+    location.replace(PANTALLA_INICIAL[usuario.rol]);
+    return;
+  }
   $("[data-ingreso]").hidden = true;
   $("[data-bienvenida]").hidden = false;
   $("[data-saludo]").textContent = `Hola, ${usuario.nombre}`;
