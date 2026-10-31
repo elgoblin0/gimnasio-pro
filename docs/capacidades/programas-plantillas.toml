@@ -10,3 +10,6 @@ prueba = "pruebas/test_publicar_programas.py"
 # Carga de partida del entrenador limitada por el motor, hasta la primera serie en la versión (#181).
 
 # Editor con cuerpo 3D de series por zona y alternativa sin WebGL (#187): pruebas/e2e/test_pantallas_entrenador.py.
+
+# El recorrido de la etapa 4 la ejercita de punta a punta (#189): pruebas/e2e/test_recorrido_entrenador.py.
+# Sigue en funcional: pulida pide un e2e con chequeo de accesibilidad y estados en móvil, y todavía no existe.
