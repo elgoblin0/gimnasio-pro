@@ -5,6 +5,9 @@ from collections import defaultdict
 from datetime import UTC, date, datetime, time, timedelta
 from zoneinfo import ZoneInfo
 
+from mysql.connector import Error as ErrorMySQL
+from mysql.connector.errorcode import ER_LOCK_DEADLOCK as INTERBLOQUEO_MYSQL
+
 from gimnasio.clases import repositorio
 from gimnasio.comun.bd import transaccion
 from gimnasio.comun.errores import ErrorDeDominio
@@ -211,6 +214,16 @@ def reservar(datos, usuario):
 
 
 def cancelar(texto_id, usuario):
+    for intento in range(3):
+        try:
+            return _cancelar_en_transaccion(texto_id, usuario)
+        except ErrorMySQL as error:
+            if error.errno != INTERBLOQUEO_MYSQL or intento == 2:
+                raise
+            # transaccion() ya revirtió todo: se releen reservas y se recalculan avisos.
+
+
+def _cancelar_en_transaccion(texto_id, usuario):
     reserva_id = identificador(texto_id)
     with transaccion() as cursor:
         reserva = repositorio.obtener_reserva(cursor, reserva_id)

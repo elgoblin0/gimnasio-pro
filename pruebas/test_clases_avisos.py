@@ -1,13 +1,18 @@
 """Cambios de cupo, cancelaciones y avisos al socio (#219, ADR 0029)."""
 
+from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime
+from threading import Barrier, Event
 from uuid import uuid4
 
 import pytest
+from flask import g
+from mysql.connector import Error as ErrorMySQL
 from test_clases_reservas import agenda, entrar, escribir, solicitar
 from test_clases_reservas import reservas as reservas
 
-from gimnasio.comun.bd import transaccion
+from gimnasio.clases import servicio
+from gimnasio.comun.bd import conexion_actual, transaccion
 from gimnasio.comun.ids import desde_bytes, desde_texto
 
 pytestmark = pytest.mark.bd
@@ -79,6 +84,112 @@ def test_cancelar_propia_avisa_solo_a_quien_sube_y_reintento_no_duplica(reservas
     assert escribir(cliente, ruta, clave=clave).status_code == 200
     assert escribir(cliente, ruta).status_code == 200
     assert [(a["socio_id"], a["tipo"]) for a in avisos(app)] == [(socios[1], "paso_a_tener_lugar")]
+
+
+def test_cancelaciones_simultaneas_con_aviso_reintentan_interbloqueo(reservas, monkeypatch):
+    app, cliente, clase, socios, _, _ = reservas
+    propias = [solicitar(cliente, clase, socio).get_json()["id"] for socio in socios[:3]]
+    barrera = Barrier(2)
+    clase_bloqueada = Event()
+    bloquear_socio = servicio.socios.bloquear_socio_activo
+    bloquear_clase = servicio.repositorio.clase_para_reserva
+    intentos = {socio: 0 for socio in socios[:2]}
+
+    def bloquear_socio_a_la_vez(socio_id, *, cursor):
+        bloquear_socio(socio_id, cursor=cursor)
+        g.socio_cancelando = str(socio_id)
+        intentos[str(socio_id)] += 1
+        if intentos[str(socio_id)] == 1:
+            barrera.wait(timeout=10)
+
+    def bloquear_clase_en_orden(cursor, clase_id):
+        # Ambos socios conservan su bloqueo; quien tiene lugar obtiene primero la clase.
+        if g.socio_cancelando == socios[1]:
+            assert clase_bloqueada.wait(timeout=10)
+        resultado = bloquear_clase(cursor, clase_id)
+        if g.socio_cancelando == socios[0]:
+            clase_bloqueada.set()
+        return resultado
+
+    monkeypatch.setattr(servicio.socios, "bloquear_socio_activo", bloquear_socio_a_la_vez)
+    monkeypatch.setattr(servicio.repositorio, "clase_para_reserva", bloquear_clase_en_orden)
+
+    def cancelar(indice):
+        with app.test_client() as propio:
+            with propio.session_transaction() as sesion:
+                sesion["usuario_id"] = socios[indice]
+            with app.app_context():
+                conexion_id = conexion_actual().connection_id
+                ruta = f"/api/clases/reservas/{propias[indice]}/cancelar"
+                clave = str(uuid4())
+                respuesta = escribir(propio, ruta, clave=clave)
+                assert respuesta.status_code == 200, respuesta.get_json()
+                assert escribir(propio, ruta, clave=clave).data == respuesta.data
+                return conexion_id
+
+    with ThreadPoolExecutor(max_workers=2) as ejecutor:
+        conexiones = list(ejecutor.map(cancelar, range(2)))
+    assert len(set(conexiones)) == 2
+    assert sorted(intentos.values()) == [1, 2]
+    assert agenda(cliente, socios[2])[0]["reserva"]["estado"] == "con_lugar"
+    assert [(a["socio_id"], a["tipo"]) for a in avisos(app)] == [
+        (socios[1], "paso_a_tener_lugar"),
+        (socios[2], "paso_a_tener_lugar"),
+    ]
+    with app.app_context(), transaccion() as cursor:
+        cursor.execute("SELECT reserva_id FROM cancelaciones_reserva ORDER BY reserva_id")
+        assert cursor.fetchall() == [{"reserva_id": desde_texto(reserva_id).bytes} for reserva_id in propias[:2]]
+
+
+def test_reintento_revierte_cancelacion_y_aviso_antes_de_recalcular(reservas, monkeypatch):
+    app, cliente, clase, socios, _, _ = reservas
+    primera = solicitar(cliente, clase, socios[0]).get_json()["id"]
+    assert solicitar(cliente, clase, socios[1]).status_code == 201
+    insertar_aviso = servicio.repositorio.insertar_aviso
+    intentos = []
+
+    def insertar_y_fallar_una_vez(*argumentos):
+        insertar_aviso(*argumentos)
+        intentos.append(1)
+        if len(intentos) == 1:
+            raise ErrorMySQL(errno=1213, msg="Interbloqueo de prueba")
+
+    monkeypatch.setattr(servicio.repositorio, "insertar_aviso", insertar_y_fallar_una_vez)
+    with cliente.session_transaction() as sesion:
+        sesion["usuario_id"] = socios[0]
+    ruta = f"/api/clases/reservas/{primera}/cancelar"
+    clave = str(uuid4())
+    respuesta = escribir(cliente, ruta, clave=clave)
+    assert respuesta.status_code == 200
+    assert escribir(cliente, ruta, clave=clave).data == respuesta.data
+    assert len(intentos) == 2
+    assert [(a["socio_id"], a["tipo"]) for a in avisos(app)] == [(socios[1], "paso_a_tener_lugar")]
+    with app.app_context(), transaccion() as cursor:
+        cursor.execute("SELECT reserva_id FROM cancelaciones_reserva")
+        assert cursor.fetchall() == [{"reserva_id": desde_texto(primera).bytes}]
+
+
+@pytest.mark.parametrize("codigo,intentos_esperados", [(1213, 3), (1205, 1), (1062, 1)])
+def test_reintento_acotado_solo_para_interbloqueo(reservas, monkeypatch, codigo, intentos_esperados):
+    app, cliente, clase, socios, _, autor = reservas
+    primera = solicitar(cliente, clase, socios[0]).get_json()["id"]
+    assert solicitar(cliente, clase, socios[1]).status_code == 201
+    intentos = []
+    error = ErrorMySQL(errno=codigo, msg="Error de prueba")
+
+    def fallar_al_avisar(*argumentos):
+        intentos.append(1)
+        raise error
+
+    monkeypatch.setattr(servicio.repositorio, "insertar_aviso", fallar_al_avisar)
+    with app.app_context(), pytest.raises(ErrorMySQL) as resultado:
+        servicio.cancelar(primera, autor)
+    assert resultado.value is error
+    assert len(intentos) == intentos_esperados
+    assert avisos(app) == []
+    with app.app_context(), transaccion() as cursor:
+        cursor.execute("SELECT COUNT(*) AS cantidad FROM cancelaciones_reserva")
+        assert cursor.fetchone()["cantidad"] == 0
 
 
 def test_empezada_conserva_cupo_y_estado_sin_avisos(reservas):
