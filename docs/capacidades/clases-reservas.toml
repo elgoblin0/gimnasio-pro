@@ -2,5 +2,5 @@ id = "clases-reservas"
 nombre = "Clases y reservas con lista de espera"
 grupo = "Operación"
 etapa = 5
-nivel = "esqueleto"
-prueba = "pruebas/e2e/test_clases_agenda.py::test_configurar_clase_y_ver_agenda_como_socio"
+nivel = "funcional"
+prueba = "pruebas/test_clases_reservas.py"

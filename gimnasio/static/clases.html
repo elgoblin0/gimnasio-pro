@@ -26,11 +26,18 @@
   <p data-estado role="status" aria-live="polite">Cargando clases…</p>
   <p data-error role="alert"></p>
   <button type="button" data-reintentar hidden>Volver a cargar</button>
+  <button type="button" data-reintentar-operacion hidden>Reintentar operación</button>
   <section aria-labelledby="titulo-agenda">
     <h2 id="titulo-agenda">Esta semana y la siguiente</h2>
     <p data-rango></p>
+    <div data-recepcion hidden>
+      <p><label>Buscar socio <input type="search" data-buscar-socio placeholder="Nombre o cédula"></label></p>
+      <p><label for="socio">Socio</label> <select id="socio" data-socio><option value="">Elegí un socio</option></select></p>
+      <p data-socios-estado role="status"></p>
+    </div>
     <p data-vacio hidden>No hay ocurrencias de clase en estas dos semanas.</p>
     <ol data-agenda></ol>
+    <section data-lista-reservas hidden aria-label="Reservas de la clase" aria-live="polite"></section>
   </section>
   <section data-configuracion hidden aria-labelledby="titulo-configuracion">
     <h2 id="titulo-configuracion">Configurar clases</h2>

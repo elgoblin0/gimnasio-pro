@@ -8,6 +8,8 @@ ROLES = ("socio", "recepcion", "entrenador", "administracion")
 
 PERMISOS = {
     "clases.ver": set(ROLES),
+    "clases.reservar_propias": {"socio"},
+    "clases.ver_reservas": {"recepcion", "administracion", "entrenador"},
     "clases.configurar": {"administracion"},
     "socios.editar_datos_propios": {"socio"},
     "socios.editar_datos": {"recepcion", "administracion"},
