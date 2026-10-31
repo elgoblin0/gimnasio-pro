@@ -214,6 +214,14 @@ def contar_pruebas(salida):
     return {}
 
 
+def nombres_de_prueba_repetidos(archivos):
+    """Archivos `test_*.py` que comparten nombre en carpetas distintas: pytest no los recolecta juntos."""
+    por_nombre = {}
+    for archivo in archivos:
+        por_nombre.setdefault(PurePosixPath(archivo).name, []).append(archivo)
+    return {nombre: sorted(rutas) for nombre, rutas in por_nombre.items() if len(rutas) > 1}
+
+
 def necesita_subir_cache(archivos):
     """Tocar recursos de la PWA sin subir VERSION deja a los navegadores con el service worker viejo."""
     return verificar_cache_pwa.toca_recursos_pwa(archivos) and SERVICE_WORKER not in archivos
@@ -781,7 +789,12 @@ def verificar(carpeta):
     codigo, salida = correr([python, "-m", "ruff", "check", "."], carpeta, 5)
     informe.append("ruff: " + ("sin observaciones" if codigo == 0 else f"con hallazgos\n{salida[-800:]}"))
     bien = bien and codigo == 0
-    existentes = {p.relative_to(carpeta).as_posix() for p in (carpeta / "pruebas").glob("test_*.py")}
+    todas = [p.relative_to(carpeta).as_posix() for p in (carpeta / "pruebas").rglob("test_*.py")]
+    if repetidos := nombres_de_prueba_repetidos(todas):
+        detalle = "; ".join(f"`{nombre}` en {', '.join(rutas)}" for nombre, rutas in repetidos.items())
+        informe.append(f"⚠ Nombres de prueba repetidos, pytest falla al recolectar: {detalle}. Renombrá uno.")
+        bien = False
+    existentes = {p for p in todas if PurePosixPath(p).parent.as_posix() == "pruebas"}
     pruebas = tests_a_correr(archivos, existentes)
     if not pruebas:
         informe.append("pytest: sin pruebas asociadas a lo cambiado; las corre el CI.")

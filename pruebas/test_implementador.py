@@ -396,6 +396,19 @@ def test_elige_las_pruebas_de_lo_cambiado():
     assert implementador.tests_a_correr(["gimnasio/static/js/a.js", "docs/x.md"], existentes) == []
 
 
+def test_detecta_pruebas_con_el_mismo_nombre_en_carpetas_distintas():
+    existentes = [
+        "pruebas/test_pagos.py",
+        "pruebas/e2e/test_pagos.py",
+        "pruebas/test_socios.py",
+        "pruebas/e2e/test_socios_recorrido.py",
+    ]
+    assert implementador.nombres_de_prueba_repetidos(existentes) == {
+        "test_pagos.py": ["pruebas/e2e/test_pagos.py", "pruebas/test_pagos.py"]
+    }
+    assert implementador.nombres_de_prueba_repetidos(existentes[2:]) == {}
+
+
 def test_cuenta_el_resumen_de_pytest():
     assert implementador.contar_pruebas("....\n1 failed, 67 passed, 2 skipped in 45.45s") == {
         "failed": 1,
