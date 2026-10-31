@@ -64,8 +64,8 @@ def transaccion():
 class LecturaConMemoria:
     """Cursor de una lectura larga: una consulta idéntica no vuelve a la base.
 
-    Solo para transacciones de lectura, donde repetirla daría las mismas filas. Una escritura falla al no
-    tener filas que traer.
+    Solo para transacciones de lectura, donde repetirla daría las mismas filas: rechaza lo que no sea lectura,
+    porque el driver no avisa y una escritura repetida se omitiría en silencio.
     """
 
     def __init__(self, cursor):
@@ -74,6 +74,8 @@ class LecturaConMemoria:
         self._filas = iter(())
 
     def execute(self, sql, parametros=None):
+        if not sql.lstrip().upper().startswith(("SELECT", "WITH")):
+            raise ValueError("LecturaConMemoria solo admite lecturas.")
         clave = (sql, tuple(parametros or ()))
         if clave not in self._memoria:
             self._cursor.execute(sql, parametros)
