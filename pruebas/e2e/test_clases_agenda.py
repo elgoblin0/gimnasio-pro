@@ -14,7 +14,7 @@ def test_configurar_clase_y_ver_agenda_como_socio(pagina_demo, demo_aislada):
     pagina.get_by_role("link", name="Clases", exact=True).click()
     expect(pagina.get_by_text("No hay ocurrencias de clase en estas dos semanas.")).to_be_visible()
     pagina.get_by_label("Nombre", exact=True).fill("Clase ficticia de prueba")
-    pagina.get_by_label("Día", exact=True).select_option("2")
+    pagina.get_by_label("Día").select_option("2")
     pagina.get_by_label("Hora", exact=True).fill("18:00")
     pagina.get_by_label("Duración en minutos").fill("60")
     pagina.get_by_label("Cupo", exact=True).fill("12")

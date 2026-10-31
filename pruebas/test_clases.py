@@ -44,7 +44,7 @@ DATOS = {
         ("hora_inicio", "8:00"),
         ("hora_inicio", None),
         ("entrenador_id", None),
-        ("entrenador_id", str(uuid4())),
+        ("entrenador_id", "019a2700-0000-4000-8000-000000000001"),
     ],
 )
 def test_validacion(campo, valor):
