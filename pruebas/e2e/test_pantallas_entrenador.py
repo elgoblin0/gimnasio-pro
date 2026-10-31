@@ -51,6 +51,8 @@ def api_post(pagina, ruta, cuerpo):
 def test_administracion_entra_a_equipos_y_ve_el_cambio_de_inmediato(pagina_demo, demo_aislada):
     pagina = pagina_demo
     errores = entrar(pagina, demo_aislada, "administración")
+    pagina.wait_for_url("**/administracion.html")
+    pagina.get_by_role("link", name="Equipos", exact=True).click()
     pagina.wait_for_url("**/equipos.html")
     expect(pagina.get_by_role("link", name="Bandeja", exact=True)).to_be_hidden()
 
@@ -73,6 +75,8 @@ def test_administracion_entra_a_equipos_y_ve_el_cambio_de_inmediato(pagina_demo,
 def test_alternativas_se_reordenan_con_teclado_sin_perder_el_foco(pagina_demo, demo_aislada):
     pagina = pagina_demo
     errores = entrar(pagina, demo_aislada, "administración")
+    pagina.wait_for_url("**/administracion.html")
+    pagina.get_by_role("link", name="Equipos", exact=True).click()
     pagina.wait_for_url("**/equipos.html")
 
     titulo = pagina.get_by_role("heading", name="Sentadilla ficticia", exact=True)
@@ -89,6 +93,8 @@ def test_alternativas_se_reordenan_con_teclado_sin_perder_el_foco(pagina_demo, d
 def test_alternativas_ofrecen_solo_lo_compatible_y_explican_el_rechazo(pagina_demo, demo_aislada):
     pagina = pagina_demo
     errores = entrar(pagina, demo_aislada, "administración")
+    pagina.wait_for_url("**/administracion.html")
+    pagina.get_by_role("link", name="Equipos", exact=True).click()
     pagina.wait_for_url("**/equipos.html")
 
     fila = pagina.locator("[data-ejercicio]").filter(has_text="Press con mancuernas ficticio").first

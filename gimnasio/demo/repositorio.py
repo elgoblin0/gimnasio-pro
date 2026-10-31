@@ -17,10 +17,12 @@ def insertar_restriccion(cursor, identificador, socio_id, autor_id, ahora):
 
 def vaciar_datos(cursor):
     """Borra en orden de dependencias, conservando migraciones_aplicadas y las claves foráneas."""
+    cursor.execute("DELETE FROM cambios_sede")
     cursor.execute("DELETE FROM simulacion_demo")
     cursor.execute("DELETE FROM solicitudes_idempotentes")
     cursor.execute("DELETE FROM cambios_estado_equipo")
     cursor.execute("DELETE FROM equipos")
+    cursor.execute("DELETE FROM borrados_salud")
     while True:
         cursor.execute(
             "DELETE original FROM restricciones_salud original "
