@@ -16,6 +16,8 @@ ZONA_POR_EQUIPO = {
     "cinta": "cardio",
     "sin equipo": "funcional",
     "cajon": "funcional",
+    "polea": "musculacion",
+    "máquina de remo": "musculacion",
 }
 
 

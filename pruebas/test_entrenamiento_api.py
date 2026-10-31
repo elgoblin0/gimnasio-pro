@@ -1884,7 +1884,10 @@ def test_fallo_aviso_revierte_dolor_y_sustitucion(dolor_api, monkeypatch):
         escribir(datos.cliente_dolor, datos.ruta_dolor + "/dolores", datos.cuerpo_dolor)
     with datos.app.app_context(), transaccion() as cursor:
         for tabla in ("dolores_reportados", "sustituciones", "avisos_entrenador"):
-            cursor.execute(f"SELECT COUNT(*) AS cantidad FROM {tabla}")
+            cursor.execute(
+                f"SELECT COUNT(*) AS cantidad FROM {tabla} WHERE sesion_realizada_id=%s",
+                (a_bytes(desde_texto(datos.ruta_dolor.rsplit("/", 1)[1])),),
+            )
             assert cursor.fetchone()["cantidad"] == 0
 
 
@@ -2125,7 +2128,10 @@ def test_chequeo_con_dolor_sustituye_al_iniciar_y_avisa(entrenamiento_api):
         dolores = cursor.fetchall()
         assert len(dolores) == 1
         assert dolores[0]["origen"] == "chequeo" and dolores[0]["chequeo_id"] == a_bytes(desde_texto(cuerpo["id"]))
-        cursor.execute("SELECT freno FROM avisos_entrenador")
+        cursor.execute(
+            "SELECT freno FROM avisos_entrenador WHERE sesion_realizada_id=%s",
+            (a_bytes(desde_texto(sesion_id)),),
+        )
         assert cursor.fetchall() == [{"freno": "dolor_reportado"}]
     # Reintentar el inicio no duplica el aviso; otro dolor en vivo sí deja otro.
     assert (
@@ -2145,7 +2151,10 @@ def test_chequeo_con_dolor_sustituye_al_iniciar_y_avisa(entrenamiento_api):
     assert escribir(cliente, ruta, dolor).status_code == 201
     assert escribir(cliente, ruta, dolor).status_code == 201
     with datos.app.app_context(), transaccion() as cursor:
-        cursor.execute("SELECT freno FROM avisos_entrenador")
+        cursor.execute(
+            "SELECT freno FROM avisos_entrenador WHERE sesion_realizada_id=%s",
+            (a_bytes(desde_texto(sesion_id)),),
+        )
         assert cursor.fetchall() == [{"freno": "dolor_reportado"}] * 2
 
 

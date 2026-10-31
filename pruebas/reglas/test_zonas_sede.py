@@ -14,6 +14,8 @@ AHORA = datetime(2026, 10, 27, 12, tzinfo=UTC)
     [
         ([(19, "cinta")], 60, "cardio"),
         ([(20, "barra")], 60, "peso_libre"),
+        ([(1, "polea")], 60, "musculacion"),
+        ([(1, "máquina de remo")], 60, "musculacion"),
         ([(21, "cinta")], 60, "en_la_sede"),
         ([(19, "cinta")], 10, "en_la_sede"),
         ([(1, "desconocido")], 60, "funcional"),

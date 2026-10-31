@@ -7,3 +7,4 @@ prueba = "pruebas/test_bandeja_api.py"
 
 # Bandeja priorizada por API con ETag y asignación vigente (#184). Pantallas pendientes.
 # Los motivos de equipo consideran solo trabajo pendiente y el equipo de la alternativa segura.
+# La demo cubre los cinco grupos desde el reinicio: pruebas/test_demo_bandeja.py (#185).

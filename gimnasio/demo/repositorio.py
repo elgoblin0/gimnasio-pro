@@ -288,3 +288,39 @@ def obtener_autor_simulacion(cursor):
         "WHERE p.correo='simulacion@demo.gimnasio.invalid'"
     )
     return cursor.fetchone()
+
+
+def insertar_aviso(cursor, aviso_id, realizada_id, socio_id, sesion_id, entrenador_id, freno, explicacion, ahora):
+    cursor.execute(
+        "INSERT INTO sesiones_realizadas (id,socio_id,sesion_planificada_id,creada_en) VALUES (%s,%s,%s,%s)",
+        (a_bytes(realizada_id), a_bytes(socio_id), a_bytes(sesion_id), ahora),
+    )
+    cursor.execute(
+        "INSERT INTO avisos_entrenador "
+        "(id,socio_id,entrenador_id,sesion_realizada_id,freno,explicacion,creado_en) "
+        "VALUES (%s,%s,%s,%s,%s,%s,%s)",
+        (
+            a_bytes(aviso_id),
+            a_bytes(socio_id),
+            a_bytes(entrenador_id),
+            a_bytes(realizada_id),
+            freno,
+            json.dumps(explicacion, ensure_ascii=False),
+            ahora,
+        ),
+    )
+
+
+def insertar_revision_aviso(cursor, identificador, aviso_id, entrenador_id, ahora):
+    cursor.execute(
+        "INSERT INTO revisiones_aviso (id,aviso_id,entrenador_id,nota,revisada_en) VALUES (%s,%s,%s,%s,%s)",
+        (a_bytes(identificador), a_bytes(aviso_id), a_bytes(entrenador_id), "Aviso ficticio revisado.", ahora),
+    )
+
+
+def insertar_equipo_fuera_de_servicio(cursor, identificador, equipo_id, entrenador_id, ahora):
+    cursor.execute(
+        "INSERT INTO cambios_estado_equipo (id,equipo_id,estado,autor_id,registrado_en) "
+        "VALUES (%s,%s,'fuera_de_servicio',%s,%s)",
+        (a_bytes(identificador), a_bytes(equipo_id), a_bytes(entrenador_id), ahora),
+    )

@@ -51,7 +51,10 @@ def test_iniciar_sesion_restringida_deja_aviso_sin_exponer_descripcion(app_con_b
         sesion = consultar_sesion(identificador, socio)
         assert restriccion["descripcion"] not in json.dumps(sesion, ensure_ascii=False, default=str)
         with transaccion() as cursor:
-            cursor.execute("SELECT * FROM avisos_entrenador WHERE freno='restriccion_salud'")
+            cursor.execute(
+                "SELECT * FROM avisos_entrenador WHERE freno='restriccion_salud' AND socio_id=%s",
+                (restriccion["socio_id"],),
+            )
             avisos = cursor.fetchall()
         assert len(avisos) == 1
         assert avisos[0]["entrenador_id"] == restriccion["autor_id"]
@@ -97,7 +100,10 @@ def test_iniciar_sesion_restringida_deja_aviso_sin_exponer_descripcion(app_con_b
                 default=str,
             )
             with transaccion() as cursor:
-                cursor.execute("SELECT explicacion FROM avisos_entrenador WHERE freno='restriccion_salud'")
+                cursor.execute(
+                    "SELECT explicacion FROM avisos_entrenador WHERE freno='restriccion_salud' AND socio_id=%s",
+                    (restriccion["socio_id"],),
+                )
                 assert all(restriccion["descripcion"] in f["explicacion"] for f in cursor.fetchall())
 
 

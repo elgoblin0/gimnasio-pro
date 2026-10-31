@@ -6,7 +6,7 @@ from uuid import uuid4
 import pytest
 
 from gimnasio.comun.bd import transaccion
-from gimnasio.comun.ids import nuevo_id
+from gimnasio.comun.ids import a_bytes, desde_texto, nuevo_id
 from gimnasio.demo import servicio as demo
 from gimnasio.programas import servicio
 
@@ -20,7 +20,7 @@ def equipos(app_con_bd):
         demo.reiniciar()
     cliente = app_con_bd.test_client()
     cliente.post("/api/sesion/demo/entrenador", headers={"X-Gimnasio": "1"})
-    equipo = cliente.get("/api/equipos").get_json()["equipos"][0]
+    equipo = next(e for e in cliente.get("/api/equipos").get_json()["equipos"] if e["estado"] == "disponible")
     return app_con_bd, cliente, equipo
 
 
@@ -36,14 +36,16 @@ def test_cambios_estado_equipo_idempotentes(equipos):
     app, cliente, equipo = equipos
     assert equipo["estado"] == "disponible"
     assert equipo["ultimo_cambio"] is equipo["autor_id"] is equipo["motivo"] is None
+    with app.app_context(), transaccion() as cursor:
+        base = servicio.equipos_fuera_de_servicio(cursor)
     clave = str(uuid4())
     primera = cambiar(cliente, equipo, "fuera_de_servicio", clave=clave, motivo="Revisión ficticia")
     assert primera.status_code == 200
     assert cambiar(cliente, equipo, "fuera_de_servicio", clave=clave, motivo="Revisión ficticia").data == primera.data
     assert cambiar(cliente, equipo, "disponible", clave=clave).status_code == 422
     with app.app_context(), transaccion() as cursor:
-        assert servicio.equipos_fuera_de_servicio(cursor) == frozenset({equipo["nombre"]})
-        assert servicio.equipos_fuera_de_servicio() == frozenset({equipo["nombre"]})
+        assert servicio.equipos_fuera_de_servicio(cursor) == base | {equipo["nombre"]}
+        assert servicio.equipos_fuera_de_servicio() == base | {equipo["nombre"]}
     repetida = cambiar(cliente, equipo, "fuera_de_servicio")
     assert repetida.status_code == 409
     assert repetida.get_json()["error"]["codigo"] == "estado_sin_cambio"
@@ -55,19 +57,24 @@ def test_cambios_estado_equipo_idempotentes(equipos):
     assert actual["ultimo_cambio"].endswith("+00:00")
     assert actual["motivo"] == "Listo"
     with app.app_context(), transaccion() as cursor:
-        cursor.execute("SELECT estado, motivo FROM cambios_estado_equipo ORDER BY registrado_en, id")
+        cursor.execute(
+            "SELECT estado, motivo FROM cambios_estado_equipo WHERE equipo_id=%s ORDER BY registrado_en, id",
+            (a_bytes(desde_texto(equipo["id"])),),
+        )
         assert cursor.fetchall() == [
             {"estado": "fuera_de_servicio", "motivo": "Revisión ficticia"},
             {"estado": "disponible", "motivo": "Listo"},
         ]
-        assert servicio.equipos_fuera_de_servicio(cursor) == frozenset()
+        assert servicio.equipos_fuera_de_servicio(cursor) == base
     with app.app_context():
         demo.reiniciar()
-        assert servicio.equipos_fuera_de_servicio() == frozenset()
+        assert servicio.equipos_fuera_de_servicio() == base
 
 
 def test_estado_equipo_al_momento_del_dolor(equipos, reloj_fijo):
     app, cliente, equipo = equipos
+    with app.app_context(), transaccion() as cursor:
+        base = servicio.equipos_fuera_de_servicio(cursor)
     inicio = reloj_fijo.ahora().replace(tzinfo=None)
     reloj_fijo.avanzar(timedelta(seconds=1))
     assert cambiar(cliente, equipo, "fuera_de_servicio").status_code == 200
@@ -76,14 +83,14 @@ def test_estado_equipo_al_momento_del_dolor(equipos, reloj_fijo):
     assert cambiar(cliente, equipo, "disponible").status_code == 200
     reparacion = reloj_fijo.ahora().replace(tzinfo=None)
     with app.app_context(), transaccion() as cursor:
-        assert servicio.equipos_fuera_de_servicio(cursor, momento=inicio) == frozenset()
-        assert servicio.equipos_fuera_de_servicio(cursor, momento=dolor) == frozenset({equipo["nombre"]})
-        assert servicio.equipos_fuera_de_servicio(momento=dolor) == frozenset({equipo["nombre"]})
-        assert servicio.equipos_fuera_de_servicio(cursor) == frozenset()
+        assert servicio.equipos_fuera_de_servicio(cursor, momento=inicio) == base
+        assert servicio.equipos_fuera_de_servicio(cursor, momento=dolor) == base | {equipo["nombre"]}
+        assert servicio.equipos_fuera_de_servicio(momento=dolor) == base | {equipo["nombre"]}
+        assert servicio.equipos_fuera_de_servicio(cursor) == base
         assert servicio.equipos_fuera_de_servicio_en_momentos(cursor, [inicio, dolor, reparacion]) == {
-            inicio: frozenset(),
-            dolor: frozenset({equipo["nombre"]}),
-            reparacion: frozenset(),
+            inicio: base,
+            dolor: base | {equipo["nombre"]},
+            reparacion: base,
         }
 
 
@@ -127,7 +134,10 @@ def test_validacion_estado(equipos, datos):
     )
     assert respuesta.status_code == 422
     with app.app_context(), transaccion() as cursor:
-        cursor.execute("SELECT COUNT(*) AS cantidad FROM cambios_estado_equipo")
+        cursor.execute(
+            "SELECT COUNT(*) AS cantidad FROM cambios_estado_equipo WHERE equipo_id=%s",
+            (a_bytes(desde_texto(equipo["id"])),),
+        )
         assert cursor.fetchone()["cantidad"] == 0
 
 
