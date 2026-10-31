@@ -166,6 +166,10 @@ Carga que el entrenador fija para un ejercicio en una versión del programa. Val
 **Bandeja del entrenador**:
 Lista priorizada de socios asignados que requieren atención: condiciones de salud sin revisar, avisos sin revisar, socios sin programa, secuencia terminada, ejercicios sin alternativa disponible, socios sin consentimiento de salud y riesgo de abandono.
 
+**Perfil de entrenamiento**:
+Lo que el socio cuenta para orientar su programa de entrenamiento: objetivo, experiencia (inicial, intermedia o avanzada), disponibilidad semanal, tiempo por sesión y preferencias. Lo editan el socio y su entrenador asignado; el motor de reglas no lo usa. No es parte de la ficha de salud (ADR 0026).
+_Evitar_: Perfil sin calificar, cuestionario.
+
 **Incorporación**:
 Primeros 90 días de un socio desde su alta, con seguimiento específico.
 
@@ -217,6 +221,13 @@ _Evitar_: Borrado.
 **Borrado de datos de salud**:
 Anonimización irreversible de los datos de salud de un socio, que él pide con el consentimiento ya revocado (ADR 0025).
 _Evitar_: Revocación.
+
+**Datos personales**:
+Nombre, apellido, cédula, teléfono, correo y fecha de nacimiento del socio. Recepción y administración los corrigen; el socio edita solo su teléfono y su correo.
+
+**Ficha del socio**:
+Datos personales del socio y, cuando la ven él mismo o su entrenador asignado, su perfil de entrenamiento. Nunca incluye la ficha de salud. Para el socio, la pantalla se llama «Mi ficha».
+_Evitar_: Ficha sin calificar, cuando pueda confundirse con la ficha de salud.
 
 **Ficha de salud**:
 Datos sensibles del socio: condiciones, restricciones y dolores. Solo la ven el socio y su entrenador asignado.
