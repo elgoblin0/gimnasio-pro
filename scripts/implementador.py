@@ -18,6 +18,7 @@ Todo lo que muestra también queda en `.implementador/registro.log`; la salida c
 """
 
 import argparse
+import json
 import os
 import queue
 import re
@@ -43,7 +44,14 @@ CUENTA_REGRESIVA_SEGUNDOS = 5 * 60
 LIMITE_PRUEBAS_MINUTOS = 20
 SERVICE_WORKER = verificar_cache_pwa.SERVICE_WORKER
 VERSION_SW = re.compile(r'(const VERSION = ")(\d+)(")')
-SESION = {"inicio": time.time(), "atendidos": [], "fallos": [], "sin_cupo": 0, "sin_borrar": set()}
+SESION = {
+    "inicio": time.time(),
+    "atendidos": [],
+    "fallos": [],
+    "sin_cupo": 0,
+    "sin_borrar": set(),
+    "codex_sin_cupo_hasta": 0.0,  # mientras dure, implementa el respaldo en vez de esperar a Codex
+}
 MARCA_HECHO = cadena.MARCA_HECHO
 MARCA_FALLO = cadena.MARCA_FALLO
 MAX_FALLOS = 2
@@ -54,6 +62,18 @@ ARCHIVO_CUERPO = ".implementador-cuerpo.md"
 ESPERA_CUPO_SEGUNDOS = 15 * 60
 ESFUERZO_POR_DEFECTO = "low"  # el cupo de Codex rinde más; GIMNASIO_CODEX_ESFUERZO lo cambia (low|medium|high)
 ESCALA_ESFUERZO = ("low", "medium", "high")
+RESPALDO_POR_DEFECTO = "sonnet"  # modelo de Claude que implementa sin cupo de Codex; GIMNASIO_RESPALDO=ninguno lo apaga
+MARCAS_SIN_CUPO = ("hit your usage limit", "hit your limit", "usage limit reached", "5-hour limit reached")
+# En Windows la herramienta de shell de Claude Code es PowerShell; en Linux, Bash: las reglas cubren las dos.
+_CONSULTAS = ("python", "pytest", "ruff", "node", "git status", "git diff", "git log", "git show", "ls")
+_VEDADOS = ("git push", "gh", "curl", "Invoke-WebRequest", "Invoke-RestMethod")
+HERRAMIENTAS_PERMITIDAS = "Read Edit Write Glob Grep " + " ".join(
+    f"{shell}({comando}:*)" for shell in ("Bash", "PowerShell") for comando in _CONSULTAS
+)
+HERRAMIENTAS_PROHIBIDAS = (
+    " ".join(f"{shell}({comando}:*)" for shell in ("Bash", "PowerShell") for comando in _VEDADOS)
+    + " WebFetch WebSearch"
+)
 PEDIDO = re.compile(r"^\s*@codex\s+(?!review\b)\S", re.IGNORECASE)
 
 
@@ -65,7 +85,35 @@ class SinCupo(RuntimeError):
 
 
 def es_falta_de_cupo(texto):
-    return "hit your usage limit" in (texto or "").lower()
+    minusculas = (texto or "").lower()
+    return any(marca in minusculas for marca in MARCAS_SIN_CUPO)
+
+
+def respaldo():
+    """El modelo de Claude que implementa mientras Codex no tiene cupo, o None si el respaldo está apagado."""
+    modelo = (os.environ.get("GIMNASIO_RESPALDO") or RESPALDO_POR_DEFECTO).strip().lower()
+    return None if modelo in ("ninguno", "no", "off") else modelo
+
+
+def motor_para_ahora(ahora, sin_cupo_hasta, modelo_respaldo):
+    """«codex», o el modelo de respaldo mientras dure la espera de cupo de Codex."""
+    return modelo_respaldo if modelo_respaldo and ahora < sin_cupo_hasta else "codex"
+
+
+def resultado_de_claude(salida):
+    """(texto final, tokens, con_error) de la salida `stream-json` de `claude -p`; el último `result` manda."""
+    texto, tokens, con_error = "", 0, False
+    for linea in (salida or "").splitlines():
+        try:
+            dato = json.loads(linea)
+        except ValueError:
+            continue
+        if isinstance(dato, dict) and dato.get("type") == "result":
+            uso = dato.get("usage") or {}
+            texto = str(dato.get("result") or "")
+            tokens = sum(int(uso.get(k) or 0) for k in ("input_tokens", "output_tokens", "cache_creation_input_tokens"))
+            con_error = bool(dato.get("is_error"))
+    return texto, tokens, con_error
 
 
 def es_pedido(cuerpo):
@@ -274,18 +322,54 @@ class ResumenDeCodex:
         return [f"✎ edita {encontrado[1] if encontrado else texto.strip()}"]
 
 
+class ResumenDeClaude:
+    """Una línea por acción de `claude -p --output-format stream-json`: lo que escribe, edita y corre."""
+
+    ANCHO = 150
+
+    def _corto(self, texto):
+        texto = " ".join(str(texto).split())
+        return texto if len(texto) <= self.ANCHO else texto[: self.ANCHO - 1] + "…"
+
+    def procesar(self, linea):
+        try:
+            dato = json.loads(linea)
+        except ValueError:
+            return []
+        if not isinstance(dato, dict):
+            return []
+        if dato.get("type") == "system" and dato.get("subtype") == "init":
+            return [f"model: {dato.get('model', '?')}"]
+        if dato.get("type") != "assistant":
+            return []
+        visibles = []
+        for bloque in (dato.get("message") or {}).get("content") or []:
+            if bloque.get("type") == "text" and bloque.get("text", "").strip():
+                visibles.append(f"💬 {self._corto(bloque['text'])}")
+            elif bloque.get("type") == "tool_use":
+                entrada = bloque.get("input") or {}
+                if bloque.get("name") in ("Edit", "Write"):
+                    ruta = ResumenDeCodex.CARPETA_DE_ISSUE.search(str(entrada.get("file_path", "")))
+                    visibles.append(f"✎ edita {ruta[1] if ruta else entrada.get('file_path', '?')}")
+                elif bloque.get("name") in ("Bash", "PowerShell"):
+                    visibles.append(f"$ {self._corto(entrada.get('command', ''))}")
+        return visibles
+
+
 def formatear_resumen(sesion, fusionados, ahora):
     """El resumen de lo que hizo esta corrida del implementador, para la consola y el registro."""
     atendidos = sesion["atendidos"]
-    minutos = sum(a["minutos"] for a in atendidos)
-    tokens = sum(a["tokens"] for a in atendidos)
     lineas = [f"Resumen de la corrida ({(ahora - sesion['inicio']) / 60:.0f} min en marcha):"]
     for a in atendidos:
         lineas.append(f"  · PR #{a['pr']}: {a['resultado']} en {a['minutos']:.1f} min, {a['tokens']:,} tokens")
     lineas.append(
         f"  Atendidos: {len(atendidos)} · Fallos: {len(sesion['fallos'])} · Veces sin cupo: {sesion['sin_cupo']}"
     )
-    lineas.append(f"  Codex: {minutos:.1f} min y {tokens:,} tokens en total")
+    motores = dict.fromkeys(a.get("motor", "codex") for a in atendidos)
+    for motor in motores or ["codex"]:
+        propios = [a for a in atendidos if a.get("motor", "codex") == motor]
+        minutos, tokens = sum(a["minutos"] for a in propios), sum(a["tokens"] for a in propios)
+        lineas.append(f"  {motor.capitalize()}: {minutos:.1f} min y {tokens:,} tokens en total")
     if fusionados:
         lineas.append("  Fusionados desde que arrancó: " + ", ".join(f"#{n}" for n in fusionados))
     return "\n".join(lineas)
@@ -303,6 +387,19 @@ def binario_codex():
     local = os.environ.get("LOCALAPPDATA")
     instalados = list((Path(local) / "OpenAI" / "Codex" / "bin").glob("*/codex.exe")) if local else []
     return str(max(instalados, key=lambda p: p.stat().st_mtime)) if instalados else None
+
+
+def binario_claude():
+    """El ejecutable nativo de Claude Code, o None. Se prefiere `claude.exe` a `claude.cmd`: los argumentos con
+    paréntesis y comodines no sobreviven a cmd.exe."""
+    if os.environ.get("GIMNASIO_CLAUDE_BIN"):
+        return os.environ["GIMNASIO_CLAUDE_BIN"]
+    datos = os.environ.get("APPDATA")
+    if datos:
+        nativo = Path(datos) / "npm" / "node_modules" / "@anthropic-ai" / "claude-code" / "bin" / "claude.exe"
+        if nativo.exists():
+            return str(nativo)
+    return shutil.which("claude")
 
 
 def git(*argumentos, cwd=RAIZ, chequear=True):
@@ -379,6 +476,64 @@ def comando_codex(binario, carpeta, salida, nivel=None):
     ]
 
 
+def comando_claude(binario, modelo):
+    """`claude -p` con el prompt por stdin: edita y corre lo del proyecto, sin push, `gh` ni red."""
+    return [
+        binario,
+        "-p",
+        "--model",
+        modelo,
+        "--output-format",
+        "stream-json",
+        "--verbose",
+        "--permission-mode",
+        "acceptEdits",
+        "--allowedTools",
+        HERRAMIENTAS_PERMITIDAS,
+        "--disallowedTools",
+        HERRAMIENTAS_PROHIBIDAS,
+    ]
+
+
+def medida_del_respaldo(modelo, minutos, tokens):
+    """Marca oculta del comentario «hecho» cuando implementó el respaldo en vez de Codex."""
+    return f"<!-- implementador:{modelo} minutos={minutos:.1f} tokens={tokens} -->"
+
+
+def correr_claude(carpeta, prompt, modelo):
+    """El respaldo de Codex: `claude -p` en el worktree. Devuelve (código, texto final, tokens) como `correr_codex`."""
+    binario = binario_claude()
+    if binario is None:
+        raise RuntimeError("No encuentro Claude: definí GIMNASIO_CLAUDE_BIN con la ruta de claude.exe.")
+    entorno = dict(os.environ)  # el Python del proyecto primero: `python`, `pytest` y `ruff` salen del .venv
+    entorno["PATH"] = str(Path(python_del_proyecto()).parent) + os.pathsep + entorno.get("PATH", "")
+    proceso = subprocess.Popen(
+        comando_claude(binario, modelo),
+        cwd=carpeta,
+        env=entorno,
+        stdin=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+    )
+    threading.Thread(target=_entregar_prompt, args=(proceso, prompt), daemon=True).start()
+    lineas = queue.Queue()
+    threading.Thread(target=_leer_lineas, args=(proceso.stdout, lineas), daemon=True).start()
+    try:
+        registro = _seguir_a_codex(proceso, lineas, ResumenDeClaude, modelo.capitalize())
+    finally:
+        if proceso.poll() is None:
+            proceso.kill()
+    codigo = proceso.wait()
+    salida = "".join(registro)
+    texto, tokens, con_error = resultado_de_claude(salida)
+    if (codigo != 0 or con_error) and es_falta_de_cupo(salida):
+        raise SinCupo(texto or "Sin cupo de Claude.")
+    return codigo or int(con_error), texto or salida[-2000:], tokens
+
+
 def correr_codex(carpeta, prompt, nivel=None):
     binario = binario_codex()
     if binario is None:
@@ -425,18 +580,18 @@ def _leer_lineas(flujo, cola):
     cola.put(None)
 
 
-def _seguir_a_codex(proceso, lineas):
-    """Muestra lo que dice Codex y lo corta si pasa el límite total o si se queda mudo; devuelve sus líneas."""
+def _seguir_a_codex(proceso, lineas, clase_resumen=None, nombre="Codex"):
+    """Muestra lo que dice el implementador; lo corta si pasa el límite total o se queda mudo. Devuelve sus líneas."""
     inicio = ultima_senal = time.monotonic()
     avisado = False
     registro = []
-    resumen = None if os.environ.get("GIMNASIO_IMPL_VERBOSO") else ResumenDeCodex()
+    resumen = None if os.environ.get("GIMNASIO_IMPL_VERBOSO") else (clase_resumen or ResumenDeCodex)()
     CARPETA_TRABAJO.mkdir(exist_ok=True)
     with CRUDO.open("a", encoding="utf-8", newline="\n") as crudo:
-        return _vigilar_lineas(proceso, lineas, registro, resumen, crudo, inicio, ultima_senal, avisado)
+        return _vigilar_lineas(proceso, lineas, registro, resumen, crudo, inicio, ultima_senal, avisado, nombre)
 
 
-def _vigilar_lineas(proceso, lineas, registro, resumen, crudo, inicio, ultima_senal, avisado):
+def _vigilar_lineas(proceso, lineas, registro, resumen, crudo, inicio, ultima_senal, avisado, nombre="Codex"):
     while True:
         try:
             linea = lineas.get(timeout=SONDEO_SEGUNDOS)
@@ -455,14 +610,14 @@ def _vigilar_lineas(proceso, lineas, registro, resumen, crudo, inicio, ultima_se
         mudo = (ahora - ultima_senal) / 60
         if ahora - inicio > LIMITE_MINUTOS * 60:
             proceso.kill()
-            raise RuntimeError(f"Codex pasó el límite de {LIMITE_MINUTOS} min y se lo cortó.")
+            raise RuntimeError(f"{nombre} pasó el límite de {LIMITE_MINUTOS} min y se lo cortó.")
         if mudo > INACTIVIDAD_CORTE_MINUTOS:
             proceso.kill()
-            raise RuntimeError(f"Codex estuvo {INACTIVIDAD_CORTE_MINUTOS} min sin dar señales y se lo cortó.")
+            raise RuntimeError(f"{nombre} estuvo {INACTIVIDAD_CORTE_MINUTOS} min sin dar señales y se lo cortó.")
         if mudo > INACTIVIDAD_AVISO_MINUTOS and not avisado:
             avisado = True
-            paso(f"Codex lleva {mudo:.0f} min sin escribir nada; se lo corta a los {INACTIVIDAD_CORTE_MINUTOS}.")
-            avisar("Implementador", "Codex lleva rato sin dar señales.")
+            paso(f"{nombre} lleva {mudo:.0f} min sin escribir nada; se lo corta a los {INACTIVIDAD_CORTE_MINUTOS}.")
+            avisar("Implementador", f"{nombre} lleva rato sin dar señales.")
 
 
 def mostrar(mensaje):
@@ -655,9 +810,11 @@ def revisiones_pendientes(numero):
     return texto_de_revisiones(resenas, en_linea, desde)
 
 
-def atender(pr, pedido, nivel=None):
+def atender(pr, pedido, nivel=None, motor="codex"):
+    """Implementa o corrige el pedido con Codex o, si `motor` es un modelo de Claude, con el respaldo."""
     numero, rama = pr["number"], pr["headRefName"]
     nivel = nivel or esfuerzo()
+    nombre = "Codex" if motor == "codex" else motor.capitalize()
     try:
         cadena.marcar_tomado(numero, pedido)
     except RuntimeError as error:  # sin la marca, `vigilar` puede avisar de más; no frena el trabajo
@@ -668,11 +825,20 @@ def atender(pr, pedido, nivel=None):
     carpeta = preparar_worktree(rama, numero_issue)
     paso("Leyendo las revisiones pendientes del PR…")
     prompt = prompt_para_codex(pedido, revisiones_pendientes(numero))
-    paso(f"Corriendo Codex (esfuerzo {nivel}, límite {LIMITE_MINUTOS} min); su salida va con │:")
+    detalle = f"esfuerzo {nivel}" if motor == "codex" else "respaldo por falta de cupo de Codex"
+    paso(f"Corriendo {nombre} ({detalle}, límite {LIMITE_MINUTOS} min); su salida va con │:")
     inicio = time.monotonic()
-    codigo, texto, tokens = correr_codex(carpeta, prompt, nivel)
+    if motor == "codex":
+        codigo, texto, tokens = correr_codex(carpeta, prompt, nivel)
+    else:
+        codigo, texto, tokens = correr_claude(carpeta, prompt, motor)
     minutos_codex = (time.monotonic() - inicio) / 60
-    paso(f"Codex terminó con código {codigo} en {minutos_codex:.1f} min ({tokens:,} tokens).")
+    paso(f"{nombre} terminó con código {codigo} en {minutos_codex:.1f} min ({tokens:,} tokens).")
+    medida = (
+        medida_de_codex(minutos_codex, tokens, nivel)
+        if motor == "codex"
+        else medida_del_respaldo(motor, minutos_codex, tokens)
+    )
     archivo_cuerpo = carpeta / ARCHIVO_CUERPO
     cuerpo = cuerpo_del_pr(archivo_cuerpo.read_text(encoding="utf-8") if archivo_cuerpo.exists() else "", numero_issue)
     archivo_cuerpo.unlink(missing_ok=True)  # no debe viajar en el commit
@@ -684,22 +850,25 @@ def atender(pr, pedido, nivel=None):
         )
         cadena.comentar(
             numero,
-            f"{MARCA_HECHO}\n{medida_de_codex(minutos_codex, tokens, nivel)}\n"
-            f"Codex tiene una duda de criterio; quedó en el issue #{numero_issue}.",
+            f"{MARCA_HECHO}\n{medida}\n{nombre} tiene una duda de criterio; quedó en el issue #{numero_issue}.",
         )
         paso(f"Duda de criterio: quedó en el issue #{numero_issue} (necesita-criterio).")
-        avisar("Implementador", f"PR #{numero}: Codex tiene una duda de criterio.")
-        SESION["atendidos"].append({"pr": numero, "resultado": "duda", "minutos": minutos_codex, "tokens": tokens})
+        avisar("Implementador", f"PR #{numero}: {nombre} tiene una duda de criterio.")
+        SESION["atendidos"].append(
+            {"pr": numero, "resultado": "duda", "minutos": minutos_codex, "tokens": tokens, "motor": motor}
+        )
         return
     if codigo != 0:
-        raise RuntimeError(f"Codex terminó con código {codigo}.\n\n{texto[-1500:]}")
+        raise RuntimeError(f"{nombre} terminó con código {codigo}.\n\n{texto[-1500:]}")
     paso("Verificando aquí (formato, ruff y pruebas del módulo tocado)…")
     informe, bien = verificar(carpeta)
     paso("\n".join(informe))
     paso("Haciendo commit y push de los cambios…")
     if not subir_cambios(carpeta, rama, f"{pr['title']} (#{numero_issue})"):
         # Sin commit no hay CI ni revisión nueva: un «hecho» dejaría el PR parado, aunque Codex haya escrito el cuerpo.
-        raise RuntimeError(f"Codex terminó sin cambios y sin una línea `{cadena.PEDIDO_CRITERIO}`.\n\n{texto[-1500:]}")
+        raise RuntimeError(
+            f"{nombre} terminó sin cambios y sin una línea `{cadena.PEDIDO_CRITERIO}`.\n\n{texto[-1500:]}"
+        )
     resumen = git("show", "--stat", "--format=", "HEAD", cwd=carpeta).stdout.strip()
     paso(f"Cambios subidos:\n{resumen}")
     if cuerpo:
@@ -709,14 +878,16 @@ def atender(pr, pedido, nivel=None):
     verificacion = "\n".join(f"- {linea}" for linea in informe)
     cadena.comentar(
         numero,
-        f"{MARCA_HECHO}\n{medida_de_codex(minutos_codex, tokens, nivel)}\n"
-        f"Implementado en esta PC con Codex.\n\n{texto[-1500:]}\n\n"
+        f"{MARCA_HECHO}\n{medida}\n"
+        f"Implementado en esta PC con {nombre}.\n\n{texto[-1500:]}\n\n"
         f"Verificación del implementador (fuera del sandbox):\n{verificacion}",
     )
     git("worktree", "remove", "--force", str(carpeta), chequear=False)
     minutos = (time.monotonic() - comienzo) / 60
     resultado = "listo" if bien else "subido con observaciones"
-    SESION["atendidos"].append({"pr": numero, "resultado": resultado, "minutos": minutos_codex, "tokens": tokens})
+    SESION["atendidos"].append(
+        {"pr": numero, "resultado": resultado, "minutos": minutos_codex, "tokens": tokens, "motor": motor}
+    )
     paso(f"Listo el PR #{numero} ({minutos:.1f} min en total).")
     avisar("Implementador", f"PR #{numero} {resultado} ({minutos:.0f} min). Queda la revisión de la cadena.")
 
@@ -768,13 +939,23 @@ def una_vuelta(solo_pr=None, simular=False):
                 )
                 avisar("Implementador", f"PR #{pr['number']} quedó bloqueado tras {MAX_FALLOS} fallos.")
             continue
-        paso(f"Atendiendo el PR #{pr['number']} ({pr['headRefName']}); fallos previos: {fallos}/{MAX_FALLOS}")
+        modelo_respaldo = respaldo()
+        motor = motor_para_ahora(time.time(), SESION["codex_sin_cupo_hasta"], modelo_respaldo)
+        paso(
+            f"Atendiendo el PR #{pr['number']} ({pr['headRefName']}); fallos previos: {fallos}/{MAX_FALLOS}"
+            + ("" if motor == "codex" else f"; implementa {motor.capitalize()} (Codex sin cupo)")
+        )
         try:
-            atender(pr, pedido, esfuerzo(fallos, correcciones_previas(pedido, comentarios)))
+            atender(pr, pedido, esfuerzo(fallos, correcciones_previas(pedido, comentarios)), motor)
         except SinCupo as aviso:  # no cuenta como fallo: se reintenta cuando se renueve el cupo
-            avisar("Implementador", "Codex sin cupo; espero a que se renueve.")
             SESION["sin_cupo"] += 1
-            esperar_con_cuenta(ESPERA_CUPO_SEGUNDOS, f"Codex sin cupo ({aviso})")
+            if motor == "codex" and modelo_respaldo:
+                SESION["codex_sin_cupo_hasta"] = time.time() + ESPERA_CUPO_SEGUNDOS
+                paso(f"Codex sin cupo ({aviso}); sigue {modelo_respaldo.capitalize()} y Codex se reintenta en 15 min.")
+                avisar("Implementador", f"Codex sin cupo; implementa {modelo_respaldo.capitalize()}.")
+            else:
+                avisar("Implementador", f"{motor.capitalize()} sin cupo; espero a que se renueve.")
+                esperar_con_cuenta(ESPERA_CUPO_SEGUNDOS, f"{motor.capitalize()} sin cupo ({aviso})")
         except Exception as error:  # un fallo no frena el ciclo: queda registrado en el PR
             paso(f"Falló el PR #{pr['number']}: {error}")
             SESION["fallos"].append(pr["number"])
