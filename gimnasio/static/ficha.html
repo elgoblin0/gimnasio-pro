@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="es" data-direccion="b">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Ficha del socio · Gimnasio Pro</title>
+  <meta name="theme-color" content="#b2452a">
+  <link rel="icon" href="/iconos/gimnasio-192.png">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="stylesheet" href="/estilos/tokens.css">
+  <link rel="stylesheet" href="/estilos/base.css">
+  <link rel="stylesheet" href="/estilos/ficha.css">
+  <script type="module" src="/js/ficha.js"></script>
+</head>
+<body>
+<main>
+  <header class="barra"><a href="/">Gimnasio Pro</a><a data-volver href="/">Volver</a><button type="button" data-cerrar>Cerrar sesión</button></header>
+  <h1 data-titulo>Ficha del socio</h1>
+  <p data-demo hidden>Datos ficticios que se reinician cada día. Requiere conexión.</p>
+  <p data-estado role="status">Cargando ficha del socio…</p>
+  <p data-error role="alert"></p>
+  <button type="button" data-reintentar hidden>Reintentar</button>
+  <section data-personales hidden aria-label="Datos personales"></section>
+  <section data-perfil hidden aria-label="Perfil de entrenamiento"></section>
+</main>
+</body>
+</html>

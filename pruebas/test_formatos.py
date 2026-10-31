@@ -8,6 +8,27 @@ import pytest
 
 from gimnasio.comun import formatos
 
+
+@pytest.mark.parametrize(
+    "entrada,salida",
+    [
+        (" SOCIO@ejemplo.test ", "socio@ejemplo.test"),
+        ("nombre.apellido+gym@ejemplo.test", "nombre.apellido+gym@ejemplo.test"),
+    ],
+)
+def test_normalizar_correo(entrada, salida):
+    assert formatos.normalizar_correo(entrada) == salida
+
+
+@pytest.mark.parametrize(
+    "entrada",
+    [None, 123, "", "sin-arroba", "a@@ejemplo.test", "a b@ejemplo.test", "a@ejemplo", "a" * 161 + "@ejemplo.test"],
+)
+def test_correo_invalido(entrada):
+    with pytest.raises(ValueError):
+        formatos.normalizar_correo(entrada)
+
+
 VECTORES = json.loads((Path(__file__).parent / "vectores" / "formatos.json").read_text(encoding="utf-8"))
 CASOS = [(nombre, caso) for nombre, casos in VECTORES.items() for caso in casos]
 

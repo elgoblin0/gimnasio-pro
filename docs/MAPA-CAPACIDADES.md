@@ -42,7 +42,7 @@ Generado por `scripts/mapa_capacidades.py` desde `docs/capacidades/`. No editar 
 | Salida confirmada del socio y lecturas para recepción | 1 | validada | `pruebas/e2e/test_esqueleto_andante.py` · https://github.com/elgoblin0/gimnasio-pro/issues/52 |
 | Clases y reservas con lista de espera | 5 | pendiente | — |
 | Configuración de la sede desde administración | 5 | funcional | `pruebas/test_administracion_sede.py` |
-| Ficha completa con salud y consentimientos | 5 | pendiente | — |
+| Ficha completa con salud y consentimientos | 5 | pendiente | `pruebas/test_socios_ficha.py` |
 | Registro de pagos en guaraníes | 5 | pendiente | — |
 
 ## Entrenamiento

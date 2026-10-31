@@ -252,6 +252,10 @@ async function abrirTarjeta(socioId, enfocar = true) {
     };
     if (datos.socio.simulada) agregar("Socio simulado de la demo");
     agregar(`${datos.socio.nombre} ${datos.socio.apellido} · Cédula ${datos.socio.cedula}`);
+    const ficha = document.createElement("a");
+    ficha.href = `/ficha.html?socio=${encodeURIComponent(socioId)}`;
+    ficha.textContent = "Ver ficha del socio";
+    contenido.append(ficha);
     const membresia = datos.membresia;
     if (membresia) {
       const estado = !membresia.vigente ? "vencida" : membresia.dias_restantes <= 7 ? "por vencer" : "vigente";
