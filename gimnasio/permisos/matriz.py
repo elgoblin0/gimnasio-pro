@@ -7,6 +7,8 @@ los aplica cada servicio. Acá solo se decide si el rol puede intentar la acció
 ROLES = ("socio", "recepcion", "entrenador", "administracion")
 
 PERMISOS = {
+    "socios.editar_datos_propios": {"socio"},
+    "socios.editar_datos": {"recepcion", "administracion"},
     # Propios del socio
     "entrenamiento.ver_propio": {"socio"},
     "entrenamiento.registrar_propio": {"socio"},

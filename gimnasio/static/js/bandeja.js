@@ -1,4 +1,5 @@
 import { llamarApi } from "@comun/api.js";
+import { montarPerfil } from "./perfil-entrenamiento.js";
 import { formatearCarga, formatearFechaHora } from "@comun/formatos.js";
 import { crearControlDeOperacion } from "@comun/operaciones.js";
 import { crear, exigirRol, prepararBarra } from "@comun/personal.js";
@@ -170,6 +171,11 @@ function dibujarSocio(vista) {
   $("[data-socio-programa]").textContent = vista.programa_vigente ? "" : "Sin programa";
   $("[data-socio-programa]").hidden = Boolean(vista.programa_vigente);
   $("[data-abrir-editor]").href = `/editor-programa.html?socio=${socio.id}`;
+  const perfil = $("[data-perfil]");
+  if (perfil.dataset.socio !== socio.id) {
+    perfil.dataset.socio = socio.id;
+    montarPerfil(perfil, `/api/socios/${socio.id}/perfil`);
+  }
   const sinRevisar = avisosSinRevisar(vista.avisos);
   // Lo que se revisa es exactamente lo que esta pantalla mostró: un aviso posterior no queda revisado sin verse.
   avisosALaVista = sinRevisar.map((aviso) => aviso.id);
