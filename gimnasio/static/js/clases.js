@@ -23,7 +23,7 @@ async function cargar() {
   $("[data-reintentar]").hidden = true;
   try {
     const agenda = await llamarApi("/api/clases/agenda");
-    $("[data-rango]").textContent = `${fecha(agenda.desde)} al ${fecha(agenda.hasta)} · America/Asuncion`;
+    $("[data-rango]").textContent = `${fecha(agenda.desde)} al ${fecha(agenda.hasta)} · ${agenda.zona_horaria}`;
     $("[data-vacio]").hidden = agenda.ocurrencias.length > 0;
     $("[data-agenda]").replaceChildren(...agenda.ocurrencias.map((fila) => crear("li", {},
       `${fecha(fila.fecha)} · ${fila.hora_inicio} · ${fila.clase} · ${fila.entrenador} · ${fila.duracion_minutos} minutos · Cupo: ${fila.cupo}`)));

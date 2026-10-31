@@ -166,6 +166,18 @@ def test_semana_cambia_al_lunes_local(clases):
 
 
 @pytest.mark.bd
+def test_semana_usa_zona_horaria_de_sede(clases):
+    app, cliente, _ = clases
+    app.extensions["reloj"].fijar(datetime(2026, 11, 2, 2, 59, tzinfo=UTC))
+    agenda = cliente.get("/api/clases/agenda").get_json()
+    assert (agenda["desde"], agenda["zona_horaria"]) == ("2026-10-26", "America/Asuncion")
+    with app.app_context(), transaccion() as cursor:
+        cursor.execute("UPDATE sedes SET zona_horaria=%s", ("UTC",))
+    agenda = cliente.get("/api/clases/agenda").get_json()
+    assert (agenda["desde"], agenda["hasta"], agenda["zona_horaria"]) == ("2026-11-02", "2026-11-15", "UTC")
+
+
+@pytest.mark.bd
 def test_agenda_consultas_constantes(clases, monkeypatch):
     app, cliente, datos = clases
     for numero in range(12):
@@ -188,4 +200,4 @@ def test_agenda_consultas_constantes(clases, monkeypatch):
     monkeypatch.setattr(servicio, "transaccion", contar)
     with app.app_context():
         assert len(servicio.agenda()["ocurrencias"]) == 24
-    assert len(consultas) == 2
+    assert len(consultas) == 3

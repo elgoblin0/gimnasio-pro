@@ -68,10 +68,11 @@ def listar():
 
 
 def agenda():
-    hoy = reloj_actual().ahora().astimezone(ZoneInfo("America/Asuncion")).date()
-    desde = hoy - timedelta(days=hoy.weekday())
-    hasta = desde + timedelta(days=13)
     with transaccion() as cursor:
+        zona_horaria = repositorio.zona_horaria(cursor)
+        hoy = reloj_actual().ahora().astimezone(ZoneInfo(zona_horaria)).date()
+        desde = hoy - timedelta(days=hoy.weekday())
+        hasta = desde + timedelta(days=13)
         clases = _clases(cursor)
         ocurrencias = [
             dict(fila, clase_id=str(desde_bytes(fila["clase_id"])), hora_inicio=_hora(fila["hora_inicio"]))
@@ -93,7 +94,12 @@ def agenda():
                 cupo=clase["cupo"],
             )
         )
-    return {"desde": desde.isoformat(), "hasta": hasta.isoformat(), "ocurrencias": resultado}
+    return {
+        "desde": desde.isoformat(),
+        "hasta": hasta.isoformat(),
+        "zona_horaria": zona_horaria,
+        "ocurrencias": resultado,
+    }
 
 
 def guardar(datos, texto_id=None):

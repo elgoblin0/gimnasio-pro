@@ -3,6 +3,11 @@
 from gimnasio.comun.ids import a_bytes
 
 
+def zona_horaria(cursor):
+    cursor.execute("SELECT zona_horaria FROM sedes ORDER BY id LIMIT 1")
+    return cursor.fetchone()["zona_horaria"]
+
+
 def listar(cursor):
     cursor.execute(
         "SELECT c.*, p.nombre AS entrenador_nombre, p.apellido AS entrenador_apellido "
