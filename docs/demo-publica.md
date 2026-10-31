@@ -36,6 +36,11 @@ Las migraciones van en el arranque porque
 [`preDeployCommand` requiere un servicio pago](https://render.com/docs/deploys#pre-deploy-command).
 Así el certificado se lee desde el archivo secreto del servicio.
 
+El servicio corre en Virginia porque la base está en DigitalOcean `nyc`. En Oregón, la bandeja del
+entrenador tardaba unos 10 s con 100 consultas; en local, una fracción de segundo. Si la base cambia
+de región, hay que acercar también el servicio. Render fija la región al crear el servicio: para
+cambiarla hay que crearlo de nuevo con los pasos de arriba. La base y sus datos no se tocan.
+
 ## Reinicio diario
 
 `.github/workflows/reiniciar-demo.yml` corre cada día a las 07:00 UTC (04:00 en Asunción).
