@@ -183,7 +183,7 @@ Informe para socio y entrenador con lo cumplido, los cambios y los pendientes de
 Actividad grupal con horario semanal, entrenador y cupo. Se reserva en cada una de sus ocurrencias. No cuenta como sesión realizada ni afecta el aforo.
 
 **Ocurrencia de clase**:
-Una clase en una fecha concreta. Se puede cancelar sin cambiar el horario de la clase.
+Una clase en una fecha concreta. Se puede cancelar sin cambiar el horario de la clase. Una vez empezada conserva el cupo que tenía, aunque cambie el de la clase.
 _Evitar_: Turno, sesión.
 
 **Reserva**:
