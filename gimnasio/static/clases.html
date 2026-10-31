@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="es" data-direccion="b">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Clases · Gimnasio Pro</title>
+  <meta name="theme-color" content="#b2452a">
+  <link rel="icon" href="/iconos/gimnasio-192.png">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="stylesheet" href="/estilos/tokens.css">
+  <link rel="stylesheet" href="/estilos/base.css">
+  <link rel="stylesheet" href="/estilos/entrenador.css">
+  <link rel="stylesheet" href="/estilos/administracion.css">
+  <script type="importmap">{"imports":{"@comun/":"/js/comun/"}}</script>
+  <script type="module" src="/js/clases.js"></script>
+</head>
+<body class="personal">
+<header class="personal-barra">
+  <a class="personal-marca" href="/">Gimnasio Pro</a>
+  <nav aria-label="Secciones"><a href="/clases.html" aria-current="page">Clases</a><a href="/administracion.html" data-solo-administracion hidden>Administración</a></nav>
+  <p class="personal-demo" data-demo hidden>Datos ficticios · se reinician cada día</p>
+  <button type="button" data-cerrar>Cerrar sesión</button>
+</header>
+<main class="equipos administracion">
+  <h1>Clases</h1>
+  <p data-estado role="status" aria-live="polite">Cargando clases…</p>
+  <p data-error role="alert"></p>
+  <button type="button" data-reintentar hidden>Volver a cargar</button>
+  <section aria-labelledby="titulo-agenda">
+    <h2 id="titulo-agenda">Esta semana y la siguiente</h2>
+    <p data-rango></p>
+    <p data-vacio hidden>No hay ocurrencias de clase en estas dos semanas.</p>
+    <ol data-agenda></ol>
+  </section>
+  <section data-configuracion hidden aria-labelledby="titulo-configuracion">
+    <h2 id="titulo-configuracion">Configurar clases</h2>
+    <p>Cada clase tiene un día y hora semanal. Las ocurrencias ya fijadas conservan su fecha, hora y duración.</p>
+    <ul data-clases></ul>
+    <h3 data-titulo-formulario>Nueva clase</h3>
+    <form data-formulario>
+      <p><label>Nombre <input name="nombre" maxlength="120" required></label></p>
+      <p><label>Entrenador <select name="entrenador_id" required></select></label></p>
+      <p><label>Día <select name="dia_semana" required>
+        <option value="1">Lunes</option><option value="2">Martes</option><option value="3">Miércoles</option><option value="4">Jueves</option><option value="5">Viernes</option><option value="6">Sábado</option><option value="7">Domingo</option>
+      </select></label></p>
+      <p><label>Hora <input name="hora_inicio" type="time" required></label></p>
+      <p><label>Duración en minutos <input name="duracion_minutos" type="number" min="15" max="240" step="1" required></label></p>
+      <p><label>Cupo <input name="cupo" type="number" min="1" max="2147483647" step="1" required></label></p>
+      <button type="submit" class="boton-tinta">Guardar clase</button>
+      <button type="button" data-nueva>Nueva clase</button>
+    </form>
+  </section>
+</main>
+</body>
+</html>
