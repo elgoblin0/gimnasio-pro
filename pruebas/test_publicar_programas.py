@@ -649,3 +649,125 @@ def test_partida_se_repite_y_rechaza_valores_distintos():
     datos["sesiones"][1]["ejercicios"][0]["carga_partida"] = 15
     with pytest.raises(ErrorDeDominio):
         servicio._validar_publicacion(datos, catalogo, {})
+
+
+@pytest.mark.bd
+@pytest.mark.parametrize("consumida", [False, True])
+def test_partida_al_iniciar_version_anterior(programas_api, reloj_fijo, consumida):
+    app, cliente, socio, fuerza = programas_api
+    datos = publicacion(fuerza)
+    datos["sesiones"][0]["ejercicios"][0].update(series=1, carga_partida=10)
+    assert publicar(cliente, socio, datos).status_code == 201
+    with app.app_context():
+        anterior = servicio.listar_programas(desde_texto(socio))[-1]
+
+    def registrar(programa):
+        sesion = programa["sesiones_planificadas"][0]
+        sesion_id = str(nuevo_id(reloj_fijo))
+        assert (
+            escribir(
+                cliente,
+                "/api/entrenamiento/sesiones",
+                {
+                    "id": sesion_id,
+                    "sesion_planificada_id": sesion["id"],
+                },
+            ).status_code
+            == 201
+        )
+        assert (
+            escribir(
+                cliente,
+                f"/api/entrenamiento/sesiones/{sesion_id}/series",
+                {
+                    "id": str(nuevo_id(reloj_fijo)),
+                    "ejercicio_planificado_id": sesion["ejercicios_planificados"][0]["id"],
+                    "repeticiones": 12,
+                    "carga": 40,
+                    "rir": 2,
+                },
+            ).status_code
+            == 201
+        )
+
+    cliente.post("/api/sesion/demo/socio", headers={"X-Gimnasio": "1"})
+    if consumida:
+        registrar(anterior)
+    cliente.post("/api/sesion/demo/entrenador", headers={"X-Gimnasio": "1"})
+    datos["version_base"] = anterior["version"]
+    assert publicar(cliente, socio, datos).status_code == 201
+    with app.app_context():
+        nueva = servicio.listar_programas(desde_texto(socio))[-1]
+    cliente.post("/api/sesion/demo/socio", headers={"X-Gimnasio": "1"})
+    if not consumida:
+        registrar(nueva)
+    sesion_id = str(nuevo_id(reloj_fijo))
+    assert (
+        escribir(
+            cliente,
+            "/api/entrenamiento/sesiones",
+            {
+                "id": sesion_id,
+                "sesion_planificada_id": anterior["sesiones_planificadas"][1]["id"],
+            },
+        ).status_code
+        == 201
+    )
+    efectiva = cliente.get(f"/api/entrenamiento/sesiones/{sesion_id}").json
+    assert float(efectiva["prescripcion_efectiva"]["ejercicios"][0]["objetivos"]["carga"]) == (
+        42.5 if consumida else 10
+    )
+
+
+@pytest.mark.bd
+def test_partida_se_conserva_al_retomar_pendiente(programas_api, reloj_fijo):
+    _, cliente, socio, fuerza = programas_api
+    datos = publicacion(fuerza)
+    datos["sesiones"][0]["ejercicios"][0]["carga_partida"] = 10
+    assert publicar(cliente, socio, datos).status_code == 201
+    cliente.post("/api/sesion/demo/socio", headers={"X-Gimnasio": "1"})
+    propuesta = cliente.get("/api/entrenamiento/propuesta").json
+    ejercicio = propuesta["ejercicios"][0]
+    assert float(ejercicio["objetivos"]["carga"]) == 10
+    sesion_id = str(nuevo_id(reloj_fijo))
+    assert (
+        escribir(
+            cliente,
+            "/api/entrenamiento/sesiones",
+            {
+                "id": sesion_id,
+                "sesion_planificada_id": propuesta["sesion_planificada"]["id"],
+            },
+        ).status_code
+        == 201
+    )
+    assert (
+        escribir(
+            cliente,
+            f"/api/entrenamiento/sesiones/{sesion_id}/series",
+            {
+                "id": str(nuevo_id(reloj_fijo)),
+                "ejercicio_planificado_id": ejercicio["id"],
+                "repeticiones": 12,
+                "carga": 10,
+                "rir": 2,
+            },
+        ).status_code
+        == 201
+    )
+    retomada = cliente.get("/api/entrenamiento/propuesta").json
+    assert float(retomada["ejercicios"][0]["objetivos"]["carga"]) == 10
+    otra_id = str(nuevo_id(reloj_fijo))
+    assert (
+        escribir(
+            cliente,
+            "/api/entrenamiento/sesiones",
+            {
+                "id": otra_id,
+                "sesion_planificada_id": retomada["sesion_planificada"]["id"],
+            },
+        ).status_code
+        == 201
+    )
+    efectiva = cliente.get(f"/api/entrenamiento/sesiones/{otra_id}").json
+    assert float(efectiva["prescripcion_efectiva"]["ejercicios"][0]["objetivos"]["carga"]) == 10

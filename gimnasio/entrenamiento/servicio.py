@@ -364,9 +364,10 @@ def consultar_propuesta(socio_texto, usuario, planificada_id=None, *, cursor=Non
         ]
     programas = listar_programas(socio_id, cursor=cursor)
     programa = programas[-1] if programas else None
-    programa_version = programa
     if planificada_id is not None:
         programa = next(p for p in programas if any(s["id"] == str(planificada_id) for s in p["sesiones_planificadas"]))
+    programa_version = programa
+    if planificada_id is not None:
         programa = {
             **programa,
             "sesiones_planificadas": [s for s in programa["sesiones_planificadas"] if s["id"] == str(planificada_id)],
@@ -421,11 +422,12 @@ def consultar_propuesta(socio_texto, usuario, planificada_id=None, *, cursor=Non
             restricciones,
             equipos_no_disponibles,
             ejercicios_con_serie_en_version=frozenset(
-                str(desde_bytes(f["ejercicio_catalogo_id"]))
-                for f in filas
+                # La sesión en curso tampoco consume la partida al retomar su pendiente:
+                # usa el mismo historial que la progresión (ADR 0016 y 0023).
+                h.ejercicio_id
+                for h in historial
                 if programa_version
-                and str(desde_bytes(f["sesion_planificada_id"]))
-                in {s["id"] for s in programa_version["sesiones_planificadas"]}
+                and h.sesion_planificada_id in {s["id"] for s in programa_version["sesiones_planificadas"]}
             ),
         )
     )
