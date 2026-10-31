@@ -2,6 +2,7 @@ import os
 import uuid
 
 import pytest
+from fragmentos import fragmento_de
 
 from gimnasio.comun.bd import conectar, parametros_desde_entorno
 
@@ -10,7 +11,20 @@ def _hay_mysql():
     return bool(os.environ.get("GIMNASIO_BD_HOST"))
 
 
+def _quedarse_con_el_fragmento(config, items):
+    """Con GIMNASIO_FRAGMENTO="k/N" deja solo el fragmento k de N: así el CI corre pruebas y e2e en partes a la vez."""
+    pedido = os.environ.get("GIMNASIO_FRAGMENTO")
+    if not pedido:
+        return
+    numero, total = (int(parte) for parte in pedido.split("/"))
+    propias = [item for item in items if fragmento_de(item.nodeid, total) == numero]
+    ajenas = [item for item in items if fragmento_de(item.nodeid, total) != numero]
+    config.hook.pytest_deselected(items=ajenas)
+    items[:] = propias
+
+
 def pytest_collection_modifyitems(config, items):
+    _quedarse_con_el_fragmento(config, items)
     if _hay_mysql():
         return
     saltar = pytest.mark.skip(reason="sin MySQL: definí GIMNASIO_BD_HOST para correr estas pruebas")

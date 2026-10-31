@@ -57,12 +57,15 @@ def main(argumentos):
         if len(fallos) > MAX_FALLOS:
             salida.append(f"- … y {len(fallos) - MAX_FALLOS} más")
     for trabajo in ("pruebas", "e2e", "cuerpo3d"):
-        if resultados.get(trabajo) == "failure" and not fallos_de_pytest(carpeta / trabajo)[1]:
+        # `pruebas` y `e2e` suben un artefacto por fragmento (`pruebas-1`, `pruebas-2`…); cada uno va en su carpeta.
+        carpetas = sorted(carpeta.glob(f"{trabajo}*"))
+        if resultados.get(trabajo) == "failure" and not any(fallos_de_pytest(c)[1] for c in carpetas):
             # Falló antes de producir el reporte (migraciones, importación, Chromium): se muestra el final
-            # de los registros de ese trabajo; cada artefacto se descarga en una carpeta con su nombre.
-            for registro in sorted((carpeta / trabajo).rglob("registro-*.txt")):
-                cola = registro.read_text(encoding="utf-8", errors="replace").splitlines()[-MAX_LINEAS // 2 :]
-                salida += ["", f"### {trabajo}/{registro.name}", "", "```", *cola, "```"]
+            # de los registros de ese trabajo.
+            for origen in carpetas:
+                for registro in sorted(origen.rglob("registro-*.txt")):
+                    cola = registro.read_text(encoding="utf-8", errors="replace").splitlines()[-MAX_LINEAS // 2 :]
+                    salida += ["", f"### {origen.name}/{registro.name}", "", "```", *cola, "```"]
     if resultados.get("calidad") == "failure":
         lineas = lineas_de_calidad(carpeta)
         salida += ["", "### Calidad (ruff, formato, mapa, node)", "", "```"]
