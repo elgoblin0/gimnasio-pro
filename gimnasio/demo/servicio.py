@@ -22,6 +22,7 @@ from gimnasio.demo import repositorio
 from gimnasio.demo.nombres import APELLIDOS, NOMBRES
 from gimnasio.permisos import servicio as permisos
 from gimnasio.reglas.simulacion import simular_visitas
+from gimnasio.reglas.version import VERSION_REGLAS
 from gimnasio.visitas import servicio as visitas
 
 USUARIOS_DEMO = (
@@ -363,6 +364,7 @@ def reiniciar():
             )
 
         _cargar_simulacion(cursor, siguiente_id, ahora)
+        _cargar_bandeja(cursor, siguiente_id, entrenador_id, ahora)
 
 
 def _cargar_simulacion(cursor, siguiente_id, ahora):
@@ -448,3 +450,95 @@ def poner_al_dia():
                     presentes.pop(socio)
             desde = fin
         repositorio.avanzar_simulacion(cursor, ahora)
+
+
+def _cargar_bandeja(cursor, siguiente_id, entrenador_id, ahora):
+    """Casos independientes del recorrido y agregados después de sus identidades estables."""
+    ejercicio, con_alternativa, sin_alternativa = (siguiente_id() for _ in range(3))
+    for identificador, nombre, equipo in (
+        (ejercicio, "Remo sin equipo ficticio", "sin equipo"),
+        (con_alternativa, "Remo en polea ficticio", "polea"),
+        (sin_alternativa, "Remo en máquina ficticio", "máquina de remo"),
+    ):
+        repositorio.insertar_ejercicio(
+            cursor,
+            identificador,
+            nombre,
+            ["repeticiones", "carga"],
+            ahora,
+            patron_movimiento="tracción horizontal",
+            equipo=equipo,
+            incremento_carga="2.50",
+            zonas=("espalda_alta", "dorsales", "biceps"),
+        )
+    repositorio.insertar_alternativa(cursor, con_alternativa, ejercicio, 1)
+    for nombre in ("polea", "máquina de remo"):
+        equipo = siguiente_id()
+        repositorio.insertar_equipo(cursor, equipo, nombre, ahora)
+        repositorio.insertar_equipo_fuera_de_servicio(cursor, siguiente_id(), equipo, entrenador_id, ahora)
+
+    for indice in range(1, 9):
+        socio = permisos.crear_usuario(
+            cursor,
+            {
+                "nombre": NOMBRES[indice],
+                "apellido": APELLIDOS[indice],
+                "cedula": str(96_000_000 + indice),
+                "telefono": f"+595960{indice:06d}",
+                "correo": f"bandeja{indice}@demo.gimnasio.invalid",
+            },
+            "socio",
+            identificadores=(siguiente_id(), siguiente_id()),
+        )
+        repositorio.insertar_asignacion(cursor, siguiente_id(), socio, entrenador_id, ahora)
+        desde = fecha_local(ahora)
+        repositorio.insertar_membresia(cursor, siguiente_id(), socio, desde, desde + timedelta(days=29), ahora)
+        permisos.registrar_consentimiento(cursor, socio, "salud", True, "demo-1", socio, identificador=siguiente_id())
+        if indice == 3:
+            continue  # Socio sin programa.
+        programa, sesion, planificado = siguiente_id(), siguiente_id(), siguiente_id()
+        repositorio.insertar_programa(cursor, programa, socio, ahora)
+        repositorio.insertar_sesion_planificada(cursor, sesion, programa, 1, "Fuerza ficticia")
+        catalogo = sin_alternativa if indice == 5 else con_alternativa if indice == 8 else ejercicio
+        repositorio.insertar_ejercicio_planificado(
+            cursor,
+            planificado,
+            sesion,
+            catalogo,
+            1,
+            2,
+            repeticiones_minimas=8,
+            repeticiones_maximas=12,
+            rir_objetivo=2,
+            descanso=90,
+            carga="20.50",
+        )
+        if indice == 4:
+            repositorio.insertar_historial(
+                cursor,
+                siguiente_id(),
+                (siguiente_id(), siguiente_id()),
+                socio,
+                sesion,
+                planificado,
+                ahora,
+                12,
+            )
+        freno = {1: "dolor_reportado", 2: "restriccion_salud", 6: "chequeo_desfavorable", 7: "dolor_reportado"}.get(
+            indice
+        )
+        if freno:
+            aviso = siguiente_id()
+            repositorio.insertar_aviso(
+                cursor,
+                aviso,
+                siguiente_id(),
+                socio,
+                sesion,
+                entrenador_id,
+                freno,
+                [{"regla": freno, "version": VERSION_REGLAS, "datos": {"ejercicio_id": str(catalogo)}}],
+                ahora,
+            )
+            if indice == 7:
+                repositorio.insertar_revision_aviso(cursor, siguiente_id(), aviso, entrenador_id, ahora)
