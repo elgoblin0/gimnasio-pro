@@ -59,7 +59,8 @@ def test_zonas_de_la_semilla_y_ejercicio_hecho(app_con_bd, reloj_fijo):
         anterior = cliente.get("/api/ocupacion")
         assert anterior.json["por_zona"]["cardio"] == 1
         with transaccion() as cursor:
-            cursor.execute("SELECT id FROM ejercicios WHERE equipo='sin equipo'")
+            # La semilla de #185 trae varios ejercicios sin equipo; basta uno para la corrección.
+            cursor.execute("SELECT id FROM ejercicios WHERE equipo='sin equipo' ORDER BY id LIMIT 1")
             hecho = desde_bytes(cursor.fetchone()["id"])
             correccion = nuevo_id(reloj_fijo)
             insertar_serie(
