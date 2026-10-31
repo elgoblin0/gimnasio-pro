@@ -5,7 +5,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-from conftest import fragmento_de
+from fragmentos import fragmento_de
 
 RAIZ = Path(__file__).resolve().parent.parent
 MUESTRA = "pruebas/test_cadena.py"

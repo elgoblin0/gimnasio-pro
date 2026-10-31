@@ -1,19 +1,14 @@
 import os
 import uuid
-import zlib
 
 import pytest
+from fragmentos import fragmento_de
 
 from gimnasio.comun.bd import conectar, parametros_desde_entorno
 
 
 def _hay_mysql():
     return bool(os.environ.get("GIMNASIO_BD_HOST"))
-
-
-def fragmento_de(nodeid, total):
-    """El fragmento (1..total) que corre esta prueba: un hash estable, igual en cada proceso y en cada máquina."""
-    return zlib.crc32(nodeid.encode("utf-8")) % total + 1
 
 
 def _quedarse_con_el_fragmento(config, items):
