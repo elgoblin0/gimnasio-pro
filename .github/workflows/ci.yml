@@ -49,7 +49,14 @@ jobs:
           name: calidad
           path: ruff.txt
 
-  pruebas:
+  # `pruebas` y `e2e` se parten en fragmentos que corren a la vez (pruebas/conftest.py reparte por GIMNASIO_FRAGMENTO).
+  # Los trabajos `pruebas` y `e2e` de más abajo son la compuerta: conservan el nombre que exige el ruleset de main.
+  pruebas-fragmento:
+    name: pruebas (${{ matrix.fragmento }}/2)
+    strategy:
+      fail-fast: false
+      matrix:
+        fragmento: [1, 2]
     runs-on: ubuntu-latest
     services:
       mysql:
@@ -61,12 +68,14 @@ jobs:
         options: >-
           --health-cmd="mysqladmin ping -h 127.0.0.1 -psolo-ci"
           --health-interval=5s --health-timeout=3s --health-retries=20
+          --tmpfs /var/lib/mysql:rw
     env:
       GIMNASIO_BD_HOST: 127.0.0.1
       GIMNASIO_BD_PUERTO: "3306"
       GIMNASIO_BD_USUARIO: root
       GIMNASIO_BD_CLAVE: solo-ci
       GIMNASIO_BD_NOMBRE: gimnasio_pro
+      GIMNASIO_FRAGMENTO: ${{ matrix.fragmento }}/2
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -89,12 +98,17 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: pruebas
+          name: pruebas-${{ matrix.fragmento }}
           path: |
             reporte-pytest.xml
             registro-*.txt
 
-  e2e:
+  e2e-fragmento:
+    name: e2e (${{ matrix.fragmento }}/2)
+    strategy:
+      fail-fast: false
+      matrix:
+        fragmento: [1, 2]
     runs-on: ubuntu-latest
     services:
       mysql:
@@ -106,12 +120,14 @@ jobs:
         options: >-
           --health-cmd="mysqladmin ping -h 127.0.0.1 -psolo-ci"
           --health-interval=5s --health-timeout=3s --health-retries=20
+          --tmpfs /var/lib/mysql:rw
     env:
       GIMNASIO_BD_HOST: 127.0.0.1
       GIMNASIO_BD_PUERTO: "3306"
       GIMNASIO_BD_USUARIO: root
       GIMNASIO_BD_CLAVE: solo-ci
       GIMNASIO_BD_NOMBRE: gimnasio_pro
+      GIMNASIO_FRAGMENTO: ${{ matrix.fragmento }}/2
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -135,10 +151,24 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: e2e
+          name: e2e-${{ matrix.fragmento }}
           path: |
             reporte-pytest.xml
             registro-*.txt
+
+  pruebas:
+    if: always()
+    needs: pruebas-fragmento
+    runs-on: ubuntu-latest
+    steps:
+      - run: test "${{ needs.pruebas-fragmento.result }}" = success
+
+  e2e:
+    if: always()
+    needs: e2e-fragmento
+    runs-on: ubuntu-latest
+    steps:
+      - run: test "${{ needs.e2e-fragmento.result }}" = success
 
   # La prueba del cuerpo 3D tarda ~90 s y no usa MySQL: en su propio trabajo corre en paralelo al resto.
   cuerpo3d:

@@ -31,3 +31,12 @@ def test_el_resumen_no_repite_registros_de_un_trabajo_que_paso(tmp_path, capsys)
     salida = capsys.readouterr().out
     assert "log de pruebas" in salida
     assert "log de e2e" not in salida
+
+
+def test_el_resumen_junta_los_registros_de_todos_los_fragmentos(tmp_path, capsys):
+    for carpeta in ("pruebas-1", "pruebas-2"):
+        (tmp_path / carpeta).mkdir()
+        (tmp_path / carpeta / "registro-pytest.txt").write_text(f"log de {carpeta}" + chr(10), encoding="utf-8")
+    cargar("resumen_ci").main([str(tmp_path), "pruebas=failure", "e2e=success"])
+    salida = capsys.readouterr().out
+    assert "### pruebas-1/registro-pytest.txt" in salida and "### pruebas-2/registro-pytest.txt" in salida
