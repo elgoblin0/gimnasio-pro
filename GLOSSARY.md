@@ -32,6 +32,14 @@ _Evitar_: Deuda de ejercicio.
 Derecho de acceso del socio con vigencia y condiciones de uso.
 _Evitar_: Programa de entrenamiento, plan sin calificar.
 
+**Tipo de membresía**:
+Oferta del gimnasio con nombre, duración y precio en guaraníes, configurada por administración.
+_Evitar_: Plan, cuota.
+
+**Pago pendiente**:
+Situación de un socio cuya membresía venció o vence en 7 días o menos sin una renovación pagada.
+_Evitar_: Deuda.
+
 **Visita**:
 Permanencia del socio en una sede, desde su entrada hasta su salida.
 _Evitar_: Sesión de entrenamiento.
@@ -156,7 +164,7 @@ _Evitar_: Programa vencido, programa completado.
 Carga que el entrenador fija para un ejercicio en una versión del programa. Vale hasta la primera serie registrada de ese ejercicio en esa versión; con historial, solo puede dejar la carga igual o más baja que la del motor.
 
 **Bandeja del entrenador**:
-Lista priorizada de socios asignados que requieren atención: avisos sin revisar, socios sin programa, secuencia terminada, ejercicios sin alternativa disponible y riesgo de abandono.
+Lista priorizada de socios asignados que requieren atención: condiciones de salud sin revisar, avisos sin revisar, socios sin programa, secuencia terminada, ejercicios sin alternativa disponible, socios sin consentimiento de salud y riesgo de abandono.
 
 **Incorporación**:
 Primeros 90 días de un socio desde su alta, con seguimiento específico.
@@ -168,13 +176,31 @@ Indicador calculado por reglas (asistencia, tendencia y señales) de que un soci
 Informe para socio y entrenador con lo cumplido, los cambios y los pendientes de la semana (lunes a domingo).
 
 **Clase**:
-Actividad grupal con horario, entrenador y cupo.
+Actividad grupal con horario semanal, entrenador y cupo. Se reserva en cada una de sus ocurrencias. No cuenta como sesión realizada ni afecta el aforo.
+
+**Ocurrencia de clase**:
+Una clase en una fecha concreta. Se puede cancelar sin cambiar el horario de la clase.
+_Evitar_: Turno, sesión.
 
 **Reserva**:
-Lugar de un socio en una clase. Si no hay cupo, queda en **lista de espera**.
+Lugar de un socio en una ocurrencia de clase.
+
+**Lista de espera**:
+Orden de llegada de los socios sin cupo en una ocurrencia de clase. Al liberarse un cupo antes del inicio, el primero pasa solo a tener reserva.
+
+**Aviso al socio**:
+Registro que le informa al socio un cambio en sus reservas: pasó a tener lugar, volvió a la lista de espera o se canceló la ocurrencia. Queda en su inicio hasta que lo marca como visto.
+_Evitar_: Notificación.
+
+**Aviso para el personal**:
+Frase corta que el entrenador asignado escribe para recepción, sin detalle de salud. Se muestra en la tarjeta contextual solo con consentimiento de salud vigente.
+_Evitar_: Aviso de salud, aviso sin calificar.
 
 **Pago registrado**:
-Constancia de un pago en guaraníes hecho fuera del sistema. Gimnasio Pro no procesa cobros.
+Constancia de un pago en guaraníes hecho fuera del sistema, que renueva la membresía del socio. Gimnasio Pro no procesa cobros.
+
+**Anulación de pago**:
+Registro con autor y motivo que deja sin efecto un pago registrado, sin borrarlo.
 
 ## Personas y datos
 
@@ -184,8 +210,24 @@ Función de un usuario: socio, recepción, entrenador o administración. Define 
 **Consentimiento**:
 Autorización expresa, versionada y revocable del socio para un tratamiento de datos, en especial los de salud.
 
+**Revocación de salud**:
+Retiro reversible del consentimiento de salud: detiene el tratamiento, sin borrar los datos.
+_Evitar_: Borrado.
+
+**Borrado de datos de salud**:
+Anonimización irreversible de los datos de salud de un socio, que él pide con el consentimiento ya revocado (ADR 0025).
+_Evitar_: Revocación.
+
 **Ficha de salud**:
 Datos sensibles del socio: condiciones, restricciones y dolores. Solo la ven el socio y su entrenador asignado.
+
+**Condición de salud**:
+Lo que el socio declara sobre su salud en texto libre. No activa frenos hasta que el entrenador asignado la traduce en una restricción de salud.
+_Evitar_: Restricción, cuando todavía no la registró el entrenador.
+
+**Consulta de ficha**:
+Registro de cada lectura de la ficha de salud por parte del personal, con quién y cuándo. El socio la puede ver.
+_Evitar_: Acceso, log.
 
 **Cédula**:
 Cédula de identidad paraguaya. Se guarda solo con dígitos y se muestra con puntos.

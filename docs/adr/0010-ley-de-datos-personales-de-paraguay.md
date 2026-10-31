@@ -17,7 +17,7 @@ La demo se diseña como si la ley ya rigiera:
 - Los datos de salud son sensibles: requieren consentimiento expreso, versionado y revocable (ADR 0006), y su acceso es mínimo.
 - Cada formulario que pide datos personales declara su finalidad.
 - El socio puede ver y descargar sus datos y revocar sus consentimientos.
-- La revocación detiene el tratamiento. Los datos de salud se borran por anonimización, para no romper el historial (ADR 0003).
+- La revocación detiene el tratamiento. Los datos de salud se borran por anonimización, para no romper el historial (ADR 0003), en un acto aparte que pide el socio (ADR 0025).
 - En la demo no hay datos reales: la semilla es ficticia y un aviso lo indica.
 - Se registra quién accede a la ficha de salud (auditoría de lectura).
 

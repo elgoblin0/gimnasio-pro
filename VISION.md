@@ -59,6 +59,8 @@ Fijos, implementados en el motor de reglas y cubiertos por pruebas:
 4. Un chequeo del día malo puede bajar volumen o intensidad, nunca subirlos.
 5. Cuando un freno actúa, el sistema **sustituye o baja** el ejercicio, lo explica al socio y **avisa al entrenador** en su bandeja.
 
+Los frenos 1 y 2 usan datos de salud, así que actúan con consentimiento vigente. Si el socio lo revoca, la carga y las repeticiones objetivo quedan congeladas hasta que lo otorgue de nuevo (ADR 0025).
+
 ## Demo pública
 
 - Disponible desde temprano en un hosting gratuito con HTTPS (ver ADR 0009).

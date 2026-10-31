@@ -23,7 +23,7 @@ Hay cuatro tipos de usuario con necesidades distintas, y los datos de salud son 
   - `GET /api/sesion` responde 200 con `{"usuario": null}` cuando no hay sesión: no tenerla no es un error, y así la página de inicio, que es estática (ADR 0007), no deja un 401 en la consola. Las rutas protegidas siguen respondiendo 401.
 - "Entrar como…" existe solo con `MODO_DEMO=1` y solo para usuarios marcados `es_demo`; lo prueba el CI.
 - Los consentimientos se registran en `consentimientos(socio_id, tipo, version_texto, otorgado, registrado_por, registrado_en)`, que solo admite inserciones (ADR 0003). Otorgar y revocar agregan un registro, y vale el último por socio y tipo.
-- **Provisional:** sin consentimiento de salud no se guardan restricciones ni dolores. El socio recibe su programa sin subas automáticas, porque los frenos no tendrían datos.
+- Sin consentimiento de salud no se guardan restricciones ni dolores. El socio recibe su programa sin subas automáticas, porque los frenos no tendrían datos (confirmado por el ADR 0025).
 - Rutas sensibles: `permisos/` y `salud/`.
 
 ## Consecuencias
