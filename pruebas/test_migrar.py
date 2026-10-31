@@ -105,6 +105,7 @@ def test_horario_conserva_la_sede_existente(tmp_path, bd_vacia, reloj_fijo):
             "0023",
             "0024",
             "0025",
+            "0030",
         ]
         cursor.execute("SELECT nombre, horario FROM sedes")
         sede = cursor.fetchone()
@@ -150,6 +151,7 @@ def test_avisos_sucesivos_conservan_hechos_de_la_migracion_anterior(tmp_path, bd
         "0023",
         "0024",
         "0025",
+        "0030",
     ]
     assert aplicar(bd_vacia, salida=lambda _: None) == []
     with app.app_context(), transaccion() as cursor:
@@ -238,6 +240,7 @@ def test_catalogo_y_rango_conserva_semilla_etapa_uno(tmp_path, bd_vacia, reloj_f
             "0023",
             "0024",
             "0025",
+            "0030",
         ]
         cursor.execute("SELECT id, repeticiones_minimas, repeticiones_maximas FROM ejercicios_planificados ORDER BY id")
         assert cursor.fetchall() == [
