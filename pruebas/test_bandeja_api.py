@@ -96,7 +96,10 @@ def test_equipo_solo_en_proxima_sesion_y_lectura_sin_escrituras(entrenamiento_ap
     datos = entrenamiento_api
     with datos.app.app_context(), transaccion() as cursor:
         equipo, catalogo = nuevo_id(), nuevo_id()
-        cursor.execute("INSERT INTO equipos (id,nombre) VALUES (%s,'Equipo ficticio')", (a_bytes(equipo),))
+        cursor.execute(
+            "INSERT INTO equipos (id,nombre,creado_en) VALUES (%s,'Equipo ficticio',%s)",
+            (a_bytes(equipo), datos.reloj.ahora()),
+        )
         cursor.execute(
             "INSERT INTO cambios_estado_equipo (id,equipo_id,estado,autor_id,registrado_en) "
             "VALUES (%s,%s,'fuera_de_servicio',%s,%s)",
