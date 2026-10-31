@@ -200,4 +200,4 @@ def test_agenda_consultas_constantes(clases, monkeypatch):
     monkeypatch.setattr(servicio, "transaccion", contar)
     with app.app_context():
         assert len(servicio.agenda()["ocurrencias"]) == 24
-    assert len(consultas) == 3
+    assert len(consultas) == 4
