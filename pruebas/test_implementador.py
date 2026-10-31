@@ -1,5 +1,6 @@
 """Pruebas de la lógica pura del implementador local (sin gh, git ni Codex)."""
 
+import json
 import sys
 from pathlib import Path
 from types import SimpleNamespace
@@ -256,7 +257,9 @@ def test_pr_filtra_el_pedido_a_atender(entorno, monkeypatch):
     prs = [{"number": n, "headRefName": f"codex/issue-{n}", "labels": [], "title": "t"} for n in (7, 8)]
     monkeypatch.setattr(implementador.cadena, "prs_de_codex", lambda: prs)
     monkeypatch.setattr(implementador.cadena, "comentarios_del_pr", lambda n: ["@codex implementá"])
-    monkeypatch.setattr(implementador, "atender", lambda pr, pedido, nivel=None: atendidos.append(pr["number"]))
+    monkeypatch.setattr(
+        implementador, "atender", lambda pr, pedido, nivel=None, motor="codex": atendidos.append(pr["number"])
+    )
     assert implementador.una_vuelta(solo_pr=8) is True
     assert atendidos == [8]
 
@@ -488,3 +491,137 @@ def test_sobran_las_carpetas_de_issues_sin_pr_abierto():
 def test_el_comentario_hecho_lleva_la_medida_de_codex():
     marca = implementador.medida_de_codex(4.25, 120345, "medium")
     assert marca == "<!-- implementador:codex minutos=4.2 tokens=120345 esfuerzo=medium -->"
+
+
+# --- Respaldo de Claude cuando Codex no tiene cupo -------------------------------------------------------------
+
+
+def test_reconoce_la_falta_de_cupo_de_claude():
+    assert implementador.es_falta_de_cupo("You've hit your limit · resets 7pm")
+    assert implementador.es_falta_de_cupo("Claude AI usage limit reached|1760000000")
+    assert not implementador.es_falta_de_cupo("el límite de filas es 100")
+
+
+def test_el_respaldo_es_sonnet_salvo_que_se_apague_o_se_cambie(monkeypatch):
+    monkeypatch.delenv("GIMNASIO_RESPALDO", raising=False)
+    assert implementador.respaldo() == "sonnet"
+    monkeypatch.setenv("GIMNASIO_RESPALDO", "ninguno")
+    assert implementador.respaldo() is None
+    monkeypatch.setenv("GIMNASIO_RESPALDO", "opus")
+    assert implementador.respaldo() == "opus"
+
+
+def test_implementa_el_respaldo_solo_mientras_codex_no_tiene_cupo():
+    motor = implementador.motor_para_ahora
+    assert motor(100.0, 0.0, "sonnet") == "codex"
+    assert motor(100.0, 160.0, "sonnet") == "sonnet"
+    assert motor(200.0, 160.0, "sonnet") == "codex"  # pasó la espera: se reintenta Codex
+    assert motor(100.0, 160.0, None) == "codex"  # sin respaldo se espera a Codex
+
+
+def test_lee_el_texto_y_los_tokens_del_resultado_de_claude():
+    salida = "\n".join(
+        [
+            '{"type":"system","subtype":"init","model":"claude-sonnet-5-5"}',
+            "una línea que no es JSON",
+            '{"type":"result","is_error":false,"result":"Listo.","usage":{"input_tokens":10,'
+            '"output_tokens":5,"cache_creation_input_tokens":20,"cache_read_input_tokens":999}}',
+        ]
+    )
+    assert implementador.resultado_de_claude(salida) == ("Listo.", 35, False)
+    assert implementador.resultado_de_claude("sin resultado") == ("", 0, False)
+
+
+def test_resumen_de_claude_deja_una_linea_por_accion():
+    resumen = implementador.ResumenDeClaude()
+    contenido = [
+        {"type": "text", "text": "Leo el issue"},
+        {"type": "tool_use", "name": "Bash", "input": {"command": "ruff check ."}},
+        {"type": "tool_use", "name": "Edit", "input": {"file_path": "C:/x/issue-3/gimnasio/a.py"}},
+        {"type": "tool_use", "name": "Read", "input": {"file_path": "b.py"}},
+        {"type": "tool_use", "name": "PowerShell", "input": {"command": "python --version"}},
+    ]
+    assistant = json.dumps({"type": "assistant", "message": {"content": contenido}})
+    assert resumen.procesar(assistant) == [
+        "💬 Leo el issue",
+        "$ ruff check .",
+        "✎ edita gimnasio/a.py",
+        "$ python --version",
+    ]
+    assert resumen.procesar('{"type":"user"}') == [] and resumen.procesar("no es JSON") == []
+    assert resumen.procesar('{"type":"system","subtype":"init","model":"m"}') == ["model: m"]
+
+
+def test_el_comando_de_claude_lee_por_stdin_y_no_permite_push_ni_gh():
+    comando = implementador.comando_claude("claude.exe", "sonnet")
+    assert comando[:4] == ["claude.exe", "-p", "--model", "sonnet"]
+    assert "stream-json" in comando and "--verbose" in comando
+    permitidas = comando[comando.index("--allowedTools") + 1]
+    prohibidas = comando[comando.index("--disallowedTools") + 1]
+    assert "Edit" in permitidas and "PowerShell(python:*)" in permitidas and "Bash(python:*)" in permitidas
+    assert "gh:" not in permitidas and "git push" not in permitidas
+    for shell in ("Bash", "PowerShell"):
+        assert f"{shell}(git push:*)" in prohibidas and f"{shell}(gh:*)" in prohibidas
+
+
+def _claude_falso(monkeypatch, tmp_path, guion):
+    archivo = tmp_path / "claude_falso.py"
+    archivo.write_text(guion, encoding="utf-8", newline="\n")
+    monkeypatch.setattr(implementador, "binario_claude", lambda: sys.executable)
+    monkeypatch.setattr(implementador, "comando_claude", lambda binario, modelo: [binario, str(archivo)])
+    carpeta = tmp_path / "arbol"
+    carpeta.mkdir()
+    return carpeta
+
+
+def test_corre_claude_y_devuelve_su_texto_y_tokens(entorno, tmp_path, monkeypatch, capsys):
+    monkeypatch.delenv("GIMNASIO_IMPL_VERBOSO", raising=False)
+    carpeta = _claude_falso(
+        monkeypatch,
+        tmp_path,
+        "import sys\nprint(sys.stdin.read().strip().upper() and "
+        '\'{"type":"assistant","message":{"content":[{"type":"text","text":"trabajando"}]}}\')\n'
+        'print(\'{"type":"result","is_error":false,"result":"hecho",'
+        '"usage":{"input_tokens":3,"output_tokens":4}}\')\n',
+    )
+    assert implementador.correr_claude(carpeta, "el pedido", "sonnet") == (0, "hecho", 7)
+    assert "│ 💬 trabajando" in capsys.readouterr().out
+
+
+def test_claude_sin_cupo_levanta_sin_cupo(entorno, tmp_path, monkeypatch):
+    carpeta = _claude_falso(
+        monkeypatch,
+        tmp_path,
+        'import sys\nprint(\'{"type":"result","is_error":true,"result":"usage limit reached"}\')\nsys.exit(1)\n',
+    )
+    with pytest.raises(implementador.SinCupo, match="usage limit reached"):
+        implementador.correr_claude(carpeta, "x", "sonnet")
+
+
+def test_sin_cupo_de_codex_la_vuelta_siguiente_la_hace_el_respaldo(atencion, monkeypatch):
+    monkeypatch.delenv("GIMNASIO_RESPALDO", raising=False)
+    monkeypatch.setitem(implementador.SESION, "codex_sin_cupo_hasta", 0.0)
+    comentarios = [PEDIDO_CORREGIR]
+    motores = []
+
+    def codex_sin_cupo(carpeta, prompt, nivel=None):
+        motores.append("codex")
+        raise implementador.SinCupo("hit your usage limit")
+
+    def claude(carpeta, prompt, modelo):
+        motores.append(modelo)
+        return 0, "Corregido.", 42
+
+    monkeypatch.setattr(implementador, "correr_codex", codex_sin_cupo)
+    monkeypatch.setattr(implementador, "correr_claude", claude)
+    monkeypatch.setattr(implementador, "subir_cambios", lambda *a: True)
+    monkeypatch.setattr(implementador, "esperar_con_cuenta", lambda *a: pytest.fail("con respaldo no se espera"))
+    monkeypatch.setattr(implementador.cadena, "prs_de_codex", lambda: [PR_DE_CODEX])
+    monkeypatch.setattr(implementador.cadena, "comentarios_del_pr", lambda n: comentarios)
+    assert implementador.una_vuelta() is True  # Codex sin cupo: no cuenta como fallo ni espera
+    assert implementador.una_vuelta() is True  # y ahora implementa el respaldo
+    assert motores == ["codex", "sonnet"]
+    hecho = atencion.publicado.comentarios[-1]
+    assert implementador.MARCA_HECHO in hecho and "<!-- implementador:sonnet minutos=" in hecho
+    assert "Implementado en esta PC con Sonnet." in hecho
+    assert implementador.SESION["atendidos"][-1]["motor"] == "sonnet"
