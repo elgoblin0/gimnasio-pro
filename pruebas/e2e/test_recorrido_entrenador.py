@@ -57,6 +57,7 @@ def test_recorrido_lucia_marcos_lucia(navegador, demo_aislada):
         expect(dolor).to_have_attribute("data-cuerpo3d", "listo", timeout=30000)
         dolor.get_by_role("button", name="Ver todas las zonas", exact=True).click()
         dolor.get_by_role("checkbox", name="Rodillas", exact=True).click()
+        expect(dolor.get_by_role("checkbox", name="Rodillas", exact=True)).to_be_checked()
         sentadilla.get_by_role("button", name="Guardar dolor reportado", exact=True).click()
         expect(lucia.get_by_text("Dolor reportado guardado. Se avisó al entrenador.", exact=True)).to_be_visible()
         lucia.get_by_role("button", name="Terminar sesión", exact=True).click()
@@ -67,6 +68,7 @@ def test_recorrido_lucia_marcos_lucia(navegador, demo_aislada):
         assert marcos.evaluate("window.sinRecargar") is True
         fila.click()
         expect(marcos.locator("[data-socio-nombre]")).to_have_text("Lucía Benítez")
+        expect(marcos.locator('[data-avisos-sin-revisar] [data-freno="dolor_reportado"]')).to_have_count(1)
         marcos.get_by_label("Nota opcional").fill("Bajamos la carga de partida.")
         marcos.get_by_role("button", name="Marcar como revisado", exact=True).click()
         expect(marcos.locator("[data-avisos-revisados]")).to_contain_text("Bajamos la carga de partida.")

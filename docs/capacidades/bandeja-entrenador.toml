@@ -9,7 +9,7 @@ prueba = "pruebas/test_bandeja_api.py"
 # Los motivos de equipo consideran solo trabajo pendiente y el equipo de la alternativa segura.
 # La demo cubre los cinco grupos desde el reinicio: pruebas/test_demo_bandeja.py (#185).
 
-# Pantalla de bandeja y vista del socio, en el escritorio, la tablet y el celular (#186): pruebas/e2e/test_pantallas_entrenador.py.
+# Pantalla de bandeja y vista del socio (#186): pruebas/e2e/test_pantallas_entrenador.py, sin fijar tamaños de pantalla.
 
 # El recorrido de la etapa 4 la ejercita de punta a punta (#189): pruebas/e2e/test_recorrido_entrenador.py.
 # Sigue en funcional: pulida pide un e2e con chequeo de accesibilidad y estados en móvil, y todavía no existe.

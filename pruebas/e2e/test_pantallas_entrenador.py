@@ -204,10 +204,11 @@ def test_editor_cambia_las_series_por_zona_sin_llamar_a_la_api(pagina_demo, demo
     pagina.get_by_role("button", name=re.compile("^Inicial de cuerpo completo")).click()
     primera = pagina.locator(".fila-plan").first
     expect(primera).to_be_visible()
-    expect(pagina.locator(".silueta-volumen")).to_be_visible()
-    expect(pagina.locator("canvas")).to_have_count(0)
 
     pagina.wait_for_load_state("networkidle")
+    # Después de las descargas: antes, el 3D todavía podría montarse y tapar la silueta.
+    expect(pagina.locator(".silueta-volumen")).to_be_visible()
+    expect(pagina.locator("canvas")).to_have_count(0)
     zona = pagina.locator('.silueta-volumen [data-zona="cuadriceps"]')
     antes = int(zona.get_attribute("data-series"))
     assert antes > 0
