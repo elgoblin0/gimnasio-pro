@@ -8,6 +8,7 @@ const $ = (selector) => document.querySelector(selector);
 let socios = [];
 let tipos = [];
 let pendiente;
+let enCurso = false;
 
 function buscar() {
   const texto = $("#buscar").value.trim().toLocaleLowerCase("es");
@@ -20,6 +21,7 @@ function buscar() {
 }
 
 async function cargar() {
+  if (pendiente) return;
   $("[data-pago]").hidden = true;
   $("[data-error]").textContent = "";
   $("[data-estado]").textContent = "Cargando socios y tipos de membresía…";
@@ -40,31 +42,44 @@ async function cargar() {
 
 async function registrar(evento) {
   evento.preventDefault();
+  if (pendiente) return;
   const formulario = evento.target;
   const cuerpo = Object.fromEntries(new FormData(formulario));
   if (cuerpo.monto === "") delete cuerpo.monto;
   else cuerpo.monto = Number(cuerpo.monto);
-  const huella = JSON.stringify(cuerpo);
-  // Una respuesta perdida conserva la clave para reintentar sin otro pago.
-  if (pendiente?.huella !== huella) pendiente = { huella, clave: crypto.randomUUID() };
+  pendiente = { cuerpo, clave: crypto.randomUUID() };
+  await enviar();
+}
+
+async function enviar() {
+  if (enCurso || !pendiente) return;
+  enCurso = true;
+  const formulario = $("[data-pago]");
+  const operacion = pendiente;
+  $("[data-reintentar-pago]").hidden = true;
   formulario.querySelector("fieldset").disabled = true;
   $("[data-recargar]").disabled = true;
   $("[data-estado]").textContent = "Registrando pago y renovando membresía…";
   $("[data-error]").textContent = "";
   $("[data-resultado]").textContent = "";
   try {
-    const pago = await llamarApi("/api/pagos", { metodo: "POST", cuerpo, clave: pendiente.clave });
+    const pago = await llamarApi("/api/pagos", { metodo: "POST", cuerpo: operacion.cuerpo, clave: operacion.clave });
     pendiente = null;
     formulario.reset();
     buscar();
     $("[data-precio]").textContent = "";
     $("[data-resultado]").textContent = `Pago registrado: ${formatearGuaranies(pago.monto)}. Membresía del ${formatearFecha(pago.membresia.desde)} al ${formatearFecha(pago.membresia.hasta)}.`;
   } catch (error) {
+    // La conexión perdida, un error del servidor o una solicitud en curso
+    // requieren resolver el mismo pago antes de permitir otro.
+    if (error.estadoHttp > 0 && error.estadoHttp < 500 && error.codigo !== "solicitud_en_curso") pendiente = null;
     $("[data-error]").textContent = error.message;
   } finally {
-    $("[data-estado]").textContent = "";
-    formulario.querySelector("fieldset").disabled = false;
-    $("[data-recargar]").disabled = false;
+    enCurso = false;
+    $("[data-estado]").textContent = pendiente ? "No se confirmó el pago. Reintentá el mismo pago antes de registrar otro." : "";
+    formulario.querySelector("fieldset").disabled = Boolean(pendiente);
+    $("[data-recargar]").disabled = Boolean(pendiente);
+    $("[data-reintentar-pago]").hidden = !pendiente;
   }
 }
 
@@ -79,6 +94,7 @@ async function iniciar() {
     $("[data-precio]").textContent = tipo ? `Precio: ${formatearGuaranies(tipo.precio)} · Duración: ${tipo.duracion_dias} días` : "";
   });
   $("[data-pago]").addEventListener("submit", registrar);
+  $("[data-reintentar-pago]").addEventListener("click", enviar);
   $("[data-recargar]").addEventListener("click", cargar);
   await cargar();
 }
