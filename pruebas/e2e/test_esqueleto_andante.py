@@ -69,7 +69,7 @@ def registrar_entrada(pagina):
     with pagina.expect_response(
         lambda respuesta: urlparse(respuesta.url).path == "/api/entradas" and respuesta.request.method == "POST"
     ) as resultado:
-        pagina.get_by_role("button", name="Registrar entrada", exact=True).click()
+        pagina.locator("[data-entrada]").get_by_role("button", name="Registrar entrada", exact=True).click()
     respuesta = resultado.value
     assert respuesta.status == 201
     expect(pagina.get_by_text("Entrada registrada.", exact=True)).to_be_visible()
@@ -272,7 +272,7 @@ def test_aforo_lleno_rechaza_sin_hecho_y_admite_con_nueva_operacion(pagina_demo,
     with pagina.expect_response(
         lambda r: urlparse(r.url).path == "/api/entradas" and r.request.method == "POST"
     ) as respuesta:
-        pagina.get_by_role("button", name="Registrar entrada", exact=True).click()
+        pagina.locator("[data-entrada]").get_by_role("button", name="Registrar entrada", exact=True).click()
     rechazada = respuesta.value
     assert rechazada.status == 409
     expect(pagina.get_by_role("alert")).to_contain_text("aforo máximo")
@@ -285,7 +285,7 @@ def test_aforo_lleno_rechaza_sin_hecho_y_admite_con_nueva_operacion(pagina_demo,
     with pagina.expect_response(
         lambda r: urlparse(r.url).path == "/api/entradas" and r.request.method == "POST"
     ) as respuesta:
-        pagina.get_by_role("button", name="Registrar entrada", exact=True).click()
+        pagina.locator("[data-entrada]").get_by_role("button", name="Registrar entrada", exact=True).click()
     aceptada = respuesta.value
     assert aceptada.status == 201
     assert aceptada.request.post_data_json["id"] != rechazada.request.post_data_json["id"]

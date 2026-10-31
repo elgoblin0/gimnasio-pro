@@ -160,7 +160,8 @@ def test_entrada_abre_tarjeta_y_escape_la_cierra(pagina_demo, demo_aislada, anch
     expect(tarjeta).to_contain_text("Membresía")
     expect(tarjeta).to_contain_text("Lucía Benítez")
     # La tarjeta abierta no debe tapar las operaciones de recepción (regresión del CI).
-    for nombre in ("Cerrar sesión", "Registrar entrada", "Registrar salida de Lucía Benítez"):
+    pagina.locator("[data-entrada]").get_by_role("button", name="Registrar entrada", exact=True).click(trial=True)
+    for nombre in ("Cerrar sesión", "Registrar salida de Lucía Benítez"):
         pagina.get_by_role("button", name=nombre, exact=True).click(trial=True)
     assert pagina.evaluate("document.documentElement.scrollWidth <= window.innerWidth")
     pagina.keyboard.press("Escape")
