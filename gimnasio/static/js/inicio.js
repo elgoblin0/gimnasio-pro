@@ -13,7 +13,7 @@ const NOMBRES_DE_ROL = {
 const $ = (selector) => document.querySelector(selector);
 
 // Quien trabaja con una sola pantalla entra directamente a ella.
-const PANTALLA_INICIAL = { entrenador: "/bandeja.html", administracion: "/equipos.html" };
+const PANTALLA_INICIAL = { entrenador: "/bandeja.html", administracion: "/administracion.html" };
 
 function mostrarBienvenida(usuario) {
   if (PANTALLA_INICIAL[usuario.rol]) {

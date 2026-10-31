@@ -1,0 +1,6 @@
+id = "configuracion-administracion"
+nombre = "Configuración de la sede desde administración"
+grupo = "Operación"
+etapa = 5
+nivel = "funcional"
+prueba = "pruebas/test_administracion_sede.py"
