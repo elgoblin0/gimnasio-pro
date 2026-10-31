@@ -8,6 +8,11 @@ def escribir(carpeta, nombre, sql):
     (carpeta / nombre).write_text(sql, encoding="utf-8", newline="\n")
 
 
+def _versiones_desde(primera):
+    """Sin lista fija: dos tickets en paralelo no chocan al agregar cada uno su migración."""
+    return [m.version for m in leer_migraciones() if m.version >= primera]
+
+
 def test_divide_sentencias_y_descarta_comentarios():
     sql = "-- comentario\nCREATE TABLE a (\n  x INT\n);\n\nINSERT INTO a VALUES (1);\n"
     assert dividir_sentencias(sql) == ["CREATE TABLE a (\n  x INT\n)", "INSERT INTO a VALUES (1)"]
@@ -96,16 +101,7 @@ def test_horario_conserva_la_sede_existente(tmp_path, bd_vacia, reloj_fijo):
             (reloj_fijo.ahora().replace(tzinfo=None),),
         )
         conexion.commit()
-        assert aplicar(bd_vacia, salida=lambda _: None) == [
-            "0018",
-            "0019",
-            "0020",
-            "0021",
-            "0022",
-            "0023",
-            "0024",
-            "0025",
-        ]
+        assert aplicar(bd_vacia, salida=lambda _: None) == _versiones_desde("0018")
         cursor.execute("SELECT nombre, horario FROM sedes")
         sede = cursor.fetchone()
         assert sede["nombre"] == "Sede ficticia"
@@ -139,18 +135,7 @@ def test_avisos_sucesivos_conservan_hechos_de_la_migracion_anterior(tmp_path, bd
         repositorio.insertar_avisos(cursor, socio_id, sesion_id, propuesta, reloj_fijo.ahora())
         cursor.execute("SELECT * FROM avisos_entrenador")
         antes = cursor.fetchall()
-    assert aplicar(bd_vacia, salida=lambda _: None) == [
-        "0016",
-        "0017",
-        "0018",
-        "0019",
-        "0020",
-        "0021",
-        "0022",
-        "0023",
-        "0024",
-        "0025",
-    ]
+    assert aplicar(bd_vacia, salida=lambda _: None) == _versiones_desde("0016")
     assert aplicar(bd_vacia, salida=lambda _: None) == []
     with app.app_context(), transaccion() as cursor:
         cursor.execute("SELECT * FROM avisos_entrenador")
@@ -221,24 +206,7 @@ def test_catalogo_y_rango_conserva_semilla_etapa_uno(tmp_path, bd_vacia, reloj_f
         cursor.execute("SELECT * FROM series_realizadas ORDER BY id")
         hechos = cursor.fetchall()
         conexion.commit()
-        assert aplicar(bd_vacia, salida=lambda _: None) == [
-            "0010",
-            "0011",
-            "0012",
-            "0013",
-            "0014",
-            "0015",
-            "0016",
-            "0017",
-            "0018",
-            "0019",
-            "0020",
-            "0021",
-            "0022",
-            "0023",
-            "0024",
-            "0025",
-        ]
+        assert aplicar(bd_vacia, salida=lambda _: None) == _versiones_desde("0010")
         cursor.execute("SELECT id, repeticiones_minimas, repeticiones_maximas FROM ejercicios_planificados ORDER BY id")
         assert cursor.fetchall() == [
             {"id": f["id"], "repeticiones_minimas": f["repeticiones"], "repeticiones_maximas": f["repeticiones"]}
