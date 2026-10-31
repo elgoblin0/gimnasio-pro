@@ -2,8 +2,8 @@ id = "bandeja-entrenador"
 nombre = "Bandeja priorizada del entrenador"
 grupo = "Entrenador"
 etapa = 4
-nivel = "pendiente"
-prueba = "pruebas/test_entrenador.py"
+nivel = "funcional"
+prueba = "pruebas/test_bandeja_api.py"
 
-# Vista del socio asignado y constancia de avisos revisados: API cubierta por pytest (#182).
-# La bandeja priorizada y las pantallas siguen pendientes, fuera del alcance de este issue.
+# Bandeja priorizada por API con ETag y asignación vigente (#184). Pantallas pendientes.
+# Los motivos de equipo consideran solo trabajo pendiente y el equipo de la alternativa segura.

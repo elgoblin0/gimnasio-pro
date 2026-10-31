@@ -201,3 +201,24 @@ class MejoresHorariosDia:
 class MejoresHorarios:
     hoy: MejoresHorariosDia
     manana: MejoresHorariosDia
+
+
+@dataclass(frozen=True)
+class MotivoBandeja:
+    tipo: str
+    fecha: str
+    aviso_id: str | None = None
+    ejercicio_id: str | None = None
+
+
+@dataclass(frozen=True)
+class SocioBandeja:
+    id: str
+    motivos: tuple[MotivoBandeja, ...]
+    explicacion: tuple[Razon, ...] = ()
+
+
+@dataclass(frozen=True)
+class GrupoBandeja:
+    tipo: str
+    socios: tuple[SocioBandeja, ...]
