@@ -3,4 +3,5 @@ nombre = "Ficha completa con salud y consentimientos"
 grupo = "Operación"
 etapa = 5
 nivel = "pendiente"
-prueba = ""
+prueba = "pruebas/test_socios_ficha.py"
+nota = "#221: datos personales y perfil de entrenamiento implementados y probados en pruebas/test_socios_ficha.py. Salud y consentimientos quedan para #223; la capacidad completa sigue pendiente."

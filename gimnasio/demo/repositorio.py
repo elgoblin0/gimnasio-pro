@@ -68,6 +68,7 @@ def vaciar_datos(cursor):
     cursor.execute("DELETE FROM consentimientos")
     cursor.execute("DELETE FROM asignaciones_entrenador")
     cursor.execute("DELETE FROM membresias")
+    cursor.execute("DELETE FROM perfiles_entrenamiento")
     cursor.execute("DELETE FROM usuarios")
     cursor.execute("DELETE FROM personas")
     cursor.execute("DELETE FROM sedes")

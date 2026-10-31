@@ -28,6 +28,7 @@ function mostrarBienvenida(usuario) {
   recorrido.hidden = !["recepcion", "socio"].includes(usuario.rol);
   recorrido.href = usuario.rol === "socio" ? "/entrenamiento.html" : "/recepcion.html";
   recorrido.textContent = usuario.rol === "socio" ? "Ver mi entrenamiento" : "Ir a recepción";
+  $("[data-mi-ficha]").hidden = usuario.rol !== "socio";
 }
 
 function mostrarIngreso(modoDemo) {
