@@ -12,3 +12,5 @@ prueba = "pruebas/test_alternativas_api.py"
 # La sustitución por dolor conserva el ejercicio hecho aunque cambie el equipo.
 # Sin sustitución, usa el historial de equipos al último dolor o al inicio por chequeo.
 # La reparación posterior conserva el no disponible y el pendiente de esa sesión.
+
+# Pantalla compartida de equipos y alternativas; administración entra ahí (#188): pruebas/e2e/test_pantallas_entrenador.py.
