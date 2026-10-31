@@ -1213,3 +1213,47 @@ def sugerir_cargas(cursor, socio_id, identificadores):
         ajustada, _, _ = ajustar_ejercicio(planificado, entrada, None)
         resultado[identificador] = ajustada.carga
     return resultado
+
+
+def historial_para_entrenador(cursor, socio_id):
+    """Lectura interna: el servicio llamador controla asignación y consentimiento."""
+    sesiones = []
+    for sesion in repositorio.ultimas_sesiones(cursor, socio_id):
+        efectiva = repositorio.obtener_prescripcion(cursor, desde_bytes(sesion["id"]))
+        sesiones.append(
+            {
+                **sesion_publica(sesion),
+                "prescripcion_efectiva": {
+                    **{campo: json.loads(efectiva[campo]) for campo in ("ejercicios", "explicacion", "frenos")},
+                    "version_reglas": efectiva["version_reglas"],
+                }
+                if efectiva
+                else None,
+            }
+        )
+    return sesiones
+
+
+def avisos_para_entrenador(cursor, socio_id, *, bloquear=False):
+    """Incluye avisos anteriores a un cambio de entrenador; el alcance es el socio."""
+    return [
+        {
+            "id": str(desde_bytes(f["id"])),
+            "freno": f["freno"],
+            "explicacion": json.loads(f["explicacion"]),
+            "creado_en": f["creado_en"].replace(tzinfo=UTC).isoformat(),
+        }
+        for f in repositorio.listar_avisos(cursor, socio_id, bloquear=bloquear)
+    ]
+
+
+def dolores_para_entrenador(cursor, socio_id):
+    """Solo para el servicio que comprobó consentimiento vigente y asignación."""
+    return [
+        {
+            "id": str(desde_bytes(f["id"])),
+            "zona": f["zona"],
+            "registrado_en": f["registrado_en"].replace(tzinfo=UTC).isoformat(),
+        }
+        for f in repositorio.listar_dolores(cursor, socio_id)
+    ]

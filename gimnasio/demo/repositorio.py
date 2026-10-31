@@ -39,6 +39,7 @@ def vaciar_datos(cursor):
             break
     cursor.execute("DELETE FROM sustituciones")
     cursor.execute("DELETE FROM dolores_reportados")
+    cursor.execute("DELETE FROM revisiones_aviso")
     cursor.execute("DELETE FROM avisos_entrenador")
     cursor.execute("DELETE FROM chequeos_dia")
     cursor.execute("DELETE FROM prescripciones_efectivas")

@@ -49,6 +49,7 @@ def crear_app(config=None, reloj=None):
     registrar_cierre(app)
 
     from gimnasio.demo.limites import registrar_limites
+    from gimnasio.entrenador.rutas import bp as entrenador
     from gimnasio.entrenamiento.rutas import bp as entrenamiento
     from gimnasio.permisos.rutas import bp as permisos
     from gimnasio.programas.rutas import bp as programas
@@ -60,6 +61,7 @@ def crear_app(config=None, reloj=None):
     app.register_blueprint(permisos)
     app.register_blueprint(visitas)
     app.register_blueprint(entrenamiento)
+    app.register_blueprint(entrenador)
     app.register_blueprint(programas)
 
     from gimnasio.permisos.servicio import usuario_actual

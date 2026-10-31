@@ -499,3 +499,28 @@ def ultima_sesion(cursor, socio_id, sesion=None):
         parametros,
     )
     return cursor.fetchone()
+
+
+def ultimas_sesiones(cursor, socio_id):
+    cursor.execute(
+        "SELECT * FROM sesiones_realizadas WHERE socio_id=%s ORDER BY creada_en DESC,id DESC LIMIT 10",
+        (a_bytes(socio_id),),
+    )
+    return cursor.fetchall()
+
+
+def listar_avisos(cursor, socio_id, *, bloquear=False):
+    cursor.execute(
+        "SELECT * FROM avisos_entrenador WHERE socio_id=%s ORDER BY creado_en DESC,id DESC"
+        + (" FOR UPDATE" if bloquear else ""),
+        (a_bytes(socio_id),),
+    )
+    return cursor.fetchall()
+
+
+def listar_dolores(cursor, socio_id):
+    cursor.execute(
+        "SELECT id,zona,registrado_en FROM dolores_reportados WHERE socio_id=%s ORDER BY registrado_en DESC,id DESC",
+        (a_bytes(socio_id),),
+    )
+    return cursor.fetchall()
