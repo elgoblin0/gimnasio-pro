@@ -142,3 +142,17 @@ def adquirir_candado(cursor, nombre, segundos):
 def liberar_candado(cursor, nombre):
     cursor.execute("SELECT RELEASE_LOCK(%s) AS liberado", (nombre,))
     cursor.fetchone()
+
+
+def listar_socios_asignados(cursor, entrenador_id):
+    cursor.execute(
+        """SELECT DISTINCT s.id, p.nombre, p.apellido, p.figura_cuerpo
+           FROM asignaciones_entrenador a
+           JOIN usuarios s ON s.id=a.socio_id AND s.rol='socio' AND s.activo=TRUE
+           JOIN usuarios e ON e.id=a.entrenador_id AND e.rol='entrenador' AND e.activo=TRUE
+           JOIN personas p ON p.id=s.persona_id
+           WHERE a.entrenador_id=%s AND a.hasta IS NULL
+           ORDER BY p.apellido,p.nombre,s.id""",
+        (a_bytes(entrenador_id),),
+    )
+    return cursor.fetchall()

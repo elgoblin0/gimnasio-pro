@@ -3,4 +3,7 @@ nombre = "Bandeja priorizada del entrenador"
 grupo = "Entrenador"
 etapa = 4
 nivel = "pendiente"
-prueba = ""
+prueba = "pruebas/test_entrenador.py"
+
+# Vista del socio asignado y constancia de avisos revisados: API cubierta por pytest (#182).
+# La bandeja priorizada y las pantallas siguen pendientes, fuera del alcance de este issue.

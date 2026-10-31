@@ -230,3 +230,11 @@ def tiene_asignacion_vigente(cursor, socio_id, entrenador_id):
     No reemplaza `@requiere`: el servicio de entrenamiento valida usuario propio o socio asignado.
     """
     return repositorio.tiene_asignacion_vigente(cursor, socio_id, entrenador_id)
+
+
+def socios_asignados(cursor, entrenador_id):
+    """Lectura de asignaciones vigentes para servicios que ya exigen el permiso."""
+    return [
+        {**fila, "id": str(desde_bytes(fila["id"]))}
+        for fila in repositorio.listar_socios_asignados(cursor, entrenador_id)
+    ]

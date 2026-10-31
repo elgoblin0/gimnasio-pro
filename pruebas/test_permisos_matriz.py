@@ -21,6 +21,7 @@ ESPERADO = {
     "pagos.registrar": {R, A},
     "clases.gestionar_reservas": {R},
     "socios.ver_asignados": {E},
+    "avisos.revisar": {E},
     "entrenamiento.ver_asignados": {E},
     "salud.ver_asignados": {E},
     "programas.editar": {E},
