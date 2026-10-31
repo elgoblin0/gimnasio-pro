@@ -237,9 +237,16 @@ window.addEventListener("message", async (evento) => {
   await abrirTarjeta(socioTarjeta, false);
 });
 async function abrirTarjeta(socioId, enfocar = true) {
+  const panel = $("[data-tarjeta-contextual]");
+  // El formulario conserva el cuerpo y la clave de un pago sin confirmar.
+  // Solo su confirmación permite reemplazarlo, incluso al elegir otro socio.
+  if ($("[data-pago-tarjeta]")) {
+    if (!panel.open) panel.show();
+    if (enfocar) $("[data-cerrar-tarjeta]").focus();
+    return;
+  }
   socioTarjeta = socioId;
   const consulta = ++consultaTarjeta;
-  const panel = $("[data-tarjeta-contextual]");
   $("[data-tarjeta-datos]").textContent = "Cargando tarjeta contextual…";
   if (!panel.open) {
     focoAnteriorTarjeta = document.activeElement;
@@ -248,7 +255,7 @@ async function abrirTarjeta(socioId, enfocar = true) {
   if (enfocar) $("[data-cerrar-tarjeta]").focus();
   try {
     const datos = await llamarApi(`/api/socios/${socioId}/tarjeta`);
-    if (consulta !== consultaTarjeta || !panel.open) return;
+    if (consulta !== consultaTarjeta || !panel.open || $("[data-pago-tarjeta]")) return;
     const contenido = $("[data-tarjeta-datos]");
     contenido.replaceChildren();
     const agregar = (texto, clase = "") => {
@@ -304,7 +311,7 @@ async function abrirTarjeta(socioId, enfocar = true) {
     const habitual = datos.permanencia_habitual;
     agregar(habitual.suficiente ? `Permanencia habitual: ${habitual.mediana} min` : `Permanencia habitual: datos insuficientes (${habitual.observaciones} visitas)`);
   } catch (error) {
-    if (consulta === consultaTarjeta && panel.open) $("[data-tarjeta-datos]").textContent = error.message;
+    if (consulta === consultaTarjeta && panel.open && !$("[data-pago-tarjeta]")) $("[data-tarjeta-datos]").textContent = error.message;
   }
 }
 $("[data-cerrar-tarjeta]").addEventListener("click", () => $("[data-tarjeta-contextual]").close());
@@ -350,6 +357,9 @@ $("[data-descartar-conciliacion]").addEventListener("click", () => {
   actualizarBotones();
 });
 
+$("#socio").addEventListener("change", () => {
+  if ($("#socio").value) return abrirTarjeta($("#socio").value);
+});
 $("[data-entrada]").addEventListener("submit", (evento) => {
   evento.preventDefault();
   if (control.actual || cargando || !$("#socio").value || !sedeId) return;

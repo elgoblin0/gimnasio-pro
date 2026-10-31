@@ -8,3 +8,6 @@ prueba = "pruebas/test_tarjeta_contextual.py"
 # #214: pago pendiente, renovación futura pagada y registro desde la misma tarjeta.
 # La tarjeta abierta se actualiza tras confirmar una salida o conciliación.
 # Regresión: gimnasio/static/js/recepcion.test.js
+# Seleccionar un socio permite abrir la tarjeta antes de autorizar su entrada.
+# Con un formulario de pago abierto se conserva la tarjeta hasta confirmar el pago,
+# incluso tras una salida, conciliación o selección de otro socio.

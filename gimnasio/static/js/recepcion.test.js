@@ -15,7 +15,7 @@ function preparar(t) {
   const obtener = (selector) => {
     if (!elementos.has(selector)) elementos.set(selector, {
       open: false, isConnected: true, textContent: "", hijos: [], style: { setProperty() {} },
-      addEventListener() {}, focus() {}, show() { this.open = true; },
+      eventos: {}, addEventListener(nombre, accion) { this.eventos[nombre] = accion; }, focus() {}, show() { this.open = true; },
       close() { this.open = false; },
       replaceChildren() { this.hijos = []; }, append(hijo) { this.hijos.push(hijo); },
     });
@@ -27,7 +27,7 @@ function preparar(t) {
   let liberarOperacion;
   const lecturas = [];
   const contexto = vm.createContext({
-    document: { querySelector: obtener, querySelectorAll: () => [],
+    document: { querySelector: (selector) => selector === "[data-pago-tarjeta]" ? elementos.get(selector) ?? null : obtener(selector), querySelectorAll: () => [],
       createElement: () => ({ dataset: {}, style: {}, addEventListener() {} }), addEventListener() {}, removeEventListener() {} },
     window: { addEventListener: (nombre, accion) => eventos.set(nombre, accion) }, registrarPwa() {},
     location: { origin: "https://gimnasio.test" },
@@ -63,7 +63,7 @@ function preparar(t) {
     vm.runInContext(codigoSondeo, contexto);
   }
   vm.runInContext(codigo, contexto);
-  return { obtener, consultas, lecturas, eventos, liberar: () => liberarOperacion(),
+  return { obtener, consultas, lecturas, eventos, retirarFormulario: () => elementos.delete("[data-pago-tarjeta]"), liberar: () => liberarOperacion(),
     ejecutar: (texto) => vm.runInContext(texto, contexto),
     operar: async (ruta) => { operacion = { ruta, cuerpo: {} }; await vm.runInContext("enviar()", contexto); } };
 }
@@ -75,7 +75,7 @@ test("al confirmar el pago refresca la tarjeta y mantiene el socio para la entra
   const formulario = pantalla.obtener("[data-pago-tarjeta]");
   formulario.contentWindow = {};
   let retirado = false;
-  formulario.remove = () => { retirado = true; };
+  formulario.remove = () => { retirado = true; pantalla.retirarFormulario(); };
   await pantalla.eventos.get("message")({ origin: "https://gimnasio.test", source: formulario.contentWindow, data: { tipo: "pago-registrado" } });
   assert.equal(retirado, true);
   assert.deepEqual(pantalla.consultas, ["/api/socios/socio/tarjeta", "/api/socios/socio/tarjeta"]);
@@ -172,5 +172,33 @@ for (const consulta of ["/api/ocupacion", "/api/visitas?abiertas=1", "/api/visit
     assert.equal(pantalla.obtener("[data-contenido]").hidden, false);
     await pantalla.ejecutar("actualizar()");
     assert.equal(pantalla.ejecutar("esperas"), 1);
+  });
+}
+
+test("seleccionar un socio sin visita permite pagar antes de registrar entrada", async () => {
+  const pantalla = preparar();
+  pantalla.ejecutar('rolTarjeta = "recepcion"; llamarApi = async () => ({ socio: {}, pago_pendiente: true, membresia: { vigente: false }, permanencia_habitual: {} });');
+  pantalla.obtener("#socio").value = "socio-vencido";
+  await pantalla.obtener("#socio").eventos.change();
+  assert.equal(pantalla.obtener("[data-tarjeta-contextual]").open, true);
+  assert.equal(pantalla.ejecutar("socioTarjeta"), "socio-vencido");
+  assert.ok(pantalla.obtener("[data-tarjeta-datos]").hijos.some(hijo => hijo.textContent === "Registrar pago"));
+});
+
+for (const ruta of ["/api/salidas", "/api/visitas/visita/conciliacion"]) {
+  test(`conserva el formulario de pago al confirmar ${ruta} y al elegir otro socio`, async () => {
+    const pantalla = preparar();
+    await pantalla.ejecutar('abrirTarjeta("socio")');
+    const formulario = pantalla.obtener("[data-pago-tarjeta]");
+    const contenido = pantalla.obtener("[data-tarjeta-datos]");
+    contenido.append(formulario);
+    const hijos = [...contenido.hijos];
+    await pantalla.operar(ruta);
+    pantalla.obtener("[data-tarjeta-contextual]").close();
+    await pantalla.ejecutar('abrirTarjeta("otro-socio")');
+    assert.equal(pantalla.obtener("[data-tarjeta-contextual]").open, true);
+    assert.equal(pantalla.ejecutar("socioTarjeta"), "socio");
+    assert.deepEqual(contenido.hijos, hijos);
+    assert.deepEqual(pantalla.consultas, ["/api/socios/socio/tarjeta"]);
   });
 }
