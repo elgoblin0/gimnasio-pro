@@ -1,6 +1,6 @@
 # 0024. Ocultar al entrenador los datos de salud de explicaciones y notas sin consentimiento
 
-- Estado: provisional
+- Estado: aceptado el 2026-10-31 por el dueño en el cierre de etapa 4 (#190)
 - Fecha: 2026-10-31
 - Decide: Opus
 - Etiquetas: modulo:entrenador, modulo:salud
