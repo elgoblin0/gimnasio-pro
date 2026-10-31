@@ -69,3 +69,17 @@ test("un error permite reintentar la lectura del perfil", async () => {
   assert.equal(contenedor.hijos.find((hijo) => hijo.role === "alert").textContent, "Sin conexión");
   assert.equal(typeof contenedor.hijos.find((hijo) => hijo.etiqueta === "button").eventos.click, "function");
 });
+
+test("experiencia toma su nombre de la etiqueta sin incluir las opciones", async () => {
+  const contexto = preparar(async () => ({ perfil_entrenamiento: { experiencia: null } }));
+  const contenedor = nodo("section");
+  await contexto.montarPerfil(contenedor, "actual");
+  const formulario = contenedor.hijos.find((hijo) => hijo.etiqueta === "form");
+  const etiqueta = formulario.hijos.find((hijo) => hijo.etiqueta === "label"
+    && hijo.hijos.some((entrada) => entrada.name === "experiencia"));
+  const entrada = etiqueta.hijos.find((hijo) => hijo.name === "experiencia");
+  const texto = etiqueta.hijos.find((hijo) => hijo.id && hijo.id === entrada["aria-labelledby"]);
+  assert.ok(texto, "el nombre accesible debe apuntar solo al texto de la etiqueta");
+  assert.deepEqual(texto.hijos, ["Experiencia"]);
+  assert.deepEqual(entrada.hijos.map((opcion) => opcion.value), ["", "inicial", "intermedia", "avanzada"]);
+});

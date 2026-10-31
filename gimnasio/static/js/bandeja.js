@@ -172,8 +172,8 @@ function dibujarSocio(vista) {
   $("[data-socio-programa]").hidden = Boolean(vista.programa_vigente);
   $("[data-abrir-editor]").href = `/editor-programa.html?socio=${socio.id}`;
   const perfil = $("[data-perfil]");
-  if (perfil.dataset.socio !== socio.id) {
-    perfil.dataset.socio = socio.id;
+  if (perfil.dataset.perfilSocio !== socio.id) {
+    perfil.dataset.perfilSocio = socio.id;
     montarPerfil(perfil, `/api/socios/${socio.id}/perfil`);
   }
   const sinRevisar = avisosSinRevisar(vista.avisos);

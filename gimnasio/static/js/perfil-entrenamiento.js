@@ -27,12 +27,14 @@ export async function montarPerfil(contenedor, ruta) {
       ["tiempo_por_sesion", "Tiempo por sesión (minutos)", { type: "number", min: 15, max: 240, step: 1 }],
       ["preferencias", "Preferencias", { type: "text", maxLength: 500 }],
     ]) {
-      const entrada = propiedades ? crear("input", { name: campo, ...propiedades })
-        : crear("select", { name: campo }, [
+      const idEtiqueta = `perfil-etiqueta-${campo}`;
+      const atributos = { name: campo, "aria-labelledby": idEtiqueta };
+      const entrada = propiedades ? crear("input", { ...atributos, ...propiedades })
+        : crear("select", atributos, [
           ["", "Sin indicar"], ["inicial", "Inicial"], ["intermedia", "Intermedia"], ["avanzada", "Avanzada"],
         ].map(([valor, texto]) => crear("option", { value: valor }, texto)));
       entrada.value = perfil[campo] ?? "";
-      formulario.append(crear("label", {}, etiqueta, entrada));
+      formulario.append(crear("label", {}, crear("span", { id: idEtiqueta }, etiqueta), entrada));
     }
     const boton = crear("button", { type: "submit" }, "Guardar perfil de entrenamiento");
     formulario.append(boton);
