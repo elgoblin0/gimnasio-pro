@@ -411,30 +411,41 @@ def consultar_propuesta(socio_texto, usuario, planificada_id=None, *, cursor=Non
         seleccion.sesion_planificada.id if seleccion.sesion_planificada else None,
     )
     subas = preparar_subas(efectivas, filas, ZoneInfo(sede["zona_horaria"]), local)
-    propuesta = proponer_sesion(
-        DatosPropuesta(
-            programa_motor,
-            local,
-            inicio_de_semana(local),
-            series,
-            historial,
-            tuple(catalogo.values()),
-            subas,
-            Chequeo(chequeo["sueno"], chequeo["energia"]) if chequeo else None,
-            actuales,
-            anteriores,
-            restricciones,
-            equipos_no_disponibles,
-            ejercicios_con_serie_en_version=frozenset(
-                # La sesión en curso tampoco consume la partida al retomar su pendiente:
-                # usa el mismo historial que la progresión (ADR 0016 y 0023).
-                h.ejercicio_id
-                for h in historial
-                if programa_version
-                and h.sesion_planificada_id in {s["id"] for s in programa_version["sesiones_planificadas"]}
-            ),
-        )
+    entrada = DatosPropuesta(
+        programa_motor,
+        local,
+        inicio_de_semana(local),
+        series,
+        historial,
+        tuple(catalogo.values()),
+        subas,
+        Chequeo(chequeo["sueno"], chequeo["energia"]) if chequeo else None,
+        actuales,
+        anteriores,
+        restricciones,
+        equipos_no_disponibles,
+        ejercicios_con_serie_en_version=frozenset(
+            # La sesión en curso tampoco consume la partida al retomar su pendiente:
+            # usa el mismo historial que la progresión (ADR 0016 y 0023).
+            h.ejercicio_id
+            for h in historial
+            if programa_version
+            and h.sesion_planificada_id in {s["id"] for s in programa_version["sesiones_planificadas"]}
+        ),
     )
+    propuesta = proponer_sesion(entrada)
+    equipos_no_disponibles_por_ejercicio = {}
+    if any(p.no_disponible for p in propuesta.prescripcion):
+        # El catálogo de la respuesta conserva el original. Consultamos el mismo
+        # motor sin averías para identificar el equipo de la alternativa segura.
+        disponible = proponer_sesion(replace(entrada, equipos_fuera_de_servicio=frozenset()))
+        for prescripcion in disponible.prescripcion:
+            planificado = next(
+                e for e in disponible.sesion_planificada.ejercicios if e.ejercicio_id == prescripcion.ejercicio_id
+            )
+            hecho = catalogo.get(prescripcion.ejercicio_hecho_id or planificado.ejercicio_catalogo_id)
+            if hecho is not None and hecho.equipo in equipos_no_disponibles:
+                equipos_no_disponibles_por_ejercicio[prescripcion.ejercicio_id] = hecho.equipo
     respuesta = {
         "sesion_planificada": None,
         "ejercicios": [],
@@ -467,6 +478,7 @@ def consultar_propuesta(socio_texto, usuario, planificada_id=None, *, cursor=Non
             "ejercicio_id": e["ejercicio_id"],
             "ejercicio_hecho_id": prescripciones[e["id"]].ejercicio_hecho_id,
             "no_disponible": prescripciones[e["id"]].no_disponible,
+            "equipo_no_disponible": equipos_no_disponibles_por_ejercicio.get(e["id"]),
             "carga_anterior": anteriores.get(e["ejercicio_id"]),
             "nombre": e["nombre"],
             "posicion": e["posicion"],

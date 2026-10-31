@@ -140,3 +140,106 @@ def test_bandeja_no_consulta_chequeo_del_dia(entrenamiento_api, monkeypatch):
 
     monkeypatch.setattr(repositorio, "obtener_chequeo", no_consultar)
     assert entrenamiento_api.cliente("entrenador").get(RUTA).status_code == 200
+
+
+@pytest.mark.parametrize("completado", [False, True])
+def test_equipo_del_ejercicio_solo_importa_si_queda_pendiente(entrenamiento_api, completado):
+    datos = entrenamiento_api
+    if completado:
+        registrar(datos, 0, 0, 2)
+    with datos.app.app_context(), transaccion() as cursor:
+        equipo, catalogo = nuevo_id(), nuevo_id()
+        cursor.execute(
+            "INSERT INTO equipos (id,nombre,creado_en) VALUES (%s,'Equipo ficticio',%s)",
+            (a_bytes(equipo), datos.reloj.ahora()),
+        )
+        cursor.execute(
+            "INSERT INTO ejercicios (id,nombre,equipo,medidas_aplicables,actualizada_en) "
+            "VALUES (%s,'Ejercicio ficticio','Equipo ficticio','[\"repeticiones\",\"carga\"]',%s)",
+            (a_bytes(catalogo), datos.reloj.ahora()),
+        )
+        cursor.execute(
+            "UPDATE ejercicios_planificados SET ejercicio_id=%s WHERE id=%s",
+            (a_bytes(catalogo), a_bytes(datos.ejercicios[0][0])),
+        )
+        cursor.execute(
+            "INSERT INTO cambios_estado_equipo (id,equipo_id,estado,autor_id,registrado_en) "
+            "VALUES (%s,%s,'fuera_de_servicio',%s,%s)",
+            (a_bytes(nuevo_id()), a_bytes(equipo), a_bytes(datos.usuarios["entrenador"]), datos.reloj.ahora()),
+        )
+    respuesta = datos.cliente("entrenador").get(RUTA)
+    assert respuesta.status_code == 200
+    if completado:
+        assert socios(respuesta) == []
+    else:
+        assert socios(respuesta)[0]["motivos"] == [
+            {
+                "tipo": "ejercicio_sin_alternativa",
+                "fecha": datos.reloj.ahora().isoformat(),
+                "ejercicio_id": str(datos.ejercicios[0][0]),
+            }
+        ]
+
+
+def test_alternativa_segura_fuera_de_servicio_con_original_disponible(entrenamiento_api):
+    datos = entrenamiento_api
+    with datos.app.app_context(), transaccion() as cursor:
+        original, alternativa, equipo = nuevo_id(), nuevo_id(), nuevo_id()
+        cursor.execute(
+            "INSERT INTO equipos (id,nombre,creado_en) VALUES (%s,'Equipo alternativo ficticio',%s)",
+            (a_bytes(equipo), datos.reloj.ahora()),
+        )
+        for identificador, nombre_equipo in (
+            (original, "Equipo original ficticio"),
+            (alternativa, "Equipo alternativo ficticio"),
+        ):
+            cursor.execute(
+                "INSERT INTO ejercicios (id,nombre,equipo,patron_movimiento,medidas_aplicables,actualizada_en) "
+                "VALUES (%s,'Ejercicio ficticio',%s,'sentadilla','[\"repeticiones\",\"carga\"]',%s)",
+                (a_bytes(identificador), nombre_equipo, datos.reloj.ahora()),
+            )
+            cursor.execute(
+                "INSERT INTO zonas_ejercicio (ejercicio_id,zona) VALUES (%s,'cuadriceps')",
+                (a_bytes(identificador),),
+            )
+        cursor.execute(
+            "INSERT INTO alternativas_ejercicio (ejercicio_id,alternativa_id,orden) VALUES (%s,%s,1)",
+            (a_bytes(original), a_bytes(alternativa)),
+        )
+        cursor.execute(
+            "UPDATE ejercicios_planificados SET ejercicio_id=%s WHERE id=%s",
+            (a_bytes(original), a_bytes(datos.ejercicios[0][0])),
+        )
+        cursor.execute(
+            "INSERT INTO restricciones_salud (id,socio_id,ejercicio_id,descripcion,registrada_en,autor_id) "
+            "VALUES (%s,%s,%s,'Restricción ficticia',%s,%s)",
+            (
+                a_bytes(nuevo_id()),
+                a_bytes(datos.usuarios["socio"]),
+                a_bytes(original),
+                datos.reloj.ahora(),
+                a_bytes(datos.usuarios["entrenador"]),
+            ),
+        )
+        cursor.execute(
+            "INSERT INTO cambios_estado_equipo (id,equipo_id,estado,autor_id,registrado_en) "
+            "VALUES (%s,%s,'fuera_de_servicio',%s,%s)",
+            (a_bytes(nuevo_id()), a_bytes(equipo), a_bytes(datos.usuarios["entrenador"]), datos.reloj.ahora()),
+        )
+    cliente = datos.cliente("entrenador")
+    respuesta = cliente.get(RUTA)
+    assert respuesta.status_code == 200
+    assert socios(respuesta)[0]["motivos"] == [
+        {
+            "tipo": "ejercicio_sin_alternativa",
+            "fecha": datos.reloj.ahora().isoformat(),
+            "ejercicio_id": str(datos.ejercicios[0][0]),
+        }
+    ]
+    with datos.app.app_context(), transaccion() as cursor:
+        cursor.execute(
+            "INSERT INTO cambios_estado_equipo (id,equipo_id,estado,autor_id,registrado_en) "
+            "VALUES (%s,%s,'disponible',%s,%s)",
+            (a_bytes(nuevo_id()), a_bytes(equipo), a_bytes(datos.usuarios["entrenador"]), datos.reloj.ahora()),
+        )
+    assert socios(cliente.get(RUTA)) == []

@@ -154,8 +154,8 @@ def consultar_bandeja(usuario):
                     if fecha is not None:
                         motivos.append({"tipo": "secuencia_terminada", "fecha": fecha.replace(tzinfo=UTC).isoformat()})
                 for ejercicio in propuesta["ejercicios"]:
-                    if ejercicio["no_disponible"]:
-                        equipo = equipos.get(ejercicio["equipo"])
+                    if ejercicio["no_disponible"] and ejercicio["pendiente"] > 0:
+                        equipo = equipos.get(ejercicio["equipo_no_disponible"])
                         if equipo and equipo["estado"] == "fuera_de_servicio" and equipo["ultimo_cambio"]:
                             motivos.append(
                                 {

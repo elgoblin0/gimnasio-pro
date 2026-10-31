@@ -75,3 +75,44 @@ def test_error_tambien_cierra_lectura(sondeo, monkeypatch):
     with pytest.raises(RuntimeError, match="Error de lectura ficticio"):
         cliente.get("/api/entrenador/bandeja")
     assert not estado["abierta"]
+
+
+@pytest.mark.parametrize("pendiente", [0, 1])
+@pytest.mark.parametrize("equipo_original", ["Original", "Alternativo"])
+def test_motivo_solo_por_equipo_necesario_y_trabajo_pendiente(sondeo, monkeypatch, pendiente, equipo_original):
+    cliente, _, ejercicio_id = sondeo
+    fecha = "2026-10-30T12:00:00+00:00"
+    monkeypatch.setattr(servicio, "listar_programas", lambda *args, **opciones: [{}])
+    monkeypatch.setattr(
+        servicio,
+        "listar_equipos",
+        lambda **opciones: [
+            {"nombre": "Original", "estado": "disponible", "ultimo_cambio": "2026-10-29T12:00:00+00:00"},
+            {"nombre": "Alternativo", "estado": "fuera_de_servicio", "ultimo_cambio": fecha},
+        ],
+    )
+    monkeypatch.setattr(
+        servicio,
+        "consultar_propuesta",
+        lambda *args, **opciones: {
+            "sesion_planificada": {"id": "sesion"},
+            "ejercicios": [
+                {
+                    "id": ejercicio_id,
+                    "equipo": equipo_original,
+                    "equipo_no_disponible": "Alternativo",
+                    "no_disponible": True,
+                    "pendiente": pendiente,
+                },
+            ],
+        },
+    )
+    respuesta = cliente.get("/api/entrenador/bandeja")
+    assert respuesta.status_code == 200
+    socios = [s for grupo in respuesta.json["grupos"] for s in grupo["socios"]]
+    if pendiente:
+        assert socios[0]["motivos"] == [
+            {"tipo": "ejercicio_sin_alternativa", "fecha": fecha, "ejercicio_id": ejercicio_id}
+        ]
+    else:
+        assert socios == []
