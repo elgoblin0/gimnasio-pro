@@ -30,6 +30,7 @@ PERMISOS = {
     "alternativas.editar": {"entrenador", "administracion"},
     "equipos.gestionar": {"entrenador", "administracion"},
     # Administración
+    "plantillas.administrar": {"administracion"},
     "configuracion.editar": {"administracion"},
     "usuarios.administrar": {"administracion"},
 }

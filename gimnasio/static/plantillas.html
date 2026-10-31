@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="es" data-direccion="b">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Plantillas · Gimnasio Pro</title>
+  <meta name="theme-color" content="#b2452a">
+  <link rel="icon" href="/iconos/gimnasio-192.png">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="stylesheet" href="/estilos/tokens.css">
+  <link rel="stylesheet" href="/estilos/base.css">
+  <link rel="stylesheet" href="/estilos/entrenador.css">
+  <script type="importmap">{"imports":{"@comun/":"/js/comun/"}}</script>
+  <script type="module" src="/js/plantillas.js"></script>
+</head>
+<body class="personal">
+<header class="personal-barra">
+  <a class="personal-marca" href="/">Gimnasio Pro</a>
+  <nav aria-label="Secciones"><a href="/administracion.html">Administración</a> <a href="/plantillas.html" aria-current="page">Plantillas</a></nav>
+  <p class="personal-demo" data-demo hidden>Datos ficticios · se reinician cada día</p>
+  <button type="button" data-cerrar>Cerrar sesión</button>
+</header>
+<main class="equipos">
+  <h1>Plantillas</h1>
+  <p>Editar o archivar conserva los programas publicados y las sesiones en curso.</p>
+  <a class="boton-tinta" href="/editor-programa.html?plantilla=nueva">Crear plantilla</a>
+  <p data-estado role="status" aria-live="polite">Cargando plantillas…</p>
+  <p data-error role="alert"></p>
+  <button type="button" data-reintentar hidden>Volver a cargar</button>
+  <ul data-plantillas></ul>
+</main>
+</body>
+</html>
