@@ -3,6 +3,8 @@ services:
     name: gimnasio-pro-demo
     runtime: python
     plan: free
+    # Cerca de la base de la demo (DigitalOcean nyc): cada consulta cruza esta distancia.
+    region: virginia
     buildCommand: pip install -r requirements.txt
     # El plan gratuito no tiene preDeployCommand. El certificado está disponible al arrancar.
     startCommand: >-
