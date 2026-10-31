@@ -165,7 +165,7 @@ def _ajustar_ejercicio(planificado, entrada, sesion_planificada_id):
         planificado.series,
         planificado.repeticiones_minimas,
         planificado.repeticiones_maximas,
-        planificado.carga,
+        planificado.carga_partida if planificado.carga_partida is not None else planificado.carga,
         planificado.rir_objetivo,
         planificado.descanso,
     )
@@ -235,8 +235,29 @@ def _ajustar_ejercicio(planificado, entrada, sesion_planificada_id):
     if prescripcion.rir_objetivo is not None and any(s.rir is None for h in decisivas for s in h.series):
         ajustada, explicacion_rir = sin_rir(ajustada, ejercicio, decisivas)
         razones += (explicacion_rir,)
+    if (
+        planificado.carga_partida is not None
+        and planificado.ejercicio_catalogo_id not in entrada.ejercicios_con_serie_en_version
+        and planificado.carga_partida < ajustada.carga
+    ):
+        carga_motor = ajustada.carga
+        ajustada = replace(ajustada, carga=planificado.carga_partida)
+        razones += (
+            razon(
+                "carga_partida_entrenador",
+                ajustada,
+                f"Tu entrenador fijó {numero(planificado.carga_partida)} kg",
+                carga_motor=carga_motor,
+                carga=planificado.carga_partida,
+            ),
+        )
     ajustada, razones_freno, frenos = aplicar_frenos(
-        ajustada, prescripcion, ejercicio, entrada, explicacion.regla == "subir_carga", sesion_planificada_id
+        ajustada,
+        prescripcion,
+        ejercicio,
+        entrada,
+        explicacion.regla == "subir_carga" and ajustada.carga > prescripcion.carga,
+        sesion_planificada_id,
     )
     return ajustada, razones + razones_freno, frenos
 
@@ -256,7 +277,7 @@ def _aplicar_chequeo(planificado, entrada, sesion_planificada_id):
     if suba is not None:
         ajustada = replace(
             ajustada,
-            carga=Decimal(dict(suba.datos)["carga_base"]),
+            carga=min(ajustada.carga, Decimal(dict(suba.datos)["carga_base"])),
             repeticiones_minimas=planificado.repeticiones_maximas,
         )
     ajustada = replace(ajustada, series=max(1, ajustada.series - 1))

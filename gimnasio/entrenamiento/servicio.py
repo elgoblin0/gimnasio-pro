@@ -146,6 +146,7 @@ def convertir_programa(programa):
                         duracion=ejercicio["duracion"],
                         distancia=ejercicio["distancia"],
                         ejercicio_catalogo_id=ejercicio["ejercicio_id"],
+                        carga_partida=ejercicio.get("carga_partida"),
                     )
                     for ejercicio in sesion["ejercicios_planificados"]
                 ),
@@ -262,6 +263,13 @@ def preparar_subas(efectivas, filas, zona, local):
                 razon["regla"] == "subir_carga"
                 and ejercicio
                 and not {"tope_semanal", "chequeo_desfavorable"} & {r["regla"] for r in ejercicio["explicacion"]}
+                and not (
+                    any(
+                        r["regla"] == "carga_partida_entrenador"
+                        and Decimal(r["datos"]["carga"]) <= Decimal(razon["datos"]["carga_base"])
+                        for r in ejercicio["explicacion"]
+                    )
+                )
                 # El dolor posterior anula la propuesta, pero no una suba ya realizada.
                 and (
                     "dolor_reportado" not in {r["regla"] for r in ejercicio["explicacion"]}
@@ -356,6 +364,7 @@ def consultar_propuesta(socio_texto, usuario, planificada_id=None, *, cursor=Non
         ]
     programas = listar_programas(socio_id, cursor=cursor)
     programa = programas[-1] if programas else None
+    programa_version = programa
     if planificada_id is not None:
         programa = next(p for p in programas if any(s["id"] == str(planificada_id) for s in p["sesiones_planificadas"]))
         programa = {
@@ -411,6 +420,13 @@ def consultar_propuesta(socio_texto, usuario, planificada_id=None, *, cursor=Non
             anteriores,
             restricciones,
             equipos_no_disponibles,
+            ejercicios_con_serie_en_version=frozenset(
+                str(desde_bytes(f["ejercicio_catalogo_id"]))
+                for f in filas
+                if programa_version
+                and str(desde_bytes(f["sesion_planificada_id"]))
+                in {s["id"] for s in programa_version["sesiones_planificadas"]}
+            ),
         )
     )
     respuesta = {
@@ -1144,3 +1160,54 @@ def registrar_dolor(sesion_texto, datos, usuario):
         )
         repositorio.insertar_avisos(cursor, socio_id, sesion_id, aviso, ahora)
     return {"dolor_reportado": {"id": str(dolor_id)}}
+
+
+def sugerir_cargas(cursor, socio_id, identificadores):
+    """Evalúa cada ejercicio sin chequeo ni carga de partida del entrenador."""
+    from gimnasio.reglas.progresion import ajustar_ejercicio
+
+    sede = repositorio.obtener_sede(cursor)
+    zona = ZoneInfo(sede["zona_horaria"])
+    local = fecha_local(reloj_actual().ahora(), zona)
+    filas = repositorio.listar_series_vigentes(cursor, socio_id)
+    historial = preparar_historial(filas, zona, local)
+    subas = preparar_subas(repositorio.listar_prescripciones(cursor, socio_id), filas, zona, local)
+    ejercicios = {
+        e["ejercicio_id"]: e
+        for p in listar_programas(socio_id, cursor=cursor)
+        for s in p["sesiones_planificadas"]
+        for e in s["ejercicios_planificados"]
+    }
+    anterior = repositorio.ultima_sesion(cursor, socio_id)
+    dolores = dolores_de_sesion(cursor, anterior, sede) if anterior else ()
+    restricciones = restricciones_vigentes(socio_id, cursor=cursor)
+    equipos = equipos_fuera_de_servicio(cursor)
+    resultado = {}
+    for identificador in identificadores:
+        ejercicio = ejercicios.get(identificador)
+        if ejercicio is None or not any(h.ejercicio_id == identificador for h in historial):
+            resultado[identificador] = None
+            continue
+        planificado = EjercicioPlanificado(
+            ejercicio["id"],
+            ejercicio["series"],
+            ejercicio["repeticiones_minimas"],
+            ejercicio["repeticiones_maximas"],
+            ejercicio["carga"],
+            ejercicio["rir_objetivo"],
+            ejercicio_catalogo_id=identificador,
+        )
+        entrada = DatosPropuesta(
+            None,
+            local,
+            inicio_de_semana(local),
+            historial=historial,
+            catalogo=catalogo_ejercicio(cursor, ejercicio),
+            subas=subas,
+            dolores_anteriores=dolores,
+            restricciones=restricciones,
+            equipos_fuera_de_servicio=equipos,
+        )
+        ajustada, _, _ = ajustar_ejercicio(planificado, entrada, None)
+        resultado[identificador] = ajustada.carga
+    return resultado

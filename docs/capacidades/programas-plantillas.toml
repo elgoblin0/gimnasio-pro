@@ -6,3 +6,5 @@ nivel = "funcional"
 prueba = "pruebas/test_publicar_programas.py"
 
 # La publicación respeta las restricciones de salud vigentes (#180).
+
+# Carga de partida del entrenador limitada por el motor, hasta la primera serie en la versión (#181).
