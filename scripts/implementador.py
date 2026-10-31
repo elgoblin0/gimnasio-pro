@@ -42,6 +42,7 @@ INACTIVIDAD_AVISO_MINUTOS = 10  # sin una línea nueva de Codex: se avisa
 INACTIVIDAD_CORTE_MINUTOS = 20  # sin una línea nueva de Codex: se lo mata y cuenta como fallo del pedido
 CUENTA_REGRESIVA_SEGUNDOS = 5 * 60
 LIMITE_PRUEBAS_MINUTOS = 20
+LIMITE_E2E_MINUTOS = 15
 SERVICE_WORKER = verificar_cache_pwa.SERVICE_WORKER
 VERSION_SW = re.compile(r'(const VERSION = ")(\d+)(")')
 SESION = {
@@ -63,7 +64,13 @@ ESPERA_CUPO_SEGUNDOS = 15 * 60
 ESFUERZO_POR_DEFECTO = "low"  # el cupo de Codex rinde más; GIMNASIO_CODEX_ESFUERZO lo cambia (low|medium|high)
 ESCALA_ESFUERZO = ("low", "medium", "high")
 RESPALDO_POR_DEFECTO = "sonnet"  # modelo de Claude que implementa sin cupo de Codex; GIMNASIO_RESPALDO=ninguno lo apaga
-MARCAS_SIN_CUPO = ("hit your usage limit", "hit your limit", "usage limit reached", "5-hour limit reached")
+MARCAS_SIN_CUPO = (
+    "hit your usage limit",
+    "hit your limit",
+    "usage limit reached",
+    "5-hour limit",  # Claude: «You've hit your 5-hour limit · resets 6pm»
+    "weekly limit",
+)
 # En Windows la herramienta de shell de Claude Code es PowerShell; en Linux, Bash: las reglas cubren las dos.
 _CONSULTAS = ("python", "pytest", "ruff", "node", "git status", "git diff", "git log", "git show", "ls")
 _VEDADOS = ("git push", "gh", "curl", "Invoke-WebRequest", "Invoke-RestMethod")
@@ -175,7 +182,8 @@ def prompt_para_codex(pedido, revisiones=""):
         "Escribí el cuerpo del PR (plantilla completa, con «Notas para el próximo agente», el conteo de passed/skipped "
         f"y lo que no pudiste correr) en `{ARCHIVO_CUERPO}` en la raíz: lo publica el implementador (sin `gh`).\n"
         "Para ahorrar cupo: corré ruff y solo las pruebas de los módulos que tocás (con MySQL si hace falta); la suite "
-        "completa y los e2e los corre el CI, no los repitas. No lances revisiones aparte: las hace la cadena.\n"
+        "completa la corre el CI y los e2e relacionados los corre el implementador antes de subir; no los repitas. "
+        "No lances revisiones aparte: las hace la cadena.\n"
         "Lista de control: si tocás algo de `gimnasio/static/` que no sea una prueba, subí `VERSION` en "
         "`gimnasio/static/sw.js` (si no, los navegadores con el service worker viejo no reciben el cambio); "
         "el implementador lo verifica antes de subir y el CI lo exige.\n"
@@ -202,6 +210,24 @@ def tests_a_correr(archivos, existentes):
             elegidas.add(archivo)
         elif len(partes) >= 3 and partes[0] == "gimnasio":
             elegidas.update(t for t in existentes if PurePosixPath(t).name.startswith(f"test_{partes[1]}"))
+    return sorted(elegidas)
+
+
+def e2e_a_correr(archivos, existentes):
+    """Los e2e que corresponden a lo cambiado: los tocados y los que llevan el nombre del módulo o del JS tocado."""
+    elegidas = set()
+    for archivo in archivos:
+        ruta = PurePosixPath(archivo)
+        if archivo in existentes:
+            elegidas.add(archivo)
+        elif ruta.parts[:3] == ("gimnasio", "static", "js"):
+            nombre = ruta.name.split(".")[0]
+        elif len(ruta.parts) >= 3 and ruta.parts[0] == "gimnasio" and ruta.parts[1] != "static":
+            nombre = ruta.parts[1]
+        else:
+            continue
+        if archivo not in existentes:
+            elegidas.update(e for e in existentes if PurePosixPath(e).name.startswith(f"test_{nombre}"))
     return sorted(elegidas)
 
 
@@ -798,15 +824,29 @@ def verificar(carpeta):
     pruebas = tests_a_correr(archivos, existentes)
     if not pruebas:
         informe.append("pytest: sin pruebas asociadas a lo cambiado; las corre el CI.")
+    else:
+        codigo, salida = correr(
+            [python, "-m", "pytest", "-q", "-p", "no:cacheprovider", *pruebas], carpeta, LIMITE_PRUEBAS_MINUTOS
+        )
+        cuenta = contar_pruebas(salida)
+        detalle = ", ".join(f"{n} {palabra}" for palabra, n in cuenta.items()) or "sin resumen"
+        informe.append(f"pytest ({len(pruebas)} archivos): {detalle}" + ("" if codigo == 0 else f"\n{salida[-800:]}"))
+        if cuenta.get("skipped") and not os.environ.get("GIMNASIO_BD_HOST"):
+            informe.append("⚠ Hay pruebas saltadas y no está `GIMNASIO_BD_HOST`: un «skipped» no cuenta como verde.")
+        bien = bien and codigo == 0
+    # Los e2e relacionados se corren aquí: lo que rompen (selectores, relojes) si no se ve recién en el CI.
+    e2e = e2e_a_correr(archivos, {p for p in todas if PurePosixPath(p).parent.as_posix() == "pruebas/e2e"})
+    if not e2e:
+        return informe, bien
+    if not os.environ.get("GIMNASIO_BD_HOST"):
+        informe.append(f"e2e ({len(e2e)} archivos): sin `GIMNASIO_BD_HOST`, no se corrieron; los corre el CI.")
         return informe, bien
     codigo, salida = correr(
-        [python, "-m", "pytest", "-q", "-p", "no:cacheprovider", *pruebas], carpeta, LIMITE_PRUEBAS_MINUTOS
+        [python, "-m", "pytest", "-q", "-p", "no:cacheprovider", "-m", "e2e", *e2e], carpeta, LIMITE_E2E_MINUTOS
     )
     cuenta = contar_pruebas(salida)
     detalle = ", ".join(f"{n} {palabra}" for palabra, n in cuenta.items()) or "sin resumen"
-    informe.append(f"pytest ({len(pruebas)} archivos): {detalle}" + ("" if codigo == 0 else f"\n{salida[-800:]}"))
-    if cuenta.get("skipped") and not os.environ.get("GIMNASIO_BD_HOST"):
-        informe.append("⚠ Hay pruebas saltadas y no está `GIMNASIO_BD_HOST`: un «skipped» no cuenta como verde.")
+    informe.append(f"e2e ({len(e2e)} archivos): {detalle}" + ("" if codigo == 0 else f"\n{salida[-800:]}"))
     return informe, bien and codigo == 0
 
 
