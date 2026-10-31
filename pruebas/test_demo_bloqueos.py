@@ -33,3 +33,20 @@ def test_sede_se_bloquea_antes_de_simulacion(monkeypatch, reloj_fijo, con_simula
     monkeypatch.setattr(servicio.repositorio, "bloquear_simulacion", bloquear_simulacion)
     with app.app_context():
         servicio.poner_al_dia()
+
+
+@pytest.mark.parametrize("aforo", [29, 121])
+def test_aforo_fuera_de_rango_demo_sin_escrituras(monkeypatch, aforo):
+    from gimnasio.administracion import servicio as administracion
+    from gimnasio.comun.errores import ErrorDeDominio
+
+    def no_escribir():
+        pytest.fail("El rango de la demo debe comprobarse antes de abrir la transacción")
+
+    monkeypatch.setattr(administracion, "transaccion", no_escribir)
+    app = Flask(__name__)
+    app.config["MODO_DEMO"] = True
+    with app.app_context(), pytest.raises(ErrorDeDominio) as error:
+        administracion.cambiar_sede({"aforo_maximo": aforo, "horario": {}, "motivo": "Prueba"}, {})
+    assert error.value.estado_http == 422
+    assert error.value.codigo == "aforo_fuera_de_rango_demo"

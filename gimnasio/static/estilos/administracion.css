@@ -1,0 +1,8 @@
+.administracion { max-width: 75rem; margin-inline: auto; }
+.administracion form { max-width: 48rem; }
+.administracion fieldset { min-width: 0; margin-block: var(--espacio-3); border: 1px solid var(--borde); }
+.administracion [data-intervalo] { display: flex; flex-wrap: wrap; align-items: end; gap: var(--espacio-2); margin-block: var(--espacio-2); }
+.administracion input[type="number"], .administracion input[type="time"] { font: inherit; color: var(--texto); background: var(--superficie); border: 1px solid var(--texto-suave); border-radius: var(--radio-1); min-height: 44px; padding: var(--espacio-2); }
+.administracion input[type="checkbox"] { min-width: 24px; min-height: 24px; vertical-align: middle; }
+.administracion [data-historial] { padding-inline-start: var(--espacio-4); overflow-wrap: anywhere; }
+.administracion [data-historial] > li { padding-block: var(--espacio-3); border-bottom: 1px solid var(--borde); }

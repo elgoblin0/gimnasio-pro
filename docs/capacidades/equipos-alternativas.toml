@@ -14,6 +14,6 @@ validacion = "https://github.com/elgoblin0/gimnasio-pro/issues/190"
 # Sin sustitución, usa el historial de equipos al último dolor o al inicio por chequeo.
 # La reparación posterior conserva el no disponible y el pendiente de esa sesión.
 
-# Pantalla compartida de equipos y alternativas; administración entra ahí (#188): pruebas/e2e/test_pantallas_entrenador.py.
+# Pantalla compartida de equipos y alternativas; administración llega desde su panel (#212): pruebas/e2e/test_pantallas_entrenador.py.
 
 # El recorrido de la etapa 4 la ejercita de punta a punta (#189): pruebas/e2e/test_recorrido_entrenador.py.

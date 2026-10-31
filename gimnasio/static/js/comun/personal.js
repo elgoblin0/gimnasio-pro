@@ -27,6 +27,7 @@ export function prepararBarra(usuario) {
   if (demo) demo.hidden = !usuario.es_demo;
   // Administración no tiene bandeja: la sección queda solo para el entrenador.
   for (const enlace of document.querySelectorAll("[data-solo-entrenador]")) enlace.hidden = usuario.rol !== "entrenador";
+  for (const enlace of document.querySelectorAll("[data-solo-administracion]")) enlace.hidden = usuario.rol !== "administracion";
   document.querySelector("[data-cerrar]").addEventListener("click", async (evento) => {
     evento.currentTarget.disabled = true;
     try {

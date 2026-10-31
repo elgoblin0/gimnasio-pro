@@ -337,3 +337,8 @@ def registrar_salida_en_transaccion(cursor, entrada_id, autor_id, instante):
     from gimnasio.comun.ids import nuevo_id
 
     repositorio.insertar_salida(cursor, nuevo_id(), entrada_id, autor_id, instante)
+
+
+def ocupacion_en_transaccion(cursor, sede_id):
+    """Comparte la ocupación vigente sin abrir otra transacción."""
+    return repositorio.contar_ocupacion_registrada(cursor, sede_id)
