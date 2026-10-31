@@ -80,6 +80,17 @@ def insertar_cambio_estado(cursor, cambio_id, equipo_id, estado, motivo, autor_i
     )
 
 
+def socios_con_programa(cursor, socio_ids):
+    if not socio_ids:
+        return []
+    lugares = ",".join(["%s"] * len(socio_ids))
+    cursor.execute(
+        f"SELECT DISTINCT socio_id FROM programas_entrenamiento WHERE socio_id IN ({lugares})",
+        tuple(a_bytes(socio_id) for socio_id in socio_ids),
+    )
+    return cursor.fetchall()
+
+
 def leer_por_socio(cursor, socio_id, version=None):
     """Una consulta conserva la misma lectura para programas, sesiones y ejercicios."""
     filtro = "" if version is None else " AND p.version = %s"

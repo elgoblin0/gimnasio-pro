@@ -61,6 +61,33 @@ def transaccion():
         cursor.close()
 
 
+class LecturaConMemoria:
+    """Cursor de una lectura larga: una consulta idéntica no vuelve a la base.
+
+    Solo para transacciones de lectura, donde repetirla daría las mismas filas. Una escritura falla al no
+    tener filas que traer.
+    """
+
+    def __init__(self, cursor):
+        self._cursor = cursor
+        self._memoria = {}
+        self._filas = iter(())
+
+    def execute(self, sql, parametros=None):
+        clave = (sql, tuple(parametros or ()))
+        if clave not in self._memoria:
+            self._cursor.execute(sql, parametros)
+            self._memoria[clave] = self._cursor.fetchall()
+        # Copias: quien lee puede modificar sus filas sin alterar las de la próxima lectura.
+        self._filas = iter([dict(fila) for fila in self._memoria[clave]])
+
+    def fetchone(self):
+        return next(self._filas, None)
+
+    def fetchall(self):
+        return list(self._filas)
+
+
 def registrar_cierre(app):
     @app.teardown_appcontext
     def cerrar_conexion(_error):

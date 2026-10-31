@@ -518,6 +518,17 @@ def listar_avisos(cursor, socio_id, *, bloquear=False):
     return cursor.fetchall()
 
 
+def listar_avisos_de_socios(cursor, socio_ids):
+    if not socio_ids:
+        return []
+    lugares = ",".join(["%s"] * len(socio_ids))
+    cursor.execute(
+        f"SELECT * FROM avisos_entrenador WHERE socio_id IN ({lugares}) ORDER BY creado_en DESC,id DESC",
+        tuple(a_bytes(socio_id) for socio_id in socio_ids),
+    )
+    return cursor.fetchall()
+
+
 def listar_dolores(cursor, socio_id):
     cursor.execute(
         "SELECT id,zona,registrado_en FROM dolores_reportados WHERE socio_id=%s ORDER BY registrado_en DESC,id DESC",
