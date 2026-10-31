@@ -50,6 +50,8 @@ def test_migracion_vacia_repetida_y_esquema_minimo(bd_vacia):
             "desde": "date",
             "hasta": "date",
             "actualizada_en": "datetime(6)",
+            "pago_id": "binary(16)",
+            "tipo_id": "binary(16)",
         }
         # También es seguro repetir el DDL, sin pasar por el registro del aplicador.
         migracion = next(m for m in leer_migraciones() if m.version == "0006")
@@ -178,7 +180,7 @@ def test_restricciones_de_fechas_y_clave_foranea(app_con_bd, reloj_fijo, socio_c
         assert consultar_membresia(socio_id, DESDE - timedelta(days=1)) is not None
 
 
-def test_socios_solo_lee_membresias_y_usuarios_sin_repositorios_ajenos():
+def test_socios_solo_accede_a_membresias_y_usuarios_sin_repositorios_ajenos():
     from pruebas.test_dependencias import violaciones
 
     assert not [v for v in violaciones(RAIZ) if v.startswith("gimnasio.socios.")]

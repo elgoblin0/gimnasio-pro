@@ -19,6 +19,7 @@ ESPERADO = {
     "ocupacion.ver": {S, R, E, A},
     "socios.ver_tarjeta": {R, A},
     "pagos.registrar": {R, A},
+    "membresias.configurar": {A},
     "clases.gestionar_reservas": {R},
     "socios.ver_asignados": {E},
     "avisos.revisar": {E},

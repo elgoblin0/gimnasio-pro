@@ -2,5 +2,5 @@ id = "registro-pagos"
 nombre = "Registro de pagos en guaraníes"
 grupo = "Operación"
 etapa = 5
-nivel = "pendiente"
-prueba = ""
+nivel = "funcional"
+prueba = "pruebas/test_pagos.py"

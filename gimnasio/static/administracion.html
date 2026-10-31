@@ -11,6 +11,7 @@
   <link rel="stylesheet" href="/estilos/base.css">
   <link rel="stylesheet" href="/estilos/entrenador.css">
   <link rel="stylesheet" href="/estilos/administracion.css">
+  <link rel="stylesheet" href="/estilos/pagos.css">
   <script type="importmap">{"imports":{"@comun/":"/js/comun/"}}</script>
   <script type="module" src="/js/administracion.js"></script>
 </head>
@@ -23,7 +24,7 @@
 </header>
 <main class="equipos administracion">
   <h1>Administración</h1>
-  <nav aria-label="Panel de administración"><a href="#sede">Sede</a> · <a href="/equipos.html">Equipos</a></nav>
+  <nav aria-label="Panel de administración"><a href="#sede">Sede</a> · <a href="#tipos-membresia">Tipos de membresía</a> · <a href="/pagos.html">Pagos</a> · <a href="/equipos.html">Equipos</a></nav>
   <p data-estado role="status" aria-live="polite">Cargando sede…</p>
   <p data-error role="alert"></p>
   <button type="button" data-reintentar hidden>Volver a cargar</button>
@@ -43,6 +44,23 @@
     <h2>Historial de cambios</h2>
     <p data-sin-cambios>No hay cambios registrados.</p>
     <ol data-historial></ol>
+  </section>
+  <section id="tipos-membresia" aria-labelledby="titulo-tipos">
+    <h2 id="titulo-tipos">Tipos de membresía</h2>
+    <p data-tipos-estado role="status" aria-live="polite">Cargando tipos de membresía…</p>
+    <p data-tipos-error role="alert"></p>
+    <button type="button" data-tipos-recargar>Volver a cargar tipos</button>
+    <ul data-tipos-lista></ul>
+    <form>
+      <fieldset>
+        <legend>Tipo de membresía</legend>
+        <label>Nombre <input name="nombre" maxlength="120" required></label>
+        <label>Duración en días <input name="duracion_dias" type="number" min="1" max="4294967295" step="1" required></label>
+        <label>Precio en guaraníes <input name="precio" type="number" min="0" max="9007199254740991" step="1" required></label>
+        <button type="submit" class="boton-tinta">Crear tipo de membresía</button>
+        <button type="button" data-tipo-nuevo>Nuevo tipo de membresía</button>
+      </fieldset>
+    </form>
   </section>
 </main>
 </body>

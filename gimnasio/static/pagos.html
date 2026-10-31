@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="es" data-direccion="b">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Pagos · Gimnasio Pro</title>
+  <meta name="theme-color" content="#b2452a">
+  <link rel="icon" href="/iconos/gimnasio-192.png">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="stylesheet" href="/estilos/tokens.css">
+  <link rel="stylesheet" href="/estilos/base.css">
+  <link rel="stylesheet" href="/estilos/entrenador.css">
+  <link rel="stylesheet" href="/estilos/pagos.css">
+  <script type="importmap">{"imports":{"@comun/":"/js/comun/"}}</script>
+  <script type="module" src="/js/pagos.js"></script>
+</head>
+<body class="personal">
+<header class="personal-barra">
+  <a class="personal-marca" href="/">Gimnasio Pro</a>
+  <nav aria-label="Secciones"><a href="/recepcion.html" data-solo-recepcion>Recepción</a> <a href="/administracion.html" data-solo-administracion>Administración</a> <a href="/pagos.html" aria-current="page">Pagos</a></nav>
+  <p class="personal-demo" data-demo hidden>Datos ficticios · se reinician cada día</p>
+  <button type="button" data-cerrar>Cerrar sesión</button>
+</header>
+<main class="pagos">
+  <h1>Pagos</h1>
+  <p>Registrá un pago hecho fuera del sistema para renovar la membresía del socio.</p>
+  <p data-estado role="status" aria-live="polite">Cargando socios y tipos de membresía…</p>
+  <p data-error role="alert"></p>
+  <button type="button" data-recargar>Volver a cargar</button>
+  <form data-pago hidden>
+    <fieldset>
+      <legend>Registrar pago</legend>
+      <label for="buscar">Buscar socio por nombre o cédula</label>
+      <input id="buscar" type="search" autocomplete="off">
+      <label for="socio">Socio</label>
+      <select id="socio" name="socio_id" required><option value="">Elegí un socio</option></select>
+      <p data-socios-estado role="status"></p>
+      <label for="tipo">Tipo de membresía</label>
+      <select id="tipo" name="tipo_id" required><option value="">Elegí un tipo de membresía</option></select>
+      <p data-precio></p>
+      <label for="medio">Medio de pago</label>
+      <select id="medio" name="medio"><option value="efectivo">Efectivo</option><option value="transferencia">Transferencia</option><option value="tarjeta">Tarjeta</option><option value="otro">Otro</option></select>
+      <label for="monto">Monto en guaraníes (opcional)</label>
+      <input id="monto" name="monto" type="number" min="0" step="1" max="9007199254740991" aria-describedby="ayuda-monto">
+      <p id="ayuda-monto">Dejá vacío para usar el precio del tipo de membresía.</p>
+      <button type="submit" class="boton-tinta">Registrar pago y renovar</button>
+    </fieldset>
+  </form>
+  <p data-resultado role="status" aria-live="polite"></p>
+</main>
+</body>
+</html>

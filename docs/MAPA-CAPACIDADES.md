@@ -43,7 +43,7 @@ Generado por `scripts/mapa_capacidades.py` desde `docs/capacidades/`. No editar 
 | Clases y reservas con lista de espera | 5 | pendiente | — |
 | Configuración de la sede desde administración | 5 | funcional | `pruebas/test_administracion_sede.py` |
 | Ficha completa con salud y consentimientos | 5 | pendiente | — |
-| Registro de pagos en guaraníes | 5 | pendiente | — |
+| Registro de pagos en guaraníes | 5 | funcional | `pruebas/test_pagos.py` |
 
 ## Entrenamiento
 
