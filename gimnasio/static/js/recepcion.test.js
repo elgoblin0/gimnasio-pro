@@ -79,9 +79,13 @@ test("el sondeo espera al POST aunque transcurran cinco segundos", async (t) => 
   t.mock.timers.tick(5000);
   await vaciar();
   assert.equal(pantalla.lecturas.length, lecturas);
+  t.mock.timers.tick(4999);
+  await vaciar();
   pantalla.liberar();
   await envio;
-  t.mock.timers.tick(5000);
+  assert.equal(pantalla.lecturas.length, lecturas);
+  // Al vencer el intervalo después del POST, el sondeo puede consultar de nuevo.
+  t.mock.timers.tick(1);
   await vaciar();
   assert.equal(pantalla.lecturas.length, lecturas + 2);
 });
