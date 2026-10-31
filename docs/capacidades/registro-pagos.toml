@@ -4,3 +4,4 @@ grupo = "Operación"
 etapa = 5
 nivel = "funcional"
 prueba = "pruebas/test_pagos.py"
+# Recorrido de administración y recepción: pruebas/e2e/test_pagos_recepcion.py.
