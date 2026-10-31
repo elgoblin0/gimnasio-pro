@@ -2,8 +2,9 @@ id = "bandeja-entrenador"
 nombre = "Bandeja priorizada del entrenador"
 grupo = "Entrenador"
 etapa = 4
-nivel = "funcional"
+nivel = "validada"
 prueba = "pruebas/test_bandeja_api.py"
+validacion = "https://github.com/elgoblin0/gimnasio-pro/issues/190"
 
 # Bandeja priorizada por API con ETag y asignación vigente (#184). Pantallas pendientes.
 # Los motivos de equipo consideran solo trabajo pendiente y el equipo de la alternativa segura.
@@ -12,4 +13,3 @@ prueba = "pruebas/test_bandeja_api.py"
 # Pantalla de bandeja y vista del socio (#186): pruebas/e2e/test_pantallas_entrenador.py, sin fijar tamaños de pantalla.
 
 # El recorrido de la etapa 4 la ejercita de punta a punta (#189): pruebas/e2e/test_recorrido_entrenador.py.
-# Sigue en funcional: pulida pide un e2e con chequeo de accesibilidad y estados en móvil, y todavía no existe.

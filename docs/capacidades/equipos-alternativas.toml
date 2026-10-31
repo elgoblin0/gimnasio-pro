@@ -2,8 +2,9 @@ id = "equipos-alternativas"
 nombre = "Equipos y alternativas"
 grupo = "Entrenador"
 etapa = 4
-nivel = "funcional"
+nivel = "validada"
 prueba = "pruebas/test_alternativas_api.py"
+validacion = "https://github.com/elgoblin0/gimnasio-pro/issues/190"
 
 # GET del catálogo y reemplazo ordenado de hasta ocho alternativas (issue #178).
 # Validación, permisos por rol e idempotencia: pruebas/test_alternativas_api.py.
@@ -16,4 +17,3 @@ prueba = "pruebas/test_alternativas_api.py"
 # Pantalla compartida de equipos y alternativas; administración entra ahí (#188): pruebas/e2e/test_pantallas_entrenador.py.
 
 # El recorrido de la etapa 4 la ejercita de punta a punta (#189): pruebas/e2e/test_recorrido_entrenador.py.
-# Sigue en funcional: pulida pide un e2e con chequeo de accesibilidad y estados en móvil, y todavía no existe.
