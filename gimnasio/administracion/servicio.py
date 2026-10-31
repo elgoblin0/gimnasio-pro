@@ -35,7 +35,7 @@ def validar_cambio(datos):
                 not isinstance(intervalo, list)
                 or len(intervalo) != 2
                 or any(
-                    not isinstance(hora, str) or not re.fullmatch(r"(?:[01]\d|2[0-3]):[0-5]\d", hora)
+                    not isinstance(hora, str) or not re.fullmatch(r"(?:[01][0-9]|2[0-3]):[0-5][0-9]", hora)
                     for hora in intervalo
                 )
                 or not anterior <= intervalo[0] < intervalo[1]

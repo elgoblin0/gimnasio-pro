@@ -355,7 +355,7 @@ def listar_prescripciones(cursor, socio_id):
     cursor.execute(
         """SELECT p.*, s.sesion_planificada_id, s.creada_en AS sesion_creada_en,
                   (SELECT MAX(d.registrado_en) FROM dolores_reportados d
-                   WHERE d.sesion_realizada_id=s.id) AS ultimo_dolor,
+                   WHERE d.sesion_realizada_id=s.id AND NOT d.anonimizada) AS ultimo_dolor,
                   (SELECT JSON_OBJECTAGG(LOWER(BIN_TO_UUID(v.ejercicio_planificado_id)),
                                         LOWER(BIN_TO_UUID(v.ejercicio_hecho_id)))
                    FROM sustituciones v WHERE v.sesion_realizada_id=s.id AND NOT EXISTS (
@@ -447,7 +447,8 @@ def zonas_chequeo(cursor, chequeo_id):
     if chequeo_id is None:
         return ()
     cursor.execute(
-        "SELECT zona FROM dolores_reportados WHERE chequeo_id=%s ORDER BY zona FOR SHARE", (a_bytes(chequeo_id),)
+        "SELECT zona FROM dolores_reportados WHERE chequeo_id=%s AND NOT anonimizada ORDER BY zona FOR SHARE",
+        (a_bytes(chequeo_id),),
     )
     return tuple(f["zona"] for f in cursor.fetchall())
 
@@ -461,7 +462,10 @@ def dolores_sesion(cursor, sesion_id, fecha):
         (a_bytes(sesion_id), fecha),
     )
     chequeo = cursor.fetchone()
-    cursor.execute("SELECT zona FROM dolores_reportados WHERE sesion_realizada_id=%s FOR SHARE", (a_bytes(sesion_id),))
+    cursor.execute(
+        "SELECT zona FROM dolores_reportados WHERE sesion_realizada_id=%s AND NOT anonimizada FOR SHARE",
+        (a_bytes(sesion_id),),
+    )
     zonas = {f["zona"] for f in cursor.fetchall()}
     if chequeo:
         zonas.update(zonas_chequeo(cursor, desde_bytes(chequeo["id"])))
@@ -470,7 +474,7 @@ def dolores_sesion(cursor, sesion_id, fecha):
 
 def ultimo_momento_dolor(cursor, sesion_id):
     cursor.execute(
-        "SELECT MAX(registrado_en) AS momento FROM dolores_reportados WHERE sesion_realizada_id=%s",
+        "SELECT MAX(registrado_en) AS momento FROM dolores_reportados WHERE sesion_realizada_id=%s AND NOT anonimizada",
         (a_bytes(sesion_id),),
     )
     return cursor.fetchone()["momento"]
@@ -480,10 +484,11 @@ def listar_dolores_socio(cursor, socio_id):
     """Dolores en sesión y chequeos, incluso neutros para no recuperar un dolor previo."""
     cursor.execute(
         """SELECT NULL AS sesion_realizada_id, c.id AS chequeo_id, c.fecha_local, c.registrado_en, d.zona
-           FROM chequeos_dia c LEFT JOIN dolores_reportados d ON d.chequeo_id=c.id WHERE c.socio_id=%s
+           FROM chequeos_dia c LEFT JOIN dolores_reportados d ON d.chequeo_id=c.id AND NOT d.anonimizada
+           WHERE c.socio_id=%s
            UNION ALL
            SELECT d.sesion_realizada_id, NULL, NULL, NULL, d.zona
-           FROM dolores_reportados d WHERE d.socio_id=%s AND d.origen='sesion'""",
+           FROM dolores_reportados d WHERE d.socio_id=%s AND d.origen='sesion' AND NOT d.anonimizada""",
         (a_bytes(socio_id),) * 2,
     )
     return cursor.fetchall()
@@ -531,7 +536,8 @@ def listar_avisos_de_socios(cursor, socio_ids):
 
 def listar_dolores(cursor, socio_id):
     cursor.execute(
-        "SELECT id,zona,registrado_en FROM dolores_reportados WHERE socio_id=%s ORDER BY registrado_en DESC,id DESC",
+        "SELECT id,zona,registrado_en FROM dolores_reportados WHERE socio_id=%s AND NOT anonimizada "
+        "ORDER BY registrado_en DESC,id DESC",
         (a_bytes(socio_id),),
     )
     return cursor.fetchall()

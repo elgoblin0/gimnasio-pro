@@ -88,6 +88,10 @@ def test_solo_administracion(sede, rol):
         {"horario": {"8": []}},
         {"horario": {"1": [["22:00", "06:00"]]}},
         {"horario": {"1": [["06:00", "25:00"]]}},
+        {"horario": {"1": [["0٦:00", "21:00"]]}},
+        {"horario": {"1": [["06:0٠", "21:00"]]}},
+        {"horario": {"1": [["06:00", "2１:00"]]}},
+        {"horario": {"1": [["06:00", "21:0１"]]}},
         {"horario": {"1": [["06:00", "12:00"], ["11:00", "15:00"]]}},
     ],
 )
@@ -102,6 +106,15 @@ def test_sin_motivo(sede):
     _, cliente, _ = sede
     assert cambiar(cliente, motivo="").status_code == 422
     assert cliente.get("/api/administracion/sede").get_json()["historial"] == []
+
+
+@pytest.mark.bd
+def test_hora_con_digitos_no_ascii_no_modifica_sede(sede):
+    _, cliente, _ = sede
+    anterior = cliente.get("/api/administracion/sede").get_json()
+    respuesta = cambiar(cliente, 50, horario={"1": [["0٦:00", "21:00"]]})
+    assert respuesta.status_code == 422
+    assert cliente.get("/api/administracion/sede").get_json() == anterior
 
 
 @pytest.mark.bd

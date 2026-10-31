@@ -2,12 +2,14 @@
 
 import json
 
+import mysql.connector
 import pytest
 
 from gimnasio.comun.bd import transaccion
 from gimnasio.comun.errores import ErrorDeDominio
 from gimnasio.comun.ids import desde_bytes, nuevo_id
 from gimnasio.demo.servicio import reiniciar
+from gimnasio.entrenamiento import repositorio as repositorio_entrenamiento
 from gimnasio.entrenamiento.servicio import (
     consultar_propuesta,
     consultar_sesion,
@@ -132,3 +134,87 @@ def test_baja_por_insercion_no_borra_la_restriccion(app_con_bd):
         assert restricciones_vigentes(desde_bytes(original["socio_id"])) == ()
         reiniciar()
         assert len(restricciones_vigentes(desde_bytes(original["socio_id"]))) == 1
+
+
+@pytest.mark.bd
+def test_restriccion_anonimizada_deja_de_estar_vigente(app_con_bd):
+    """El borrado de #229 escribe este estado (ADR 0025); acá se comprueba solo el esquema y la lectura."""
+    app_con_bd.config["MODO_DEMO"] = True
+    with app_con_bd.app_context():
+        reiniciar()
+        with transaccion() as cursor:
+            cursor.execute("SELECT * FROM restricciones_salud LIMIT 1")
+            original = cursor.fetchone()
+            cursor.execute(
+                """UPDATE restricciones_salud
+                   SET anonimizada=TRUE,ejercicio_id=NULL,patron_movimiento=NULL,zona=NULL,descripcion=''
+                   WHERE id=%s""",
+                (original["id"],),
+            )
+        assert restricciones_vigentes(desde_bytes(original["socio_id"])) == ()
+
+
+@pytest.mark.bd
+@pytest.mark.parametrize(
+    "cambio",
+    [
+        "zona='pie'",
+        "anonimizada=TRUE",
+        "ejercicio_id=NULL,patron_movimiento=NULL,zona=NULL",
+        "patron_movimiento='sentadilla',zona='rodillas'",
+    ],
+)
+def test_restriccion_rechaza_objetivos_invalidos(app_con_bd, cambio):
+    app_con_bd.config["MODO_DEMO"] = True
+    with app_con_bd.app_context():
+        reiniciar()
+        with pytest.raises(mysql.connector.Error), transaccion() as cursor:
+            cursor.execute(f"UPDATE restricciones_salud SET {cambio} WHERE zona IS NOT NULL")
+            assert cursor.rowcount > 0
+
+
+@pytest.mark.bd
+def test_dolor_anonimizado_no_se_lee_y_la_zona_nula_exige_el_estado(app_con_bd):
+    app_con_bd.config["MODO_DEMO"] = True
+    with app_con_bd.app_context():
+        reiniciar()
+        dolor_id = nuevo_id().bytes
+        with transaccion() as cursor:
+            cursor.execute("SELECT id,socio_id,creada_en FROM sesiones_realizadas LIMIT 1")
+            sesion = cursor.fetchone()
+            socio_id = desde_bytes(sesion["socio_id"])
+            cursor.execute(
+                """INSERT INTO dolores_reportados (id,socio_id,zona,origen,sesion_realizada_id,registrado_en)
+                   VALUES (%s,%s,'rodillas','sesion',%s,%s)""",
+                (dolor_id, sesion["socio_id"], sesion["id"], sesion["creada_en"]),
+            )
+            assert dolor_id in {f["id"] for f in repositorio_entrenamiento.listar_dolores(cursor, socio_id)}
+        for cambio in ("zona='pie'", "zona=NULL", "anonimizada=TRUE"):
+            with pytest.raises(mysql.connector.Error), transaccion() as cursor:
+                cursor.execute(f"UPDATE dolores_reportados SET {cambio} WHERE id=%s", (dolor_id,))
+        with transaccion() as cursor:
+            cursor.execute("UPDATE dolores_reportados SET zona=NULL,anonimizada=TRUE WHERE id=%s", (dolor_id,))
+            assert dolor_id not in {f["id"] for f in repositorio_entrenamiento.listar_dolores(cursor, socio_id)}
+            assert None not in repositorio_entrenamiento.dolores_sesion(
+                cursor, desde_bytes(sesion["id"]), sesion["creada_en"].date()
+            )
+            filas = repositorio_entrenamiento.listar_dolores_socio(cursor, socio_id)
+            assert all(f["zona"] is not None for f in filas if f["sesion_realizada_id"])
+
+
+@pytest.mark.bd
+def test_reinicio_limpia_las_constancias_de_borrado(app_con_bd):
+    app_con_bd.config["MODO_DEMO"] = True
+    with app_con_bd.app_context():
+        reiniciar()
+        with transaccion() as cursor:
+            cursor.execute("SELECT socio_id,registrada_en FROM restricciones_salud LIMIT 1")
+            fila = cursor.fetchone()
+            cursor.execute(
+                "INSERT INTO borrados_salud (id,socio_id,registrado_en) VALUES (%s,%s,%s)",
+                (nuevo_id().bytes, fila["socio_id"], fila["registrada_en"]),
+            )
+        reiniciar()
+        with transaccion() as cursor:
+            cursor.execute("SELECT COUNT(*) AS total FROM borrados_salud")
+            assert cursor.fetchone()["total"] == 0
