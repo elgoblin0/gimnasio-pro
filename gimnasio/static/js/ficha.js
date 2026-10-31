@@ -61,6 +61,7 @@ async function cargar() {
     $("[data-estado]").textContent = "";
     if (propia) {
       $("[data-perfil]").hidden = false;
+      await montarConsentimiento();
       await montarPerfil($("[data-perfil]"), ruta);
     }
   } catch (error) {
@@ -71,3 +72,29 @@ async function cargar() {
 }
 $("[data-reintentar]").addEventListener("click", cargar);
 cargar();
+
+async function montarConsentimiento() {
+  const contenedor = $("[data-consentimientos]");
+  contenedor.hidden = false;
+  contenedor.textContent = "Cargando consentimiento…";
+  const { salud } = await llamarApi("/api/yo/consentimientos");
+  const estado = crear("p", { role: "status" }, salud.otorgado ? "Consentimiento otorgado." : "Sin consentimiento de salud vigente.");
+  const boton = crear("button", { type: "button" }, salud.otorgado ? "Revocar consentimiento de salud" : "Otorgar consentimiento de salud");
+  contenedor.replaceChildren(crear("h2", {}, "Consentimiento de salud"), crear("p", {}, salud.texto), estado, boton);
+  let clave;
+  boton.addEventListener("click", async () => {
+    if (salud.otorgado && !window.confirm("Al revocar, tus restricciones dejan de protegerte y no tendrás subas. ¿Confirmás la revocación de salud?")) return;
+    boton.disabled = true;
+    estado.textContent = "Guardando consentimiento…";
+    clave ??= crypto.randomUUID();
+    try {
+      await llamarApi("/api/yo/consentimientos/salud", {
+        metodo: "POST", clave, cuerpo: { otorgado: !salud.otorgado, version_texto: salud.version_texto },
+      });
+      await montarConsentimiento();
+    } catch (error) {
+      estado.textContent = error.message;
+      boton.disabled = false;
+    }
+  });
+}

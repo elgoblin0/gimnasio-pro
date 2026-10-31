@@ -357,8 +357,8 @@ def reiniciar():
         for nombre in repositorio.nombres_equipos_catalogo(cursor):
             repositorio.insertar_equipo(cursor, siguiente_id(), nombre, ahora)
         repositorio.insertar_restriccion(cursor, siguiente_id(), socios[1], entrenador_id, ahora)
-        # El 80 % se redondea al entero más cercano.
-        for socio_id in socios[: round(len(socios) * 0.8)]:
+        # Los socios de los recorridos conservan los frenos de salud.
+        for socio_id in socios:
             permisos.registrar_consentimiento(
                 cursor, socio_id, "salud", True, "demo-1", socio_id, identificador=siguiente_id()
             )
