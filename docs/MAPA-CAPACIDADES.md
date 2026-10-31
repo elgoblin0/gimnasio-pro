@@ -41,6 +41,7 @@ Generado por `scripts/mapa_capacidades.py` desde `docs/capacidades/`. No editar 
 | Pantalla de recepción con sondeo de ocupación registrada por zona de la sede y visitas abiertas, entrada, salida y conciliación | 1 | validada | `pruebas/e2e/test_recepcion.py` · https://github.com/elgoblin0/gimnasio-pro/issues/52 |
 | Salida confirmada del socio y lecturas para recepción | 1 | validada | `pruebas/e2e/test_esqueleto_andante.py` · https://github.com/elgoblin0/gimnasio-pro/issues/52 |
 | Clases y reservas con lista de espera | 5 | pendiente | — |
+| Configuración de la sede desde administración | 5 | funcional | `pruebas/test_administracion_sede.py` |
 | Ficha completa con salud y consentimientos | 5 | pendiente | — |
 | Registro de pagos en guaraníes | 5 | pendiente | — |
 

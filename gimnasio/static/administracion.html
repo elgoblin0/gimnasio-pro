@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="es" data-direccion="b">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Administración · Gimnasio Pro</title>
+  <meta name="theme-color" content="#b2452a">
+  <link rel="icon" href="/iconos/gimnasio-192.png">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="stylesheet" href="/estilos/tokens.css">
+  <link rel="stylesheet" href="/estilos/base.css">
+  <link rel="stylesheet" href="/estilos/entrenador.css">
+  <link rel="stylesheet" href="/estilos/administracion.css">
+  <script type="importmap">{"imports":{"@comun/":"/js/comun/"}}</script>
+  <script type="module" src="/js/administracion.js"></script>
+</head>
+<body class="personal">
+<header class="personal-barra">
+  <a class="personal-marca" href="/">Gimnasio Pro</a>
+  <nav aria-label="Secciones"><a href="/administracion.html" aria-current="page">Administración</a></nav>
+  <p class="personal-demo" data-demo hidden>Datos ficticios · se reinician cada día</p>
+  <button type="button" data-cerrar>Cerrar sesión</button>
+</header>
+<main class="equipos administracion">
+  <h1>Administración</h1>
+  <nav aria-label="Panel de administración"><a href="#sede">Sede</a> · <a href="/equipos.html">Equipos</a></nav>
+  <p data-estado role="status" aria-live="polite">Cargando sede…</p>
+  <p data-error role="alert"></p>
+  <button type="button" data-reintentar hidden>Volver a cargar</button>
+  <section id="sede" data-contenido hidden aria-labelledby="titulo-sede">
+    <h2 id="titulo-sede">Sede</h2>
+    <p data-ocupacion></p>
+    <p>Bajar el aforo máximo conserva las visitas abiertas. Se rechazan las entradas nuevas mientras no haya lugar.</p>
+    <form data-formulario>
+      <p><label for="aforo">Aforo máximo</label><br><input id="aforo" name="aforo" type="number" min="1" max="65535" step="1" required></p>
+      <fieldset><legend>Horario de la sede</legend>
+        <p>Desmarcá los días cerrados. Podés agregar intervalos para un mismo día.</p>
+        <div data-horario></div>
+      </fieldset>
+      <p><label for="motivo">Motivo del cambio</label><br><textarea id="motivo" name="motivo" maxlength="500" required rows="3"></textarea></p>
+      <button type="submit" class="boton-tinta">Guardar cambios</button>
+    </form>
+    <h2>Historial de cambios</h2>
+    <p data-sin-cambios>No hay cambios registrados.</p>
+    <ol data-historial></ol>
+  </section>
+</main>
+</body>
+</html>
