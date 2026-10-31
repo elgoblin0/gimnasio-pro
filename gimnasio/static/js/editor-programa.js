@@ -5,7 +5,7 @@ import { registrarPwa } from "@comun/pwa.js";
 import { calcularVolumenPorZona, totalDeSeries } from "@comun/volumen-zonas.js";
 import { crearVolumenZonas, ZONAS_CUERPO } from "@comun/zonas.js";
 import {
-  ajustarSeries, campoAplica, conservarFormulario, cuerpoDePublicacion, fijarCargaPartida, filaNueva, idsDeEjercicios, leerFormulario, olvidarFormulario,
+  ajustarSeries, campoAplica, conservarFormulario, cuerpoDePublicacion, cuerpoDePlantilla, fijarCargaPartida, filaNueva, idsDeEjercicios, leerFormulario, olvidarFormulario,
   problemasDeLaSemana, semanaDesdePlantilla, semanaDesdeVigente, semanaVacia, sesionesGeneradas, sustituirEjercicio,
 } from "./editor-programa-datos.js";
 import { nombreDeEquipo } from "./equipos-datos.js";
@@ -14,6 +14,9 @@ registrarPwa();
 
 const $ = (selector) => document.querySelector(selector);
 const socioId = new URL(location.href).searchParams.get("socio");
+const modoPlantilla = new URL(location.href).searchParams.has("plantilla");
+const plantillaId = new URL(location.href).searchParams.get("plantilla");
+const claveFormulario = modoPlantilla ? `plantilla:${plantillaId}` : socioId;
 const nombreDeZona = (id) => ZONAS_CUERPO.find((zona) => zona.id === id)?.nombre ?? id;
 
 let socio = null;
@@ -30,7 +33,8 @@ let cuerpo = null;
 let envio = null;
 
 function guardar() {
-  conservarFormulario(localStorage, socioId, { semana, versionBase, origen });
+  conservarFormulario(localStorage, claveFormulario, { semana, versionBase, origen,
+    nombre: $("[data-nombre-plantilla]").value, descripcion: $("[data-descripcion-plantilla]").value });
 }
 
 function actualizarCuerpo() {
@@ -39,6 +43,11 @@ function actualizarCuerpo() {
 }
 
 function actualizarPie() {
+  if (modoPlantilla) {
+    $("[data-generadas]").textContent = `${semana.sesiones.length} sesiones`;
+    $("[data-publicar]").textContent = "Guardar plantilla";
+    return;
+  }
   const generadas = sesionesGeneradas(semana);
   $("[data-generadas]").textContent = semana.sesiones.length
     ? `${semana.sesiones.length} ${semana.sesiones.length === 1 ? "sesión" : "sesiones"} por semana · ${generadas} en total`
@@ -81,7 +90,7 @@ function filaDeEjercicio(ejercicio, s, e) {
     campoNumero(s, e, ejercicio, "rir_objetivo", "RIR", { min: 0, max: 5, step: 1 }),
     campoNumero(s, e, ejercicio, "descanso", "Descanso (s)", { min: 0, step: 5 }),
   );
-  if (campoAplica("carga", datos)) campos.push(campoNumero(s, e, ejercicio, "carga_partida", "Carga de partida (kg)", { min: 0, step: "any" }));
+  if (!modoPlantilla && campoAplica("carga", datos)) campos.push(campoNumero(s, e, ejercicio, "carga_partida", "Carga de partida (kg)", { min: 0, step: "any" }));
   return crear("li", { className: "fila-plan", "data-fila-ejercicio": ejercicio.ejercicio_id, "data-choque": choque ? "true" : undefined },
     crear("div", { className: "plan-titulo" },
       crear("p", { className: "plan-nombre" }, nombre),
@@ -98,7 +107,7 @@ function filaDeEjercicio(ejercicio, s, e) {
       crear("span", { className: "plan-unidad", "aria-hidden": "true" }, "series")),
     crear("div", { className: "plan-campos" }, campos),
     crear("button", { type: "button", className: "boton-icono plan-quitar", "data-quitar-ejercicio": true, "data-s": s, "data-e": e, "aria-label": `Quitar ${nombre}` }, "×"),
-    campoAplica("carga", datos) ? crear("p", { className: "nota-suave plan-ayuda", "data-ayuda-carga": ejercicio.ejercicio_id }, ayudaDeCarga(ejercicio)) : null,
+    !modoPlantilla && campoAplica("carga", datos) ? crear("p", { className: "nota-suave plan-ayuda", "data-ayuda-carga": ejercicio.ejercicio_id }, ayudaDeCarga(ejercicio)) : null,
     choque
       ? crear("div", { className: "plan-choque" },
         crear("p", {}, choque.mensaje),
@@ -147,6 +156,7 @@ function dibujarSemana() {
 }
 
 async function pedirSugeridas() {
+  if (modoPlantilla) return;
   const faltan = idsDeEjercicios(semana).filter((id) => !(id in sugeridas));
   if (!faltan.length) return;
   try {
@@ -185,6 +195,7 @@ function prepararEventos() {
   const formulario = $("[data-formulario]");
   formulario.addEventListener("input", (evento) => {
     const nodo = evento.target;
+    if (nodo.matches("[data-nombre-plantilla], [data-descripcion-plantilla]")) { guardar(); return; }
     if (nodo.dataset.duracion !== undefined) semana.semanas = nodo.value;
     else if (nodo.dataset.nombreSesion !== undefined) semana.sesiones[Number(nodo.dataset.s)].nombre = nodo.value;
     else if (nodo.dataset.campo) {
@@ -299,10 +310,13 @@ function mostrarPublicado(programa) {
 
 async function publicar(evento) {
   evento.preventDefault();
-  const problemas = problemasDeLaSemana(semana, catalogo, sugeridas);
+  const problemas = problemasDeLaSemana(semana, catalogo, sugeridas, modoPlantilla);
+  if (modoPlantilla && !$("[data-nombre-plantilla]").value.trim()) problemas.push("Indicá el nombre de la plantilla.");
   mostrarProblemas(problemas);
   if (problemas.length) return;
-  const cuerpoEnvio = cuerpoDePublicacion(semana, versionBase, catalogo);
+  const cuerpoEnvio = modoPlantilla
+    ? cuerpoDePlantilla(semana, $("[data-nombre-plantilla]").value, $("[data-descripcion-plantilla]").value, catalogo)
+    : cuerpoDePublicacion(semana, versionBase, catalogo, origen);
   const huella = JSON.stringify(cuerpoEnvio);
   // Si se cortó la red, reintentar lo mismo no publica dos versiones.
   if (envio?.huella !== huella) envio = { huella, clave: crypto.randomUUID() };
@@ -310,6 +324,13 @@ async function publicar(evento) {
   boton.disabled = true;
   $("[data-estado]").textContent = "Publicando…";
   try {
+    if (modoPlantilla) {
+      const nueva = plantillaId === "nueva";
+      await llamarApi(`/api/programas/plantillas${nueva ? "" : `/${plantillaId}`}`, { metodo: nueva ? "POST" : "PUT", cuerpo: cuerpoEnvio, clave: envio.clave });
+      olvidarFormulario(localStorage, claveFormulario);
+      location.href = "/plantillas.html";
+      return;
+    }
     const { programa } = await llamarApi(`/api/socios/${socioId}/programas`, { metodo: "POST", cuerpo: cuerpoEnvio, clave: envio.clave });
     envio = null;
     $("[data-estado]").textContent = "";
@@ -347,9 +368,13 @@ function dibujarCabecera(vista) {
 }
 
 async function iniciar() {
-  const usuario = await exigirRol(["entrenador"]);
+  const usuario = await exigirRol([modoPlantilla ? "administracion" : "entrenador"]);
   if (!usuario) return;
   prepararBarra(usuario);
+  if (modoPlantilla) {
+    await iniciarPlantilla();
+    return;
+  }
   if (!socioId) throw new Error("Abrí el editor desde la bandeja, eligiendo un socio.");
   const [vista, respuestaPlantillas, respuestaEjercicios, respuestaPrograma] = await Promise.all([
     llamarApi(`/api/entrenador/socios/${socioId}`),
@@ -382,6 +407,38 @@ async function iniciar() {
   if (!conservado) olvidarFormulario(localStorage, socioId);
   pedirSugeridas();
   if (conservado && versionBase !== (vigente?.version ?? null)) await mostrarConflicto();
+}
+
+async function iniciarPlantilla() {
+  const [respuestaPlantillas, respuestaEjercicios] = await Promise.all([
+    llamarApi("/api/programas/plantillas"), llamarApi("/api/ejercicios"),
+  ]);
+  catalogo = new Map(respuestaEjercicios.ejercicios.map((ejercicio) => [ejercicio.id, ejercicio]));
+  const plantilla = respuestaPlantillas.plantillas.find((p) => p.id === plantillaId);
+  if (!plantilla && plantillaId !== "nueva") throw new Error("La plantilla no existe.");
+  $("[data-titulo]").textContent = plantilla ? "Editar plantilla" : "Crear plantilla";
+  document.title = `${$("[data-titulo]").textContent} · Gimnasio Pro`;
+  $("[data-volver-socio]").href = "/plantillas.html";
+  $("[data-volver-socio]").textContent = "← Volver a Plantillas";
+  $("[data-datos-plantilla]").hidden = false;
+  $("[data-duracion]").closest("label").hidden = true;
+  $("[data-origenes]").closest("fieldset").hidden = true;
+  $("[data-nombre-plantilla]").value = plantilla?.nombre ?? "";
+  $("[data-descripcion-plantilla]").value = plantilla?.descripcion ?? "";
+  if (plantilla) semana = semanaDesdePlantilla(plantilla);
+  const conservado = leerFormulario(localStorage, claveFormulario);
+  if (conservado) {
+    semana = conservado.semana;
+    $("[data-nombre-plantilla]").value = conservado.nombre ?? "";
+    $("[data-descripcion-plantilla]").value = conservado.descripcion ?? "";
+    $("[data-base]").textContent = "Recuperamos el formulario que no llegaste a guardar.";
+  }
+  prepararEventos();
+  cuerpo = crearVolumenZonas($("[data-volumen]"), "masculina");
+  $("[data-editor]").hidden = false;
+  $("[data-estado]").textContent = "";
+  dibujarSemana();
+  if (!conservado) olvidarFormulario(localStorage, claveFormulario);
 }
 
 iniciar().catch((error) => {

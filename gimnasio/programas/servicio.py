@@ -261,7 +261,11 @@ def _validar_numero(valor, campo, minimo, maximo, *, entero=False):
 
 
 def _validar_publicacion(datos, catalogo, cargas):
-    if not isinstance(datos, dict) or set(datos) != {"version_base", "semanas", "sesiones"}:
+    if (
+        not isinstance(datos, dict)
+        or set(datos) - {"version_base", "semanas", "sesiones", "plantilla_id"}
+        or not {"version_base", "semanas", "sesiones"} <= set(datos)
+    ):
         _programa_invalido("Enviá version_base, semanas y sesiones.")
     if datos["version_base"] is not None and (type(datos["version_base"]) is not int or datos["version_base"] < 1):
         _programa_invalido("version_base: debe ser un entero positivo o null.")
@@ -394,6 +398,8 @@ def publicar_programa(socio_id, datos, usuario):
     with transaccion() as cursor:
         # También serializa la primera publicación, cuando todavía no hay programa que bloquear.
         repositorio.bloquear_socio(cursor, socio_id)
+        if isinstance(datos, dict) and "plantilla_id" in datos:
+            _buscar_plantilla(repositorio.bloquear_plantillas(cursor), datos["plantilla_id"], activa=True)
         vigente = repositorio.version_vigente(cursor, socio_id)
         _comprobar_asignacion(cursor, socio_id, usuario)
         catalogo = _leer_catalogo(cursor)
@@ -418,8 +424,8 @@ def publicar_programa(socio_id, datos, usuario):
         return _semana_tipo(programa)
 
 
-def listar_plantillas():
-    with transaccion() as cursor:
+def listar_plantillas(*, incluir_archivadas=False, cursor=None):
+    with nullcontext(cursor) if cursor is not None else transaccion() as cursor:
         plantillas, sesiones, ejercicios = repositorio.leer_plantillas(cursor)
     por_sesion = {}
     for sesion in sesiones:
@@ -432,10 +438,76 @@ def listar_plantillas():
             ejercicio[campo] = str(desde_bytes(ejercicio[campo]))
         por_sesion[ejercicio["sesion_id"]]["ejercicios"].append(ejercicio)
     for plantilla in plantillas:
+        plantilla["archivada"] = bool(plantilla["archivada"])
         plantilla["id"] = str(desde_bytes(plantilla["id"]))
         plantilla["creada_en"] = plantilla["creada_en"].replace(tzinfo=UTC).isoformat()
         plantilla["sesiones"] = [s for s in sesiones if s["plantilla_id"] == plantilla["id"]]
-    return plantillas
+    return [p for p in plantillas if incluir_archivadas or not p["archivada"]]
+
+
+def _buscar_plantilla(filas, texto, *, activa=False):
+    try:
+        identificador = desde_texto(texto)
+    except (ValueError, AttributeError, TypeError) as error:
+        raise ErrorDeDominio("plantilla_invalida", "La plantilla debe identificarse con un UUIDv7.", 422) from error
+    fila = next((f for f in filas if desde_bytes(f["id"]) == identificador), None)
+    if fila is None:
+        raise ErrorDeDominio("plantilla_inexistente", "La plantilla no existe.", 404)
+    if activa and fila["archivada"]:
+        raise ErrorDeDominio("plantilla_archivada", "La plantilla está archivada. Conservamos tu formulario.", 409)
+    return identificador
+
+
+def _validar_plantilla(datos, catalogo):
+    if not isinstance(datos, dict) or set(datos) != {"nombre", "descripcion", "sesiones"}:
+        _programa_invalido("Enviá nombre, descripcion y sesiones.")
+    for campo, minimo, maximo in (("nombre", 1, 120), ("descripcion", 0, 500)):
+        if not isinstance(datos[campo], str) or not minimo <= len(datos[campo].strip()) <= maximo:
+            _programa_invalido(f"{campo}: debe tener entre {minimo} y {maximo} caracteres.")
+    # La plantilla no prescribe cargas: el entrenador las fija al publicar para un socio.
+    sin_carga = {
+        identificador: {**e, "medidas_aplicables": [m for m in e["medidas_aplicables"] if m != "carga"]}
+        for identificador, e in catalogo.items()
+    }
+    return _validar_publicacion({"version_base": None, "semanas": 8, "sesiones": datos["sesiones"]}, sin_carga, {})
+
+
+def guardar_plantilla(datos, plantilla_id=None):
+    reloj = reloj_actual()
+    with transaccion() as cursor:
+        if plantilla_id is not None:
+            identificador = _buscar_plantilla(repositorio.bloquear_plantillas(cursor), plantilla_id)
+        else:
+            identificador = nuevo_id(reloj)
+        sesiones = _validar_plantilla(datos, _leer_catalogo(cursor))
+        repositorio.guardar_plantilla(
+            cursor,
+            identificador,
+            datos["nombre"].strip(),
+            datos["descripcion"].strip(),
+            reloj.ahora(),
+            nueva=plantilla_id is None,
+        )
+        for posicion, sesion in enumerate(sesiones, 1):
+            sesion_id = nuevo_id(reloj)
+            repositorio.insertar_sesion_plantilla(cursor, sesion_id, identificador, posicion, sesion["nombre"])
+            for orden, ejercicio in enumerate(sesion["ejercicios"], 1):
+                repositorio.insertar_ejercicio_plantilla(cursor, nuevo_id(reloj), sesion_id, orden, ejercicio)
+        return next(
+            p for p in listar_plantillas(incluir_archivadas=True, cursor=cursor) if p["id"] == str(identificador)
+        )
+
+
+def archivar_plantilla(plantilla_id):
+    with transaccion() as cursor:
+        filas = repositorio.bloquear_plantillas(cursor)
+        identificador = _buscar_plantilla(filas, plantilla_id, activa=True)
+        if sum(not f["archivada"] for f in filas) <= 1:
+            raise ErrorDeDominio("ultima_plantilla_activa", "Debe quedar al menos una plantilla activa.", 409)
+        repositorio.archivar_plantilla(cursor, identificador)
+        return next(
+            p for p in listar_plantillas(incluir_archivadas=True, cursor=cursor) if p["id"] == str(identificador)
+        )
 
 
 def _comprobar_restricciones(cursor, socio_id, sesiones, catalogo):

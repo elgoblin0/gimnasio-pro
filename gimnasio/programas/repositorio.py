@@ -181,3 +181,60 @@ def leer_plantillas(cursor):
     sesiones = cursor.fetchall()
     cursor.execute("SELECT * FROM plantillas_ejercicios ORDER BY posicion,id")
     return plantillas, sesiones, cursor.fetchall()
+
+
+def bloquear_plantillas(cursor):
+    # El mismo orden serializa archivos, ediciones y publicaciones desde plantilla.
+    cursor.execute("SELECT id, archivada FROM plantillas_programa ORDER BY id FOR UPDATE")
+    return cursor.fetchall()
+
+
+def guardar_plantilla(cursor, identificador, nombre, descripcion, momento, *, nueva):
+    if nueva:
+        cursor.execute(
+            "INSERT INTO plantillas_programa (id,nombre,descripcion,creada_en) VALUES (%s,%s,%s,%s)",
+            (a_bytes(identificador), nombre, descripcion, momento),
+        )
+    else:
+        cursor.execute(
+            "UPDATE plantillas_programa SET nombre=%s,descripcion=%s WHERE id=%s",
+            (nombre, descripcion, a_bytes(identificador)),
+        )
+        cursor.execute(
+            "DELETE e FROM plantillas_ejercicios e JOIN plantillas_sesiones s ON s.id=e.sesion_id "
+            "WHERE s.plantilla_id=%s",
+            (a_bytes(identificador),),
+        )
+        cursor.execute("DELETE FROM plantillas_sesiones WHERE plantilla_id=%s", (a_bytes(identificador),))
+
+
+def insertar_sesion_plantilla(cursor, identificador, plantilla_id, posicion, nombre):
+    cursor.execute(
+        "INSERT INTO plantillas_sesiones (id,plantilla_id,posicion,nombre) VALUES (%s,%s,%s,%s)",
+        (a_bytes(identificador), a_bytes(plantilla_id), posicion, nombre),
+    )
+
+
+def insertar_ejercicio_plantilla(cursor, identificador, sesion_id, posicion, ejercicio):
+    cursor.execute(
+        """INSERT INTO plantillas_ejercicios
+           (id,sesion_id,ejercicio_id,posicion,series,repeticiones_minimas,repeticiones_maximas,
+            rir_objetivo,descanso,duracion,distancia) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)""",
+        (a_bytes(identificador), a_bytes(sesion_id), a_bytes(desde_texto(ejercicio["ejercicio_id"])), posicion)
+        + tuple(
+            ejercicio.get(campo)
+            for campo in (
+                "series",
+                "repeticiones_minimas",
+                "repeticiones_maximas",
+                "rir_objetivo",
+                "descanso",
+                "duracion",
+                "distancia",
+            )
+        ),
+    )
+
+
+def archivar_plantilla(cursor, identificador):
+    cursor.execute("UPDATE plantillas_programa SET archivada=TRUE WHERE id=%s", (a_bytes(identificador),))

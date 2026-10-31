@@ -177,6 +177,155 @@ def publicar(cliente, socio, datos, clave=None):
     )
 
 
+def escribir_plantilla(cliente, datos=None, identificador=None, *, archivar=False, clave=None):
+    ruta = "/api/programas/plantillas"
+    if identificador:
+        ruta += f"/{identificador}"
+    if archivar:
+        ruta += "/archivar"
+    return cliente.open(
+        ruta,
+        method="PUT" if identificador and not archivar else "POST",
+        json=datos or {},
+        headers={"X-Gimnasio": "1", "Idempotency-Key": clave or str(uuid4())},
+    )
+
+
+def datos_plantilla(ejercicio=EJERCICIO):
+    sesiones = publicacion(ejercicio)["sesiones"]
+    del sesiones[0]["ejercicios"][0]["carga"]
+    return {"nombre": "Fuerza ficticia", "descripcion": "Semana tipo ficticia", "sesiones": sesiones}
+
+
+@pytest.mark.bd
+def test_administracion_crea_edita_archiva_y_filtra_plantillas(programas_api):
+    _, cliente, _, fuerza = programas_api
+    cliente.post("/api/sesion/demo/administracion", headers={"X-Gimnasio": "1"})
+    datos = datos_plantilla(fuerza)
+    clave = str(uuid4())
+    respuesta = escribir_plantilla(cliente, datos, clave=clave)
+    assert respuesta.status_code == 201, respuesta.json
+    assert escribir_plantilla(cliente, datos, clave=clave).json == respuesta.json
+    plantilla = respuesta.json["plantilla"]
+    assert plantilla["archivada"] is False
+    identificador = plantilla["id"]
+    datos["sesiones"][0]["ejercicios"][0]["series"] = 5
+    datos["sesiones"].append(deepcopy(datos["sesiones"][0]))
+    editada = escribir_plantilla(cliente, datos, identificador)
+    assert editada.status_code == 200, editada.json
+    assert len(editada.json["plantilla"]["sesiones"]) == 2
+    assert editada.json["plantilla"]["sesiones"][0]["ejercicios"][0]["series"] == 5
+    assert escribir_plantilla(cliente, identificador=identificador, archivar=True).json["plantilla"]["archivada"]
+    assert next(p for p in cliente.get("/api/programas/plantillas").json["plantillas"] if p["id"] == identificador)[
+        "archivada"
+    ]
+    cliente.post("/api/sesion/demo/entrenador", headers={"X-Gimnasio": "1"})
+    assert identificador not in {p["id"] for p in cliente.get("/api/programas/plantillas").json["plantillas"]}
+
+
+@pytest.mark.bd
+@pytest.mark.parametrize("rol", ["socio", "recepcion", "entrenador"])
+def test_solo_administracion_modifica_plantillas(programas_api, rol):
+    _, cliente, _, fuerza = programas_api
+    identificador = cliente.get("/api/programas/plantillas").json["plantillas"][0]["id"]
+    cliente.post(f"/api/sesion/demo/{rol}", headers={"X-Gimnasio": "1"})
+    assert escribir_plantilla(cliente, datos_plantilla(fuerza)).status_code == 403
+    assert escribir_plantilla(cliente, datos_plantilla(fuerza), identificador).status_code == 403
+    assert escribir_plantilla(cliente, identificador=identificador, archivar=True).status_code == 403
+
+
+@pytest.mark.parametrize(
+    "campo,valor",
+    [
+        ("series", 11),
+        ("repeticiones_minimas", 13),
+        ("rir_objetivo", 6),
+        ("descanso", -1),
+        ("ejercicio_id", "inexistente"),
+        ("carga", 20),
+        ("carga_partida", 10),
+    ],
+)
+def test_plantilla_respeta_limites_sin_carga(campo, valor):
+    datos = datos_plantilla()
+    datos["sesiones"][0]["ejercicios"][0][campo] = valor
+    with pytest.raises(ErrorDeDominio):
+        servicio._validar_plantilla(datos, {EJERCICIO: {"medidas_aplicables": ["repeticiones", "carga"]}})
+
+
+def test_plantilla_no_necesita_carga_ni_socio():
+    sesiones = servicio._validar_plantilla(
+        datos_plantilla(), {EJERCICIO: {"medidas_aplicables": ["repeticiones", "carga"]}}
+    )
+    assert sesiones[0]["ejercicios"][0]["series"] == 3
+
+
+@pytest.mark.bd
+def test_ultima_plantilla_activa_no_se_archiva(programas_api):
+    _, cliente, _, _ = programas_api
+    cliente.post("/api/sesion/demo/administracion", headers={"X-Gimnasio": "1"})
+    plantillas = cliente.get("/api/programas/plantillas").json["plantillas"]
+    for plantilla in plantillas[:-1]:
+        assert escribir_plantilla(cliente, identificador=plantilla["id"], archivar=True).status_code == 200
+    respuesta = escribir_plantilla(cliente, identificador=plantillas[-1]["id"], archivar=True)
+    assert respuesta.status_code == 409
+    assert respuesta.json["error"]["codigo"] == "ultima_plantilla_activa"
+
+
+@pytest.mark.bd
+def test_reemplazo_plantilla_es_atomico(programas_api, monkeypatch):
+    _, cliente, _, fuerza = programas_api
+    cliente.post("/api/sesion/demo/administracion", headers={"X-Gimnasio": "1"})
+    anterior = cliente.get("/api/programas/plantillas").json["plantillas"]
+
+    def fallar(*argumentos):
+        raise ErrorDeDominio("prueba", "Fallo ficticio.", 503)
+
+    monkeypatch.setattr(servicio.repositorio, "insertar_ejercicio_plantilla", fallar)
+    assert escribir_plantilla(cliente, datos_plantilla(fuerza), anterior[0]["id"]).status_code == 503
+    assert cliente.get("/api/programas/plantillas").json["plantillas"] == anterior
+
+
+@pytest.mark.bd
+def test_editar_y_archivar_conserva_versiones_secuencia_y_prescripcion(programas_api, reloj_fijo):
+    app, cliente, socio, fuerza = programas_api
+    plantilla = cliente.get("/api/programas/plantillas").json["plantillas"][0]
+    datos = publicacion(fuerza)
+    datos["plantilla_id"] = plantilla["id"]
+    assert publicar(cliente, socio, datos).status_code == 201
+    with app.app_context():
+        antes = servicio.listar_programas(desde_texto(socio))
+    cliente.post("/api/sesion/demo/socio", headers={"X-Gimnasio": "1"})
+    propuesta = cliente.get("/api/entrenamiento/propuesta").json
+    sesion_id = str(nuevo_id(reloj_fijo))
+    assert (
+        escribir(
+            cliente,
+            "/api/entrenamiento/sesiones",
+            {"id": sesion_id, "sesion_planificada_id": propuesta["sesion_planificada"]["id"]},
+        ).status_code
+        == 201
+    )
+    ruta = f"/api/entrenamiento/sesiones/{sesion_id}"
+    efectiva = cliente.get(ruta).json["prescripcion_efectiva"]
+    cliente.post("/api/sesion/demo/administracion", headers={"X-Gimnasio": "1"})
+    cambio = datos_plantilla(fuerza)
+    cambio["sesiones"][0]["ejercicios"][0]["series"] = 1
+    assert escribir_plantilla(cliente, cambio, plantilla["id"]).status_code == 200
+    assert escribir_plantilla(cliente, identificador=plantilla["id"], archivar=True).status_code == 200
+    with app.app_context():
+        assert servicio.listar_programas(desde_texto(socio)) == antes
+    cliente.post("/api/sesion/demo/socio", headers={"X-Gimnasio": "1"})
+    assert cliente.get(ruta).json["prescripcion_efectiva"] == efectiva
+    cliente.post("/api/sesion/demo/entrenador", headers={"X-Gimnasio": "1"})
+    datos["version_base"] = 2
+    rechazada = publicar(cliente, socio, datos)
+    assert rechazada.status_code == 409
+    assert rechazada.json["error"]["codigo"] == "plantilla_archivada"
+    del datos["plantilla_id"]
+    assert publicar(cliente, socio, datos).json["programa"]["version"] == 3
+
+
 @pytest.mark.bd
 def test_publica_24_sesiones_idempotentes_e_inmutables(programas_api):
     app, cliente, socio, fuerza = programas_api
