@@ -8,10 +8,30 @@ from mysql.connector import IntegrityError
 from gimnasio.comun.bd import transaccion
 from gimnasio.comun.errores import ErrorDeDominio
 from gimnasio.comun.formatos import normalizar_cedula, normalizar_correo, normalizar_telefono
-from gimnasio.comun.ids import desde_bytes, desde_texto
+from gimnasio.comun.ids import desde_bytes, desde_texto, nuevo_id
 from gimnasio.comun.reloj import fecha_local, reloj_actual
 from gimnasio.permisos.servicio import tiene_asignacion_vigente
+from gimnasio.reglas.membresia import vigencia_renovada
 from gimnasio.socios import repositorio
+
+
+def bloquear_socio_activo(socio_id, *, cursor):
+    """Serializa pagos antes de insertar sus referencias al socio."""
+    socio = repositorio.bloquear_socio(cursor, socio_id)
+    if socio is None or socio["rol"] != "socio" or not socio["activo"]:
+        raise ErrorDeDominio("socio_inactivo", "El pago requiere un socio activo.", 422)
+
+
+def renovar_membresia(socio_id, pago_id, tipo_id, duracion_dias, hoy, ahora, *, cursor):
+    """Inserta la renovación conservando el historial y la transacción del pago."""
+    bloquear_socio_activo(socio_id, cursor=cursor)
+    try:
+        desde, hasta = vigencia_renovada(hoy, repositorio.ultimo_vencimiento(cursor, socio_id), duracion_dias)
+    except (OverflowError, ValueError) as error:
+        raise ErrorDeDominio("vigencia_invalida", "La duración excede la vigencia admitida.", 422) from error
+    membresia_id = nuevo_id()
+    repositorio.insertar_membresia(cursor, membresia_id, socio_id, pago_id, tipo_id, desde, hasta, ahora)
+    return {"id": str(membresia_id), "desde": desde.isoformat(), "hasta": hasta.isoformat()}
 
 
 def _identificador(texto):

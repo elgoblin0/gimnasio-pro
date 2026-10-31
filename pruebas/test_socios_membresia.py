@@ -50,6 +50,8 @@ def test_migracion_vacia_repetida_y_esquema_minimo(bd_vacia):
             "desde": "date",
             "hasta": "date",
             "actualizada_en": "datetime(6)",
+            "pago_id": "binary(16)",
+            "tipo_id": "binary(16)",
         }
         # También es seguro repetir el DDL, sin pasar por el registro del aplicador.
         migracion = next(m for m in leer_migraciones() if m.version == "0006")
