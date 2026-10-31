@@ -4,7 +4,7 @@ import test from "node:test";
 import vm from "node:vm";
 
 const codigoSondeo = readFileSync(new URL("./comun/sondeo.js", import.meta.url), "utf8")
-  .replace("export function", "function");
+  .replaceAll("export function", "function");
 
 const codigo = readFileSync(new URL("./recepcion.js", import.meta.url), "utf8")
   .replace(/^import .*;\r?\n/gm, "").replace(/iniciar\(\);\s*$/, "");
@@ -29,7 +29,7 @@ function preparar(t) {
     document: { querySelector: obtener, querySelectorAll: () => [],
       createElement: () => ({}), addEventListener() {}, removeEventListener() {} },
     window: { addEventListener() {} }, registrarPwa() {},
-    setTimeout, clearTimeout,
+    setTimeout, clearTimeout, AbortController,
     actualizarMejoresHorarios() {}, crearSondeo: () => ({}),
     Option: class {},
     crearControlDeOperacion: () => ({

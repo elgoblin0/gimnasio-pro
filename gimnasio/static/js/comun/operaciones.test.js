@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { crearControlDeOperacion, cerrarSesion } from "./operaciones.js";
+import { crearSondeo } from "./sondeo.js";
 
 test("el reintento conserva id, clave y cuerpo y bloquea un envío doble", () => {
   let cantidad = 0;
@@ -39,4 +40,31 @@ test("cerrar sesión solo elimina la sesión de usuario, nunca registra una sali
   const llamadas = [];
   await cerrarSesion(async (...argumentos) => llamadas.push(argumentos));
   assert.deepEqual(llamadas, [["/api/sesion", { metodo: "DELETE" }]]);
+});
+
+test("el sondeo no consulta durante el cierre ni después; si el cierre falla, sigue", async (t) => {
+  t.mock.timers.enable({ apis: ["setTimeout"] });
+  let consultas = 0;
+  t.mock.method(globalThis, "fetch", async () => {
+    consultas++;
+    return { status: 304 };
+  });
+  const vaciar = async () => { for (let i = 0; i < 8; i++) await Promise.resolve(); };
+  const sondeo = crearSondeo({ url: "/api/ocupacion", alCambiar() {} });
+  t.after(() => sondeo.detener());
+  await vaciar();
+  assert.equal(consultas, 1);
+
+  let rechazar;
+  const fallido = cerrarSesion(() => new Promise((_, rechazo) => { rechazar = rechazo; }));
+  t.mock.timers.tick(5000);
+  assert.equal(consultas, 1);
+  rechazar(new Error("Sin red"));
+  await assert.rejects(fallido, /Sin red/);
+  assert.equal(consultas, 2);
+  await vaciar();
+
+  await cerrarSesion(async () => {});
+  t.mock.timers.tick(60000);
+  assert.equal(consultas, 2);
 });
