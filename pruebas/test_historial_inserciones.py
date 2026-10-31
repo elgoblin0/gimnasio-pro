@@ -2,26 +2,16 @@
 
 import ast
 import re
+import sys
 from pathlib import Path
 
 import pytest
 
 RAIZ = Path(__file__).resolve().parent.parent
-HECHOS = {
-    "revisiones_aviso",
-    "cambios_estado_equipo",
-    "restricciones_salud",
-    "dolores_reportados",
-    "chequeos_dia",
-    "avisos_entrenador",
-    "prescripciones_efectivas",
-    "consentimientos",
-    "entradas",
-    "salidas",
-    "sesiones_realizadas",
-    "series_realizadas",
-    "sustituciones",
-}
+sys.path.insert(0, str(RAIZ / "scripts"))
+
+from verificar_pr import HECHOS  # noqa: E402  (necesita scripts/ en sys.path, que se agrega arriba)
+
 EXCEPCION = "gimnasio/demo/repositorio.py"
 DINAMICA = "__tabla_dinamica__"
 COMENTARIOS_Y_VALORES = re.compile(r"--[^\n]*|\#[^\n]*|/\*.*?\*/|'(?:''|\\.|[^'])*'|\"(?:\"\"|\\.|[^\"])*\"", re.S)
