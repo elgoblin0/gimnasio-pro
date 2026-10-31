@@ -67,6 +67,16 @@ def formatear_telefono(texto: str) -> str:
     return f"+595 {nacional[:2]} {nacional[2:]}"
 
 
+def normalizar_correo(texto: str) -> str:
+    """Normaliza el correo de contacto y valida su formato y longitud de almacenamiento."""
+    if not isinstance(texto, str):
+        raise ValueError("El correo debe ser texto")
+    correo = texto.strip().lower()
+    if len(correo) > 160 or re.fullmatch(r"[^\s@]+@[^\s@.]+(?:\.[^\s@.]+)+", correo) is None:
+        raise ValueError("Ingresá un correo válido, de hasta 160 caracteres")
+    return correo
+
+
 def formatear_fecha(fecha: date) -> str:
     if not isinstance(fecha, date) or isinstance(fecha, datetime):
         raise ValueError("Se requiere una fecha sin hora")

@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
-  ajustarSeries, conservarFormulario, cuerpoDePublicacion, fijarCargaPartida, filaNueva, idsDeEjercicios, leerFormulario, olvidarFormulario,
+  ajustarSeries, conservarFormulario, cuerpoDePublicacion, cuerpoDePlantilla, fijarCargaPartida, filaNueva, idsDeEjercicios, leerFormulario, olvidarFormulario,
   problemasDeLaSemana, semanaDesdePlantilla, semanaDesdeVigente, sesionesGeneradas, sustituirEjercicio,
 } from "./editor-programa-datos.js";
 
@@ -12,6 +12,25 @@ const catalogo = new Map([[sentadilla.id, sentadilla], [caminata.id, caminata]])
 const semana = () => ({
   semanas: "8",
   sesiones: [{ nombre: " Fuerza ", ejercicios: [filaNueva(sentadilla), filaNueva(caminata)] }],
+});
+
+test("el modo plantilla no exige duración ni carga y no las envía", () => {
+  const datos = semana();
+  datos.semanas = "";
+  assert.deepEqual(problemasDeLaSemana(datos, catalogo, {}, true), []);
+  const cuerpo = cuerpoDePlantilla(datos, " Fuerza ", " Descripción ", catalogo);
+  assert.equal(cuerpo.nombre, "Fuerza");
+  assert.equal(cuerpo.descripcion, "Descripción");
+  assert.equal("semanas" in cuerpo, false);
+  for (const ejercicio of cuerpo.sesiones[0].ejercicios) {
+    assert.equal("carga" in ejercicio, false);
+    assert.equal("carga_partida" in ejercicio, false);
+  }
+});
+
+test("publicar identifica solo la plantilla elegida, nunca la de una versión vigente", () => {
+  assert.equal(cuerpoDePublicacion(semana(), null, catalogo, "plantilla:ejemplo").plantilla_id, "ejemplo");
+  assert.equal("plantilla_id" in cuerpoDePublicacion(semana(), 2, catalogo, "vigente"), false);
 });
 
 test("un ejercicio nuevo solo trae los campos de sus medidas", () => {

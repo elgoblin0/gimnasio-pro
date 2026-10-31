@@ -2,6 +2,7 @@
 
 from flask import Blueprint, jsonify, request
 
+from gimnasio.permisos.matriz import puede
 from gimnasio.permisos.servicio import requiere, usuario_actual
 from gimnasio.programas import servicio
 
@@ -9,9 +10,33 @@ bp = Blueprint("programas", __name__, url_prefix="/api")
 
 
 @bp.get("/programas/plantillas")
-@requiere("programas.editar")
+@requiere("programas.editar", "plantillas.administrar")
 def listar_plantillas():
-    return jsonify({"plantillas": servicio.listar_plantillas()})
+    return jsonify(
+        {
+            "plantillas": servicio.listar_plantillas(
+                incluir_archivadas=puede(usuario_actual()["rol"], "plantillas.administrar")
+            )
+        }
+    )
+
+
+@bp.post("/programas/plantillas")
+@requiere("plantillas.administrar")
+def crear_plantilla():
+    return jsonify({"plantilla": servicio.guardar_plantilla(request.get_json(silent=True))}), 201
+
+
+@bp.put("/programas/plantillas/<plantilla_id>")
+@requiere("plantillas.administrar")
+def editar_plantilla(plantilla_id):
+    return jsonify({"plantilla": servicio.guardar_plantilla(request.get_json(silent=True), plantilla_id)})
+
+
+@bp.post("/programas/plantillas/<plantilla_id>/archivar")
+@requiere("plantillas.administrar")
+def archivar_plantilla(plantilla_id):
+    return jsonify({"plantilla": servicio.archivar_plantilla(plantilla_id)})
 
 
 @bp.get("/socios/<socio_id>/programa")

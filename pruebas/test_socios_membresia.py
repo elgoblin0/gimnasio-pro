@@ -180,7 +180,7 @@ def test_restricciones_de_fechas_y_clave_foranea(app_con_bd, reloj_fijo, socio_c
         assert consultar_membresia(socio_id, DESDE - timedelta(days=1)) is not None
 
 
-def test_socios_solo_accede_a_membresias_y_usuarios_sin_repositorios_ajenos():
+def test_socios_solo_accede_a_sus_tablas_sin_repositorios_ajenos():
     from pruebas.test_dependencias import violaciones
 
     assert not [v for v in violaciones(RAIZ) if v.startswith("gimnasio.socios.")]
@@ -189,5 +189,6 @@ def test_socios_solo_accede_a_membresias_y_usuarios_sin_repositorios_ajenos():
         arbol = ast.parse(archivo.read_text(encoding="utf-8"))
         for nodo in ast.walk(arbol):
             if isinstance(nodo, ast.Constant) and isinstance(nodo.value, str):
-                tablas.update(re.findall(r"\b(?:FROM|JOIN|INTO|UPDATE)\s+(\w+)", nodo.value, re.IGNORECASE))
-    assert tablas == {"membresias", "usuarios"}
+                # UPDATE al inicio evita confundir FOR UPDATE y ON DUPLICATE KEY UPDATE con tablas.
+                tablas.update(re.findall(r"(?:\b(?:FROM|JOIN|INTO)|^\s*UPDATE)\s+(\w+)", nodo.value, re.IGNORECASE))
+    assert tablas == {"membresias", "usuarios", "personas", "perfiles_entrenamiento"}

@@ -1,0 +1,73 @@
+import { llamarApi } from "./comun/api.js";
+import { crear, exigirRol, prepararBarra } from "./comun/personal.js";
+import { registrarPwa } from "./comun/pwa.js";
+import { formatearCedula, formatearFecha, formatearTelefono } from "./comun/formatos.js";
+import { montarPerfil } from "./perfil-entrenamiento.js";
+
+registrarPwa();
+const $ = (selector) => document.querySelector(selector);
+let usuario;
+
+async function cargar() {
+  $("[data-error]").textContent = "";
+  $("[data-estado]").textContent = "Cargando ficha del socio…";
+  $("[data-reintentar]").hidden = true;
+  try {
+    if (!usuario) {
+      usuario = await exigirRol(["socio", "recepcion", "administracion"]);
+      if (!usuario) return;
+      prepararBarra(usuario);
+    }
+    const propia = usuario.rol === "socio";
+    const socio = new URL(location.href).searchParams.get("socio");
+    if (!propia && !socio) throw new Error("Elegí un socio desde su tarjeta contextual.");
+    const ruta = propia ? "/api/yo/ficha" : `/api/socios/${encodeURIComponent(socio)}/ficha`;
+    const { datos_personales: datos } = await llamarApi(ruta);
+    $("[data-titulo]").textContent = propia ? "Mi ficha" : `Ficha del socio · ${datos.nombre} ${datos.apellido}`;
+    $("[data-volver]").href = propia ? "/entrenamiento.html" : usuario.rol === "recepcion" ? "/recepcion.html" : "/equipos.html";
+    const formulario = crear("form", {}, crear("p", {}, "Usamos los datos personales para identificar al socio y mantener el contacto con él."));
+    for (const [campo, etiqueta, tipo, longitud] of [
+      ["nombre", "Nombre", "text", 80], ["apellido", "Apellido", "text", 80], ["cedula", "Cédula", "text", 16],
+      ["telefono", "Teléfono (+595)", "tel", 30], ["correo", "Correo", "email", 160],
+      ["fecha_nacimiento", "Nacimiento", "date"],
+    ]) {
+      if (propia && !["telefono", "correo"].includes(campo)) {
+        const texto = campo === "cedula" ? formatearCedula(datos[campo])
+          : campo === "fecha_nacimiento" && datos[campo] ? formatearFecha(datos[campo]) : datos[campo];
+        formulario.append(crear("p", {}, `${etiqueta}: ${texto || "Sin indicar"}`));
+      } else formulario.append(crear("label", {}, etiqueta, crear("input", {
+        name: campo, type: tipo, value: campo === "cedula" ? formatearCedula(datos[campo])
+          : campo === "telefono" && datos[campo] ? formatearTelefono(datos[campo]) : datos[campo] ?? "", maxLength: longitud,
+        required: ["nombre", "apellido", "cedula"].includes(campo),
+      })));
+    }
+    const boton = crear("button", { type: "submit" }, "Guardar datos personales");
+    formulario.append(boton);
+    formulario.addEventListener("submit", async (evento) => {
+      evento.preventDefault();
+      boton.disabled = true;
+      $("[data-error]").textContent = "";
+      $("[data-estado]").textContent = "Guardando…";
+      try {
+        await llamarApi(ruta, { metodo: "PUT", cuerpo: Object.fromEntries(new FormData(formulario)) });
+        $("[data-estado]").textContent = "Datos personales guardados.";
+      } catch (error) {
+        $("[data-estado]").textContent = "";
+        $("[data-error]").textContent = error.message;
+      } finally { boton.disabled = false; }
+    });
+    $("[data-personales]").replaceChildren(crear("h2", {}, "Datos personales"), formulario);
+    $("[data-personales]").hidden = false;
+    $("[data-estado]").textContent = "";
+    if (propia) {
+      $("[data-perfil]").hidden = false;
+      await montarPerfil($("[data-perfil]"), ruta);
+    }
+  } catch (error) {
+    $("[data-estado]").textContent = "";
+    $("[data-error]").textContent = error.message;
+    $("[data-reintentar]").hidden = false;
+  }
+}
+$("[data-reintentar]").addEventListener("click", cargar);
+cargar();

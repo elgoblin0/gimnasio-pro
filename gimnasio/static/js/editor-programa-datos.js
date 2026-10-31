@@ -81,10 +81,10 @@ export function sesionesGeneradas(semana) {
 }
 
 /** Lo mismo que rechazaría la API, antes de enviar y con palabras del entrenador. */
-export function problemasDeLaSemana(semana, catalogo, sugeridas = {}) {
+export function problemasDeLaSemana(semana, catalogo, sugeridas = {}, plantilla = false) {
   const problemas = [];
   const semanas = Number(semana.semanas);
-  if (!Number.isInteger(semanas) || semanas < LIMITES.semanas[0] || semanas > LIMITES.semanas[1]) problemas.push("La duración va de 4 a 12 semanas.");
+  if (!plantilla && (!Number.isInteger(semanas) || semanas < LIMITES.semanas[0] || semanas > LIMITES.semanas[1])) problemas.push("La duración va de 4 a 12 semanas.");
   if (semana.sesiones.length < LIMITES.sesiones[0]) problemas.push("Agregá al menos una sesión.");
   if (semana.sesiones.length > LIMITES.sesiones[1]) problemas.push("Una semana tiene hasta 6 sesiones.");
   semana.sesiones.forEach((sesion, indice) => {
@@ -104,7 +104,7 @@ export function problemasDeLaSemana(semana, catalogo, sugeridas = {}) {
         if (!ejercicio.repeticiones_minimas || !ejercicio.repeticiones_maximas || !(minimas >= 1) || !(maximas >= 1)) problemas.push(`${etiqueta}: indicá el rango de repeticiones.`);
         else if (minimas > maximas) problemas.push(`${etiqueta}: el mínimo de repeticiones no puede superar el máximo.`);
       }
-      if (campoAplica("carga", datos) && !ejercicio.carga && !ejercicio.carga_partida && !sugeridas[ejercicio.ejercicio_id]) problemas.push(`${etiqueta}: no tiene historial; fijá una carga de partida.`);
+      if (!plantilla && campoAplica("carga", datos) && !ejercicio.carga && !ejercicio.carga_partida && !sugeridas[ejercicio.ejercicio_id]) problemas.push(`${etiqueta}: no tiene historial; fijá una carga de partida.`);
       if (campoAplica("duracion", datos) && !ejercicio.duracion) problemas.push(`${etiqueta}: indicá la duración.`);
       if (campoAplica("distancia", datos) && !ejercicio.distancia) problemas.push(`${etiqueta}: indicá la distancia.`);
     }
@@ -117,8 +117,9 @@ function aEnviar(campo, texto) {
   return ENTEROS.has(campo) ? Number(texto) : texto;
 }
 
-export function cuerpoDePublicacion(semana, versionBase, catalogo) {
+export function cuerpoDePublicacion(semana, versionBase, catalogo, origen = null) {
   return {
+    ...(origen?.startsWith("plantilla:") ? { plantilla_id: origen.slice(10) } : {}),
     version_base: versionBase,
     semanas: Number(semana.semanas),
     sesiones: semana.sesiones.map((sesion) => ({
@@ -133,6 +134,17 @@ export function cuerpoDePublicacion(semana, versionBase, catalogo) {
       }),
     })),
   };
+}
+
+export function cuerpoDePlantilla(semana, nombre, descripcion, catalogo) {
+  const { sesiones } = cuerpoDePublicacion(semana, null, catalogo);
+  for (const sesion of sesiones) {
+    for (const ejercicio of sesion.ejercicios) {
+      delete ejercicio.carga;
+      delete ejercicio.carga_partida;
+    }
+  }
+  return { nombre: nombre.trim(), descripcion: descripcion.trim(), sesiones };
 }
 
 // El formulario sobrevive a un corte de red o a una publicación fallida, solo en este navegador.

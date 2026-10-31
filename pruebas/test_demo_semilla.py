@@ -4,6 +4,7 @@ import json
 from collections import Counter
 from datetime import UTC, timedelta
 from statistics import median
+from uuid import uuid4
 
 import pytest
 
@@ -179,6 +180,14 @@ def test_dos_reinicios_dejan_los_mismos_datos(app_con_bd, reloj_fijo):
         respuesta = cliente.post(f"/api/sesion/demo/{rol}", headers={"X-Gimnasio": "1"})
         assert respuesta.status_code == 200
         assert respuesta.get_json()["usuario"]["nombre"] == nombre
+        if rol == "socio":
+            respuesta = cliente.put(
+                "/api/yo/ficha",
+                json={"perfil_entrenamiento": {"objetivo": "Fuerza"}},
+                headers={"X-Gimnasio": "1", "Idempotency-Key": str(uuid4())},
+            )
+            assert respuesta.status_code == 200
+            assert len(consultar(app_con_bd, "SELECT * FROM perfiles_entrenamiento")) == 1
     assert (
         cliente.post(
             "/api/sesion", json={"identificador": "9900000", "clave": "no-publicada"}, headers={"X-Gimnasio": "1"}
@@ -190,6 +199,7 @@ def test_dos_reinicios_dejan_los_mismos_datos(app_con_bd, reloj_fijo):
     with app_con_bd.app_context():
         servicio.reiniciar()
     assert datos_semilla(app_con_bd) == primera
+    assert consultar(app_con_bd, "SELECT * FROM perfiles_entrenamiento") == []
     assert primera["migraciones"] == migraciones
     assert primera["sedes"] == [
         {

@@ -48,6 +48,64 @@ def api_post(pagina, ruta, cuerpo):
     )
 
 
+def test_administracion_gestiona_plantillas_sin_socio(pagina_demo, demo_aislada):
+    pagina = pagina_demo
+    errores = entrar(pagina, demo_aislada, "administración")
+    pagina.wait_for_url("**/administracion.html")
+    pagina.get_by_role("link", name="Plantillas", exact=True).click()
+    pagina.get_by_role("link", name="Crear plantilla", exact=True).click()
+    expect(pagina.locator("[data-duracion]")).to_be_hidden()
+    pagina.get_by_label("Nombre", exact=True).fill("Plantilla ficticia nueva")
+    pagina.get_by_label("Descripción", exact=True).fill("Prueba de administración")
+    pagina.get_by_role("button", name="Agregar sesión", exact=True).click()
+    pagina.locator("[data-agregar-ejercicio]").select_option(label="Sentadilla ficticia")
+    expect(pagina.locator('[data-campo="carga_partida"]')).to_have_count(0)
+    pagina.get_by_role("button", name="Guardar plantilla", exact=True).click()
+    pagina.wait_for_url("**/plantillas.html")
+    fila = pagina.locator("[data-plantillas] > li").filter(has_text="Plantilla ficticia nueva")
+    fila.get_by_role("link", name="Editar", exact=True).click()
+    pagina.get_by_label("Nombre", exact=True).fill("Plantilla ficticia editada")
+    pagina.get_by_role("button", name="Guardar plantilla", exact=True).click()
+    pagina.wait_for_url("**/plantillas.html")
+    fila = pagina.locator("[data-plantillas] > li").filter(has_text="Plantilla ficticia editada")
+    fila.get_by_role("button", name="Archivar", exact=True).click()
+    expect(fila).to_contain_text("Archivada")
+    assert errores == []
+
+
+def test_plantilla_archivada_con_editor_abierto_conserva_formulario(pagina_demo, demo_aislada):
+    from gimnasio.programas.servicio import archivar_plantilla
+
+    pagina = pagina_demo
+    errores = entrar(pagina, demo_aislada, "entrenador")
+    pagina.wait_for_url("**/bandeja.html")
+    socios = socios_de_marcos(pagina)
+    socio_id = next(iter(socios.values()))
+    pagina.goto(f"{demo_aislada.url}/editor-programa.html?socio={socio_id}")
+    origen = pagina.locator('[data-origen^="plantilla:"]').first
+    expect(origen).to_be_visible()
+    plantilla_id = origen.get_attribute("data-origen").partition(":")[2]
+    origen.click()
+    for carga in pagina.locator('[data-campo="carga_partida"]').all():
+        carga.fill("0")
+    pagina.locator("[data-nombre-sesion]").first.fill("Mi sesión conservada")
+    with demo_aislada.app.app_context():
+        archivar_plantilla(plantilla_id)
+    with pagina.expect_response(
+        lambda respuesta: (
+            respuesta.request.method == "POST" and respuesta.url.endswith(f"/api/socios/{socio_id}/programas")
+        )
+    ) as respuesta:
+        pagina.locator("[data-publicar]").click()
+    assert respuesta.value.status == 409
+    assert respuesta.value.json()["error"]["codigo"] == "plantilla_archivada"
+    expect(pagina.locator("[data-nombre-sesion]").first).to_have_value("Mi sesión conservada")
+    expect(pagina.locator("[data-problemas]")).to_contain_text("archivada")
+    pagina.reload()
+    expect(pagina.locator("[data-nombre-sesion]").first).to_have_value("Mi sesión conservada")
+    assert errores == []
+
+
 def test_administracion_entra_a_equipos_y_ve_el_cambio_de_inmediato(pagina_demo, demo_aislada):
     pagina = pagina_demo
     errores = entrar(pagina, demo_aislada, "administración")
