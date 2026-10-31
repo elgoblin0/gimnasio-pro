@@ -9,14 +9,19 @@ let socios = [];
 let tipos = [];
 let pendiente;
 let enCurso = false;
+const socioFijado = new URLSearchParams(location.search).get("socio");
 
 function buscar() {
   const texto = $("#buscar").value.trim().toLocaleLowerCase("es");
   const cedula = texto.replace(/[. ]/g, "");
   const anterior = $("#socio").value;
-  const encontrados = socios.filter((socio) => socio.nombre.toLocaleLowerCase("es").includes(texto) || (cedula && socio.cedula.includes(cedula)));
+  const encontrados = socios.filter((socio) => socioFijado ? socio.id === socioFijado : socio.nombre.toLocaleLowerCase("es").includes(texto) || (cedula && socio.cedula.includes(cedula)));
   $("#socio").replaceChildren(crear("option", { value: "" }, "Elegí un socio"), ...encontrados.map((socio) => crear("option", { value: socio.id }, `${socio.nombre} · ${formatearCedula(socio.cedula)}`)));
   if (encontrados.some((socio) => socio.id === anterior)) $("#socio").value = anterior;
+  if (socioFijado) {
+    $("#socio").value = socioFijado;
+    $("#buscar").disabled = true;
+  }
   $("[data-socios-estado]").textContent = encontrados.length ? `${encontrados.length} socios encontrados.` : "No hay socios para esa búsqueda.";
 }
 
@@ -45,6 +50,7 @@ async function registrar(evento) {
   if (pendiente) return;
   const formulario = evento.target;
   const cuerpo = Object.fromEntries(new FormData(formulario));
+  if (socioFijado) cuerpo.socio_id = socioFijado;
   if (cuerpo.monto === "") delete cuerpo.monto;
   else cuerpo.monto = Number(cuerpo.monto);
   pendiente = { cuerpo, clave: crypto.randomUUID() };
@@ -65,6 +71,7 @@ async function enviar() {
   try {
     const pago = await llamarApi("/api/pagos", { metodo: "POST", cuerpo: operacion.cuerpo, clave: operacion.clave });
     pendiente = null;
+    if (socioFijado && window.parent !== window) window.parent.postMessage({ tipo: "pago-registrado" }, location.origin);
     formulario.reset();
     buscar();
     $("[data-precio]").textContent = "";
@@ -87,6 +94,7 @@ async function iniciar() {
   const usuario = await exigirRol(["recepcion", "administracion"]);
   if (!usuario) return;
   prepararBarra(usuario);
+  if (socioFijado && window.parent !== window) document.querySelector("header").hidden = true;
   $("[data-solo-recepcion]").hidden = usuario.rol !== "recepcion";
   $("#buscar").addEventListener("input", buscar);
   $("#tipo").addEventListener("change", () => {

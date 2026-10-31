@@ -11,6 +11,7 @@ const codigo = readFileSync(new URL("./recepcion.js", import.meta.url), "utf8")
 
 function preparar(t) {
   const elementos = new Map();
+  const eventos = new Map();
   const obtener = (selector) => {
     if (!elementos.has(selector)) elementos.set(selector, {
       open: false, isConnected: true, textContent: "", hijos: [], style: { setProperty() {} },
@@ -27,8 +28,9 @@ function preparar(t) {
   const lecturas = [];
   const contexto = vm.createContext({
     document: { querySelector: obtener, querySelectorAll: () => [],
-      createElement: () => ({}), addEventListener() {}, removeEventListener() {} },
-    window: { addEventListener() {} }, registrarPwa() {},
+      createElement: () => ({ dataset: {}, style: {}, addEventListener() {} }), addEventListener() {}, removeEventListener() {} },
+    window: { addEventListener: (nombre, accion) => eventos.set(nombre, accion) }, registrarPwa() {},
+    location: { origin: "https://gimnasio.test" },
     setTimeout, clearTimeout, AbortController,
     actualizarMejoresHorarios() {}, crearSondeo: () => ({}),
     Option: class {},
@@ -61,9 +63,39 @@ function preparar(t) {
     vm.runInContext(codigoSondeo, contexto);
   }
   vm.runInContext(codigo, contexto);
-  return { obtener, consultas, lecturas, liberar: () => liberarOperacion(),
+  return { obtener, consultas, lecturas, eventos, liberar: () => liberarOperacion(),
     ejecutar: (texto) => vm.runInContext(texto, contexto),
     operar: async (ruta) => { operacion = { ruta, cuerpo: {} }; await vm.runInContext("enviar()", contexto); } };
+}
+
+test("al confirmar el pago refresca la tarjeta y mantiene el socio para la entrada", async () => {
+  const pantalla = preparar();
+  pantalla.ejecutar('rolTarjeta = "recepcion"');
+  await pantalla.ejecutar('abrirTarjeta("socio")');
+  const formulario = pantalla.obtener("[data-pago-tarjeta]");
+  formulario.contentWindow = {};
+  let retirado = false;
+  formulario.remove = () => { retirado = true; };
+  await pantalla.eventos.get("message")({ origin: "https://gimnasio.test", source: formulario.contentWindow, data: { tipo: "pago-registrado" } });
+  assert.equal(retirado, true);
+  assert.deepEqual(pantalla.consultas, ["/api/socios/socio/tarjeta", "/api/socios/socio/tarjeta"]);
+  assert.ok(pantalla.obtener("[data-tarjeta-datos]").hijos.some(hijo => hijo.textContent === "Registrar entrada"));
+  assert.equal(pantalla.ejecutar("socioTarjeta"), "socio");
+});
+
+for (const rol of ["recepcion", "administracion"]) {
+  test(`tarjeta con pago pendiente para ${rol}`, async () => {
+    const pantalla = preparar();
+    pantalla.ejecutar(`
+      rolTarjeta = ${JSON.stringify(rol)};
+      llamarApi = async () => ({ socio: {}, pago_pendiente: true, permanencia_habitual: {} });
+    `);
+    await pantalla.ejecutar('abrirTarjeta("socio")');
+    const textos = pantalla.obtener("[data-tarjeta-datos]").hijos.map(hijo => hijo.textContent);
+    assert.ok(textos.includes("Pago pendiente"));
+    assert.ok(textos.includes("Registrar pago"));
+    assert.equal(textos.includes("Registrar entrada"), rol === "recepcion");
+  });
 }
 
 test("el sondeo espera al POST aunque transcurran cinco segundos", async (t) => {

@@ -3,6 +3,10 @@
 from datetime import date, timedelta
 
 
+def pago_pendiente(hoy: date, ultimo_hasta: date | None) -> bool:
+    return ultimo_hasta is None or (ultimo_hasta - hoy).days <= 7
+
+
 def vigencia_renovada(hoy: date, ultimo_hasta: date | None, duracion_dias: int) -> tuple[date, date]:
     if type(duracion_dias) is not int or duracion_dias <= 0:
         raise ValueError("La duración debe ser un entero mayor que cero.")

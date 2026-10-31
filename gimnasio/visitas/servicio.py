@@ -2,7 +2,7 @@
 
 import json
 from dataclasses import asdict
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 from hashlib import sha256
 from zoneinfo import ZoneInfo
 
@@ -12,6 +12,7 @@ from gimnasio.comun.formatos import formatear_cedula
 from gimnasio.comun.ids import desde_bytes, desde_texto
 from gimnasio.comun.reloj import fecha_local, reloj_actual
 from gimnasio.reglas.horarios import calcular_mejores_horarios
+from gimnasio.reglas.membresia import pago_pendiente
 from gimnasio.reglas.permanencia import calcular_permanencia_habitual, es_visita_por_conciliar
 from gimnasio.reglas.simulacion import zona_simulada
 from gimnasio.reglas.zonas_sede import NOMBRES_ZONAS_SEDE, ubicar_en_zona
@@ -44,7 +45,11 @@ def consultar_tarjeta(socio_id):
         )
     abierta = next((visita for visita in visitas if visita["abierta"]), None)
     ultima = next((visita for visita in visitas if visita["salida_registrada_en"] is not None), None)
+    hoy = fecha_local(ahora, ZoneInfo(sede["zona_horaria"]))
+    membresia = membresia_para_tarjeta(socio_id, hoy)
+    ultimo_hasta = membresia["ultimo_hasta"]
     return {
+        "pago_pendiente": pago_pendiente(hoy, date.fromisoformat(ultimo_hasta) if ultimo_hasta else None),
         "socio": {
             "id": str(socio_id),
             "nombre": socio["nombre"],
@@ -52,7 +57,7 @@ def consultar_tarjeta(socio_id):
             "cedula": formatear_cedula(socio["cedula"]),
             "simulada": bool(socio["simulada"]),
         },
-        "membresia": membresia_para_tarjeta(socio_id, fecha_local(ahora, ZoneInfo(sede["zona_horaria"]))),
+        "membresia": membresia,
         "visita_abierta": {
             "entrada_id": str(desde_bytes(abierta["entrada_id"])),
             "desde": abierta["registrada_en"].replace(tzinfo=UTC).isoformat(),

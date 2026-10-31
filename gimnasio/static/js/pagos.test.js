@@ -6,7 +6,7 @@ import vm from "node:vm";
 const codigo = readFileSync(new URL("./pagos.js", import.meta.url), "utf8")
   .replace(/^import .*;\r?\n/gm, "").replace(/iniciar\(\)\.catch\([\s\S]*$/, "");
 
-function preparar(error) {
+function preparar(error, socio = "") {
   const elementos = new Map();
   const obtener = (selector) => {
     if (!elementos.has(selector)) elementos.set(selector, {
@@ -20,7 +20,10 @@ function preparar(error) {
   elementos.set("[data-pago]", formulario);
   const envios = [];
   let fallo = error;
+  const avisos = [];
   const contexto = vm.createContext({
+    URLSearchParams, location: { search: socio ? `?socio=${socio}` : "", origin: "https://gimnasio.test" },
+    window: { parent: { postMessage: (...argumentos) => avisos.push(argumentos) } },
     document: { querySelector: obtener }, registrarPwa() {},
     crypto: { randomUUID: () => String(envios.length + 1) },
     FormData: class { constructor() { return Object.entries(formulario.datos); } },
@@ -34,10 +37,25 @@ function preparar(error) {
     evento: { preventDefault() {}, target: formulario },
   });
   vm.runInContext(codigo, contexto);
-  return { obtener, formulario, envios,
+  return { obtener, formulario, envios, avisos,
     registrar: () => vm.runInContext("registrar(evento)", contexto),
     reintentar: () => vm.runInContext("enviar()", contexto),
     resolver: () => { fallo = null; } };
+}
+
+for (const error of [{ estadoHttp: 0 }, { estadoHttp: 422 }]) {
+  test(`pago contextual conserva socio y formulario ante fallo ${error.estadoHttp}`, async () => {
+    const pantalla = preparar(error, "socio-fijado");
+    await pantalla.registrar();
+    assert.equal(pantalla.envios[0].cuerpo.socio_id, "socio-fijado");
+    assert.equal(pantalla.formulario.datos.tipo_id, "tipo");
+    assert.equal(pantalla.avisos.length, 0);
+    pantalla.resolver();
+    if (error.estadoHttp === 0) await pantalla.reintentar();
+    else await pantalla.registrar();
+    assert.equal(pantalla.avisos.length, 1);
+    assert.equal(pantalla.avisos[0][0].tipo, "pago-registrado");
+  });
 }
 
 for (const error of [

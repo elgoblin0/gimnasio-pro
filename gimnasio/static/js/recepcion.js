@@ -229,6 +229,13 @@ async function enviar() {
 let consultaTarjeta = 0;
 let focoAnteriorTarjeta;
 let socioTarjeta;
+let rolTarjeta;
+window.addEventListener("message", async (evento) => {
+  const formulario = $("[data-pago-tarjeta]");
+  if (evento.origin !== location.origin || evento.source !== formulario?.contentWindow || evento.data?.tipo !== "pago-registrado") return;
+  formulario.remove();
+  await abrirTarjeta(socioTarjeta, false);
+});
 async function abrirTarjeta(socioId, enfocar = true) {
   socioTarjeta = socioId;
   const consulta = ++consultaTarjeta;
@@ -257,11 +264,39 @@ async function abrirTarjeta(socioId, enfocar = true) {
     ficha.textContent = "Ver ficha del socio";
     contenido.append(ficha);
     const membresia = datos.membresia;
-    if (membresia) {
+    if (membresia?.hasta) {
       const estado = !membresia.vigente ? "vencida" : membresia.dias_restantes <= 7 ? "por vencer" : "vigente";
       const hasta = membresia.hasta.split("-").reverse().join("/");
       agregar(`Membresía ${estado} · hasta ${hasta} · ${membresia.dias_restantes} días restantes`, `membresia-${estado.replaceAll(" ", "-")}`);
     } else agregar("Sin membresía iniciada.");
+    if (datos.pago_pendiente) {
+      agregar("Pago pendiente");
+      const pagar = document.createElement("button");
+      pagar.type = "button";
+      pagar.textContent = "Registrar pago";
+      pagar.addEventListener("click", () => {
+        if ($("[data-pago-tarjeta]")) return;
+        const formulario = document.createElement("iframe");
+        formulario.dataset.pagoTarjeta = "";
+        formulario.title = "Registrar pago del socio";
+        formulario.src = `/pagos.html?socio=${encodeURIComponent(socioId)}`;
+        formulario.style.width = "100%";
+        formulario.style.height = "650px";
+        contenido.append(formulario);
+      });
+      contenido.append(pagar);
+    }
+    if (rolTarjeta === "recepcion") {
+      const entrada = document.createElement("button");
+      entrada.type = "button";
+      entrada.textContent = "Registrar entrada";
+      entrada.addEventListener("click", () => {
+        if (control.actual || cargando || !sedeId) return;
+        control.preparar("/api/entradas", { socio_id: socioId, sede_id: sedeId });
+        enviar();
+      });
+      contenido.append(entrada);
+    }
     if (datos.visita_abierta) agregar(`Visita abierta desde ${formatearFechaHora(datos.visita_abierta.desde)} · ${datos.visita_abierta.minutos} min`);
     else if (datos.ultima_visita) agregar(`Última visita: ${formatearFechaHora(datos.ultima_visita.desde)} a ${formatearFechaHora(datos.ultima_visita.hasta)}`);
     else agregar("Sin visitas registradas.");
@@ -341,6 +376,22 @@ $("[data-cerrar]").addEventListener("click", async () => {
 async function iniciar() {
   try {
     const [{ usuario }, estado] = await Promise.all([llamarApi("/api/sesion"), llamarApi("/api/estado")]);
+    rolTarjeta = usuario?.rol;
+    if (rolTarjeta === "administracion") {
+      const { socios } = await llamarApi("/api/pagos/socios");
+      $("[data-contenido]").hidden = false;
+      $("[data-entrada]").hidden = true;
+      $("[data-estado]").textContent = "Elegí un socio para ver su tarjeta contextual.";
+      $("[data-visitas]").replaceChildren();
+      for (const socio of socios) {
+        const boton = document.createElement("button");
+        boton.type = "button";
+        boton.textContent = socio.nombre;
+        boton.addEventListener("click", () => abrirTarjeta(socio.id));
+        $("[data-visitas]").append(boton);
+      }
+      return;
+    }
     $("[data-demo]").hidden = !estado.modo_demo;
     if (usuario?.rol !== "recepcion") {
       $("[data-estado]").textContent = "Ingresá como recepción desde el inicio para registrar visitas.";
