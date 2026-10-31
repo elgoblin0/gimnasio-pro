@@ -49,7 +49,7 @@ jobs:
           name: calidad
           path: ruff.txt
 
-  # `pruebas` y `e2e` se parten en fragmentos que corren a la vez (pruebas/conftest.py reparte por GIMNASIO_FRAGMENTO).
+  # `pruebas` (2) y `e2e` (4) se parten en fragmentos que corren a la vez (pruebas/conftest.py reparte por GIMNASIO_FRAGMENTO).
   # Los trabajos `pruebas` y `e2e` de más abajo son la compuerta: conservan el nombre que exige el ruleset de main.
   pruebas-fragmento:
     name: pruebas (${{ matrix.fragmento }}/2)
@@ -104,11 +104,11 @@ jobs:
             registro-*.txt
 
   e2e-fragmento:
-    name: e2e (${{ matrix.fragmento }}/2)
+    name: e2e (${{ matrix.fragmento }}/4)
     strategy:
       fail-fast: false
       matrix:
-        fragmento: [1, 2]
+        fragmento: [1, 2, 3, 4]
     runs-on: ubuntu-latest
     services:
       mysql:
@@ -127,7 +127,7 @@ jobs:
       GIMNASIO_BD_USUARIO: root
       GIMNASIO_BD_CLAVE: solo-ci
       GIMNASIO_BD_NOMBRE: gimnasio_pro
-      GIMNASIO_FRAGMENTO: ${{ matrix.fragmento }}/2
+      GIMNASIO_FRAGMENTO: ${{ matrix.fragmento }}/4
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
