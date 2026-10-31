@@ -21,6 +21,7 @@ def vaciar_datos(cursor):
     cursor.execute("DELETE FROM solicitudes_idempotentes")
     cursor.execute("DELETE FROM cambios_estado_equipo")
     cursor.execute("DELETE FROM equipos")
+    cursor.execute("DELETE FROM borrados_salud")
     while True:
         cursor.execute(
             "DELETE original FROM restricciones_salud original "
