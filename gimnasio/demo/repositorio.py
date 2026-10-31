@@ -17,6 +17,9 @@ def insertar_restriccion(cursor, identificador, socio_id, autor_id, ahora):
 
 def vaciar_datos(cursor):
     """Borra en orden de dependencias, conservando migraciones_aplicadas y las claves foráneas."""
+    cursor.execute("DELETE FROM membresias")
+    cursor.execute("DELETE FROM pagos")
+    cursor.execute("DELETE FROM tipos_membresia")
     cursor.execute("DELETE FROM cambios_sede")
     cursor.execute("DELETE FROM simulacion_demo")
     cursor.execute("DELETE FROM solicitudes_idempotentes")
@@ -69,7 +72,6 @@ def vaciar_datos(cursor):
                 break
     cursor.execute("DELETE FROM consentimientos")
     cursor.execute("DELETE FROM asignaciones_entrenador")
-    cursor.execute("DELETE FROM membresias")
     cursor.execute("DELETE FROM perfiles_entrenamiento")
     cursor.execute("DELETE FROM usuarios")
     cursor.execute("DELETE FROM personas")

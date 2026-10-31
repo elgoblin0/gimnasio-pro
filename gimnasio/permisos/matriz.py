@@ -20,6 +20,7 @@ PERMISOS = {
     "visitas.registrar": {"recepcion"},
     "socios.ver_tarjeta": {"recepcion", "administracion"},
     "pagos.registrar": {"recepcion", "administracion"},
+    "membresias.configurar": {"administracion"},
     "clases.gestionar_reservas": {"recepcion"},
     # Entrenador
     "entrenamiento.ver_asignados": {"entrenador"},

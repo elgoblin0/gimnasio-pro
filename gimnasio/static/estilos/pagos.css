@@ -1,0 +1,9 @@
+.pagos { max-width: 48rem; margin: 0 auto; padding: var(--espacio-4, 1.5rem); }
+.pagos fieldset { display: grid; gap: .75rem; min-width: 0; }
+.pagos input, .pagos select { width: 100%; min-width: 0; box-sizing: border-box; }
+.pagos [role="alert"] { color: var(--peligro); }
+.personal-barra a[hidden] { display: none; }
+#tipos-membresia { margin-top: 3rem; }
+#tipos-membresia fieldset { display: grid; gap: .75rem; min-width: 0; }
+#tipos-membresia input { max-width: 100%; box-sizing: border-box; }
+#tipos-membresia li { margin-block: 1rem; overflow-wrap: anywhere; }

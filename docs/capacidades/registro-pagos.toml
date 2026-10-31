@@ -2,5 +2,7 @@ id = "registro-pagos"
 nombre = "Registro de pagos en guaraníes"
 grupo = "Operación"
 etapa = 5
-nivel = "pendiente"
-prueba = ""
+nivel = "funcional"
+prueba = "pruebas/test_pagos.py"
+# Recorrido de administración y recepción: pruebas/e2e/test_pagos_recepcion.py.
+# Reintento del mismo pago ante un resultado incierto: gimnasio/static/js/pagos.test.js.

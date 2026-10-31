@@ -2,6 +2,7 @@ import { llamarApi } from "@comun/api.js";
 import { crear, exigirRol, prepararBarra } from "@comun/personal.js";
 import { formatearFechaHora } from "@comun/formatos.js";
 import { registrarPwa } from "@comun/pwa.js";
+import { prepararTiposMembresia } from "./tipos-membresia.js";
 
 registrarPwa();
 const $ = (selector) => document.querySelector(selector);
@@ -87,6 +88,6 @@ async function iniciar() {
   prepararBarra(usuario);
   $("[data-formulario]").addEventListener("submit", guardar);
   $("[data-reintentar]").addEventListener("click", cargar);
-  await cargar();
+  await Promise.all([cargar(), prepararTiposMembresia()]);
 }
 iniciar().catch((error) => { $("[data-estado]").textContent = ""; $("[data-error]").textContent = error.message; });
