@@ -21,6 +21,8 @@ RAIZ = Path(__file__).resolve().parent.parent
 ARCHIVO_VERSION = "gimnasio/reglas/version.py"
 VERSION = re.compile(r'VERSION_REGLAS = "(\d+)\.(\d+)\.(\d+)"')
 HECHOS = {
+    "reservas",
+    "cancelaciones_reserva",
     "pagos",
     "cambios_sede",
     "borrados_salud",
