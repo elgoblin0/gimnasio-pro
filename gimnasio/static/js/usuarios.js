@@ -59,6 +59,37 @@ export async function prepararUsuarios() {
     return formulario;
   }
 
+  function cambioEstado(usuario) {
+    const accion = usuario.activo ? "Desactivar" : "Reactivar";
+    const boton = crear("button", { type: "button", className: "boton-borde", onclick: () => {
+      const revocacion = crear("input", { type: "checkbox" });
+      const confirmar = crear("button", { type: "submit", className: "boton-tinta" }, accion);
+      const cancelar = crear("button", { type: "button", onclick: () => dialogo.close() }, "Cancelar");
+      const formulario = crear("form", { onsubmit: async (evento) => {
+        evento.preventDefault();
+        cancelar.disabled = true;
+        const cuerpo = usuario.activo ? { por_revocacion: revocacion.checked } : {};
+        if (await ejecutar(confirmar, `/api/usuarios/${usuario.id}/${usuario.activo ? "desactivar" : "reactivar"}`, "POST", cuerpo)) {
+          entrega.textContent = `Usuario ${usuario.activo ? "desactivado" : "reactivado"}.`;
+          dialogo.close();
+        } else {
+          rechazo.textContent = error.textContent;
+        }
+        cancelar.disabled = false;
+      } }, crear("h3", {}, `${accion} a ${usuario.nombre} ${usuario.apellido}`),
+      crear("p", {}, usuario.activo ? "Se cancelarán sus reservas futuras y se cerrarán sus asignaciones. Su historial se conserva." : "No se restaurarán reservas ni asignaciones."));
+      if (usuario.activo && usuario.rol === "socio") formulario.append(crear("label", {}, revocacion, " A pedido del socio por revocación de datos personales"));
+      const rechazo = crear("p", { role: "alert" });
+      formulario.append(rechazo, confirmar, cancelar);
+      const dialogo = crear("dialog", { "aria-label": `${accion} usuario` }, formulario);
+      dialogo.addEventListener("cancel", (evento) => { if (confirmar.disabled) evento.preventDefault(); });
+      dialogo.addEventListener("close", () => dialogo.remove());
+      panel.append(dialogo);
+      dialogo.showModal();
+    } }, accion);
+    return boton;
+  }
+
   let entrenadores = [];
   async function cargar() {
     estado.textContent = "Cargando usuarios…";
@@ -76,7 +107,7 @@ export async function prepararUsuarios() {
       } while (respuesta.hay_mas);
       lista.replaceChildren(...datos.usuarios.map((usuario) => {
         const restablecer = crear("button", { type: "button", className: "boton-borde", onclick: () => ejecutar(restablecer, `/api/usuarios/${usuario.id}/clave`, "POST") }, "Restablecer clave");
-        return crear("li", {}, crear("p", {}, `${usuario.nombre} ${usuario.apellido} · ${formatearCedula(usuario.cedula)} · ${nombresRol[usuario.rol]} · ${usuario.activo ? "Activo" : "Inactivo"}`), restablecer, ...(usuario.rol === "socio" && usuario.activo ? [asignacion(usuario)] : []));
+        return crear("li", {}, crear("p", {}, `${usuario.nombre} ${usuario.apellido} · ${formatearCedula(usuario.cedula)} · ${nombresRol[usuario.rol]} · ${usuario.activo ? "Activo" : "Inactivo"}`), restablecer, cambioEstado(usuario), ...(usuario.rol === "socio" && usuario.activo ? [asignacion(usuario)] : []));
       }));
       sinEntrenador.replaceChildren(...pendientes.socios.map((socio) => crear("li", {}, crear("p", {}, `${socio.nombre} ${socio.apellido} · ${formatearCedula(socio.cedula)}`), asignacion(socio))));
       if (!pendientes.socios.length) sinEntrenador.append(crear("li", {}, "No hay socios sin entrenador."));

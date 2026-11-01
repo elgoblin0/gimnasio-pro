@@ -230,3 +230,22 @@ def listar_socios_asignados(cursor, entrenador_id):
         (a_bytes(entrenador_id),),
     )
     return cursor.fetchall()
+
+
+def bloquear_administraciones(cursor):
+    cursor.execute("SELECT id FROM usuarios WHERE rol='administracion' AND activo=TRUE ORDER BY id FOR UPDATE")
+    return cursor.fetchall()
+
+
+def cambiar_activo(cursor, usuario_id, activo, momento):
+    cursor.execute(
+        "UPDATE usuarios SET activo=%s, actualizado_en=%s WHERE id=%s",
+        (activo, momento, a_bytes(usuario_id)),
+    )
+
+
+def cerrar_asignaciones(cursor, usuario_id, momento):
+    cursor.execute(
+        "UPDATE asignaciones_entrenador SET hasta=%s WHERE (entrenador_id=%s OR socio_id=%s) AND hasta IS NULL",
+        (momento, a_bytes(usuario_id), a_bytes(usuario_id)),
+    )

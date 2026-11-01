@@ -351,3 +351,9 @@ def registrar_salida_en_transaccion(cursor, entrada_id, autor_id, instante):
 def ocupacion_en_transaccion(cursor, sede_id):
     """Comparte la ocupación vigente sin abrir otra transacción."""
     return repositorio.contar_ocupacion_registrada(cursor, sede_id)
+
+
+def exigir_sin_visita_abierta(cursor, socio_id):
+    """El llamador debe mantener bloqueado al socio durante la comprobación y la baja."""
+    if repositorio.tiene_visita_abierta(cursor, socio_id):
+        raise ErrorDeDominio("visita_abierta", "Registrá la salida del socio antes de desactivarlo.", 409)

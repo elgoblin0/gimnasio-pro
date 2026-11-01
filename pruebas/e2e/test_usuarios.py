@@ -13,6 +13,37 @@ from pruebas.e2e.test_pantallas_entrenador import entrar, socios_de_marcos
 pytestmark = pytest.mark.e2e
 
 
+def test_desactivar_confirma_muestra_rechazo_y_reactiva(pagina_demo, demo_aislada):
+    pagina = pagina_demo
+    entrar(pagina, demo_aislada, "administración")
+    pagina.wait_for_url("**/administracion.html")
+    panel = pagina.locator("#usuarios")
+    fila = panel.locator("[data-usuarios-lista] > li").first
+    fila.get_by_role("button", name="Desactivar", exact=True).click()
+    dialogo = pagina.get_by_role("dialog", name="Desactivar usuario")
+    dialogo.get_by_role("button", name="Cancelar", exact=True).click()
+    expect(dialogo).to_have_count(0)
+    fila.get_by_role("button", name="Desactivar", exact=True).click()
+    dialogo = pagina.get_by_role("dialog", name="Desactivar usuario")
+    dialogo.get_by_role("button", name="Desactivar", exact=True).click()
+    expect(dialogo.get_by_role("alert")).to_contain_text("Este usuario permite entrar como")
+    dialogo.get_by_role("button", name="Cancelar", exact=True).click()
+    # Cuenta ficticia sin acceso rápido de demo: permite comprobar ambos cambios de estado.
+    with demo_aislada.app.app_context(), transaccion() as cursor:
+        crear_usuario(cursor, {"nombre": "Cuenta", "apellido": "Ficticia", "cedula": "8899899"}, "recepcion")
+    panel.get_by_role("searchbox").fill("8899899")
+    panel.get_by_role("button", name="Buscar", exact=True).click()
+    fila = panel.locator("[data-usuarios-lista] > li").filter(has_text="Cuenta Ficticia")
+    fila.get_by_role("button", name="Desactivar", exact=True).click()
+    pagina.get_by_role("dialog").get_by_role("button", name="Desactivar", exact=True).click()
+    expect(fila).to_contain_text("Inactivo")
+    fila.get_by_role("button", name="Reactivar", exact=True).click()
+    dialogo = pagina.get_by_role("dialog")
+    expect(dialogo).to_contain_text("No se restaurarán reservas ni asignaciones")
+    dialogo.get_by_role("button", name="Reactivar", exact=True).click()
+    expect(fila).to_contain_text("Activo")
+
+
 def test_administracion_crea_personal_y_asigna_socio(pagina_demo, demo_aislada):
     pagina = pagina_demo
     errores = entrar(pagina, demo_aislada, "administración")

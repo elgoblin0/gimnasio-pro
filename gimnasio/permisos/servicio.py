@@ -6,7 +6,9 @@ from datetime import UTC, datetime, time, timedelta
 from functools import cache, wraps
 
 from flask import current_app, g, session
+from mysql.connector import Error as ErrorMySQL
 from mysql.connector import IntegrityError
+from mysql.connector.errorcode import ER_LOCK_DEADLOCK as INTERBLOQUEO_MYSQL
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from gimnasio.comun.bd import transaccion
@@ -389,3 +391,62 @@ def socios_asignados(cursor, entrenador_id):
         {**fila, "id": str(desde_bytes(fila["id"]))}
         for fila in repositorio.listar_socios_asignados(cursor, entrenador_id)
     ]
+
+
+def cambiar_estado_usuario(texto, datos, activo, autor):
+    for intento in range(3):
+        try:
+            return _cambiar_estado_usuario(texto, datos, activo, autor)
+        except ErrorMySQL as error:
+            if error.errno != INTERBLOQUEO_MYSQL or intento == 2:
+                raise
+
+
+def _cambiar_estado_usuario(texto, datos, activo, autor):
+    from gimnasio.clases.servicio import cancelar_reservas_por_baja, exigir_sin_clases_a_cargo
+    from gimnasio.visitas.servicio import exigir_sin_visita_abierta
+
+    if datos is None:
+        datos = {}
+    if (
+        not isinstance(datos, dict)
+        or set(datos) - ({"por_revocacion"} if not activo else set())
+        or type(datos.get("por_revocacion", False)) is not bool
+    ):
+        raise ErrorDeDominio("datos_invalidos", "Enviá por_revocacion como verdadero o falso al desactivar.", 422)
+    usuario_id = _id_usuario(texto)
+    ahora = reloj_actual().ahora()
+    momento = ahora.astimezone(UTC).replace(tzinfo=None)
+    with transaccion() as cursor:
+        # Serializa bajas simultáneas de administración antes de bloquear la cuenta elegida.
+        administraciones = repositorio.bloquear_administraciones(cursor)
+        fila = repositorio.buscar_por_id(cursor, usuario_id, bloquear=True)
+        if fila is None:
+            raise ErrorDeDominio("usuario_no_encontrado", "No se encontró el usuario.", 404)
+        if current_app.config["MODO_DEMO"] and fila["es_demo"]:
+            raise ErrorDeDominio("usuario_demo_protegido", "Este usuario permite entrar como… en la demo.", 409)
+        if datos.get("por_revocacion") and fila["rol"] != "socio":
+            raise ErrorDeDominio("datos_invalidos", "La revocación de datos personales corresponde a un socio.", 422)
+        if bool(fila["activo"]) == activo:
+            return {"usuario_id": texto, "activo": activo}
+        if not activo:
+            if fila["rol"] == "socio":
+                exigir_sin_visita_abierta(cursor, usuario_id)
+                cancelar_reservas_por_baja(cursor, usuario_id, desde_texto(autor["id"]), ahora)
+                if datos.get("por_revocacion"):
+                    vigente = repositorio.consentimiento_vigente(cursor, usuario_id, "datos_personales")
+                    registrar_consentimiento(
+                        cursor,
+                        usuario_id,
+                        "datos_personales",
+                        False,
+                        vigente["version_texto"] if vigente else "1",
+                        desde_texto(autor["id"]),
+                    )
+            elif fila["rol"] == "entrenador":
+                exigir_sin_clases_a_cargo(cursor, usuario_id, ahora)
+            elif fila["rol"] == "administracion" and len(administraciones) == 1:
+                raise ErrorDeDominio("ultima_administracion", "Debe quedar una cuenta activa de administración.", 409)
+            repositorio.cerrar_asignaciones(cursor, usuario_id, momento)
+        repositorio.cambiar_activo(cursor, usuario_id, activo, momento)
+    return {"usuario_id": texto, "activo": activo}
