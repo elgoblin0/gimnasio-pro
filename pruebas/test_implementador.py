@@ -811,3 +811,26 @@ def test_sin_cupo_de_codex_la_vuelta_siguiente_la_hace_el_respaldo(atencion, mon
     assert implementador.MARCA_HECHO in hecho and "<!-- implementador:sonnet minutos=" in hecho
     assert "Implementado en esta PC con Sonnet." in hecho
     assert implementador.SESION["atendidos"][-1]["motor"] == "sonnet"
+
+
+def test_el_prompt_de_verificacion_acota_el_reintento_a_los_archivos_del_intento():
+    prompt = implementador.prompt_de_verificacion(["pytest: 1 failed"], ["pruebas/e2e/test_a.py"])
+    assert "pruebas/e2e/test_a.py" in prompt
+    assert "no releas AGENTS.md" in prompt
+    assert "pytest: 1 failed" in prompt
+
+
+def test_el_resumen_de_fallo_descarta_el_ruido_del_servidor():
+    salida = "\n".join(
+        [
+            'INFO     werkzeug:_internal.py:97 127.0.0.1 - - "GET /api/x HTTP/1.1" 200 -',
+            "E   AssertionError: no se ve la ficha",
+            "pruebas/e2e/test_a.py:42: AssertionError",
+            "FAILED pruebas/e2e/test_a.py::test_x - AssertionError",
+            "1 failed, 13 passed in 157.56s",
+        ]
+    )
+    resumen = implementador.resumen_de_fallo(salida)
+    assert "werkzeug" not in resumen
+    assert "FAILED pruebas/e2e/test_a.py::test_x" in resumen
+    assert implementador.resumen_de_fallo("sin indicios\notra") == "sin indicios\notra"
