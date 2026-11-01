@@ -6,7 +6,7 @@ import pytest
 
 from gimnasio.comun.bd import transaccion
 from gimnasio.comun.ids import desde_bytes
-from gimnasio.demo.servicio import CASOS_ACOMPANAMIENTO, reiniciar
+from gimnasio.demo.servicio import CASOS_ACOMPANAMIENTO, DIAS_DE_ALTA_LUCIA, reiniciar
 from gimnasio.entrenador.servicio import consultar_bandeja, consultar_socio
 from gimnasio.visitas.servicio import consultar_tarjeta
 
@@ -69,6 +69,19 @@ def test_los_hitos_salen_de_los_hechos(semilla):
     }
 
 
+def test_lucia_se_dio_de_alta_antes_de_su_historial(semilla):
+    """Su resumen semanal muestra sesiones de hace semanas: el alta y las visitas las acompañan."""
+    socios, marcos = semilla
+    vista = consultar_socio(socios["Lucía"], marcos)
+    assert vista["incorporacion"]["hitos"] == {
+        "programa_asignado": True,
+        "primera_visita": True,
+        "primera_sesion": True,
+    }
+    assert vista["riesgo_abandono"] == []
+    assert consultar_tarjeta(socios["Lucía"])["riesgo_abandono"] == []
+
+
 def test_las_razones_no_llevan_datos_de_salud(semilla):
     socios, _ = semilla
     texto = json.dumps(consultar_tarjeta(socios["Ramón"])["riesgo_abandono"])
@@ -84,6 +97,6 @@ def test_socio_recibe_incorporacion_sin_riesgo(semilla, app_con_bd):
     )
     assert respuesta.status_code == 200, respuesta.get_json()
     cuerpo = cliente.get("/api/yo/incorporacion", headers={"X-Gimnasio": "1"}).get_json()
-    assert cuerpo["incorporacion"]["dia"] == 6
+    assert cuerpo["incorporacion"]["dia"] == DIAS_DE_ALTA_LUCIA + 1
     assert "abandono" not in json.dumps(cuerpo)
     assert "riesgo" not in json.dumps(cuerpo)

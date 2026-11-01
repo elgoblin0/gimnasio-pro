@@ -44,7 +44,7 @@ function filaDeSocio(socio, tipo, nuevos) {
     },
     crear("span", { className: "fila-nombre" }, `${socio.nombre} ${socio.apellido}`),
     crear("span", { className: "fila-antiguedad", title: fechaLegible(motivoDelGrupo) }, antiguedad(motivoDelGrupo, Date.now())),
-    crear("span", { className: "fila-motivos" }, textosDeMotivos(socio.motivos).join(" · "))));
+    crear("span", { className: "fila-motivos" }, textosDeMotivos(socio.motivos, socio.riesgo_abandono).join(" · "))));
 }
 
 function dibujarGrupos(grupos, nuevos = new Set()) {

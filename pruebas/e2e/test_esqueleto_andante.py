@@ -1,6 +1,6 @@
 """Recorrido de etapa 1 con semilla, API y MySQL reales, sin respuestas simuladas."""
 
-from datetime import timedelta
+from datetime import UTC, timedelta
 from urllib.parse import urlparse
 
 import pytest
@@ -94,14 +94,20 @@ def objetivos(propuesta):
 def resumen_bd(instancia, socio_id):
     from gimnasio.comun.ids import desde_texto
 
+    # Las visitas de Lucía en la semilla son de hace dos días o más: se cuentan las del recorrido.
+    desde = (instancia.app.extensions["reloj"].ahora() - timedelta(days=1)).astimezone(UTC).replace(tzinfo=None)
     with instancia.app.app_context(), transaccion() as cursor:
         identificador = desde_texto(socio_id).bytes
         resultado = {}
-        cursor.execute("SELECT COUNT(*) AS cantidad FROM entradas WHERE socio_id=%s", (identificador,))
+        cursor.execute(
+            "SELECT COUNT(*) AS cantidad FROM entradas WHERE socio_id=%s AND registrada_en >= %s",
+            (identificador, desde),
+        )
         resultado["entradas"] = cursor.fetchone()["cantidad"]
         cursor.execute(
-            "SELECT COUNT(*) AS cantidad FROM salidas s JOIN entradas e ON e.id=s.entrada_id WHERE e.socio_id=%s",
-            (identificador,),
+            "SELECT COUNT(*) AS cantidad FROM salidas s JOIN entradas e ON e.id=s.entrada_id "
+            "WHERE e.socio_id=%s AND e.registrada_en >= %s",
+            (identificador, desde),
         )
         resultado["salidas"] = cursor.fetchone()["cantidad"]
         cursor.execute(

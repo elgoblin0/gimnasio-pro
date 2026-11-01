@@ -38,7 +38,9 @@ USUARIOS_DEMO = (
 )
 SOCIOS_ADICIONALES = 36
 SOCIOS_HISTORIAL = 40
-DIAS_DE_ALTA_LUCIA = 5
+# Lucía empieza antes que su programa y su historial (cuatro semanas): viene el día de cada sesión y hace dos días.
+DIAS_DE_ALTA_LUCIA = 29
+DIAS_DE_VISITA_LUCIA = (2, 7, 14, 21)
 # (nombre, apellido, días desde el alta, con programa, hace cuántos días vino): un caso por estado del acompañamiento.
 # La bandeja muestra a cada socio en su grupo más urgente: sin programa, el riesgo no se vería. Tomás no lo
 # necesita, y cada programa suma su propuesta a las consultas de la bandeja.
@@ -779,14 +781,19 @@ def _cargar_acompanamiento(cursor, siguiente_id, ahora, socios, actores, sede_id
         if con_programa:
             _programa_de_una_sesion(cursor, siguiente_id, socio, ejercicio, ahora)
         altas.append((socio, ahora - timedelta(days=dias_de_alta)))
-        for dias in dias_de_visita:
-            fecha = fecha_local(ahora) - timedelta(days=dias)
-            # La sede no abre los domingos y los sábados cierra a las 14.
-            fecha -= timedelta(days=fecha.isoweekday() == 7)
-            entrada = datetime.combine(fecha, time(10), ZONA_SEDE)
-            visitas_de_casos.append((socio, entrada.astimezone(UTC), (entrada + timedelta(hours=1)).astimezone(UTC)))
+        visitas_de_casos.extend(_visita_pasada(ahora, socio, dias) for dias in dias_de_visita)
+    visitas_de_casos.extend(_visita_pasada(ahora, socios[0], dias) for dias in DIAS_DE_VISITA_LUCIA)
     repositorio.fijar_altas(cursor, altas)
     repositorio.insertar_visitas(cursor, sede_id, actores.recepcion, visitas_de_casos, siguiente_id)
+
+
+def _visita_pasada(ahora, socio, dias):
+    """Una visita de una hora a las 10, hace tantos días; la del domingo pasa al sábado, en la misma semana."""
+    fecha = fecha_local(ahora) - timedelta(days=dias)
+    # La sede no abre los domingos y los sábados cierra a las 14.
+    fecha -= timedelta(days=fecha.isoweekday() == 7)
+    entrada = datetime.combine(fecha, time(10), ZONA_SEDE)
+    return socio, entrada.astimezone(UTC), (entrada + timedelta(hours=1)).astimezone(UTC)
 
 
 def _cargar_operacion(cursor, siguiente_id, ahora, socios, actores, ejercicio):
