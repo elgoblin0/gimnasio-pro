@@ -1,0 +1,112 @@
+/* Agenda: una hoja semanal del cuaderno donde el cupo se anota a mano, trazo por trazo. */
+
+.agenda .solo-lector { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
+.agenda p { margin: 0; }
+.agenda-cabecera { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: var(--espacio-1) var(--espacio-4); margin-block: var(--espacio-4) var(--espacio-3); }
+.agenda-cabecera h2 { margin: 0; font-weight: 400; font-size: 1.6rem; }
+.agenda-recepcion { display: grid; grid-template-columns: repeat(auto-fit, minmax(14rem, 22rem)); gap: var(--espacio-3) var(--espacio-4); align-items: end; margin-block-end: var(--espacio-4); padding: var(--espacio-4); background: var(--superficie-elevada); border: 1px solid var(--borde); border-radius: var(--radio-2); }
+.agenda-recepcion label { display: block; }
+.agenda-recepcion select { width: 100%; min-height: 48px; padding-inline: var(--espacio-3); font: inherit; color: var(--texto); background: var(--superficie); border: 1px solid var(--texto-suave); border-radius: var(--radio-1); }
+.agenda-recepcion [data-socios-estado] { grid-column: 1 / -1; }
+.agenda-recepcion [data-socios-estado]:empty { display: none; }
+.agenda-leyenda { display: flex; flex-wrap: wrap; gap: var(--espacio-1) var(--espacio-4); margin: 0 0 var(--espacio-4); padding: 0; list-style: none; font-size: .82rem; }
+.agenda-leyenda li { display: inline-flex; align-items: center; gap: var(--espacio-2); }
+.agenda-vacia { padding-block: var(--espacio-5); font: 400 1.25rem/1.4 var(--fuente-display); color: var(--texto-suave); }
+.agenda-vacia[hidden], .agenda-leyenda[hidden], .agenda-leyenda li[hidden], .agenda-recepcion[hidden] { display: none; }
+
+.semana { margin-block-end: var(--espacio-6); }
+.semana-titulo { margin: 0; padding-block-end: var(--espacio-2); font: 400 1.35rem/1.2 var(--fuente-display); border-block-end: 2px solid var(--texto); }
+.semana-titulo .nota-suave { font: 400 .85rem/1 var(--fuente-texto); margin-inline-start: var(--espacio-2); white-space: nowrap; }
+.semana-dias { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); }
+.dia { min-width: 0; min-height: 11rem; padding: var(--espacio-2) var(--espacio-2) var(--espacio-4); border-inline-start: 1px solid var(--borde); }
+.dia:first-child { border-inline-start: 0; padding-inline-start: 0; }
+.dia:last-child { padding-inline-end: 0; }
+.dia-titulo { margin: 0 0 var(--espacio-3); font: 600 .78rem/1.3 var(--fuente-texto); letter-spacing: .08em; text-transform: uppercase; color: var(--texto-suave); }
+.dia-titulo .nota-suave { display: block; font-size: .78rem; font-weight: 400; letter-spacing: 0; }
+.dia-vacio { font-size: .82rem; opacity: .7; }
+.dia-ocurrencias { display: grid; gap: var(--espacio-3); margin: 0; padding: 0; list-style: none; }
+
+.ocurrencia { position: relative; display: grid; gap: 2px; min-width: 0; padding: var(--espacio-2) var(--espacio-2) var(--espacio-3); background: var(--superficie-elevada); border: 1px solid var(--borde); border-radius: var(--radio-2); }
+.ocurrencia:focus { outline: none; }
+.ocurrencia:focus-visible { outline: 3px solid var(--foco); outline-offset: 2px; }
+.ocurrencia[data-reserva]::before { content: ""; position: absolute; inset: -1px auto -1px -1px; width: 4px; border-radius: var(--radio-2) 0 0 var(--radio-2); background: var(--exito); }
+.ocurrencia[data-reserva="en_espera"]::before { background: var(--alerta); }
+.ocurrencia-hora { font: 400 1.35rem/1.1 var(--fuente-numeros); font-variant-numeric: lining-nums; }
+.ocurrencia-hora .nota-suave { display: block; font: 400 .76rem/1.4 var(--fuente-texto); }
+.ocurrencia-cifras span { white-space: nowrap; }
+.ocurrencia-nombre { margin-block-start: var(--espacio-1) !important; font: 400 1.08rem/1.25 var(--fuente-display); }
+.ocurrencia-entrenador { font-size: .8rem; }
+.ocurrencia-cifras { display: flex; flex-wrap: wrap; gap: 0 var(--espacio-2); margin-block-start: var(--espacio-1) !important; font-size: .78rem; font-variant-numeric: lining-nums; }
+.ocurrencia-acciones { display: grid; gap: var(--espacio-1); justify-items: stretch; margin-block-start: var(--espacio-2); }
+/* El protagonista es el cupo: reservar se ofrece en el color de acento y solo se llena al apuntarle. */
+.ocurrencia-acciones .boton-reservar, .ocurrencia-acciones .boton-borde { width: 100%; padding: var(--espacio-1) var(--espacio-2); font-weight: 600; white-space: normal; min-height: 44px; background: transparent; border-radius: var(--radio-3); cursor: pointer; }
+.personal .ocurrencia-acciones .boton-reservar { color: var(--acento); border: 1.5px solid currentColor; transition: background var(--duracion-1), color var(--duracion-1); }
+.personal .ocurrencia-acciones .boton-reservar:hover:not(:disabled) { color: var(--superficie); background: var(--acento); border-color: var(--acento); }
+.personal .ocurrencia-acciones .boton-reservar:disabled { color: var(--texto-suave); border-style: dashed; cursor: not-allowed; }
+.ocurrencia-acciones .boton-borde { border-color: var(--borde); font-weight: 400; font-size: .92rem; }
+.ocurrencia-sin-lugar { margin-block-start: var(--espacio-1) !important; font-size: .78rem; color: var(--alerta); }
+.ocurrencia-acciones .boton-enlace { justify-self: start; font-size: .86rem; }
+.ocurrencia[data-cancelada] .ocurrencia-hora, .ocurrencia[data-cancelada] .ocurrencia-nombre { color: var(--texto-suave); text-decoration: line-through; text-decoration-thickness: 1px; }
+.ocurrencia[data-cancelada] { background: transparent; }
+
+/* Marcas: un trazo por asiento, como las series anotadas en el margen. */
+.marcas { display: flex; flex-wrap: wrap; align-items: center; gap: var(--espacio-1) var(--espacio-2); margin-block-start: var(--espacio-2); }
+.marcas-cupo, .marcas-espera { display: inline-flex; flex-wrap: wrap; gap: 3px; }
+.marcas-espera { align-items: center; padding-inline-start: var(--espacio-2); border-inline-start: 1px solid var(--texto-suave); }
+.marcas-resto { font-size: .72rem; color: var(--alerta); font-variant-numeric: lining-nums; }
+.marca { display: inline-block; flex: none; width: 8px; height: 18px; border-radius: 2px 3px 2px 3px; transform: skewX(-9deg); box-shadow: inset 0 0 0 1px var(--color-tinta-400); }
+.marca[data-marca="ocupado"] { background: var(--texto); box-shadow: none; }
+.marca[data-marca="propio"] { background: var(--acento); box-shadow: none; }
+.marca-espera { width: 9px; height: 9px; border-radius: 50%; transform: none; box-shadow: inset 0 0 0 1.5px var(--alerta); }
+.marca-espera[data-marca="propio"] { background: var(--alerta); box-shadow: none; }
+.marca[data-vuela] { position: relative; z-index: 2; }
+.barra-cupo { display: block; flex: 1 1 100%; height: 8px; overflow: hidden; border-radius: var(--radio-3); box-shadow: inset 0 0 0 1px var(--color-tinta-400); }
+.barra-cupo > span { display: block; height: 100%; background: var(--texto); transition: width var(--duracion-2) var(--curva-salida); }
+
+.sello-agenda { justify-self: start; margin-block-start: var(--espacio-2); padding: 3px 8px; font: 600 .76rem/1.25 var(--fuente-texto); color: var(--exito); border-radius: var(--radio-1); box-shadow: inset 0 0 0 1.5px currentColor; transform: rotate(-1.5deg); }
+.sello-agenda[data-sello="en_espera"] { color: var(--alerta); }
+.sello-agenda[data-sello="cancelada"] { color: var(--superficie); background: var(--peligro); box-shadow: none; }
+
+/* Movimiento: entra la tinta, se destiñe lo que se libera y el sello cae sobre la tarjeta. */
+.marca[data-entra] { animation: trazo-entra var(--duracion-2) var(--curva-salida) both; }
+.marca[data-sale] { animation: trazo-sale var(--duracion-2) var(--curva-salida) both; }
+.ocurrencia-cifras[data-cambia] { animation: cifra-cambia var(--duracion-3) var(--curva-salida); }
+.ocurrencia[data-cambio="reservo"] .sello-agenda,
+.ocurrencia[data-cambio="quedo_en_espera"] .sello-agenda,
+.ocurrencia[data-cambio="paso_a_tener_lugar"] .sello-agenda,
+.ocurrencia[data-cambio="volvio_a_espera"] .sello-agenda,
+.ocurrencia[data-cambio="cancelada"] .sello-agenda { animation: sello-cae var(--duracion-2) var(--curva-resorte) both; }
+.ocurrencia[data-cambio="paso_a_tener_lugar"] .sello-agenda { animation-delay: calc(var(--duracion-2) * .9); }
+.ocurrencia[data-cambio="paso_a_tener_lugar"] { animation: lugar-ganado calc(var(--duracion-3) * 2) var(--curva-salida); }
+@keyframes trazo-entra { from { clip-path: inset(100% 0 0 0); } to { clip-path: inset(-2px); } }
+@keyframes trazo-sale { from { background: var(--texto); } to { background: transparent; } }
+@keyframes cifra-cambia { from { color: var(--acento); } }
+@keyframes sello-cae { from { opacity: 0; transform: rotate(-7deg) scale(1.7); } to { opacity: 1; transform: rotate(-1.5deg) scale(1); } }
+@keyframes lugar-ganado { 0%, 45% { background: color-mix(in srgb, var(--exito) 22%, var(--superficie-elevada)); } }
+
+.agenda-dialogo { width: min(30rem, calc(100vw - 2rem)); padding: var(--espacio-5); color: var(--texto); background: var(--superficie-elevada); border: 1px solid var(--texto-suave); border-radius: var(--radio-2); }
+.agenda-dialogo::backdrop { background: rgb(22 19 15 / .45); }
+.agenda-dialogo h3 { margin: 0 0 var(--espacio-2); font: 400 1.35rem/1.25 var(--fuente-display); }
+.agenda-dialogo ol { margin: 0 0 var(--espacio-4); padding-inline-start: var(--espacio-5); }
+.agenda-dialogo li { padding-block: var(--espacio-1); }
+.agenda-dialogo form { display: grid; gap: var(--espacio-3); margin-block-start: var(--espacio-3); }
+.agenda-dialogo-cerrar { justify-items: end; }
+.agenda-dialogo-acciones { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: var(--espacio-2); }
+
+/* Sin ancho para siete columnas, cada día es un renglón: la fecha al margen y las clases al lado. */
+@media (max-width: 68rem) {
+  .semana-dias { grid-template-columns: minmax(0, 1fr); }
+  .dia, .dia:first-child, .dia:last-child { display: grid; grid-template-columns: 6.5rem minmax(0, 1fr); gap: var(--espacio-3); min-height: 0; padding: var(--espacio-3) 0; border-inline-start: 0; border-block-end: 1px solid var(--borde); }
+  .dia[data-sin-clases] { display: none; }
+  .dia-titulo { margin: 0; }
+  .dia-ocurrencias { grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr)); }
+  .ocurrencia { padding: var(--espacio-3); }
+  .ocurrencia-hora .nota-suave { display: inline; margin-inline-start: var(--espacio-2); }
+}
+@media (max-width: 40rem) {
+  .dia, .dia:first-child, .dia:last-child { grid-template-columns: minmax(0, 1fr); gap: var(--espacio-2); }
+  .dia-titulo .nota-suave { display: inline; }
+  .dia-ocurrencias { grid-template-columns: minmax(0, 1fr); }
+  .marca:not(.marca-espera) { width: 9px; height: 20px; }
+  .ocurrencia-acciones { grid-template-columns: minmax(0, 1fr); }
+}

@@ -2,11 +2,12 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 import vm from "node:vm";
+import * as agenda from "./clases-agenda.js";
 
 const codigo = readFileSync(new URL("./clases.js", import.meta.url), "utf8")
   .replace(/^import .*;\r?\n/gm, "").replace(/iniciar\(\)\.catch\([\s\S]*$/, "");
 
-function preparar(error) {
+function preparar(error, { reducido = true } = {}) {
   const elementos = new Map();
   const documento = { querySelector: (selector) => obtener(selector), activeElement: null };
   const crear = (etiqueta, propiedades = {}, ...hijos) => ({
@@ -21,6 +22,14 @@ function preparar(error) {
       this.hijos = nuevos;
     },
     focus() { documento.activeElement = this; },
+    replaceWith(nuevo) {
+      if (this.contains(documento.activeElement)) documento.activeElement = null;
+      const reemplazar = (padre) => {
+        padre.hijos = padre.hijos.map((hijo) => (hijo === this ? nuevo : hijo));
+        padre.hijos.forEach((hijo) => hijo?.hijos && reemplazar(hijo));
+      };
+      reemplazar(obtener("[data-agenda]"));
+    },
   });
   const obtener = (selector) => {
     if (!elementos.has(selector)) elementos.set(selector, {
@@ -35,7 +44,8 @@ function preparar(error) {
   let fallo = error;
   let siguienteClave = 0;
   const contexto = vm.createContext({
-    document: documento, crear, registrarPwa() {},
+    document: documento, crear, registrarPwa() {}, ...agenda,
+    fecha: agenda.fechaLegible, matchMedia: () => ({ matches: reducido }),
     crearSondeo: (opciones) => {
       const sondeo = { ...opciones, detenido: false, detener() { this.detenido = true; } };
       sondeos.push(sondeo);
@@ -119,7 +129,7 @@ for (const rol of ["socio", "recepcion"]) {
     pantalla.obtener("[data-socio]").value = "socio";
     await pantalla.ejecutar(`usuario = { rol: "${rol}" }; socios = []; cargar()`);
     const actualizar = pantalla.sondeos[0].alCambiar;
-    const primera = { clase_id: "clase", fecha: "2026-11-01", libres: 2 };
+    const primera = { clase_id: "clase", fecha: "2026-11-01", clase: "Funcional", hora_inicio: "18:00", cupo: 2, libres: 2, espera: 0 };
     const segunda = { ...primera, fecha: "2026-11-02" };
     const datos = (ocurrencias) => ({ desde: primera.fecha, hasta: segunda.fecha, ocurrencias });
     const lista = pantalla.obtener("[data-agenda]");
@@ -139,11 +149,63 @@ for (const rol of ["socio", "recepcion"]) {
 
     lista.querySelectorAll()[0].focus();
     actualizar(datos([{ ...primera, cancelada: true }, segunda]));
-    assert.equal(pantalla.documento.activeElement, null);
+    assert.equal(pantalla.documento.activeElement?.etiqueta, "li", "sin la acción, el foco queda en la tarjeta");
 
     actualizar(datos([primera]));
     lista.querySelectorAll()[0].focus();
     actualizar(datos([{ ...primera, reserva: { id: "reserva", estado: "con_lugar" } }]));
-    assert.equal(pantalla.documento.activeElement, null);
+    assert.equal(pantalla.documento.activeElement?.etiqueta, "li", "un Enter de más no debe cancelar lo recién reservado");
   });
 }
+
+async function agendaConCambio(opciones) {
+  const pantalla = preparar(null, opciones);
+  const fila = { clase_id: "clase", fecha: "2026-11-01", clase: "Funcional", hora_inicio: "18:00", cupo: 2, libres: 2, espera: 0, reserva: null };
+  const otra = { ...fila, clase_id: "otra" };
+  const datos = (ocurrencias) => ({ desde: "2026-10-26", hasta: "2026-11-08", ocurrencias });
+  await pantalla.ejecutar("cargar()");
+  const actualizar = pantalla.sondeos[0].alCambiar;
+  actualizar(datos([fila, otra]));
+  const lista = pantalla.obtener("[data-agenda]");
+  const ajena = lista.querySelectorAll()[1];
+  actualizar(datos([{ ...fila, libres: 1, reserva: { id: "r", estado: "con_lugar" } }, otra]));
+  return { pantalla, lista, ajena };
+}
+
+function buscar(elemento, condicion) {
+  if (condicion(elemento)) return elemento;
+  for (const hijo of elemento.hijos ?? []) {
+    const encontrado = hijo && typeof hijo === "object" ? buscar(hijo, condicion) : null;
+    if (encontrado) return encontrado;
+  }
+  return null;
+}
+
+test("un cambio se anima y solo reemplaza la tarjeta que cambió", async () => {
+  const { lista, ajena, pantalla } = await agendaConCambio({ reducido: false });
+  assert.equal(buscar(lista, (e) => e.etiqueta === "li")["data-cambio"], "reservo");
+  assert.equal(lista.querySelectorAll()[1], ajena);
+  assert.match(pantalla.obtener("[data-anuncio]").textContent, /^Reserva confirmada/);
+});
+
+test("con movimiento reducido llega el mismo estado y el mismo anuncio, sin animación", async () => {
+  const { lista, pantalla } = await agendaConCambio({ reducido: true });
+  const tarjeta = buscar(lista, (e) => e.etiqueta === "li");
+  assert.equal(tarjeta["data-cambio"], undefined);
+  assert.equal(tarjeta["data-reserva"], "con_lugar");
+  assert.equal(buscar(lista, (e) => e["data-entra"]), null);
+  assert.match(pantalla.obtener("[data-anuncio]").textContent, /^Reserva confirmada/);
+});
+
+test("cambiar la hora de una ocurrencia redibuja la semana para reordenar el día", async () => {
+  const pantalla = preparar();
+  const fila = { clase_id: "clase", fecha: "2026-11-01", clase: "Funcional", hora_inicio: "18:00", cupo: 2, libres: 2, espera: 0 };
+  const otra = { ...fila, clase_id: "otra", hora_inicio: "19:00" };
+  const datos = (ocurrencias) => ({ desde: "2026-10-26", hasta: "2026-11-08", ocurrencias });
+  await pantalla.ejecutar("cargar()");
+  const actualizar = pantalla.sondeos[0].alCambiar;
+  actualizar(datos([fila, otra]));
+  actualizar(datos([{ ...fila, hora_inicio: "20:00" }, otra]));
+  const lista = pantalla.obtener("[data-agenda]");
+  assert.deepEqual(JSON.parse(lista.querySelectorAll()[0].dataset.focoAgenda)[0], "otra");
+});
