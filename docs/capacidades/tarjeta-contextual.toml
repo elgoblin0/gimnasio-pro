@@ -13,3 +13,4 @@ prueba = "pruebas/test_tarjeta_contextual.py"
 # Seleccionar un socio permite abrir la tarjeta antes de autorizar su entrada.
 # El formulario conserva socio y datos ante fallos; «Descartar pago» permite
 # abandonarlo salvo cuando hay un envío sin confirmar.
+# #234: entrada vencida, pago desde la tarjeta y entrada sin volver a buscar: pruebas/e2e/test_recorrido_operacion.py.
