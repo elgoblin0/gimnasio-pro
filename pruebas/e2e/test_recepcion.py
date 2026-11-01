@@ -1,7 +1,7 @@
 """Recepción usa API y MySQL reales en escritorio y celular, con hechos aislados."""
 
 import re
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 import pytest
 
@@ -133,18 +133,21 @@ def ingresar(pagina, instancia):
 
 
 def contar(instancia, tabla):
-    """Cuenta los hechos de Lucía sin incluir las visitas históricas de otros socios."""
+    """Cuenta los hechos de Lucía en el recorrido, sin sus visitas de la semilla ni las de otros socios."""
     assert tabla in {"entradas", "salidas"}
+    # Las visitas de Lucía en la semilla son de hace dos días o más.
+    desde = (instancia.app.extensions["reloj"].ahora() - timedelta(days=1)).astimezone(UTC).replace(tzinfo=None)
     with instancia.app.app_context(), transaccion() as cursor:
         cursor.execute(
             f"""SELECT COUNT(*) AS cantidad FROM {tabla} h
                 JOIN usuarios u ON u.id = h.socio_id
-                WHERE u.rol = 'socio' AND u.es_demo = TRUE"""
+                WHERE u.rol = 'socio' AND u.es_demo = TRUE AND h.registrada_en >= %s"""
             if tabla == "entradas"
             else """SELECT COUNT(*) AS cantidad FROM salidas h
                     JOIN entradas e ON e.id = h.entrada_id
                     JOIN usuarios u ON u.id = e.socio_id
-                    WHERE u.rol = 'socio' AND u.es_demo = TRUE"""
+                    WHERE u.rol = 'socio' AND u.es_demo = TRUE AND e.registrada_en >= %s""",
+            (desde,),
         )
         return cursor.fetchone()["cantidad"]
 

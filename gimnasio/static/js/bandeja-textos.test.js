@@ -22,6 +22,14 @@ test("las condiciones sin revisar se muestran junto a dolor y restricción", () 
   ]), ["2 condiciones sin revisar", "Aviso por dolor o restricción"]);
 });
 
+test("el riesgo de abandono muestra sus razones en la fila", () => {
+  assert.deepEqual(textosDeMotivos([{ tipo: "sin_programa" }, { tipo: "riesgo_abandono" }], [
+    { regla: "ausencia", datos: { dias: 10 } },
+    { regla: "membresia_vencida", datos: { hasta: "2026-10-20" } },
+  ]), ["Sin programa", "Riesgo de abandono: 10 días sin venir, Membresía vencida el 20/10/2026"]);
+  assert.deepEqual(textosDeMotivos([{ tipo: "riesgo_abandono" }]), ["Riesgo de abandono"]);
+});
+
 test("la antigüedad no retrocede si el reloj de la sede va adelante del navegador", () => {
   const ahora = Date.parse("2026-10-31T12:00:00Z");
   assert.equal(antiguedad("2026-10-31T12:30:00+00:00", ahora), "recién");

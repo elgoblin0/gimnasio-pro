@@ -45,6 +45,8 @@
   .resumen-semanal h4 { margin: var(--espacio-4) 0 var(--espacio-1); }
   .resumen-semanal ul { margin: 0; padding-inline-start: var(--espacio-5); }
   .resumen-semanal li + li { margin-block-start: var(--espacio-1); }
+  /* El hito lleva su propia marca (✓ u ○): sin viñeta. */
+  [data-incorporacion-hitos] { margin: 0; padding: 0; list-style: none; }
   @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after { animation-duration: 0ms !important; transition-duration: 0ms !important; }
   }

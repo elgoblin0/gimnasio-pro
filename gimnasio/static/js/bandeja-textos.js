@@ -1,5 +1,7 @@
 // Textos de la bandeja y de los avisos, sin DOM: la API entrega códigos y fechas.
 
+import { textosDeRiesgo } from "./acompanamiento-textos.js";
+
 export const GRUPOS_BANDEJA = Object.freeze({
   aviso_seguridad: "Condiciones de salud, dolor o restricción",
   sin_programa: "Sin programa",
@@ -30,14 +32,16 @@ const FRENOS = {
 
 export const textoFreno = (freno) => FRENOS[freno] ?? "Aviso al entrenador";
 
-/** Un socio aparece una sola vez: sus motivos se resumen en una lista sin repetidos, en orden de prioridad. */
-export function textosDeMotivos(motivos) {
+/** Un socio aparece una sola vez: sus motivos se resumen en una lista sin repetidos, en orden de prioridad.
+ *  El riesgo de abandono lleva sus razones, para que el entrenador sepa qué decir sin abrir al socio. */
+export function textosDeMotivos(motivos, riesgo = []) {
   const cuenta = new Map();
   for (const { tipo } of motivos) cuenta.set(tipo, (cuenta.get(tipo) ?? 0) + 1);
   return ["condicion_sin_revisar", ...Object.keys(GRUPOS_BANDEJA)]
     .filter((tipo) => cuenta.has(tipo))
     .map((tipo) => {
       const [uno, varios] = MOTIVOS[tipo];
+      if (tipo === "riesgo_abandono" && riesgo.length) return `${uno}: ${textosDeRiesgo(riesgo).join(", ")}`;
       return cuenta.get(tipo) === 1 ? uno : `${cuenta.get(tipo)} ${varios}`;
     });
 }
