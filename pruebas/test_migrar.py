@@ -1,5 +1,10 @@
+import time
+import uuid
+from concurrent.futures import ThreadPoolExecutor
+
 import pytest
 
+from gimnasio.comun import migrar
 from gimnasio.comun.bd import conectar
 from gimnasio.comun.migrar import ErrorDeMigracion, aplicar, dividir_sentencias, leer_migraciones
 
@@ -80,6 +85,67 @@ def test_falla_si_una_migracion_aplicada_cambio(tmp_path, bd_vacia):
 def test_las_migraciones_del_repo_se_aplican_sobre_una_base_vacia(bd_vacia):
     aplicar(bd_vacia, salida=lambda _: None)
     assert aplicar(bd_vacia, salida=lambda _: None) == []
+
+
+@pytest.mark.bd
+def test_las_migraciones_no_insertan_filas(bd_vacia):
+    """`bd_limpia` vacía todas las tablas entre pruebas: si una migración siembra datos, hay que conservarlos allí."""
+    aplicar(bd_vacia, salida=lambda _: None)
+    conexion = conectar(bd_vacia)
+    cursor = conexion.cursor()
+    cursor.execute("SHOW TABLES")
+    con_filas = []
+    for (tabla,) in cursor.fetchall():
+        cursor.execute(f"SELECT COUNT(*) FROM `{tabla}`")
+        if cursor.fetchone()[0] and tabla != "migraciones_aplicadas":
+            con_filas.append(tabla)
+    conexion.close()
+    assert con_filas == []
+
+
+def _esperar_migracion_frenada(cursor, base):
+    limite = time.monotonic() + 15
+    while time.monotonic() < limite:
+        cursor.execute("SHOW PROCESSLIST")
+        if any(fila[3] == base and fila[6] == "User lock" for fila in cursor.fetchall()):
+            return
+        time.sleep(0.05)
+    pytest.fail("la migración lenta nunca llegó a su freno")
+
+
+@pytest.mark.bd
+def test_el_candado_detiene_solo_a_quien_migra_la_misma_base(tmp_path, bd_vacia, monkeypatch):
+    """GET_LOCK vale para todo el servidor: con un nombre fijo, las pruebas en paralelo migraban en fila."""
+    monkeypatch.setattr(migrar, "SEGUNDOS_DE_ESPERA_DEL_CANDADO", 0)
+    freno = f"prueba_{uuid.uuid4().hex}"
+    lenta, rapida = tmp_path / "lenta", tmp_path / "rapida"
+    lenta.mkdir()
+    rapida.mkdir()
+    escribir(lenta, "0001_lenta.sql", f"DO GET_LOCK('{freno}', 30);")
+    escribir(rapida, "0001_rapida.sql", "CREATE TABLE prueba (x INT);")
+    # 64 caracteres, el máximo de una base: su candado igual debe caber en el límite de GET_LOCK.
+    otra = f"gimnasio_prueba_{uuid.uuid4().hex}{uuid.uuid4().hex}"[:64]
+
+    conexion = conectar(bd_vacia)
+    cursor = conexion.cursor()
+    cursor.execute("SELECT GET_LOCK(%s, 0)", (freno,))
+    assert cursor.fetchone()[0] == 1
+    cursor.execute(f"CREATE DATABASE `{otra}`")
+    try:
+        with ThreadPoolExecutor(max_workers=1) as hilos:
+            en_curso = hilos.submit(aplicar, bd_vacia, lenta, salida=lambda _: None)
+            try:
+                _esperar_migracion_frenada(cursor, bd_vacia["database"])
+                assert aplicar(bd_vacia | {"database": otra}, rapida, salida=lambda _: None) == ["0001"]
+                with pytest.raises(ErrorDeMigracion):
+                    aplicar(bd_vacia, rapida, salida=lambda _: None)
+            finally:
+                cursor.execute("SELECT RELEASE_LOCK(%s)", (freno,))
+                cursor.fetchall()
+            assert en_curso.result() == ["0001"]
+    finally:
+        cursor.execute(f"DROP DATABASE IF EXISTS `{otra}`")
+        conexion.close()
 
 
 @pytest.mark.bd

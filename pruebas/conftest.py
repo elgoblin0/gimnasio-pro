@@ -1,5 +1,6 @@
 import os
 import uuid
+from types import SimpleNamespace
 
 import pytest
 from fragmentos import fragmento_de
@@ -63,6 +64,38 @@ def bd_vacia():
         administracion.close()
 
 
+@pytest.fixture(scope="session")
+def bd_migrada():
+    """Una base con todas las migraciones por proceso: migrar cuesta segundos y vaciarla, milisegundos."""
+    from gimnasio.comun.migrar import aplicar
+
+    nombre = f"gimnasio_prueba_{uuid.uuid4().hex[:10]}"
+    administracion = conectar(parametros_desde_entorno(base=None) | {"database": None})
+    cursor = administracion.cursor()
+    cursor.execute(f"CREATE DATABASE `{nombre}` CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci")
+    try:
+        aplicar(parametros_desde_entorno(base=nombre), salida=lambda _: None)
+        cursor.execute(f"USE `{nombre}`")
+        # Una prueba que deja una transacción abierta falla pronto, en vez de colgar la siguiente.
+        cursor.execute("SET SESSION innodb_lock_wait_timeout = 5, foreign_key_checks = 0")
+        cursor.execute("SHOW TABLES")
+        tablas = [fila[0] for fila in cursor.fetchall() if fila[0] != "migraciones_aplicadas"]
+        yield SimpleNamespace(parametros=parametros_desde_entorno(base=nombre), conexion=administracion, tablas=tablas)
+    finally:
+        cursor.execute(f"DROP DATABASE IF EXISTS `{nombre}`")
+        administracion.close()
+
+
+@pytest.fixture
+def bd_limpia(bd_migrada):
+    """La base migrada de este proceso, sin filas. Las migraciones no insertan datos: equivale a recién migrada."""
+    with bd_migrada.conexion.cursor() as cursor:
+        for tabla in bd_migrada.tablas:
+            cursor.execute(f"DELETE FROM `{tabla}`")
+    bd_migrada.conexion.commit()
+    return dict(bd_migrada.parametros)
+
+
 @pytest.fixture
 def reloj_fijo():
     from datetime import UTC, datetime
@@ -73,12 +106,10 @@ def reloj_fijo():
 
 
 @pytest.fixture
-def app_con_bd(bd_vacia, reloj_fijo):
-    """App de prueba sobre una base vacía con todas las migraciones aplicadas y un RelojFijo."""
+def app_con_bd(bd_limpia, reloj_fijo):
+    """App de prueba sobre una base sin filas con todas las migraciones aplicadas y un RelojFijo."""
     from gimnasio import crear_app
-    from gimnasio.comun.migrar import aplicar
 
-    aplicar(bd_vacia, salida=lambda _: None)
     return crear_app(
-        {"ENTORNO": "prueba", "SECRET_KEY": "solo-pruebas", "MODO_DEMO": False, "BD": bd_vacia}, reloj_fijo
+        {"ENTORNO": "prueba", "SECRET_KEY": "solo-pruebas", "MODO_DEMO": False, "BD": bd_limpia}, reloj_fijo
     )

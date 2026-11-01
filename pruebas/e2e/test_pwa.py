@@ -56,10 +56,8 @@ def servidor_pwa():
 
 
 @pytest.fixture
-def contexto_pwa(playwright):
-    if not Path(playwright.chromium.executable_path).is_file():
-        pytest.skip("sin Chromium: ejecutá playwright install chromium")
-    with playwright.chromium.launch(channel="chromium") as navegador, navegador.new_context(locale="es-PY") as contexto:
+def contexto_pwa(navegador):
+    with navegador.new_context(locale="es-PY") as contexto:
         yield contexto
 
 

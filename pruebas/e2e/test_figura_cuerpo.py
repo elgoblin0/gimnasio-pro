@@ -22,14 +22,11 @@ def abrir_dolor(pagina):
     return formulario
 
 
-def test_si_falla_el_guardado_vuelve_a_la_figura_anterior_y_se_puede_reintentar(demo_aislada, playwright):
+def test_si_falla_el_guardado_vuelve_a_la_figura_anterior_y_se_puede_reintentar(demo_aislada, navegador):
     # Sin service worker: si no, sus pedidos no pasan por la ruta que simula la falla.
-    with (
-        playwright.chromium.launch(channel="chromium") as navegador,
-        navegador.new_context(
-            locale="es-PY", viewport={"width": 390, "height": 844}, service_workers="block"
-        ) as contexto,
-    ):
+    with navegador.new_context(
+        locale="es-PY", viewport={"width": 390, "height": 844}, service_workers="block"
+    ) as contexto:
         pagina = contexto.new_page()
         ingresar(pagina, demo_aislada, "socio")
         formulario = abrir_dolor(pagina)
@@ -52,11 +49,8 @@ def test_si_falla_el_guardado_vuelve_a_la_figura_anterior_y_se_puede_reintentar(
         expect(formulario.get_by_text("No se pudo cambiar la figura", exact=False)).to_have_count(0)
 
 
-def test_lucia_ve_su_figura_y_puede_cambiarla_sin_perder_lo_marcado(demo_aislada, playwright):
-    with (
-        playwright.chromium.launch(channel="chromium") as navegador,
-        navegador.new_context(locale="es-PY", viewport={"width": 390, "height": 844}) as contexto,
-    ):
+def test_lucia_ve_su_figura_y_puede_cambiarla_sin_perder_lo_marcado(demo_aislada, navegador):
+    with navegador.new_context(locale="es-PY", viewport={"width": 390, "height": 844}) as contexto:
         pagina = contexto.new_page()
         modelos = []
         pagina.on("response", lambda r: modelos.append(r.url) if "/vendor/cuerpo@2/" in r.url else None)

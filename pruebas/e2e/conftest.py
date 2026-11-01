@@ -21,62 +21,70 @@ from gimnasio.comun.reloj import RelojFijo
 from gimnasio.demo.servicio import reiniciar
 
 
-@contextmanager
-def servidor_demo(playwright):
-    """Prepara una base exclusiva y la elimina aun si falla la semilla o el recorrido."""
+def _exigir_entorno(playwright):
     if not os.environ.get("GIMNASIO_BD_HOST"):
         pytest.skip("sin MySQL: definí GIMNASIO_BD_HOST para correr los e2e")
-    if not Path(playwright.chromium.executable_path).is_file():
-        pytest.skip("sin Chromium: ejecutá playwright install chromium")
-
+    _exigir_chromium(playwright)
     try:
-        administracion = conectar(parametros_desde_entorno() | {"database": None, "connection_timeout": 5})
+        conectar(parametros_desde_entorno() | {"database": None, "connection_timeout": 5}).close()
     except (InterfaceError, OperationalError):
         pytest.skip("sin MySQL: no se pudo conectar al servidor")
 
-    with administracion, administracion.cursor() as cursor:
-        nombre = f"gimnasio_e2e_{uuid.uuid4().hex}"
-        cursor.execute(f"CREATE DATABASE `{nombre}` CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci")
-        try:
-            parametros = parametros_desde_entorno(base=nombre)
-            aplicar(parametros, salida=lambda _: None)
-            app = crear_app(
-                {"ENTORNO": "prueba", "SECRET_KEY": "solo-e2e", "MODO_DEMO": 1, "BD": parametros},
-                RelojFijo(datetime(2026, 10, 27, 12, 0, tzinfo=UTC)),
-            )
-            with app.app_context():
-                reiniciar()
-            # El reloj fijo nunca desliza la ventana de 60 solicitudes por minuto: un recorrido largo la agotaría.
-            app.extensions["limite_demo"].espera = lambda ip: 0
 
-            with make_server("127.0.0.1", 0, app) as servidor:
-                hilo = Thread(target=servidor.serve_forever, daemon=True)
-                hilo.start()
-                try:
-                    yield SimpleNamespace(url=f"http://127.0.0.1:{servidor.server_port}", app=app)
-                finally:
-                    servidor.shutdown()
-                    hilo.join()
+def _exigir_chromium(playwright):
+    if not Path(playwright.chromium.executable_path).is_file():
+        pytest.skip("sin Chromium: ejecutá playwright install chromium")
+
+
+@contextmanager
+def servidor_demo(parametros):
+    """Siembra la demo sobre una base ya migrada y la sirve mientras dure el bloque."""
+    app = crear_app(
+        {"ENTORNO": "prueba", "SECRET_KEY": "solo-e2e", "MODO_DEMO": 1, "BD": parametros},
+        RelojFijo(datetime(2026, 10, 27, 12, 0, tzinfo=UTC)),
+    )
+    with app.app_context():
+        reiniciar()
+    # El reloj fijo nunca desliza la ventana de 60 solicitudes por minuto: un recorrido largo la agotaría.
+    app.extensions["limite_demo"].espera = lambda ip: 0
+
+    with make_server("127.0.0.1", 0, app) as servidor:
+        hilo = Thread(target=servidor.serve_forever, daemon=True)
+        hilo.start()
+        try:
+            yield SimpleNamespace(url=f"http://127.0.0.1:{servidor.server_port}", app=app)
         finally:
-            cursor.execute(f"DROP DATABASE IF EXISTS `{nombre}`")
+            servidor.shutdown()
+            hilo.join()
 
 
 @pytest.fixture(scope="session")
 def url_base(playwright):
-    with servidor_demo(playwright) as instancia:
-        yield instancia.url
+    """Demo de solo lectura compartida por el proceso, en una base aparte de la que vacía cada caso aislado."""
+    _exigir_entorno(playwright)
+    nombre = f"gimnasio_e2e_{uuid.uuid4().hex}"
+    with conectar(parametros_desde_entorno() | {"database": None}) as administracion, administracion.cursor() as cursor:
+        cursor.execute(f"CREATE DATABASE `{nombre}` CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci")
+        try:
+            parametros = parametros_desde_entorno(base=nombre)
+            aplicar(parametros, salida=lambda _: None)
+            with servidor_demo(parametros) as instancia:
+                yield instancia.url
+        finally:
+            cursor.execute(f"DROP DATABASE IF EXISTS `{nombre}`")
 
 
 @pytest.fixture
-def demo_aislada(playwright):
-    """Cada caso del recorrido recibe migraciones, semilla y hechos independientes."""
-    with servidor_demo(playwright) as instancia:
+def demo_aislada(playwright, request):
+    """Cada caso recibe la base migrada de su proceso, sin filas, con la semilla y sus hechos propios."""
+    _exigir_entorno(playwright)
+    with servidor_demo(request.getfixturevalue("bd_limpia")) as instancia:
         yield instancia
 
 
 @pytest.fixture
-def pagina_demo(demo_aislada, playwright):
-    with playwright.chromium.launch(channel="chromium") as navegador, navegador.new_context(locale="es-PY") as contexto:
+def pagina_demo(demo_aislada, navegador):
+    with navegador.new_context(locale="es-PY") as contexto:
         yield contexto.new_page()
 
 
@@ -145,8 +153,9 @@ def programa_demo(demo_aislada):
 
 
 @pytest.fixture(scope="session")
-def navegador(url_base, playwright):
-    # El canal chromium usa el mismo ejecutable cuya instalación comprueba url_base.
+def navegador(playwright):
+    """Un Chromium por proceso: lanzarlo cuesta casi un segundo y cada contexto ya aísla cookies y almacenamiento."""
+    _exigir_chromium(playwright)
     with playwright.chromium.launch(channel="chromium") as navegador:
         yield navegador
 
