@@ -10,3 +10,6 @@ validacion = "https://github.com/elgoblin0/gimnasio-pro/issues/136"
 # Freno 2: pruebas/reglas/test_restricciones.py y pruebas/test_salud.py (#90).
 
 # Carga de partida del entrenador limitada por el motor, hasta la primera serie en la versión (#181).
+
+# Sin consentimiento de salud el motor no usa restricciones ni dolores y congela carga y repeticiones objetivo (#224, ADR 0025 y 0030, motor 3.2.0).
+# Prescripción ajustada por dolor: pruebas/test_salud_revocada.py; vectores en pruebas/reglas/test_progresion.py.

@@ -182,8 +182,11 @@ def test_equipo_del_ejercicio_solo_importa_si_queda_pendiente(entrenamiento_api,
 
 
 def test_alternativa_segura_fuera_de_servicio_con_original_disponible(entrenamiento_api):
+    from gimnasio.permisos.servicio import registrar_consentimiento
+
     datos = entrenamiento_api
     with datos.app.app_context(), transaccion() as cursor:
+        registrar_consentimiento(cursor, datos.usuarios["socio"], "salud", True, "1", datos.usuarios["socio"])
         original, alternativa, equipo = nuevo_id(), nuevo_id(), nuevo_id()
         cursor.execute(
             "INSERT INTO equipos (id,nombre,creado_en) VALUES (%s,'Equipo alternativo ficticio',%s)",

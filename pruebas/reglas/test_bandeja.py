@@ -14,7 +14,7 @@ def test_orden_entre_grupos():
     entrada = [socio(str(i), (tipo, "2026-10-30")) for i, tipo in enumerate(reversed(GRUPOS))]
     salida = priorizar_bandeja(entrada)
     assert [g.tipo for g in salida] == list(GRUPOS)
-    assert [g.socios[0].id for g in salida] == ["4", "3", "2", "1", "0"]
+    assert [g.socios[0].id for g in salida] == ["5", "4", "3", "2", "1", "0"]
 
 
 def test_antiguedad_empate_y_varios_motivos_sin_mutar():

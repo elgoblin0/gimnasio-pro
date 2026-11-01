@@ -124,6 +124,7 @@ class DatosPropuesta:
     restricciones: tuple[RestriccionSalud, ...] = ()
     equipos_fuera_de_servicio: frozenset[str] = frozenset()
     ejercicios_con_serie_en_version: frozenset[str] = frozenset()
+    consentimiento_salud: bool = True  # Sin él, el motor congela la progresión (ADR 0025).
 
 
 @dataclass(frozen=True)

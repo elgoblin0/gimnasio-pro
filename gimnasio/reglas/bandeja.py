@@ -10,6 +10,7 @@ GRUPOS = (
     "sin_programa",
     "secuencia_terminada",
     "ejercicio_sin_alternativa",
+    "sin_consentimiento_salud",
     "aviso_progresion",
 )
 

@@ -589,10 +589,35 @@ def test_error_durante_generacion_revierte_toda_la_version(programas_api, monkey
 
 
 @pytest.mark.bd
-@pytest.mark.parametrize("tipo", ["ejercicio", "patron", "zona"])
-@pytest.mark.parametrize("consentimiento", [True, False])
-def test_publicacion_restricciones_y_levantamiento(programas_api, reloj_fijo, tipo, consentimiento):
+def test_publicacion_sin_consentimiento_de_salud_no_usa_restricciones(programas_api, reloj_fijo):
     from gimnasio.permisos.servicio import registrar_consentimiento
+
+    app, cliente, socio, fuerza = programas_api
+    with app.app_context(), transaccion() as cursor:
+        cursor.execute("SELECT id FROM usuarios WHERE rol='entrenador' LIMIT 1")
+        autor = desde_bytes(cursor.fetchone()["id"])
+        for otorgado in (True, False):
+            registrar_consentimiento(cursor, desde_texto(socio), "salud", otorgado, "1", autor)
+        cursor.execute(
+            "INSERT INTO restricciones_salud (id,socio_id,ejercicio_id,descripcion,registrada_en,autor_id) "
+            "VALUES (%s,%s,%s,'Detalle ficticio reservado',%s,%s)",
+            (
+                a_bytes(nuevo_id(reloj_fijo)),
+                a_bytes(desde_texto(socio)),
+                a_bytes(desde_texto(fuerza)),
+                reloj_fijo.ahora(),
+                a_bytes(autor),
+            ),
+        )
+    assert publicar(cliente, socio, publicacion(fuerza)).status_code == 201
+
+
+@pytest.mark.bd
+@pytest.mark.parametrize("tipo", ["ejercicio", "patron", "zona"])
+def test_publicacion_restricciones_y_levantamiento(programas_api, reloj_fijo, tipo):
+    from gimnasio.permisos.servicio import registrar_consentimiento
+
+    consentimiento = True
 
     app, cliente, socio, fuerza = programas_api
     catalogo = cliente.get("/api/ejercicios").json["ejercicios"]

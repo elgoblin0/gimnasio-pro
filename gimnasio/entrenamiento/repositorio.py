@@ -351,11 +351,52 @@ def obtener_prescripcion(cursor, sesion_id):
     return cursor.fetchone()
 
 
+def insertar_prescripcion_ajustada(
+    cursor,
+    ajustada_id,
+    sesion_id,
+    prescripcion_efectiva_id,
+    dolor_reportado_id,
+    version_reglas,
+    ejercicios,
+    explicacion,
+    ahora,
+):
+    cursor.execute(
+        """INSERT INTO prescripciones_ajustadas
+           (id, sesion_realizada_id, prescripcion_efectiva_id, dolor_reportado_id,
+            version_reglas, creada_en, ejercicios, explicacion)
+           VALUES (%s,%s,%s,%s,%s,%s,%s,%s)""",
+        (
+            a_bytes(ajustada_id),
+            a_bytes(sesion_id),
+            a_bytes(prescripcion_efectiva_id),
+            a_bytes(dolor_reportado_id),
+            version_reglas,
+            _fecha_utc(ahora),
+            json.dumps(ejercicios, default=str, ensure_ascii=False),
+            json.dumps(explicacion, default=str, ensure_ascii=False),
+        ),
+    )
+
+
+def obtener_prescripcion_ajustada(cursor, sesion_id):
+    """La vigente es la última de la sesión (ADR 0030)."""
+    cursor.execute(
+        """SELECT * FROM prescripciones_ajustadas WHERE sesion_realizada_id=%s
+           ORDER BY creada_en DESC, id DESC LIMIT 1 FOR SHARE""",
+        (a_bytes(sesion_id),),
+    )
+    return cursor.fetchone()
+
+
 def listar_prescripciones(cursor, socio_id):
     cursor.execute(
         """SELECT p.*, s.sesion_planificada_id, s.creada_en AS sesion_creada_en,
                   (SELECT MAX(d.registrado_en) FROM dolores_reportados d
                    WHERE d.sesion_realizada_id=s.id AND NOT d.anonimizada) AS ultimo_dolor,
+                  (SELECT a.ejercicios FROM prescripciones_ajustadas a WHERE a.sesion_realizada_id=s.id
+                   ORDER BY a.creada_en DESC, a.id DESC LIMIT 1) AS ejercicios_ajustados,
                   (SELECT JSON_OBJECTAGG(LOWER(BIN_TO_UUID(v.ejercicio_planificado_id)),
                                         LOWER(BIN_TO_UUID(v.ejercicio_hecho_id)))
                    FROM sustituciones v WHERE v.sesion_realizada_id=s.id AND NOT EXISTS (

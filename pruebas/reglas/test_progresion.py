@@ -8,6 +8,7 @@ import pytest
 
 from gimnasio.comun.reloj import fecha_local, inicio_de_semana
 from gimnasio.comun.tipos import (
+    Chequeo,
     DatosPropuesta,
     EjercicioCatalogo,
     EjercicioPlanificado,
@@ -136,7 +137,7 @@ def entrada(sesiones=None, subas=(), fecha=LUNES):
 )
 def test_vectores_progresion(repeticiones, rir, carga, piso, regla):
     propuesta = proponer_sesion(entrada((historial(repeticiones, rir),)))
-    assert propuesta.version == "3.1.0"
+    assert propuesta.version == "3.2.0"
     assert propuesta.prescripcion[0].carga == Decimal(carga)
     assert propuesta.prescripcion[0].repeticiones_minimas == piso
     assert propuesta.prescripcion[0].repeticiones_maximas == 12
@@ -147,7 +148,7 @@ def test_vectores_progresion(repeticiones, rir, carga, piso, regla):
         assert razones[regla]["rir_minimo"] == "1"
         assert razones[regla]["rir_objetivo"] == "2"
     assert propuesta.frenos == ()
-    assert all(r.version == "3.1.0" and dict(r.datos)["explicacion"] for r in propuesta.explicacion)
+    assert all(r.version == "3.2.0" and dict(r.datos)["explicacion"] for r in propuesta.explicacion)
 
 
 def test_bajar_carga_tras_dos_fallos_y_nunca_menor_que_cero():
@@ -229,7 +230,7 @@ def test_carga_base_minima_no_depende_del_orden(cargas):
     razon = next(r for r in propuesta.explicacion if r.regla == "subir_carga")
     assert dict(razon.datos)["carga_base"] == "35"
     assert "35 kg" in dict(razon.datos)["explicacion"]
-    assert propuesta.version == "3.1.0"
+    assert propuesta.version == "3.2.0"
 
 
 @pytest.mark.parametrize(
@@ -415,3 +416,61 @@ def test_tope_actua_despues_de_partida_que_sigue_siendo_suba():
     propuesta = proponer_sesion(datos)
     assert propuesta.prescripcion[0].carga == Decimal("40")
     assert "tope_semanal" in propuesta.frenos
+
+
+@pytest.mark.parametrize(
+    "repeticiones,rir",
+    [((12, 12, 12), (2, 3, 2)), ((10, 10, 10), (2, 2, 2)), ((12, 12, 12), (1, 1, 1))],
+)
+def test_sin_consentimiento_de_salud_no_sube_carga_ni_repeticiones(repeticiones, rir):
+    datos = replace(entrada((historial(repeticiones, rir),)), consentimiento_salud=False)
+    propuesta = proponer_sesion(datos)
+    prescripcion = propuesta.prescripcion[0]
+    assert prescripcion.carga == Decimal("40")
+    assert prescripcion.repeticiones_minimas == 8
+    reglas = {r.regla for r in propuesta.explicacion}
+    assert "sin_consentimiento_salud" in reglas
+    assert not reglas & {"subir_carga", "mantener_carga", "mantener_por_rir", "tope_semanal"}
+    assert propuesta.frenos == ()
+    razon = next(r for r in propuesta.explicacion if r.regla == "sin_consentimiento_salud")
+    assert razon.version == propuesta.version == "3.2.0"
+    assert "consentimiento de salud" in dict(razon.datos)["explicacion"]
+
+
+def test_con_consentimiento_de_salud_es_igual_que_antes():
+    datos = entrada()
+    assert datos.consentimiento_salud is True
+    propuesta = proponer_sesion(datos)
+    assert propuesta.prescripcion[0].carga == Decimal("42.5")
+    assert "sin_consentimiento_salud" not in {r.regla for r in propuesta.explicacion}
+
+
+def test_sin_consentimiento_el_chequeo_malo_todavia_baja_y_la_carga_congelada_no_cuenta_como_suba():
+    datos = replace(entrada(), consentimiento_salud=False, chequeo=Chequeo(1, 1))
+    propuesta = proponer_sesion(datos)
+    assert propuesta.prescripcion[0].series == 2
+    assert propuesta.prescripcion[0].carga == Decimal("40")
+    assert propuesta.frenos == ("chequeo_desfavorable",)
+    assert "chequeo_desfavorable" in {r.regla for r in propuesta.explicacion}
+
+
+def test_sin_consentimiento_el_tope_semanal_no_interviene_y_la_baja_por_fallos_sigue():
+    congelada = replace(entrada(subas=(SubaCarga("sentadilla", LUNES),)), consentimiento_salud=False)
+    assert proponer_sesion(congelada).frenos == ()
+    anterior = historial((7, 7, 7), fecha=LUNES - timedelta(days=7), identificador="primera")
+    ultima = historial((6, 6, 6))
+    propuesta = proponer_sesion(replace(entrada((anterior, ultima)), consentimiento_salud=False))
+    assert propuesta.prescripcion[0].carga == Decimal("37.5")
+    reglas = {r.regla for r in propuesta.explicacion}
+    assert "bajar_carga" in reglas
+    assert "sin_consentimiento_salud" not in reglas
+
+
+def test_sin_consentimiento_la_carga_de_partida_sigue_valiendo_y_no_cuenta_como_suba():
+    planificado = replace(EJERCICIO, carga_partida=Decimal("30"))
+    programa = ProgramaEntrenamiento((SesionPlanificada("proxima", (planificado,)),))
+    propuesta = proponer_sesion(replace(entrada(), programa=programa, consentimiento_salud=False))
+    assert propuesta.prescripcion[0].carga == Decimal("30")
+    reglas = {r.regla for r in propuesta.explicacion}
+    assert {"carga_partida_entrenador", "sin_consentimiento_salud"} <= reglas
+    assert "subir_carga" not in reglas
