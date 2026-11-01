@@ -12,3 +12,23 @@ def restricciones_vigentes(cursor, socio_id):
         (a_bytes(socio_id),),
     )
     return cursor.fetchall()
+
+
+VERSION_TEXTO = "salud-1"
+TEXTO_CONSENTIMIENTO = (
+    "Autorizo el tratamiento de mis condiciones de salud, restricciones de salud y dolores reportados "
+    "para adaptar mi entrenamiento y aplicar los frenos de seguridad. Mi entrenador asignado puede "
+    "consultar mi ficha de salud. Puedo revocar este consentimiento desde Mi ficha. "
+    "Revocar conserva mis datos: mis restricciones dejan de protegerme y no tendré subas automáticas "
+    "hasta que otorgue de nuevo el consentimiento."
+)
+
+
+def consentimiento_vigente(cursor, socio_id):
+    cursor.execute(
+        """SELECT otorgado, version_texto FROM consentimientos
+           WHERE socio_id=%s AND tipo='salud'
+           ORDER BY registrado_en DESC,id DESC LIMIT 1""",
+        (a_bytes(socio_id),),
+    )
+    return cursor.fetchone()

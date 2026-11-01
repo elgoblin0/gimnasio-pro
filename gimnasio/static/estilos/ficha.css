@@ -1,2 +1,2 @@
-[data-personales], [data-perfil] { margin-block: var(--espacio-5); }
+[data-personales], [data-perfil], [data-consentimientos] { margin-block: var(--espacio-5); }
 [data-perfil] select { font: inherit; color: var(--texto); background: var(--superficie); padding: var(--espacio-3); max-width: 100%; }
