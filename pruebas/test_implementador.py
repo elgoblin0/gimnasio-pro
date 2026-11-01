@@ -444,9 +444,12 @@ def repo_en_conflicto(tmp_path):
     def anotar(version):
         sw.write_text(f'const VERSION = "{version}";\nconst A = 1;\n', encoding="utf-8", newline="\n")
         implementador.git("add", "-A", cwd=carpeta)
-        implementador.git("-c", "user.name=p", "-c", "user.email=p@p", "commit", "-qm", version, cwd=carpeta)
+        implementador.git("commit", "-qm", version, cwd=carpeta)
 
     implementador.git("init", "-q", "-b", "main", cwd=carpeta)
+    # En el CI no hay identidad global, y sin ella `merge` falla antes de fusionar.
+    implementador.git("config", "user.name", "prueba", cwd=carpeta)
+    implementador.git("config", "user.email", "prueba@example.com", cwd=carpeta)
     anotar("1")
     implementador.git("checkout", "-qb", "rama", cwd=carpeta)
     anotar("2")
