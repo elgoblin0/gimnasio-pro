@@ -10,7 +10,10 @@ test("resume los motivos de un socio sin repetir filas, en orden de prioridad", 
     { tipo: "aviso_seguridad" },
     { tipo: "aviso_seguridad" },
     { tipo: "ejercicio_sin_alternativa" },
-  ]), ["2 avisos por dolor o restricción", "Ejercicio sin alternativa", "Aviso por chequeo o tope"]);
+    { tipo: "sin_consentimiento_salud" },
+  ]), [
+    "2 avisos por dolor o restricción", "Ejercicio sin alternativa", "Sin consentimiento de salud", "Aviso por chequeo o tope",
+  ]);
 });
 
 test("la antigüedad no retrocede si el reloj de la sede va adelante del navegador", () => {

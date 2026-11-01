@@ -285,5 +285,11 @@ def test_revocar_conserva_las_restricciones_del_socio(app_con_bd):
         sesion["usuario_id"] = str(socio)
     assert guardar(cliente, False).status_code == 200
     with app_con_bd.app_context():
+        assert restricciones_vigentes(socio) == ()
+        with transaccion() as cursor:
+            cursor.execute("SELECT COUNT(*) AS total FROM restricciones_salud WHERE socio_id=%s", (socio.bytes,))
+            assert cursor.fetchone()["total"] >= len(antes)
+    assert guardar(cliente, True).status_code == 200
+    with app_con_bd.app_context():
         assert restricciones_vigentes(socio) == antes
     assert cliente.get("/api/yo/ficha").status_code == 200

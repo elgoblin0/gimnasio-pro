@@ -37,6 +37,7 @@ HECHOS = {
     "chequeos_dia",
     "avisos_entrenador",
     "prescripciones_efectivas",
+    "prescripciones_ajustadas",
     "consentimientos",
     "entradas",
     "salidas",

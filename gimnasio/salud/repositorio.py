@@ -32,3 +32,18 @@ def consentimiento_vigente(cursor, socio_id):
         (a_bytes(socio_id),),
     )
     return cursor.fetchone()
+
+
+def revocaciones_de_socios(cursor, socio_ids):
+    """Socios cuyo último consentimiento de salud es una revocación, en una sola consulta."""
+    if not socio_ids:
+        return []
+    lugares = ",".join(["%s"] * len(socio_ids))
+    cursor.execute(
+        f"""SELECT c.socio_id, c.registrado_en FROM consentimientos c
+            WHERE c.tipo='salud' AND NOT c.otorgado AND c.socio_id IN ({lugares})
+              AND NOT EXISTS (SELECT 1 FROM consentimientos n WHERE n.socio_id=c.socio_id AND n.tipo='salud'
+                              AND (n.registrado_en,n.id)>(c.registrado_en,c.id))""",
+        tuple(a_bytes(socio_id) for socio_id in socio_ids),
+    )
+    return cursor.fetchall()

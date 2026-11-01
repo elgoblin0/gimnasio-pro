@@ -127,6 +127,18 @@ def sin_rir(prescripcion, ejercicio, sesiones):
     )
 
 
+def congelar_progresion(prescripcion, ejercicio):
+    """Sin consentimiento de salud no hay subas automáticas: carga y repeticiones objetivo quedan como estaban."""
+    return prescripcion, razon(
+        "sin_consentimiento_salud",
+        prescripcion,
+        f"Mantenés {numero(prescripcion.carga)} kg en {ejercicio.nombre}: no tenés el consentimiento de salud "
+        "vigente, así que la carga y las repeticiones objetivo no suben hasta que lo otorgues de nuevo.",
+        carga=prescripcion.carga,
+        repeticiones=prescripcion.repeticiones_minimas,
+    )
+
+
 def historial_para_sesion(historial, sesion_planificada_id, semana_local):
     """Excluye solo la misma sesión planificada de esta semana (ADR 0016)."""
     return tuple(
@@ -231,6 +243,8 @@ def _ajustar_ejercicio(planificado, entrada, sesion_planificada_id):
     else:
         ajustada, explicacion = mantener_carga(prescripcion, ejercicio, ultima)
         decisivas = (ultima,)
+    if not entrada.consentimiento_salud and explicacion.regla != "bajar_carga":
+        ajustada, explicacion = congelar_progresion(prescripcion, ejercicio)
     razones = (explicacion,)
     if prescripcion.rir_objetivo is not None and any(s.rir is None for h in decisivas for s in h.series):
         ajustada, explicacion_rir = sin_rir(ajustada, ejercicio, decisivas)

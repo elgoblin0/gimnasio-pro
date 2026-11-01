@@ -20,7 +20,8 @@ def test_bandeja_cubre_estados_y_se_repite(app_con_bd):
             cursor.execute("SELECT id FROM usuarios WHERE rol='entrenador' AND es_demo=TRUE")
             marcos = {"id": str(desde_bytes(cursor.fetchone()["id"])), "rol": "entrenador"}
         primera = consultar_bandeja(marcos)
-        assert all(grupo["socios"] for grupo in primera["grupos"])
+        # La semilla no revoca ningún consentimiento: ese grupo queda vacío.
+        assert all(grupo["socios"] for grupo in primera["grupos"] if grupo["tipo"] != "sin_consentimiento_salud")
         asignados = listar_socios(marcos)
         with transaccion() as cursor:
             cursor.execute(

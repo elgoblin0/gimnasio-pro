@@ -523,9 +523,10 @@ def _comprobar_restricciones(cursor, socio_id, sesiones, catalogo):
         )
         for e in catalogo.values()
     )
+    consentimiento = tiene_consentimiento(cursor, socio_id, "salud")
     choques = choques_con_restricciones(
         (e["ejercicio_id"] for s in sesiones for e in s["ejercicios"]),
-        restricciones_vigentes(socio_id, cursor=cursor),
+        restricciones_vigentes(socio_id, cursor=cursor, consentimiento=consentimiento),
         ejercicios,
         equipos_fuera_de_servicio=frozenset(
             e["equipo"] for e in catalogo.values() if e["estado_equipo"] == "fuera_de_servicio"
@@ -533,7 +534,6 @@ def _comprobar_restricciones(cursor, socio_id, sesiones, catalogo):
     )
     if not choques:
         return
-    consentimiento = tiene_consentimiento(cursor, socio_id, "salud")
     lista = []
     for ejercicio, restriccion, alternativas in choques:
         datos = {

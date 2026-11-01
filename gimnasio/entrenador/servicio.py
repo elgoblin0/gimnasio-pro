@@ -21,7 +21,7 @@ from gimnasio.entrenamiento.servicio import (
 from gimnasio.permisos.servicio import socios_asignados, tiene_asignacion_vigente, tiene_consentimiento
 from gimnasio.programas.servicio import listar_equipos, listar_programas, socios_con_programa
 from gimnasio.reglas.bandeja import priorizar_bandeja
-from gimnasio.salud.servicio import restricciones_vigentes
+from gimnasio.salud.servicio import restricciones_vigentes, revocaciones_de_salud
 
 
 def _exigir_asignacion(cursor, socio_id, entrenador_id):
@@ -75,7 +75,9 @@ def consultar_socio(socio_texto, usuario):
         salud = (
             {
                 "dolores_reportados": dolores_para_entrenador(cursor, socio_id),
-                "restricciones_salud": [asdict(r) for r in restricciones_vigentes(socio_id, cursor=cursor)],
+                "restricciones_salud": [
+                    asdict(r) for r in restricciones_vigentes(socio_id, cursor=cursor, consentimiento=True)
+                ],
             }
             if consentimiento
             else None
@@ -137,6 +139,7 @@ def consultar_bandeja(usuario):
         }
         con_programa = socios_con_programa(cursor, socio_ids)
         asignaciones = repositorio.fechas_asignacion_vigente(cursor, socio_ids, entrenador_id)
+        revocaciones = revocaciones_de_salud(socio_ids, cursor=cursor)
         for socio, socio_id in zip(asignados, socio_ids, strict=True):
             motivos = []
             for aviso in avisos_por_socio.get(socio_id, []):
@@ -173,6 +176,9 @@ def consultar_bandeja(usuario):
                                     "ejercicio_id": ejercicio["id"],
                                 }
                             )
+            if socio_id in revocaciones:
+                fecha = revocaciones[socio_id].replace(tzinfo=UTC).isoformat()
+                motivos.append({"tipo": "sin_consentimiento_salud", "fecha": fecha})
             socios.append({**socio, "motivos": motivos})
     por_id = {s["id"]: s for s in socios}
     grupos = priorizar_bandeja(
