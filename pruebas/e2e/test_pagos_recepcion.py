@@ -5,7 +5,7 @@ import re
 import pytest
 
 expect = pytest.importorskip("playwright.sync_api").expect
-pytestmark = pytest.mark.e2e
+pytestmark = [pytest.mark.e2e, pytest.mark.sin_pagos_ni_clases]
 
 
 @pytest.mark.parametrize("ancho", [1280, 390])

@@ -206,7 +206,7 @@ def test_desplazar_reloj_y_reiniciar_mantiene_recorrido(recorrido, reloj_fijo):
     with app.app_context():
         demo.reiniciar()
         with transaccion() as cursor:
-            cursor.execute("SELECT id FROM usuarios WHERE rol='socio' AND es_demo=TRUE")
+            cursor.execute("SELECT id FROM usuarios WHERE rol='socio' AND es_demo=TRUE ORDER BY id LIMIT 1")
             principal = cursor.fetchone()
             cursor.execute("SELECT id FROM usuarios WHERE rol='recepcion' AND es_demo=TRUE")
             recepcion = cursor.fetchone()

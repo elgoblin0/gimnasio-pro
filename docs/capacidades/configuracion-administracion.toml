@@ -4,4 +4,4 @@ grupo = "Operación"
 etapa = 5
 nivel = "funcional"
 prueba = "pruebas/test_administracion_usuarios.py"
-nota = "Personal, claves provisionales, lista paginada y socios sin entrenador; historial y alcance en pruebas/test_permisos_asignaciones.py. Recorridos del panel y conservación del editor en pruebas/e2e/test_usuarios.py; alta de socios en pruebas/test_socios_alta.py."
+nota = "Desactivaci?n y reactivaci?n con rechazos, revocaci?n de datos personales, cancelaci?n de reservas y cierre de asignaciones; personal, claves provisionales, lista paginada y socios sin entrenador; historial y alcance en pruebas/test_permisos_asignaciones.py. Recorridos del panel y conservación del editor en pruebas/e2e/test_usuarios.py; alta de socios en pruebas/test_socios_alta.py."

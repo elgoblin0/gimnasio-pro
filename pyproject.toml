@@ -18,4 +18,5 @@ addopts = "-ra --strict-markers"
 markers = [
     "bd: necesita MySQL (variables GIMNASIO_BD_*); se salta si no están",
     "e2e: recorrido de punta a punta; necesita MySQL y Chromium",
+    "sin_pagos_ni_clases: el e2e parte de una demo sin pagos, tipos de membresía ni clases",
 ]

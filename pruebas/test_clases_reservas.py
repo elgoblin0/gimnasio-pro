@@ -31,7 +31,7 @@ def entrar(cliente, rol):
 def reservas(app_con_bd, sembrar_demo):
     app = app_con_bd
     app.config["MODO_DEMO"] = True
-    sembrar_demo(app)
+    sembrar_demo(app, sin_pagos_ni_clases=True)
     with app.app_context(), transaccion() as cursor:
         cursor.execute("SELECT id FROM usuarios WHERE rol='socio' ORDER BY id LIMIT 4")
         socios = [str(desde_bytes(r["id"])) for r in cursor.fetchall()]

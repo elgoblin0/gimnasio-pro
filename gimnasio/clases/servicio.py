@@ -181,6 +181,8 @@ def reservar(datos, usuario):
         clase = repositorio.clase_para_reserva(cursor, clase_id)
         if clase is None:
             raise ErrorDeDominio("clase_inexistente", "La clase no existe.", 404)
+        if not repositorio.entrenador_activo(cursor, desde_bytes(clase["entrenador_id"])):
+            raise ErrorDeDominio("entrenador_inactivo", "El entrenador de la clase está desactivado.", 409)
         ocurrencia = repositorio.ocurrencia_para_reserva(cursor, clase_id, fecha)
         candidata = ocurrencia or dict(clase, fecha=fecha)
         if ocurrencia and ocurrencia["cancelada"]:
@@ -371,3 +373,33 @@ def ver_aviso(texto_id, usuario):
             cursor, nuevo_id(), aviso_id, reloj_actual().ahora().astimezone(UTC).replace(tzinfo=None)
         )
     return {"id": texto_id}
+
+
+def cancelar_reservas_por_baja(cursor, socio_id, autor_id, ahora):
+    """Cancela solo reservas futuras en la transacción que mantiene bloqueado al socio."""
+    local = ahora.astimezone(ZoneInfo(repositorio.zona_horaria(cursor))).replace(tzinfo=None)
+    momento = ahora.astimezone(UTC).replace(tzinfo=None)
+    for reserva in repositorio.reservas_para_baja(cursor, socio_id):
+        if _inicio(reserva) <= local:
+            continue
+        clase_id = desde_bytes(reserva["clase_id"])
+        repositorio.clase_para_reserva(cursor, clase_id)
+        ocurrencia = repositorio.ocurrencia_para_reserva(cursor, clase_id, reserva["fecha"])
+        activas = repositorio.reservas_ocurrencia(cursor, ocurrencia["id"])
+        if not any(fila["id"] == reserva["id"] for fila in activas):
+            continue
+        antes = estado_reservas(ocurrencia["cupo"], activas)
+        repositorio.cancelar_reserva(cursor, nuevo_id(), desde_bytes(reserva["id"]), autor_id, momento)
+        despues = estado_reservas(ocurrencia["cupo"], [fila for fila in activas if fila["id"] != reserva["id"]])
+        _avisar_cambios(cursor, ocurrencia, activas, antes, despues, momento)
+
+
+def exigir_sin_clases_a_cargo(cursor, entrenador_id, ahora):
+    local = ahora.astimezone(ZoneInfo(repositorio.zona_horaria(cursor))).replace(tzinfo=None)
+    clases = repositorio.clases_del_entrenador(cursor, entrenador_id)
+    if any(not clase["archivada"] for clase in clases):
+        raise ErrorDeDominio(
+            "clases_a_cargo", "Archivá o reasigná las clases del entrenador antes de desactivarlo.", 409
+        )
+    if repositorio.entrenador_con_reservas_futuras(cursor, entrenador_id, local):
+        raise ErrorDeDominio("clases_a_cargo", "El entrenador tiene ocurrencias futuras con reservas activas.", 409)

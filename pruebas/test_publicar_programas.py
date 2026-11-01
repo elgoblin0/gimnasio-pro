@@ -159,7 +159,7 @@ def programas_api(app_con_bd, sembrar_demo):
     app_con_bd.config["MODO_DEMO"] = True
     sembrar_demo(app_con_bd)
     with app_con_bd.app_context(), transaccion() as cursor:
-        cursor.execute("SELECT id FROM usuarios WHERE rol='socio' AND es_demo=TRUE")
+        cursor.execute("SELECT id FROM usuarios WHERE rol='socio' AND es_demo=TRUE ORDER BY id LIMIT 1")
         socio = str(desde_bytes(cursor.fetchone()["id"]))
     cliente = app_con_bd.test_client()
     cliente.post("/api/sesion/demo/entrenador", headers={"X-Gimnasio": "1"})

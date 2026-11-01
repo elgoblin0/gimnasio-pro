@@ -26,7 +26,7 @@ def escribir(cliente, ruta, cuerpo=None, *, metodo="post", clave=None):
 @pytest.fixture
 def pagos(app_con_bd, sembrar_demo):
     app_con_bd.config["MODO_DEMO"] = True
-    sembrar_demo(app_con_bd)
+    sembrar_demo(app_con_bd, sin_pagos_ni_clases=True)
     cliente = app_con_bd.test_client()
     autor = cliente.post("/api/sesion/demo/administracion", headers={"X-Gimnasio": "1"}).get_json()["usuario"]
     tipo = escribir(cliente, "/api/tipos-membresia", {"nombre": "Mensual", "duracion_dias": 30, "precio": 250000})
@@ -173,8 +173,9 @@ def test_pago_no_toca_visitas_y_reinicio_demo(pagos):
     assert (filas(app, "entradas"), filas(app, "salidas")) == antes
     with app.app_context():
         demo.reiniciar()
-    assert filas(app, "pagos") == []
-    assert filas(app, "tipos_membresia") == []
+    # El reinicio deja los tres tipos y los pagos de la semilla (#233), sin el pago de esta prueba.
+    assert len(filas(app, "tipos_membresia")) == 3
+    assert len(filas(app, "pagos")) == 89
 
 
 @pytest.mark.bd

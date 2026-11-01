@@ -104,7 +104,7 @@ def test_simulados_identificados_y_entrada_real_disponible(app_con_bd, reloj_fij
         simulada = listar_visitas()[0]
         assert consultar_tarjeta(simulada["socio_id"])["socio"]["simulada"]
         with transaccion() as cursor:
-            cursor.execute("SELECT id FROM usuarios WHERE es_demo=TRUE AND rol='socio'")
+            cursor.execute("SELECT id FROM usuarios WHERE es_demo=TRUE AND rol='socio' ORDER BY id LIMIT 1")
             socio = str(desde_bytes(cursor.fetchone()["id"]))
             cursor.execute("SELECT id FROM usuarios WHERE es_demo=TRUE AND rol='recepcion'")
             autor = str(desde_bytes(cursor.fetchone()["id"]))

@@ -8,6 +8,35 @@ def zona_horaria(cursor):
     return cursor.fetchone()["zona_horaria"]
 
 
+def clases_del_entrenador(cursor, entrenador_id):
+    cursor.execute("SELECT * FROM clases WHERE entrenador_id=%s ORDER BY id FOR UPDATE", (a_bytes(entrenador_id),))
+    return cursor.fetchall()
+
+
+def entrenador_con_reservas_futuras(cursor, entrenador_id, ahora_local):
+    cursor.execute(
+        "SELECT r.id FROM clases c JOIN ocurrencias_clase o ON o.clase_id=c.id "
+        "JOIN reservas r ON r.ocurrencia_id=o.id "
+        "LEFT JOIN cancelaciones_reserva x ON x.reserva_id=r.id "
+        "LEFT JOIN cancelaciones_ocurrencia co ON co.ocurrencia_id=o.id "
+        "WHERE c.entrenador_id=%s AND TIMESTAMP(o.fecha,o.hora_inicio)>%s "
+        "AND x.id IS NULL AND co.id IS NULL LIMIT 1 FOR UPDATE",
+        (a_bytes(entrenador_id), ahora_local),
+    )
+    return cursor.fetchone() is not None
+
+
+def reservas_para_baja(cursor, socio_id):
+    cursor.execute(
+        "SELECT r.*, o.clase_id, o.fecha, o.hora_inicio FROM reservas r "
+        "JOIN ocurrencias_clase o ON o.id=r.ocurrencia_id "
+        "LEFT JOIN cancelaciones_reserva x ON x.reserva_id=r.id "
+        "WHERE r.socio_id=%s AND x.id IS NULL ORDER BY o.clase_id,o.fecha,r.id FOR UPDATE",
+        (a_bytes(socio_id),),
+    )
+    return cursor.fetchall()
+
+
 def listar(cursor):
     cursor.execute(
         "SELECT c.*, p.nombre AS entrenador_nombre, p.apellido AS entrenador_apellido "

@@ -3,7 +3,7 @@
 import pytest
 
 expect = pytest.importorskip("playwright.sync_api", reason="sin Playwright").expect
-pytestmark = pytest.mark.e2e
+pytestmark = [pytest.mark.e2e, pytest.mark.sin_pagos_ni_clases]
 
 
 def test_configurar_clase_y_ver_agenda_como_socio(pagina_demo, demo_aislada):

@@ -4,10 +4,11 @@ import json
 import random
 import secrets
 from collections import OrderedDict, deque
-from datetime import UTC, datetime, time, timedelta
+from datetime import UTC, date, datetime, time, timedelta
 from itertools import count
 from math import ceil
 from threading import Lock
+from typing import NamedTuple
 from zoneinfo import ZoneInfo
 
 from flask import current_app
@@ -23,6 +24,7 @@ from gimnasio.demo.nombres import APELLIDOS, NOMBRES
 from gimnasio.permisos import servicio as permisos
 from gimnasio.reglas.simulacion import simular_visitas
 from gimnasio.reglas.version import VERSION_REGLAS
+from gimnasio.salud.borrado import CEDULA_SOCIO_BORRADO_DEMO
 from gimnasio.visitas import servicio as visitas
 
 USUARIOS_DEMO = (
@@ -35,8 +37,29 @@ SOCIOS_ADICIONALES = 36
 SOCIOS_HISTORIAL = 40
 HORARIO_SEDE = {str(dia): [["06:00", "22:00"]] for dia in range(1, 6)}
 HORARIO_SEDE["6"] = [["08:00", "14:00"]]
+TIPOS_MEMBRESIA = (("Mensual", 30, 150_000), ("Trimestral", 90, 400_000), ("Anual", 365, 1_400_000))
+# (nombre, día de la semana, hora, minutos, cupo): ocho clases semanales con Marcos.
+CLASES = (
+    ("Funcional", 1, time(7, 0), 60, 12),
+    ("Funcional de la tarde", 1, time(19, 0), 60, 12),
+    ("Yoga", 2, time(18, 30), 60, 15),
+    ("Pilates", 3, time(9, 0), 50, 10),
+    ("Spinning", 3, time(19, 0), 45, 12),
+    ("Movilidad", 4, time(8, 0), 45, 15),
+    ("Fuerza guiada", 5, time(18, 0), 60, 3),
+    ("Cardio", 6, time(9, 0), 45, 12),
+)
+CLASE_LLENA, CLASE_CON_CUPO, CLASE_CANCELADA = "Fuerza guiada", "Yoga", "Spinning"
 SOLICITUDES_POR_MINUTO = 240
 VENTANA_DE_SOLICITUDES = timedelta(minutes=1)
+
+
+class Actores(NamedTuple):
+    recepcion: object
+    entrenador: object
+    administracion: object
+    mensual: tuple
+    id_pago: object  # Ids aparte: los de los pagos no desplazan a los de las identidades de los recorridos.
 
 
 def id_ficticio(numero, momento):
@@ -198,6 +221,7 @@ def _cargar_programas(cursor, socios, siguiente_id, ahora):
             repositorio.insertar_parcial(
                 cursor, siguiente_id(), siguiente_id(), socio_id, primera, ejercicio_fuerza, ahora
             )
+    return fuerza
 
 
 def _cargar_plantillas(cursor, siguiente_id, ahora, fuerza):
@@ -273,6 +297,7 @@ def generar_personas():
             "rol": rol,
             "es_demo": indice < len(USUARIOS_DEMO),
             "figura_cuerpo": "femenina" if nombre == "Lucía" and indice == 0 else None,
+            "fecha_nacimiento": {0: date(1994, 3, 12), 4: date(1988, 9, 2)}.get(indice),
         }
         for indice, (nombre, apellido, rol) in enumerate(nombres)
     ]
@@ -325,11 +350,19 @@ def reiniciar():
     def siguiente_id():
         return id_ficticio(next(contador), ahora)
 
+    contador_de_pagos = count(1 << 40)
+
+    def id_pago():
+        return id_ficticio(next(contador_de_pagos), ahora)
+
     socios = []
     with transaccion() as cursor:
         repositorio.vaciar_datos(cursor)
         sede_id = siguiente_id()
         repositorio.insertar_sede(cursor, sede_id, ahora, HORARIO_SEDE)
+        tipos = [(id_pago(), nombre, dias, precio) for nombre, dias, precio in TIPOS_MEMBRESIA]
+        repositorio.insertar_tipos_membresia(cursor, tipos, ahora)
+        mensual = tipos[0]
         for persona in personas:
             # La clave se descarta: nunca se imprime ni depende de random.Random(2026).
             usuario_id = permisos.crear_usuario(
@@ -346,14 +379,33 @@ def reiniciar():
                 recepcion_id = usuario_id
             elif persona["rol"] == "entrenador":
                 entrenador_id = usuario_id
+            elif persona["rol"] == "administracion":
+                administracion_id = usuario_id
+        pagos, membresias = [], []
         for socio_id in socios:
             repositorio.insertar_asignacion(cursor, siguiente_id(), socio_id, entrenador_id, ahora)
             # Un único intervalo ficticio por socio: treinta días inclusivos, sin superposiciones.
-            desde = fecha_local(ahora) - (timedelta(days=30) if socio_id == socios[SOCIOS_ADICIONALES] else timedelta())
-            repositorio.insertar_membresia(cursor, siguiente_id(), socio_id, desde, desde + timedelta(days=29), ahora)
+            # El último socio adicional está vencido y el anterior vence en cuatro días.
+            dias_atras = {socios[SOCIOS_ADICIONALES]: 30, socios[SOCIOS_ADICIONALES - 1]: 25}.get(socio_id, 0)
+            desde = fecha_local(ahora) - timedelta(days=dias_atras)
+            pago_id = id_pago()
+            pagos.append(
+                (
+                    pago_id,
+                    socio_id,
+                    mensual[0],
+                    "efectivo",
+                    mensual[3],
+                    recepcion_id,
+                    ahora - timedelta(days=dias_atras),
+                )
+            )
+            membresias.append((siguiente_id(), socio_id, desde, desde + timedelta(days=29), ahora, pago_id, mensual[0]))
+        repositorio.insertar_pagos(cursor, pagos)
+        repositorio.insertar_membresias_con_pago(cursor, membresias)
         historial = generar_visitas(ahora, socios[SOCIOS_ADICIONALES + 1 :])
         repositorio.insertar_visitas(cursor, sede_id, recepcion_id, historial, siguiente_id)
-        _cargar_programas(cursor, socios, siguiente_id, ahora)
+        ejercicio_fuerza = _cargar_programas(cursor, socios, siguiente_id, ahora)
         for nombre in repositorio.nombres_equipos_catalogo(cursor):
             repositorio.insertar_equipo(cursor, siguiente_id(), nombre, ahora)
         repositorio.insertar_restriccion(cursor, siguiente_id(), socios[1], entrenador_id, ahora)
@@ -364,7 +416,9 @@ def reiniciar():
             )
 
         _cargar_simulacion(cursor, siguiente_id, ahora)
-        _cargar_bandeja(cursor, siguiente_id, entrenador_id, ahora)
+        actores = Actores(recepcion_id, entrenador_id, administracion_id, mensual, id_pago)
+        _cargar_bandeja(cursor, siguiente_id, entrenador_id, ahora, actores)
+        _cargar_operacion(cursor, siguiente_id, ahora, socios, actores, ejercicio_fuerza)
 
 
 def _cargar_simulacion(cursor, siguiente_id, ahora):
@@ -372,7 +426,7 @@ def _cargar_simulacion(cursor, siguiente_id, ahora):
         persona = {
             "nombre": "Simulación" if indice == 60 else NOMBRES[indice % len(NOMBRES)],
             "apellido": "demo" if indice == 60 else APELLIDOS[indice % len(APELLIDOS)],
-            "cedula": str(97_000_000 + indice),
+            "cedula": str(97_000_001 + indice),
             "telefono": f"+595970{indice:06d}",
             "correo": "simulacion@demo.gimnasio.invalid" if indice == 60 else f"simulada{indice}@demo.gimnasio.invalid",
         }
@@ -452,7 +506,7 @@ def poner_al_dia():
         repositorio.avanzar_simulacion(cursor, ahora)
 
 
-def _cargar_bandeja(cursor, siguiente_id, entrenador_id, ahora):
+def _cargar_bandeja(cursor, siguiente_id, entrenador_id, ahora, actores):
     """Casos independientes del recorrido y agregados después de sus identidades estables."""
     ejercicio, con_alternativa, sin_alternativa = (siguiente_id() for _ in range(3))
     for identificador, nombre, equipo in (
@@ -491,8 +545,7 @@ def _cargar_bandeja(cursor, siguiente_id, entrenador_id, ahora):
             identificadores=(siguiente_id(), siguiente_id()),
         )
         repositorio.insertar_asignacion(cursor, siguiente_id(), socio, entrenador_id, ahora)
-        desde = fecha_local(ahora)
-        repositorio.insertar_membresia(cursor, siguiente_id(), socio, desde, desde + timedelta(days=29), ahora)
+        _membresia_con_pago(cursor, siguiente_id, ahora, socio, actores)
         permisos.registrar_consentimiento(cursor, socio, "salud", True, "demo-1", socio, identificador=siguiente_id())
         if indice == 3:
             continue  # Socio sin programa.
@@ -542,3 +595,191 @@ def _cargar_bandeja(cursor, siguiente_id, entrenador_id, ahora):
             )
             if indice == 7:
                 repositorio.insertar_revision_aviso(cursor, siguiente_id(), aviso, entrenador_id, ahora)
+
+
+def _proxima_ocurrencia(ahora, dia_semana, hora):
+    """Primera fecha, desde hoy, en que la clase todavía no empezó: la agenda siempre tiene una vigente."""
+    local = ahora.astimezone(ZONA_SEDE).replace(tzinfo=None)
+    dia = local.date()
+    for _ in range(8):
+        if dia.isoweekday() == dia_semana and datetime.combine(dia, hora) > local:
+            return dia
+        dia += timedelta(days=1)
+
+
+def _membresia_con_pago(cursor, siguiente_id, ahora, socio, actores):
+    pago, tipo = actores.id_pago(), actores.mensual
+    repositorio.insertar_pagos(cursor, [(pago, socio, tipo[0], "efectivo", tipo[3], actores.recepcion, ahora)])
+    desde = fecha_local(ahora)
+    repositorio.insertar_membresias_con_pago(
+        cursor, [(siguiente_id(), socio, desde, desde + timedelta(days=29), ahora, pago, tipo[0])]
+    )
+
+
+def _alta_socio(cursor, siguiente_id, ahora, actores, cedula, nombre, apellido, *, entrenador=True, es_demo=False):
+    """Socio ficticio con membresía mensual pagada y consentimiento de salud propio, como los de la semilla."""
+    socio = permisos.crear_usuario(
+        cursor,
+        {
+            "nombre": nombre,
+            "apellido": apellido,
+            "cedula": cedula,
+            "telefono": f"+595950{int(cedula) % 1_000_000:06d}",
+            "correo": f"operacion{cedula}@demo.gimnasio.invalid",
+            "fecha_nacimiento": date(1985 + int(cedula) % 15, 1 + int(cedula) % 12, 1 + int(cedula) % 28),
+        },
+        "socio",
+        clave=secrets.token_urlsafe(32) if es_demo else None,
+        es_demo=es_demo,
+        identificadores=(siguiente_id(), siguiente_id()),
+    )
+    _membresia_con_pago(cursor, siguiente_id, ahora, socio, actores)
+    if entrenador:
+        repositorio.insertar_asignacion(cursor, siguiente_id(), socio, actores.entrenador, ahora)
+    permisos.registrar_consentimiento(cursor, socio, "salud", True, "demo-1", socio, identificador=siguiente_id())
+    return socio
+
+
+def _programa_con_historial(cursor, siguiente_id, socio, ejercicio, ahora):
+    programa, sesion, planificado = siguiente_id(), siguiente_id(), siguiente_id()
+    repositorio.insertar_programa(cursor, programa, socio, ahora)
+    repositorio.insertar_sesion_planificada(cursor, sesion, programa, 1, "Fuerza ficticia")
+    repositorio.insertar_ejercicio_planificado(
+        cursor,
+        planificado,
+        sesion,
+        ejercicio,
+        1,
+        2,
+        repeticiones_minimas=8,
+        repeticiones_maximas=12,
+        rir_objetivo=2,
+        descanso=90,
+        carga="20.50",
+    )
+    repositorio.insertar_historial(
+        cursor, siguiente_id(), (siguiente_id(), siguiente_id()), socio, sesion, planificado, ahora, 12
+    )
+
+
+def _cargar_clases(cursor, siguiente_id, ahora, socios, hugo, actores):
+    """Ocho clases semanales; la llena (con Hugo primero en espera), la de cupo libre y la cancelada ya fijadas."""
+    clases = {nombre: (siguiente_id(), dia, hora, minutos, cupo) for nombre, dia, hora, minutos, cupo in CLASES}
+    repositorio.insertar_clases(
+        cursor,
+        [(i, nombre, dia, hora, minutos, cupo) for nombre, (i, dia, hora, minutos, cupo) in clases.items()],
+        actores.entrenador,
+        ahora,
+    )
+    ocurrencias = {}
+    for nombre in (CLASE_LLENA, CLASE_CON_CUPO, CLASE_CANCELADA):
+        clase, dia, hora, minutos, _ = clases[nombre]
+        ocurrencias[nombre] = siguiente_id()
+        repositorio.insertar_ocurrencia(
+            cursor, ocurrencias[nombre], clase, _proxima_ocurrencia(ahora, dia, hora), hora, minutos, ahora
+        )
+    pedidas = (
+        # Cupo 3: Lucía y otros dos socios tienen lugar; Hugo es el primero de la espera.
+        (CLASE_LLENA, (socios[0], socios[2], socios[3], hugo, socios[4])),
+        (CLASE_CON_CUPO, (socios[6], socios[7])),
+        (CLASE_CANCELADA, (socios[5],)),
+    )
+    base = ahora - timedelta(hours=3)
+    repositorio.insertar_reservas(
+        cursor,
+        [
+            (siguiente_id(), ocurrencias[nombre], socio, base + timedelta(minutes=10 * posicion))
+            for nombre, pedidos in pedidas
+            for posicion, socio in enumerate(pedidos)
+        ],
+    )
+    repositorio.insertar_cancelacion_ocurrencia(
+        cursor,
+        siguiente_id(),
+        ocurrencias[CLASE_CANCELADA],
+        "Mantenimiento de la sala de spinning (ficticio).",
+        actores.administracion,
+        ahora,
+    )
+    repositorio.insertar_aviso_socio(
+        cursor, siguiente_id(), socios[5], ocurrencias[CLASE_CANCELADA], "ocurrencia_cancelada", ahora
+    )
+
+
+def _cargar_operacion(cursor, siguiente_id, ahora, socios, actores, ejercicio):
+    """Casos de la etapa 5, agregados al final para no mover las identidades de los recorridos anteriores."""
+    hugo = _alta_socio(cursor, siguiente_id, ahora, actores, "95000001", "Hugo", "Rolón", es_demo=True)
+    dedicado = _alta_socio(
+        cursor, siguiente_id, ahora, actores, CEDULA_SOCIO_BORRADO_DEMO, "Dalila", "Borrado", es_demo=True
+    )
+    revocado = _alta_socio(cursor, siguiente_id, ahora, actores, "95000002", "Rafael", "Revocado")
+    _alta_socio(cursor, siguiente_id, ahora, actores, "95000003", "Silvia", "Sola", entrenador=False)
+    permisos.registrar_consentimiento(
+        cursor, revocado, "salud", False, "demo-1", revocado, identificador=siguiente_id()
+    )
+    _programa_con_historial(cursor, siguiente_id, revocado, ejercicio, ahora)
+    _cargar_clases(cursor, siguiente_id, ahora, socios, hugo, actores)
+
+    perfiles = (
+        (socios[0], "Ganar fuerza", "intermedia", 3, 60, "Prefiere entrenar por la mañana."),
+        (socios[1], "Mejorar la resistencia", "inicial", 4, 45, "Sin preferencias."),
+        (hugo, "Bajar de peso", "inicial", 3, 45, "Prefiere las clases grupales."),
+        (dedicado, "Mantenerse activa", "intermedia", 2, 60, "Entrena los fines de semana."),
+        (revocado, "Ganar masa muscular", "avanzada", 5, 90, "Prefiere las mancuernas."),
+    )
+    for socio, objetivo, experiencia, disponibilidad, tiempo, preferencias in perfiles:
+        repositorio.insertar_perfil(
+            cursor,
+            socio,
+            {
+                "objetivo": objetivo,
+                "experiencia": experiencia,
+                "disponibilidad_semanal": disponibilidad,
+                "tiempo_por_sesion": tiempo,
+                "preferencias": preferencias,
+            },
+            actores.administracion,
+            ahora,
+        )
+
+    # Salud: una condición sin revisar en la bandeja de Marcos y un aviso para el personal en una tarjeta.
+    repositorio.insertar_condicion(
+        cursor,
+        siguiente_id(),
+        hugo,
+        "Hernia discal leve, sin dolor al caminar (ficticio).",
+        ahora,
+    )
+    repositorio.insertar_aviso_personal(
+        cursor,
+        siguiente_id(),
+        socios[SOCIOS_ADICIONALES - 1],
+        "Prefiere que le avisen por mensaje y no por llamada (ficticio).",
+        actores.administracion,
+        ahora,
+    )
+    # El socio dedicado al borrado tiene datos de salud y una condición ya revisada. Sin programa: cada programa
+    # suma consultas a la bandeja de Marcos y el presupuesto de la demo ya está al límite.
+    condicion = siguiente_id()
+    repositorio.insertar_condicion(
+        cursor, condicion, dedicado, "Asma leve controlada con inhalador (ficticio).", ahora - timedelta(days=2)
+    )
+    repositorio.insertar_revision_condicion(
+        cursor, siguiente_id(), condicion, actores.entrenador, ahora - timedelta(days=1)
+    )
+    repositorio.insertar_restriccion(cursor, siguiente_id(), dedicado, actores.entrenador, ahora)
+    repositorio.insertar_aviso_personal(
+        cursor,
+        siguiente_id(),
+        dedicado,
+        "Avisar antes de subir la intensidad (ficticio).",
+        actores.administracion,
+        ahora,
+    )
+    repositorio.insertar_consultas_ficha(
+        cursor,
+        [
+            (siguiente_id(), socios[0], actores.entrenador, ahora - timedelta(days=dias, hours=horas))
+            for dias, horas in ((3, 1), (2, 4), (1, 2))
+        ],
+    )

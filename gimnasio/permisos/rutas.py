@@ -29,6 +29,22 @@ def listar_usuarios():
     return jsonify(servicio.consultar_usuarios(request.args))
 
 
+@bp_usuarios.post("/usuarios/<usuario_id>/desactivar")
+@servicio.requiere("usuarios.administrar")
+def desactivar_usuario(usuario_id):
+    return jsonify(
+        servicio.cambiar_estado_usuario(usuario_id, request.get_json(silent=True), False, servicio.usuario_actual())
+    )
+
+
+@bp_usuarios.post("/usuarios/<usuario_id>/reactivar")
+@servicio.requiere("usuarios.administrar")
+def reactivar_usuario(usuario_id):
+    return jsonify(
+        servicio.cambiar_estado_usuario(usuario_id, request.get_json(silent=True), True, servicio.usuario_actual())
+    )
+
+
 @bp_usuarios.post("/usuarios/<usuario_id>/clave")
 @servicio.requiere("usuarios.administrar")
 def restablecer_clave(usuario_id):
