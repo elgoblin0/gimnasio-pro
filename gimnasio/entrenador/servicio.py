@@ -21,7 +21,12 @@ from gimnasio.entrenamiento.servicio import (
 from gimnasio.permisos.servicio import socios_asignados, tiene_asignacion_vigente, tiene_consentimiento
 from gimnasio.programas.servicio import listar_equipos, listar_programas, socios_con_programa
 from gimnasio.reglas.bandeja import priorizar_bandeja
-from gimnasio.salud.servicio import restricciones_vigentes, revocaciones_de_salud
+from gimnasio.salud.servicio import (
+    condiciones_para_entrenador,
+    condiciones_pendientes,
+    restricciones_vigentes,
+    revocaciones_de_salud,
+)
 
 
 def _exigir_asignacion(cursor, socio_id, entrenador_id):
@@ -74,6 +79,7 @@ def consultar_socio(socio_texto, usuario):
         }
         salud = (
             {
+                "condiciones": condiciones_para_entrenador(cursor, socio_id),
                 "dolores_reportados": dolores_para_entrenador(cursor, socio_id),
                 "restricciones_salud": [
                     asdict(r) for r in restricciones_vigentes(socio_id, cursor=cursor, consentimiento=True)
@@ -140,8 +146,13 @@ def consultar_bandeja(usuario):
         con_programa = socios_con_programa(cursor, socio_ids)
         asignaciones = repositorio.fechas_asignacion_vigente(cursor, socio_ids, entrenador_id)
         revocaciones = revocaciones_de_salud(socio_ids, cursor=cursor)
+        condiciones = condiciones_pendientes(socio_ids, cursor=cursor)
         for socio, socio_id in zip(asignados, socio_ids, strict=True):
             motivos = []
+            if socio_id in condiciones:
+                motivos.append(
+                    {"tipo": "condicion_sin_revisar", "fecha": condiciones[socio_id].replace(tzinfo=UTC).isoformat()}
+                )
             for aviso in avisos_por_socio.get(socio_id, []):
                 if aviso["id"] in revisados or aviso["freno"] not in {
                     "dolor_reportado",
@@ -174,6 +185,14 @@ def consultar_bandeja(usuario):
                                     "tipo": "ejercicio_sin_alternativa",
                                     "fecha": equipo["ultimo_cambio"],
                                     "ejercicio_id": ejercicio["id"],
+                                }
+                            )
+                        elif "restriccion_salud" in {r["regla"] for r in ejercicio["explicacion"]}:
+                            motivos.append(
+                                {
+                                    "tipo": "ejercicio_sin_alternativa",
+                                    "ejercicio_id": ejercicio["id"],
+                                    "fecha": propuesta["fecha_local"] + "T00:00:00-03:00",
                                 }
                             )
             if socio_id in revocaciones:

@@ -321,7 +321,7 @@ def ajustar_ejercicio(planificado, entrada, sesion_planificada_id):
             )
             for r in entrada.restricciones
         ):
-            ajustada = replace(ajustada, series=0, ejercicio_hecho_id=None)
+            ajustada = replace(ajustada, no_disponible=True, ejercicio_hecho_id=None)
             return (
                 ajustada,
                 razones
@@ -329,7 +329,8 @@ def ajustar_ejercicio(planificado, entrada, sesion_planificada_id):
                     razon(
                         "restriccion_salud",
                         ajustada,
-                        "Se quita el ejercicio por una restricción registrada por tu entrenador.",
+                        "El ejercicio no está disponible por una restricción registrada por tu entrenador. "
+                        "Sigue pendiente.",
                     ),
                 ),
                 frenos + ("restriccion_salud",),
@@ -389,6 +390,15 @@ def ajustar_ejercicio(planificado, entrada, sesion_planificada_id):
                     "El equipo está fuera de servicio y no hay alternativa disponible. Sigue pendiente.",
                 ),
             )
+    if frenos_salud and not ajustada.series and antes_frenos.series:
+        ajustada = replace(ajustada, series=antes_frenos.series, no_disponible=True)
+        razones += (
+            razon(
+                "ejercicio_no_disponible",
+                ajustada,
+                "No hay alternativa compatible con la restricción de salud. Sigue pendiente.",
+            ),
+        )
     razones += razones_dolor + razones_salud
     hecho = next((e for e in entrada.catalogo if e.ejercicio_id == ajustada.ejercicio_hecho_id), ejercicio)
     if ajustada.series and not ajustada.no_disponible and hecho.equipo in entrada.equipos_fuera_de_servicio:

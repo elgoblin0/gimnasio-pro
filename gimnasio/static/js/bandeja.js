@@ -1,5 +1,6 @@
 import { llamarApi } from "@comun/api.js";
 import { montarPerfil } from "./perfil-entrenamiento.js";
+import { montarSalud } from "./salud.js";
 import { formatearCarga, formatearFechaHora } from "@comun/formatos.js";
 import { crearControlDeOperacion } from "@comun/operaciones.js";
 import { crear, exigirRol, prepararBarra } from "@comun/personal.js";
@@ -31,7 +32,7 @@ let sondeo;
 const nombreDeEjercicio = (id) => catalogo.get(id)?.nombre ?? null;
 
 function filaDeSocio(socio, tipo, nuevos) {
-  const motivoDelGrupo = socio.motivos.filter((motivo) => motivo.tipo === tipo).map((motivo) => motivo.fecha).sort()[0];
+  const motivoDelGrupo = socio.motivos.filter((motivo) => motivo.tipo === tipo || tipo === "aviso_seguridad" && motivo.tipo === "condicion_sin_revisar").map((motivo) => motivo.fecha).sort()[0];
   return crear("li", { "data-fila-socio": socio.id, "data-nueva": nuevos.has(socio.id) ? "true" : undefined },
     crear("a", {
       className: "fila-socio",
@@ -147,22 +148,15 @@ function dibujarSesiones(sesiones, programa) {
 
 function dibujarSalud(vista) {
   const contenedor = $("[data-salud]");
-  if (vista.sin_consentimiento) {
-    contenedor.replaceChildren(crear("p", { className: "nota-suave" }, "El socio no dio consentimiento para mostrar sus datos de salud."));
-    return;
+  const clave = `${vista.socio.id}:${vista.sin_consentimiento}:${JSON.stringify(vista.salud)}`;
+  if (contenedor.dataset.saludSocio !== clave) {
+    contenedor.dataset.saludSocio = clave;
+    montarSalud(contenedor, vista.socio.id, () => {
+      sondeo?.invalidar();
+      sondeo?.actualizar();
+      leerSocio(vista.socio.id);
+    });
   }
-  const { dolores_reportados: dolores, restricciones_salud: restricciones } = vista.salud;
-  const filas = [
-    ...restricciones.map((restriccion) => crear("li", {},
-      crear("strong", {}, "Restricción"), ` ${restriccion.descripcion ?? ""}`,
-      crear("span", { className: "nota-suave" }, [restriccion.zona && nombreDeZona(restriccion.zona), restriccion.patron_movimiento, nombreDeEjercicio(restriccion.ejercicio_id)].filter(Boolean).join(" · ")))),
-    ...dolores.map((dolor) => crear("li", {},
-      crear("strong", {}, "Dolor"), ` ${nombreDeZona(dolor.zona)}`,
-      crear("span", { className: "nota-suave" }, dolor.creado_en ? fechaLegible(dolor.creado_en) : ""))),
-  ];
-  contenedor.replaceChildren(filas.length
-    ? crear("ul", { className: "salud-lista" }, filas)
-    : crear("p", { className: "nota-suave" }, "Sin dolores reportados ni restricciones vigentes."));
 }
 
 function dibujarSocio(vista) {

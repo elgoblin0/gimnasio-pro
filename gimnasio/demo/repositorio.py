@@ -17,6 +17,13 @@ def insertar_restriccion(cursor, identificador, socio_id, autor_id, ahora):
 
 def vaciar_datos(cursor):
     """Borra en orden de dependencias, conservando migraciones_aplicadas y las claves foráneas."""
+    cursor.execute("DELETE FROM revisiones_condicion")
+    while True:
+        cursor.execute(
+            "DELETE c FROM condiciones_salud c LEFT JOIN condiciones_salud n ON n.reemplaza_a=c.id WHERE n.id IS NULL"
+        )
+        if cursor.rowcount == 0:
+            break
     cursor.execute("DELETE FROM vistos_aviso_socio")
     cursor.execute("DELETE FROM avisos_socio")
     cursor.execute("DELETE FROM cupos_ocurrencia")

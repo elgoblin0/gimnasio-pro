@@ -7,6 +7,8 @@ los aplica cada servicio. Acá solo se decide si el rol puede intentar la acció
 ROLES = ("socio", "recepcion", "entrenador", "administracion")
 
 PERMISOS = {
+    "salud.declarar_condicion": {"socio"},
+    "salud.gestionar_restricciones": {"entrenador"},
     "clases.cancelar_ocurrencia": {"recepcion", "administracion"},
     "avisos_socio.ver_propios": {"socio"},
     "clases.ver": set(ROLES),

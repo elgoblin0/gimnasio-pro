@@ -10,6 +10,8 @@ from gimnasio.permisos.servicio import requiere
 
 S, R, E, A = "socio", "recepcion", "entrenador", "administracion"
 ESPERADO = {
+    "salud.declarar_condicion": {S},
+    "salud.gestionar_restricciones": {E},
     "clases.cancelar_ocurrencia": {R, A},
     "avisos_socio.ver_propios": {S},
     "clases.ver": {S, R, E, A},

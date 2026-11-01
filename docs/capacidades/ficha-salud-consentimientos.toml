@@ -4,4 +4,4 @@ grupo = "Operación"
 etapa = 5
 nivel = "pendiente"
 prueba = "pruebas/test_socios_ficha.py"
-nota = "#221: datos personales y perfil de entrenamiento implementados y probados en pruebas/test_socios_ficha.py. Consentimiento propio implementado en #223 y probado en pruebas/test_salud.py. La actualización del consentimiento sin lectura posterior está probada en gimnasio/static/js/ficha.test.js. Condiciones y ficha de salud quedan para #225; la capacidad completa sigue pendiente."
+nota = "#221: datos personales y perfil de entrenamiento. #223: consentimiento propio. #225: condiciones, revisiones, restricciones y ficha de salud, con pantallas para socio y entrenador; pruebas/test_salud_condiciones.py y pruebas/test_salud_sesiones.py cubren permisos, reintentos, bandeja y restricciones congeladas por sesión. Recorrido en pruebas/e2e/test_salud.py. Consultas de ficha (#226) y borrado (#229) siguen pendientes."
