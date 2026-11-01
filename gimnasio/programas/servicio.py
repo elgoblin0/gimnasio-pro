@@ -47,9 +47,9 @@ def _leer_catalogo(cursor):
     return ejercicios
 
 
-def listar_ejercicios():
-    with transaccion() as cursor:
-        return list(_leer_catalogo(cursor).values())
+def listar_ejercicios(*, cursor=None):
+    with nullcontext(cursor) if cursor is not None else transaccion() as lectura:
+        return list(_leer_catalogo(lectura).values())
 
 
 def _rechazar_alternativa(identificador, motivo):

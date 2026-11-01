@@ -7,7 +7,7 @@ from gimnasio.comun.bd import LecturaConMemoria, transaccion
 from gimnasio.comun.errores import ErrorDeDominio
 from gimnasio.comun.ids import desde_bytes, nuevo_id
 from gimnasio.comun.reloj import reloj_actual
-from gimnasio.comun.tipos import MotivoBandeja, SocioBandeja
+from gimnasio.comun.tipos import EjercicioCatalogo, MotivoBandeja, SocioBandeja
 from gimnasio.entrenador import repositorio
 from gimnasio.entrenamiento.servicio import (
     avisos_para_entrenador,
@@ -21,7 +21,14 @@ from gimnasio.entrenamiento.servicio import (
 from gimnasio.permisos.servicio import socios_asignados, tiene_asignacion_vigente, tiene_consentimiento
 from gimnasio.programas.servicio import listar_equipos, listar_programas, socios_con_programa
 from gimnasio.reglas.bandeja import priorizar_bandeja
-from gimnasio.salud.servicio import restricciones_vigentes, revocaciones_de_salud
+from gimnasio.reglas.restricciones import excluido
+from gimnasio.salud.servicio import (
+    condiciones_para_entrenador,
+    condiciones_pendientes,
+    historial_restricciones,
+    restricciones_vigentes,
+    revocaciones_de_salud,
+)
 
 
 def _exigir_asignacion(cursor, socio_id, entrenador_id):
@@ -74,6 +81,7 @@ def consultar_socio(socio_texto, usuario):
         }
         salud = (
             {
+                "condiciones": condiciones_para_entrenador(cursor, socio_id),
                 "dolores_reportados": dolores_para_entrenador(cursor, socio_id),
                 "restricciones_salud": [
                     asdict(r) for r in restricciones_vigentes(socio_id, cursor=cursor, consentimiento=True)
@@ -117,6 +125,30 @@ def revisar_avisos(socio_texto, datos, usuario):
     return {"aviso_ids": sorted(str(identificador) for identificador in ids)}
 
 
+def _fecha_restriccion(cursor, socio_id, ejercicio):
+    # consultar_propuesta ya leyó estas filas: LecturaConMemoria evita repetir la consulta.
+    filas = [
+        f for f in historial_restricciones(socio_id, cursor=cursor, consentimiento=True) if f["levantada_en"] is None
+    ]
+    restricciones = restricciones_vigentes(socio_id, cursor=cursor, consentimiento=True, historial=filas)
+    catalogado = EjercicioCatalogo(
+        ejercicio["ejercicio_id"],
+        ejercicio["nombre"],
+        None,
+        patron_movimiento=ejercicio["patron_movimiento"],
+        zonas=tuple(ejercicio["zonas"]),
+    )
+    return (
+        min(
+            fila["registrada_en"]
+            for fila, restriccion in zip(filas, restricciones, strict=True)
+            if excluido(catalogado, (restriccion,))
+        )
+        .replace(tzinfo=UTC)
+        .isoformat()
+    )
+
+
 def consultar_bandeja(usuario):
     """Lectura de asignaciones vigentes; no crea propuestas ni avisos persistidos.
 
@@ -140,8 +172,13 @@ def consultar_bandeja(usuario):
         con_programa = socios_con_programa(cursor, socio_ids)
         asignaciones = repositorio.fechas_asignacion_vigente(cursor, socio_ids, entrenador_id)
         revocaciones = revocaciones_de_salud(socio_ids, cursor=cursor)
+        condiciones = condiciones_pendientes(socio_ids, cursor=cursor)
         for socio, socio_id in zip(asignados, socio_ids, strict=True):
             motivos = []
+            if socio_id in condiciones:
+                motivos.append(
+                    {"tipo": "condicion_sin_revisar", "fecha": condiciones[socio_id].replace(tzinfo=UTC).isoformat()}
+                )
             for aviso in avisos_por_socio.get(socio_id, []):
                 if aviso["id"] in revisados or aviso["freno"] not in {
                     "dolor_reportado",
@@ -174,6 +211,14 @@ def consultar_bandeja(usuario):
                                     "tipo": "ejercicio_sin_alternativa",
                                     "fecha": equipo["ultimo_cambio"],
                                     "ejercicio_id": ejercicio["id"],
+                                }
+                            )
+                        elif "restriccion_salud" in {r["regla"] for r in ejercicio["explicacion"]}:
+                            motivos.append(
+                                {
+                                    "tipo": "ejercicio_sin_alternativa",
+                                    "ejercicio_id": ejercicio["id"],
+                                    "fecha": _fecha_restriccion(cursor, socio_id, ejercicio),
                                 }
                             )
             if socio_id in revocaciones:

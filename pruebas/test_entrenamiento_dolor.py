@@ -54,7 +54,8 @@ def test_sustitucion_vigente_fuera_de_alternativas(monkeypatch, reloj_fijo, prec
         restricciones=(RestriccionSalud(zona="gluteos"),) if freno == "restriccion" else (),
         equipos=frozenset(),
     )[0]
-    assert resultado["objetivos"]["series"] == (0 if freno else 2)
+    assert resultado["objetivos"]["series"] == (0 if freno == "dolor" else 2)
+    assert resultado.get("no_disponible", False) is (freno == "restriccion")
     assert resultado["ejercicio_hecho_id"] == (None if freno else str(hecho_id))
     # La sustitución registrada no vuelve a ofrecerse como alternativa nueva.
     assert catalogos[str(original_id)] == (original,)

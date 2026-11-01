@@ -205,13 +205,28 @@ def prompt_para_codex(pedido, revisiones=""):
     return encabezado + texto + detalle
 
 
-def prompt_de_verificacion(informe):
+def prompt_de_verificacion(informe, archivos=()):
     """El pedido de arreglar lo que la verificación encontró, antes de gastar una vuelta del CI."""
     return (
         "Trabajás en un worktree de la rama de este PR. No hagas commit ni push: lo hace el implementador.\n"
         "La verificación previa a subir falló. Arreglá solo esto, sin salirte del alcance del issue, "
-        f"y no toques `{ARCHIVO_CUERPO}`:\n\n" + "\n".join(informe)
+        f"y no toques `{ARCHIVO_CUERPO}`.\n"
+        "Ya tenés el contexto: abrí solo los archivos de abajo y los de las pruebas que fallan; no releas AGENTS.md, "
+        "VISION.md, el glosario ni las skills, ni corras la suite completa.\n"
+        f"Archivos que cambiaste en este intento: {', '.join(archivos) or 'ninguno'}.\n\n" + "\n".join(informe)
     )
+
+
+LINEAS_DE_FALLO = 25
+INDICIO_DE_FALLO = re.compile(r"^(FAILED|ERROR)\b|^E\s|Error|assert|Timeout|Expected|Locator|\.py:\d+")
+RUIDO_DE_SERVIDOR = re.compile(r"^(INFO|DEBUG|WARNING)\s+\w+:|werkzeug|^\s*$")
+
+
+def resumen_de_fallo(salida, limite=LINEAS_DE_FALLO):
+    """Las líneas de la salida de pytest que dicen qué falló, sin el ruido del servidor; la cola si no hay indicios."""
+    lineas = [linea.rstrip() for linea in (salida or "").splitlines() if not RUIDO_DE_SERVIDOR.search(linea)]
+    indicios = [linea for linea in lineas if INDICIO_DE_FALLO.search(linea)]
+    return "\n".join((indicios or lineas)[-limite:])
 
 
 def tokens_de(salida):
@@ -825,19 +840,27 @@ def python_del_proyecto():
 
 def correr(comando, carpeta, minutos):
     """Corre un comando fuera del sandbox de Codex; devuelve (código, salida). Un tiempo agotado cuenta como fallo."""
+    inicio = time.monotonic()
+    nombre = " ".join(str(p) for p in comando[1:6])[:90]
     try:
         r = subprocess.run(
             comando, cwd=carpeta, capture_output=True, text=True, encoding="utf-8", errors="replace",
             timeout=minutos * 60,
         )  # fmt: skip
     except subprocess.TimeoutExpired:
+        paso(f"⏱ {nombre}: cortado a los {minutos} min")
         return 1, f"Pasaron {minutos} min sin terminar y se lo cortó."
+    paso(f"⏱ {nombre}: {time.monotonic() - inicio:.0f} s (código {r.returncode})")
     return r.returncode, (r.stdout + r.stderr).strip()
 
 
-def archivos_cambiados(carpeta):
-    """Lo que la rama cambia respecto de main, incluidos los archivos nuevos que Codex todavía no agregó."""
-    cambiados = git("diff", "--name-only", "origin/main", cwd=carpeta).stdout.split()
+def archivos_cambiados(carpeta, base="origin/main"):
+    """Lo que cambió respecto de `base`, incluidos los archivos nuevos que Codex todavía no agregó.
+
+    `base` es el commit con que arrancó el intento: así una corrección chica no vuelve a correr las pruebas de
+    todo el PR (el CI ya las corre).
+    """
+    cambiados = git("diff", "--name-only", base, cwd=carpeta).stdout.split()
     nuevos = git("ls-files", "--others", "--exclude-standard", cwd=carpeta).stdout.split()
     return sorted(set(cambiados + nuevos) - {ARCHIVO_CUERPO})
 
@@ -854,16 +877,16 @@ def asegurar_cache(carpeta, archivos):
     return "Subí `VERSION` en `sw.js`: Codex tocó recursos de la PWA sin hacerlo."
 
 
-def verificar(carpeta):
+def verificar(carpeta, base="origin/main"):
     """Formato, ruff y las pruebas del módulo tocado, corridos aquí: el sandbox de Codex a veces no puede.
 
     Devuelve (líneas del informe, True si todo salió bien). Los e2e y la suite completa quedan para el CI, la puerta.
     """
     informe, bien = [], True
-    archivos = archivos_cambiados(carpeta)
-    if (aviso := asegurar_cache(carpeta, archivos)) is not None:
+    archivos = archivos_cambiados(carpeta, base)
+    if (aviso := asegurar_cache(carpeta, archivos_cambiados(carpeta))) is not None:
         informe.append(aviso)
-        archivos = archivos_cambiados(carpeta)
+        archivos = archivos_cambiados(carpeta, base)
     python = python_del_proyecto()
     fuentes = [a for a in archivos if a.endswith(".py") and (carpeta / a).exists()]
     if fuentes:
@@ -886,7 +909,9 @@ def verificar(carpeta):
         )
         cuenta = contar_pruebas(salida)
         detalle = ", ".join(f"{n} {palabra}" for palabra, n in cuenta.items()) or "sin resumen"
-        informe.append(f"pytest ({len(pruebas)} archivos): {detalle}" + ("" if codigo == 0 else f"\n{salida[-800:]}"))
+        informe.append(
+            f"pytest ({len(pruebas)} archivos): {detalle}" + ("" if codigo == 0 else f"\n{resumen_de_fallo(salida)}")
+        )
         if cuenta.get("skipped") and not os.environ.get("GIMNASIO_BD_HOST"):
             informe.append("⚠ Hay pruebas saltadas y no está `GIMNASIO_BD_HOST`: un «skipped» no cuenta como verde.")
         bien = bien and codigo == 0
@@ -913,16 +938,18 @@ def correr_motor(motor, carpeta, prompt, nivel):
     return correr_claude(carpeta, INSTRUCCIONES_RESPALDO + prompt, motor)
 
 
-def corregir_lo_verificado(carpeta, motor, nivel, informe):
+def corregir_lo_verificado(carpeta, motor, nivel, informe, base="origin/main"):
     """Una vuelta para arreglar lo que falló la verificación. Devuelve (informe, bien, tokens); no pierde lo hecho."""
     paso("La verificación falló: pido la corrección antes de subir…")
     try:
-        _, _, tokens = correr_motor(motor, carpeta, prompt_de_verificacion(informe), nivel)
+        _, _, tokens = correr_motor(
+            motor, carpeta, prompt_de_verificacion(informe, archivos_cambiados(carpeta, base)), nivel
+        )
     except (SinCupo, RuntimeError) as error:  # lo que ya hizo se sube igual: el CI sigue siendo la puerta
         paso(f"No se pudo corregir antes de subir: {error}")
         return informe, False, 0
     (carpeta / ARCHIVO_CUERPO).unlink(missing_ok=True)
-    return *verificar(carpeta), tokens
+    return *verificar(carpeta, base), tokens
 
 
 def atender_conflicto_sin_agente(pr, carpeta):
@@ -957,6 +984,7 @@ def atender(pr, pedido, nivel=None, motor="codex"):
     comienzo = time.monotonic()
     paso(f"Preparando el worktree de {rama} (fetch + fusión con main)…")
     carpeta = preparar_worktree(rama, numero_issue)
+    punto_de_partida = git("rev-parse", "HEAD", cwd=carpeta).stdout.strip()
     if cadena.origen_de(pedido) == "conflicto" and atender_conflicto_sin_agente(pr, carpeta):
         return
     paso("Leyendo las revisiones pendientes del PR…")
@@ -997,11 +1025,11 @@ def atender(pr, pedido, nivel=None, motor="codex"):
     if codigo != 0:
         raise RuntimeError(f"{nombre} terminó con código {codigo}.\n\n{texto[-1500:]}")
     paso("Verificando aquí (formato, ruff y pruebas del módulo tocado)…")
-    informe, bien = verificar(carpeta)
+    informe, bien = verificar(carpeta, punto_de_partida)
     paso("\n".join(informe))
     if not bien:
         inicio = time.monotonic()
-        informe, bien, tokens_extra = corregir_lo_verificado(carpeta, motor, nivel, informe)
+        informe, bien, tokens_extra = corregir_lo_verificado(carpeta, motor, nivel, informe, punto_de_partida)
         tokens += tokens_extra
         minutos_codex += (time.monotonic() - inicio) / 60
         paso("\n".join(informe))

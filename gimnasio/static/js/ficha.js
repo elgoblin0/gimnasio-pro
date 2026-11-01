@@ -3,6 +3,7 @@ import { crear, exigirRol, prepararBarra } from "./comun/personal.js";
 import { registrarPwa } from "./comun/pwa.js";
 import { formatearCedula, formatearFecha, formatearTelefono, formatearGuaranies } from "./comun/formatos.js";
 import { montarPerfil } from "./perfil-entrenamiento.js";
+import { montarSalud } from "./salud.js";
 
 registrarPwa();
 const $ = (selector) => document.querySelector(selector);
@@ -65,6 +66,8 @@ async function cargar() {
       $("[data-perfil]").hidden = false;
       await montarConsentimiento();
       await montarPerfil($("[data-perfil]"), ruta);
+      $("[data-salud]").hidden = false;
+      await montarSalud($("[data-salud]"));
     }
   } catch (error) {
     $("[data-estado]").textContent = "";
@@ -112,6 +115,7 @@ function mostrarConsentimiento(contenedor, salud) {
         metodo: "POST", clave, cuerpo: { otorgado: !salud.otorgado, version_texto: salud.version_texto },
       });
       mostrarConsentimiento(contenedor, actualizado);
+      if (typeof montarSalud === "function") montarSalud($("[data-salud]"));
     } catch (error) {
       estado.textContent = error.message;
       boton.disabled = false;

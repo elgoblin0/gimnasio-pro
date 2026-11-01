@@ -293,7 +293,7 @@ def atencion(entorno, tmp_path, monkeypatch):
     monkeypatch.setattr(implementador.cadena, "etiquetar", lambda *a, **k: publicado.etiquetas.append(k))
     monkeypatch.setattr(implementador, "preparar_worktree", lambda rama, numero: carpeta)
     monkeypatch.setattr(implementador, "revisiones_pendientes", lambda numero: "")
-    monkeypatch.setattr(implementador, "verificar", lambda c: (["ruff: sin observaciones"], True))
+    monkeypatch.setattr(implementador, "verificar", lambda c, base=None: (["ruff: sin observaciones"], True))
     monkeypatch.setattr(implementador, "git", lambda *a, **k: SimpleNamespace(stdout=""))
     monkeypatch.setattr(implementador, "ESPERA_REINTENTO_SEGUNDOS", 0)
     return SimpleNamespace(responder=responder, publicado=publicado)
@@ -332,6 +332,15 @@ def test_con_cambios_publica_el_cuerpo_y_cierra_el_pedido(atencion):
     implementador.atender(PR_DE_CODEX, PEDIDO_CORREGIR)
     assert implementador.MARCA_HECHO in atencion.publicado.comentarios[-1]
     assert atencion.publicado.gh == [("pr", "edit", "7", "--body", "Closes #3\n\nCuerpo.")]
+
+
+def test_la_verificacion_compara_contra_el_punto_de_partida_del_intento(atencion, monkeypatch):
+    bases = []
+    atencion.responder("Corregido.", cambios=True)
+    monkeypatch.setattr(implementador, "git", lambda *a, **k: SimpleNamespace(stdout="abc123"))
+    monkeypatch.setattr(implementador, "verificar", lambda c, base=None: bases.append(base) or (["ruff: ok"], True))
+    implementador.atender(PR_DE_CODEX, PEDIDO_CORREGIR)
+    assert bases == ["abc123"]
 
 
 def test_una_duda_reconocida_cierra_el_pedido_sin_cambios(atencion):
@@ -382,7 +391,7 @@ def test_lo_que_falla_la_verificacion_se_corrige_una_vez_antes_de_subir(atencion
         implementador, "correr_codex", lambda c, prompt, nivel=None: (prompts.append(prompt), (0, "Hecho.", 1))[1]
     )
     pendientes = iter(resultados)
-    monkeypatch.setattr(implementador, "verificar", lambda c: (["pytest: 1 failed"], next(pendientes)))
+    monkeypatch.setattr(implementador, "verificar", lambda c, base=None: (["pytest: 1 failed"], next(pendientes)))
     implementador.atender(PR_DE_CODEX, PEDIDO_CORREGIR)
     assert len(prompts) == 2 and "pytest: 1 failed" in prompts[1]
     assert esperado in implementador.SESION["atendidos"][-1]["resultado"]
@@ -400,7 +409,7 @@ def test_si_la_correccion_previa_se_queda_sin_cupo_sube_lo_hecho(atencion, monke
         return 0, "Hecho.", 1
 
     monkeypatch.setattr(implementador, "correr_codex", codex)
-    monkeypatch.setattr(implementador, "verificar", lambda c: (["ruff: con hallazgos"], False))
+    monkeypatch.setattr(implementador, "verificar", lambda c, base=None: (["ruff: con hallazgos"], False))
     implementador.atender(PR_DE_CODEX, PEDIDO_CORREGIR)
     assert implementador.MARCA_HECHO in atencion.publicado.comentarios[-1]
 
@@ -802,3 +811,26 @@ def test_sin_cupo_de_codex_la_vuelta_siguiente_la_hace_el_respaldo(atencion, mon
     assert implementador.MARCA_HECHO in hecho and "<!-- implementador:sonnet minutos=" in hecho
     assert "Implementado en esta PC con Sonnet." in hecho
     assert implementador.SESION["atendidos"][-1]["motor"] == "sonnet"
+
+
+def test_el_prompt_de_verificacion_acota_el_reintento_a_los_archivos_del_intento():
+    prompt = implementador.prompt_de_verificacion(["pytest: 1 failed"], ["pruebas/e2e/test_a.py"])
+    assert "pruebas/e2e/test_a.py" in prompt
+    assert "no releas AGENTS.md" in prompt
+    assert "pytest: 1 failed" in prompt
+
+
+def test_el_resumen_de_fallo_descarta_el_ruido_del_servidor():
+    salida = "\n".join(
+        [
+            'INFO     werkzeug:_internal.py:97 127.0.0.1 - - "GET /api/x HTTP/1.1" 200 -',
+            "E   AssertionError: no se ve la ficha",
+            "pruebas/e2e/test_a.py:42: AssertionError",
+            "FAILED pruebas/e2e/test_a.py::test_x - AssertionError",
+            "1 failed, 13 passed in 157.56s",
+        ]
+    )
+    resumen = implementador.resumen_de_fallo(salida)
+    assert "werkzeug" not in resumen
+    assert "FAILED pruebas/e2e/test_a.py::test_x" in resumen
+    assert implementador.resumen_de_fallo("sin indicios\notra") == "sin indicios\notra"

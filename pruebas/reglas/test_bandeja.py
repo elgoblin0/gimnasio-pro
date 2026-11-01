@@ -35,3 +35,14 @@ def test_antiguedad_empate_y_varios_motivos_sin_mutar():
 
 def test_lista_vacia():
     assert priorizar_bandeja([]) == tuple(GrupoBandeja(tipo, ()) for tipo in GRUPOS)
+
+
+def test_condicion_comparte_primer_grupo_y_antiguedad_con_avisos():
+    entrada = [
+        socio("condicion", ("condicion_sin_revisar", "2026-10-28"), ("sin_programa", "2026-01-01")),
+        socio("aviso", ("aviso_seguridad", "2026-10-29")),
+        socio("ambos", ("aviso_seguridad", "2026-10-30"), ("condicion_sin_revisar", "2026-10-27")),
+    ]
+    salida = priorizar_bandeja(entrada)
+    assert [s.id for s in salida[0].socios] == ["ambos", "condicion", "aviso"]
+    assert dict(salida[0].socios[0].explicacion[0].datos)["fecha"] == "2026-10-27"

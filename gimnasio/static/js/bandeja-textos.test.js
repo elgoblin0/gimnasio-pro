@@ -16,6 +16,12 @@ test("resume los motivos de un socio sin repetir filas, en orden de prioridad", 
   ]);
 });
 
+test("las condiciones sin revisar se muestran junto a dolor y restricción", () => {
+  assert.deepEqual(textosDeMotivos([
+    { tipo: "aviso_seguridad" }, { tipo: "condicion_sin_revisar" }, { tipo: "condicion_sin_revisar" },
+  ]), ["2 condiciones sin revisar", "Aviso por dolor o restricción"]);
+});
+
 test("la antigüedad no retrocede si el reloj de la sede va adelante del navegador", () => {
   const ahora = Date.parse("2026-10-31T12:00:00Z");
   assert.equal(antiguedad("2026-10-31T12:30:00+00:00", ahora), "recién");

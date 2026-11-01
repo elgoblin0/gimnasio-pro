@@ -47,7 +47,8 @@ def aplicar_restricciones(
                         "explicacion",
                         "Se sustituye el ejercicio por una restricción registrada por tu entrenador."
                         if hecho_id
-                        else "Se quita el ejercicio por una restricción registrada por tu entrenador.",
+                        else "El ejercicio no está disponible por una restricción registrada por tu entrenador. "
+                        "Sigue pendiente.",
                     ),
                 ),
             ),

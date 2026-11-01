@@ -1,6 +1,7 @@
 """Revocar el consentimiento de salud: motor sin datos de salud y progresión congelada (ADR 0025 y 0030)."""
 
 import json
+from datetime import timedelta
 from decimal import Decimal
 
 import pytest
@@ -185,7 +186,7 @@ def test_sin_consentimiento_la_propuesta_congela_y_lo_explica(dolor_api):
     propuesta = cliente.get("/api/entrenamiento/propuesta").json
     reglas = {r["regla"] for r in propuesta["explicacion"]}
     assert "subir_carga" not in reglas and "tope_semanal" not in reglas
-    assert propuesta["version_reglas"] == "3.2.0"
+    assert propuesta["version_reglas"] == "3.3.0"
 
 
 def test_ejercicio_excluido_por_restriccion_vuelve_a_proponerse_y_se_excluye_otra_vez(entrenamiento_api):
@@ -207,16 +208,15 @@ def test_ejercicio_excluido_por_restriccion_vuelve_a_proponerse_y_se_excluye_otr
             ),
         )
 
-    def series_propuestas():
-        return [e["objetivos"]["series"] for e in cliente.get("/api/entrenamiento/propuesta").json["ejercicios"]]
+    def indisponibles():
+        return [e["no_disponible"] for e in cliente.get("/api/entrenamiento/propuesta").json["ejercicios"]]
 
-    excluidos = series_propuestas()
-    assert 0 in excluidos
+    excluidos = indisponibles()
+    assert all(excluidos)
     consentir(datos, False)
-    revocado = series_propuestas()
-    assert 0 not in revocado
+    assert not any(indisponibles())
     consentir(datos, True)
-    assert series_propuestas() == excluidos
+    assert indisponibles() == excluidos
     with datos.app.app_context(), transaccion() as cursor:
         cursor.execute(
             "SELECT COUNT(*) AS n FROM restricciones_salud WHERE socio_id=%s", (a_bytes(datos.usuarios["socio"]),)
@@ -224,13 +224,14 @@ def test_ejercicio_excluido_por_restriccion_vuelve_a_proponerse_y_se_excluye_otr
         assert cursor.fetchone()["n"] == 1
 
 
-def test_al_otorgar_de_nuevo_la_sesion_se_proyecta_en_vivo_con_restricciones_nuevas(dolor_api):
+def test_al_otorgar_de_nuevo_la_sesion_conserva_restricciones_de_su_inicio(dolor_api):
     datos = dolor_api
     cliente, ruta = datos.cliente_dolor, datos.ruta_dolor
     assert escribir(cliente, ruta + "/dolores", datos.cuerpo_dolor).status_code == 201
     revocar_demo(datos)
     ejercicio = lectura(datos)["ejercicios"][0]
     assert ejercicio["objetivos"]["series"] > 0
+    datos.reloj.avanzar(timedelta(seconds=1))
     with datos.app.app_context(), transaccion() as cursor:
         cursor.execute(
             "SELECT socio_id FROM sesiones_realizadas WHERE id=%s", (a_bytes(desde_texto(datos.sesion_dolor)),)
@@ -254,8 +255,9 @@ def test_al_otorgar_de_nuevo_la_sesion_se_proyecta_en_vivo_con_restricciones_nue
     assert sin["objetivos"]["series"] > 0
     otorgar_demo(datos)
     con = lectura(datos)["ejercicios"][0]
-    assert con["objetivos"]["series"] == 0
-    assert any(r["regla"] == "restriccion_salud" for r in con["explicacion"])
+    assert con["objetivos"] == ejercicio["objetivos"]
+    assert con["ejercicio_hecho_id"] == ejercicio["ejercicio_hecho_id"]
+    assert not any(r["regla"] == "restriccion_salud" for r in con["explicacion"])
 
 
 def test_maquina_ocupada_sigue_ofreciendo_alternativas_sin_consentimiento(alternativas_api):
