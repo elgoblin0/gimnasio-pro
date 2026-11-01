@@ -1,6 +1,6 @@
 # 0029. Congelar el cupo de la ocurrencia empezada con un registro nuevo
 
-- Estado: provisional
+- Estado: aceptado el 2026-11-01 por el dueño en el cierre de etapa 5 (#235)
 - Fecha: 2026-10-31
 - Decide: Opus
 - Etiquetas: modulo:clases, migraciones/

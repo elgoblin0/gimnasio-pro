@@ -40,10 +40,10 @@ Generado por `scripts/mapa_capacidades.py` desde `docs/capacidades/`. No editar 
 | Entrada del socio por recepción con membresía y aforo | 1 | validada | `pruebas/e2e/test_esqueleto_andante.py` · https://github.com/elgoblin0/gimnasio-pro/issues/52 |
 | Pantalla de recepción con sondeo de ocupación registrada por zona de la sede y visitas abiertas, entrada, salida y conciliación | 1 | validada | `pruebas/e2e/test_recepcion.py` · https://github.com/elgoblin0/gimnasio-pro/issues/52 |
 | Salida confirmada del socio y lecturas para recepción | 1 | validada | `pruebas/e2e/test_esqueleto_andante.py` · https://github.com/elgoblin0/gimnasio-pro/issues/52 |
-| Clases, reservas, cancelaciones de ocurrencias y avisos al socio | 5 | funcional | `pruebas/test_clases_avisos.py` |
-| Configuración de la sede, usuarios y asignación de entrenador | 5 | funcional | `pruebas/test_administracion_usuarios.py` |
-| Ficha completa con salud y consentimientos | 5 | funcional | `pruebas/test_socios_ficha.py` |
-| Registro de pagos en guaraníes | 5 | funcional | `pruebas/test_pagos.py` |
+| Clases, reservas, cancelaciones de ocurrencias y avisos al socio | 5 | validada | `pruebas/test_clases_avisos.py` · https://github.com/elgoblin0/gimnasio-pro/issues/235 |
+| Configuración de la sede, usuarios y asignación de entrenador | 5 | validada | `pruebas/test_administracion_usuarios.py` · https://github.com/elgoblin0/gimnasio-pro/issues/235 |
+| Ficha completa con salud y consentimientos | 5 | validada | `pruebas/test_socios_ficha.py` · https://github.com/elgoblin0/gimnasio-pro/issues/235 |
+| Registro de pagos en guaraníes | 5 | validada | `pruebas/test_pagos.py` · https://github.com/elgoblin0/gimnasio-pro/issues/235 |
 
 ## Entrenamiento
 

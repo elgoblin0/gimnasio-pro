@@ -1,6 +1,6 @@
 # 0030. Guardar como hecho la prescripción ajustada por dolor reportado en la sesión
 
-- Estado: provisional
+- Estado: aceptado el 2026-11-01 por el dueño en el cierre de etapa 5 (#235)
 - Fecha: 2026-11-01
 - Decide: Opus
 - Etiquetas: modulo:entrenamiento, modulo:salud; rutas sensibles: `migraciones/`, `gimnasio/salud/`

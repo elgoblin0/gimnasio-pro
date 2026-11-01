@@ -1,6 +1,6 @@
 # 0028. Mostrar al entrenador de la clase la lista de reservas de sus ocurrencias
 
-- Estado: provisional
+- Estado: aceptado el 2026-11-01 por el dueño en el cierre de etapa 5 (#235)
 - Fecha: 2026-10-31
 - Decide: Opus
 - Etiquetas: modulo:clases, permisos/

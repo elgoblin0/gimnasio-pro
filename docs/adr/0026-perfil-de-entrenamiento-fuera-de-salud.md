@@ -1,6 +1,6 @@
 # 0026. Tratar el perfil de entrenamiento como dato personal fuera de la ficha de salud
 
-- Estado: provisional
+- Estado: aceptado el 2026-11-01 por el dueño en el cierre de etapa 5 (#235)
 - Fecha: 2026-10-31
 - Decide: Opus
 - Etiquetas: modulo:socios, modulo:entrenador, migraciones/, permisos/
