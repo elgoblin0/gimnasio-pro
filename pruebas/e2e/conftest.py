@@ -83,7 +83,9 @@ def url_base(entorno_e2e):
 def demo_aislada(entorno_e2e, request):
     """Cada caso recibe la base migrada de su proceso, sin filas, con la semilla y sus hechos propios."""
     parametros = request.getfixturevalue("bd_limpia")
-    with servidor_demo(parametros, request.getfixturevalue("sembrar_demo")) as instancia:
+    sembrar = request.getfixturevalue("sembrar_demo")
+    sin_pagos_ni_clases = request.node.get_closest_marker("sin_pagos_ni_clases") is not None
+    with servidor_demo(parametros, lambda app: sembrar(app, sin_pagos_ni_clases=sin_pagos_ni_clases)) as instancia:
         yield instancia
 
 

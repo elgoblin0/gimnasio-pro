@@ -302,11 +302,12 @@ def test_reiniciar_demo_borra_programas_antes_de_los_socios(app_con_bd, programa
     with app_con_bd.app_context():
         demo.reiniciar()
         with transaccion() as cursor:
-            # #185 agrega siete programas y tres ejercicios a la semilla anterior.
+            # #185 agrega siete programas y tres ejercicios a la semilla anterior;
+            # #233, el programa del socio con salud revocada.
             for tabla, cantidad in (
-                ("ejercicios_planificados", 13 + 7),
-                ("sesiones_planificadas", 7 + 7),
-                ("programas_entrenamiento", 2 + 7),
+                ("ejercicios_planificados", 13 + 7 + 1),
+                ("sesiones_planificadas", 7 + 7 + 1),
+                ("programas_entrenamiento", 2 + 7 + 1),
                 ("ejercicios", 7 + 3),
             ):
                 cursor.execute(f"SELECT COUNT(*) AS cantidad FROM {tabla}")

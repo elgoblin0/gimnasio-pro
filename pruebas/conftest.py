@@ -104,6 +104,25 @@ def bd_limpia(bd_migrada):
     return dict(bd_migrada.parametros)
 
 
+def _quitar_pagos_y_clases(bd_migrada):
+    with bd_migrada.conexion.cursor() as cursor:
+        for tabla in (
+            "vistos_aviso_socio",
+            "avisos_socio",
+            "cupos_ocurrencia",
+            "cancelaciones_ocurrencia",
+            "cancelaciones_reserva",
+            "reservas",
+            "ocurrencias_clase",
+            "clases",
+        ):
+            cursor.execute(f"DELETE FROM `{tabla}`")
+        cursor.execute("UPDATE membresias SET pago_id=NULL, tipo_id=NULL")
+        cursor.execute("DELETE FROM pagos")
+        cursor.execute("DELETE FROM tipos_membresia")
+    bd_migrada.conexion.commit()
+
+
 def _guardar_semilla(bd_migrada):
     """Copia a una base aparte las tablas con filas y devuelve (base, tablas)."""
     base = f"{bd_migrada.nombre}_s{len(bd_migrada.semillas)}"
@@ -128,20 +147,23 @@ def sembrar_demo(bd_migrada):
     """
     from gimnasio.demo.servicio import reiniciar
 
-    def sembrar(app):
+    def sembrar(app, *, sin_pagos_ni_clases=False):
+        """`sin_pagos_ni_clases` deja la base como antes de la etapa 5 para pruebas que cuentan esos hechos."""
         assert app.config["MODO_DEMO"], "reiniciar() rechaza sembrar fuera de la demo"
         ahora = app.extensions["reloj"].ahora()
         if ahora not in bd_migrada.semillas:
             with app.app_context():
                 reiniciar()
             bd_migrada.semillas[ahora] = _guardar_semilla(bd_migrada)
-            return
-        base, tablas = bd_migrada.semillas[ahora]
-        _vaciar(bd_migrada)
-        with bd_migrada.conexion.cursor() as cursor:
-            for tabla in tablas:
-                cursor.execute(f"INSERT INTO `{tabla}` SELECT * FROM `{base}`.`{tabla}`")
-        bd_migrada.conexion.commit()
+        else:
+            base, tablas = bd_migrada.semillas[ahora]
+            _vaciar(bd_migrada)
+            with bd_migrada.conexion.cursor() as cursor:
+                for tabla in tablas:
+                    cursor.execute(f"INSERT INTO `{tabla}` SELECT * FROM `{base}`.`{tabla}`")
+            bd_migrada.conexion.commit()
+        if sin_pagos_ni_clases:
+            _quitar_pagos_y_clases(bd_migrada)
 
     return sembrar
 

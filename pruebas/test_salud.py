@@ -29,7 +29,7 @@ def test_iniciar_sesion_restringida_deja_aviso_sin_exponer_descripcion(app_con_b
     with app_con_bd.app_context():
         reiniciar()
         with transaccion() as cursor:
-            cursor.execute("SELECT * FROM restricciones_salud WHERE levanta_a IS NULL")
+            cursor.execute("SELECT * FROM restricciones_salud WHERE levanta_a IS NULL ORDER BY id LIMIT 1")
             restriccion = cursor.fetchone()
             if not con_alternativa:
                 cursor.execute(

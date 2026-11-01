@@ -25,7 +25,7 @@ def test_zonas_de_la_semilla_y_ejercicio_hecho(app_con_bd, reloj_fijo):
         with transaccion() as cursor:
             cursor.execute("SELECT DISTINCT equipo FROM ejercicios")
             assert {fila["equipo"] for fila in cursor.fetchall()} <= ZONA_POR_EQUIPO.keys()
-            cursor.execute("SELECT id FROM usuarios WHERE rol='socio' AND es_demo=TRUE")
+            cursor.execute("SELECT id FROM usuarios WHERE rol='socio' AND es_demo=TRUE ORDER BY id LIMIT 1")
             socio = desde_bytes(cursor.fetchone()["id"])
             cursor.execute("SELECT id FROM usuarios WHERE rol='recepcion' AND es_demo=TRUE")
             autor = desde_bytes(cursor.fetchone()["id"])
