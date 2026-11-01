@@ -19,7 +19,9 @@ python scripts/mapa_capacidades.py --verificar
 ```
 Variables de base: `GIMNASIO_BD_HOST`, `GIMNASIO_BD_PUERTO`, `GIMNASIO_BD_USUARIO`, `GIMNASIO_BD_CLAVE`, `GIMNASIO_BD_NOMBRE`.
 
-## Entorno local (Windows): corré todo antes de subir el PR
+## Entorno local (Windows)
+Antes de subir alcanza con `ruff` y las pruebas de los módulos que tocaste. La suite completa y los e2e son del CI, que tarda unos 5 minutos y es la puerta: corré un e2e local solo para diagnosticar uno que el CI marcó en rojo.
+
 MySQL 8.4 portable + Chromium + `.venv`, igual al CI. Detalle en `docs/entorno-local.md`.
 ```powershell
 .\scripts\bd_local.ps1 iniciar                      # MySQL en 127.0.0.1:3306 (root / solo-ci); si `estado` dice activo, no hace falta
