@@ -68,7 +68,7 @@ export async function montarSalud(contenedor, socio = null, alGuardar = () => {}
     contenedor.append(crear("h3", {}, "Restricciones vigentes"));
     if (!salud.restricciones.length) contenedor.append(crear("p", {}, "Sin restricciones de salud vigentes."));
     for (const restriccion of salud.restricciones) {
-      const objetivo = ejercicios.find((e) => e.id === restriccion.ejercicio_id)?.nombre
+      const objetivo = restriccion.ejercicio_nombre
         ?? ZONAS_CUERPO.find((z) => z.id === restriccion.zona)?.nombre
         ?? restriccion.patron_movimiento ?? "Ejercicio";
       const fila = crear("article", {}, crear("p", {}, `${objetivo}: ${restriccion.descripcion}`));

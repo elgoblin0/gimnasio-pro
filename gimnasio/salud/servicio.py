@@ -74,13 +74,20 @@ def _publicar(fila):
 
 def consultar_salud(socio_texto, usuario, *, solo_condiciones=False):
     from gimnasio.entrenamiento.servicio import dolores_para_entrenador
+    from gimnasio.programas.servicio import listar_ejercicios
 
     socio_id = _identificar(socio_texto)
     with transaccion() as cursor:
         _autorizar(cursor, socio_id, usuario)
         resultado = {"condiciones": condiciones_para_entrenador(cursor, socio_id)}
         if not solo_condiciones:
-            resultado["restricciones"] = [_publicar(f) for f in repositorio.restricciones_vigentes(cursor, socio_id)]
+            restricciones = [_publicar(f) for f in repositorio.restricciones_vigentes(cursor, socio_id)]
+            # El socio no puede leer el catálogo: el nombre viaja con la restricción.
+            if any(r["ejercicio_id"] for r in restricciones):
+                nombres = {e["id"]: e["nombre"] for e in listar_ejercicios(cursor=cursor)}
+                for restriccion in restricciones:
+                    restriccion["ejercicio_nombre"] = nombres.get(restriccion["ejercicio_id"])
+            resultado["restricciones"] = restricciones
             resultado["dolores"] = dolores_para_entrenador(cursor, socio_id)
     return resultado
 

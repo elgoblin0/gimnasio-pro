@@ -135,6 +135,15 @@ def test_restriccion_revisa_en_la_misma_transaccion_y_levantar_no_duplica(salud,
         assert cursor.fetchone()["total"] == 2
 
 
+def test_el_socio_ve_el_nombre_del_ejercicio_restringido(salud):
+    entrenador = salud.cliente("entrenador")
+    ejercicio = entrenador.get("/api/ejercicios").json["ejercicios"][0]
+    cuerpo = {"ejercicio_id": ejercicio["id"], "descripcion": "Restricción ficticia"}
+    assert escribir(entrenador, salud.ruta + "/restricciones", cuerpo).status_code == 201
+    restricciones = salud.cliente().get("/api/yo/salud").json["restricciones"]
+    assert [r["ejercicio_nombre"] for r in restricciones] == [ejercicio["nombre"]]
+
+
 def test_todas_las_operaciones_exigen_consentimiento_asignacion_y_rol(salud):
     datos = salud
     cid = declarar(datos)
