@@ -5,6 +5,8 @@ const CACHE = PREFIJO_CACHE + VERSION;
 const RECURSOS_ESTATICOS = [
   "/js/clave.js",
   "/js/clases.js",
+  "/js/clases-agenda.js",
+  "/estilos/agenda.css",
   "/js/plantillas.js",
   "/estilos/ficha.css",
   "/js/ficha.js",
