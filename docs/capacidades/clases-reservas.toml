@@ -2,6 +2,7 @@ id = "clases-reservas"
 nombre = "Clases, reservas, cancelaciones de ocurrencias y avisos al socio"
 grupo = "Operación"
 etapa = 5
-nivel = "funcional"
+nivel = "validada"
 prueba = "pruebas/test_clases_avisos.py"
+validacion = "https://github.com/elgoblin0/gimnasio-pro/issues/235"
 # #234: Lucía cancela y Hugo ve su lugar sin recargar, con movimiento reducido y en celular: pruebas/e2e/test_recorrido_operacion.py.

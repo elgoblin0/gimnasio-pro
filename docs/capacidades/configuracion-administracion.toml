@@ -2,7 +2,8 @@ id = "configuracion-administracion"
 nombre = "Configuración de la sede, usuarios y asignación de entrenador"
 grupo = "Operación"
 etapa = 5
-nivel = "funcional"
+nivel = "validada"
 prueba = "pruebas/test_administracion_usuarios.py"
+validacion = "https://github.com/elgoblin0/gimnasio-pro/issues/235"
 nota = "Desactivación y reactivación con rechazos, revocación de datos personales, cancelación de reservas y cierre de asignaciones; personal, claves provisionales, lista paginada y socios sin entrenador; historial y alcance en pruebas/test_permisos_asignaciones.py. Recorridos del panel y conservación del editor en pruebas/e2e/test_usuarios.py; alta de socios en pruebas/test_socios_alta.py."
 # #234: administración da de alta un socio con primer pago y le asigna entrenador: pruebas/e2e/test_recorrido_operacion.py.

@@ -1,6 +1,6 @@
 # 0031. Guardar una respuesta saneada cuando la original lleva un secreto de un solo uso
 
-- Estado: provisional
+- Estado: aceptado el 2026-11-01 por el dueño en el cierre de etapa 5 (#235)
 - Fecha: 2026-11-01
 - Decide: Opus
 - Etiquetas: modulo:socios, modulo:permisos

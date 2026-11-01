@@ -1,6 +1,6 @@
 # 0027. Tratar la membresía como estado derivado del pago registrado, no como hecho
 
-- Estado: provisional
+- Estado: aceptado el 2026-11-01 por el dueño en el cierre de etapa 5 (#235)
 - Fecha: 2026-10-31
 - Decide: Opus
 - Etiquetas: modulo:pagos, modulo:socios, migraciones/
