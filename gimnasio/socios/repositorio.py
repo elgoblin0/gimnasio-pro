@@ -56,8 +56,12 @@ def bloquear_socio(cursor, socio_id):
 
 def ultimo_vencimiento(cursor, socio_id):
     # Lectura actual tras esperar al bloqueo del socio, incluso bajo REPEATABLE READ.
+    # El JOIN incluye las anulaciones en esa lectura actual.
     cursor.execute(
-        "SELECT hasta FROM membresias WHERE socio_id=%s ORDER BY hasta DESC LIMIT 1 FOR UPDATE", (a_bytes(socio_id),)
+        "SELECT m.hasta FROM membresias m LEFT JOIN anulaciones_pago a ON a.pago_id=m.pago_id "
+        "WHERE m.socio_id=%s AND a.id IS NULL "
+        "ORDER BY hasta DESC LIMIT 1 FOR UPDATE",
+        (a_bytes(socio_id),),
     )
     fila = cursor.fetchone()
     return fila["hasta"] if fila else None
@@ -76,6 +80,7 @@ def buscar_membresia_vigente(cursor, socio_id, fecha_local):
         """SELECT m.id, m.socio_id, m.desde, m.hasta, u.rol, u.activo
            FROM membresias m JOIN usuarios u ON u.id = m.socio_id
            WHERE m.socio_id = %s AND m.desde <= %s AND m.hasta >= %s
+           AND NOT EXISTS (SELECT 1 FROM anulaciones_pago a WHERE a.pago_id=m.pago_id)
            LIMIT 1""",
         (a_bytes(socio_id), fecha_local, fecha_local),
     )
@@ -83,7 +88,11 @@ def buscar_membresia_vigente(cursor, socio_id, fecha_local):
 
 
 def buscar_ultimo_hasta(cursor, socio_id):
-    cursor.execute("SELECT MAX(hasta) AS ultimo_hasta FROM membresias WHERE socio_id = %s", (a_bytes(socio_id),))
+    cursor.execute(
+        "SELECT MAX(hasta) AS ultimo_hasta FROM membresias m WHERE socio_id = %s "
+        "AND NOT EXISTS (SELECT 1 FROM anulaciones_pago a WHERE a.pago_id=m.pago_id)",
+        (a_bytes(socio_id),),
+    )
     return cursor.fetchone()["ultimo_hasta"]
 
 
@@ -92,6 +101,7 @@ def buscar_ultima_membresia(cursor, socio_id, fecha_local):
         """SELECT m.desde, m.hasta, u.rol, u.activo
            FROM membresias m JOIN usuarios u ON u.id = m.socio_id
            WHERE m.socio_id = %s AND m.desde <= %s
+           AND NOT EXISTS (SELECT 1 FROM anulaciones_pago a WHERE a.pago_id=m.pago_id)
            ORDER BY m.hasta DESC, m.desde DESC LIMIT 1""",
         (a_bytes(socio_id), fecha_local),
     )

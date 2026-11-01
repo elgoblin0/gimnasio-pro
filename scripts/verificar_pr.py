@@ -28,6 +28,7 @@ HECHOS = {
     "reservas",
     "cancelaciones_reserva",
     "pagos",
+    "anulaciones_pago",
     "cambios_sede",
     "borrados_salud",
     "revisiones_aviso",

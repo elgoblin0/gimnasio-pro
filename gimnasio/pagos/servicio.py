@@ -1,6 +1,6 @@
 """Registro de pago y renovación en una sola transacción."""
 
-from datetime import UTC
+from datetime import UTC, date, datetime, time, timedelta
 from zoneinfo import ZoneInfo
 
 from gimnasio.comun.bd import transaccion
@@ -123,3 +123,70 @@ def registrar_pago(datos, usuario):
             "registrado_en": ahora.astimezone(UTC).isoformat(),
             "membresia": membresia,
         }
+
+
+def anular_pago(pago_id, datos, usuario):
+    pago_id = identificar(pago_id)
+    motivo = datos.get("motivo") if isinstance(datos, dict) else None
+    if not isinstance(motivo, str) or not 1 <= len(motivo.strip()) <= 500:
+        raise ErrorDeDominio("motivo_invalido", "Indicá un motivo de hasta 500 caracteres.", 422)
+    with transaccion() as cursor:
+        pago = repositorio.obtener_pago(cursor, pago_id)
+        if pago is None:
+            raise ErrorDeDominio("pago_inexistente", "El pago no existe.", 404)
+        socio_id = desde_bytes(pago["socio_id"])
+        socios.bloquear_socio(socio_id, cursor=cursor)
+        ultimo = repositorio.ultimo_pago(cursor, socio_id)
+        if ultimo is None or ultimo["id"] != pago["id"]:
+            raise ErrorDeDominio("no_es_ultimo_pago", "Solo se puede anular el último pago no anulado.", 409)
+        identificador, ahora = nuevo_id(), reloj_actual().ahora()
+        repositorio.insertar_anulacion(
+            cursor, identificador, pago_id, motivo.strip(), identificar(usuario["id"]), ahora
+        )
+        return {"id": str(identificador), "pago_id": str(pago_id), "motivo": motivo.strip()}
+
+
+def _pago_publico(fila):
+    resultado = {campo: fila[campo] for campo in ("socio", "tipo", "medio", "monto", "autor")}
+    resultado.update({campo: str(desde_bytes(fila[campo])) for campo in ("id", "socio_id", "tipo_id", "autor_id")})
+    resultado["registrado_en"] = fila["registrado_en"].replace(tzinfo=UTC).isoformat()
+    resultado["anulacion"] = None
+    if fila["anulacion_id"]:
+        resultado["anulacion"] = {
+            "id": str(desde_bytes(fila["anulacion_id"])),
+            "motivo": fila["motivo"],
+            "autor_id": str(desde_bytes(fila["anulacion_autor_id"])),
+            "registrado_en": fila["anulada_en"].replace(tzinfo=UTC).isoformat(),
+        }
+    return resultado
+
+
+def intervalo_fechas(desde, hasta, hoy, zona):
+    try:
+        desde = date.fromisoformat(desde) if desde is not None else hoy
+        hasta = date.fromisoformat(hasta) if hasta is not None else hoy
+        if not 0 <= (hasta - desde).days < 62:
+            raise ValueError
+        return (
+            datetime.combine(desde, time.min, zona).astimezone(UTC),
+            datetime.combine(hasta + timedelta(days=1), time.min, zona).astimezone(UTC),
+        )
+    except (ValueError, TypeError, OverflowError) as error:
+        raise ErrorDeDominio("fechas_invalidas", "Elegí un intervalo de hasta 62 días.", 422) from error
+
+
+def listar_pagos(desde=None, hasta=None):
+    with transaccion() as cursor:
+        zona = ZoneInfo(repositorio.zona_sede(cursor)["zona_horaria"])
+        limites = intervalo_fechas(desde, hasta, fecha_local(reloj_actual().ahora(), zona), zona)
+        pagos = [_pago_publico(fila) for fila in repositorio.listar_pagos(cursor, *limites)]
+    return {"pagos": pagos, "total": sum(pago["monto"] for pago in pagos if pago["anulacion"] is None)}
+
+
+def pagos_propios(usuario):
+    socio_id = identificar(usuario["id"])
+    with transaccion() as cursor:
+        zona = ZoneInfo(repositorio.zona_sede(cursor)["zona_horaria"])
+        pagos = [_pago_publico(fila) for fila in repositorio.listar_pagos(cursor, socio_id=socio_id)]
+    membresia = socios.membresia_para_tarjeta(socio_id, fecha_local(reloj_actual().ahora(), zona))
+    return {"membresia": membresia, "dias_restantes": membresia["dias_restantes"], "pagos": pagos}

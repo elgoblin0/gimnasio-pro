@@ -324,3 +324,275 @@ def test_pago_solo_puede_renovar_una_membresia(pagos):
             (a_bytes(nuevo_id()), a_bytes(desde_texto(pago["id"]))),
         )
     assert error.value.errno == 1062
+
+
+@pytest.mark.bd
+def test_anulaciones_encadenadas_recalculan_y_conservan_filas(pagos, reloj_fijo):
+    app, cliente, _, datos = pagos
+    socio_id = desde_texto(datos["socio_id"])
+    hoy = fecha_local(reloj_fijo.ahora())
+    with app.app_context():
+        original = socios.membresia_para_tarjeta(socio_id, hoy)
+    primera = escribir(cliente, "/api/pagos", datos).json
+    reloj_fijo.avanzar(timedelta(seconds=1))
+    segunda = escribir(cliente, "/api/pagos", datos).json
+    anteriores = filas(app, "membresias")
+    ruta = f"/api/pagos/{primera['id']}/anular"
+    respuesta = escribir(cliente, ruta, {"motivo": "Error ficticio"})
+    assert respuesta.status_code == 409
+    assert respuesta.json["error"]["codigo"] == "no_es_ultimo_pago"
+    assert escribir(cliente, f"/api/pagos/{segunda['id']}/anular", {}).status_code == 422
+    clave = str(uuid4())
+    anulada = escribir(cliente, f"/api/pagos/{segunda['id']}/anular", {"motivo": "Error ficticio"}, clave=clave)
+    assert anulada.status_code == 201
+    assert (
+        escribir(cliente, f"/api/pagos/{segunda['id']}/anular", {"motivo": "Error ficticio"}, clave=clave).data
+        == anulada.data
+    )
+    assert escribir(cliente, f"/api/pagos/{segunda['id']}/anular", {"motivo": "Otro motivo"}).status_code == 409
+    assert len(filas(app, "anulaciones_pago")) == 1
+    with app.app_context():
+        assert socios.membresia_para_tarjeta(socio_id, hoy)["ultimo_hasta"] == primera["membresia"]["hasta"]
+        dia = date.fromisoformat(primera["membresia"]["desde"])
+        assert socios.consultar_membresia(socio_id, dia)["hasta"].isoformat() == primera["membresia"]["hasta"]
+        assert socios.consultar_membresia(socio_id, date.fromisoformat(segunda["membresia"]["desde"])) is None
+    assert escribir(cliente, ruta, {"motivo": "Error ficticio anterior"}).status_code == 201
+    with app.app_context():
+        assert socios.membresia_para_tarjeta(socio_id, hoy) == original
+    assert filas(app, "membresias") == anteriores
+    assert len(filas(app, "anulaciones_pago")) == 2
+    nueva = escribir(cliente, "/api/pagos", datos).json
+    assert nueva["membresia"]["desde"] == primera["membresia"]["desde"]
+    assert nueva["membresia"]["hasta"] == primera["membresia"]["hasta"]
+    with app.app_context():
+        demo.reiniciar()
+    assert filas(app, "anulaciones_pago") == []
+
+
+@pytest.mark.bd
+@pytest.mark.parametrize("motivo", [None, "", "  ", "x" * 501, 1, []])
+def test_motivo_anulacion_invalido(pagos, motivo):
+    app, cliente, _, datos = pagos
+    pago = escribir(cliente, "/api/pagos", datos).json
+    assert escribir(cliente, f"/api/pagos/{pago['id']}/anular", {"motivo": motivo}).status_code == 422
+    assert filas(app, "anulaciones_pago") == []
+
+
+@pytest.mark.bd
+def test_anular_no_cierra_visita_abierta(pagos):
+    app, cliente, autor, datos = pagos
+    with app.app_context():
+        with transaccion() as cursor:
+            cursor.execute("SELECT id FROM sedes ORDER BY id LIMIT 1")
+            sede_id = desde_bytes(cursor.fetchone()["id"])
+        visitas.registrar_entrada(
+            {"id": str(nuevo_id()), "socio_id": datos["socio_id"], "sede_id": str(sede_id)}, autor
+        )
+    pago = escribir(cliente, "/api/pagos", datos).json
+    antes = filas(app, "entradas"), filas(app, "salidas")
+    assert escribir(cliente, f"/api/pagos/{pago['id']}/anular", {"motivo": "Error ficticio"}).status_code == 201
+    assert (filas(app, "entradas"), filas(app, "salidas")) == antes
+
+
+@pytest.mark.bd
+def test_anular_no_cancela_reserva_con_esa_vigencia(pagos, reloj_fijo):
+    app, cliente, _, datos = pagos
+    hoy = fecha_local(reloj_fijo.ahora())
+    with app.app_context(), transaccion() as cursor:
+        cursor.execute(
+            "UPDATE membresias SET desde=%s, hasta=%s WHERE socio_id=%s",
+            (hoy - timedelta(days=30), hoy - timedelta(days=1), a_bytes(desde_texto(datos["socio_id"]))),
+        )
+    pago = escribir(cliente, "/api/pagos", datos).json
+    entrenador = cliente.get("/api/clases").json["entrenadores"][0]["id"]
+    clase = escribir(
+        cliente,
+        "/api/clases",
+        {
+            "nombre": "Clase ficticia",
+            "dia_semana": hoy.isoweekday(),
+            "hora_inicio": "18:00",
+            "duracion_minutos": 60,
+            "cupo": 10,
+            "entrenador_id": entrenador,
+        },
+    ).json
+    cliente.post("/api/sesion/demo/recepcion", headers={"X-Gimnasio": "1"})
+    reserva = escribir(
+        cliente,
+        "/api/clases/reservas",
+        {
+            "clase_id": clase["id"],
+            "fecha": hoy.isoformat(),
+            "socio_id": datos["socio_id"],
+        },
+    )
+    assert reserva.status_code == 201
+    antes = filas(app, "reservas"), filas(app, "cancelaciones_reserva")
+    assert escribir(cliente, f"/api/pagos/{pago['id']}/anular", {"motivo": "Error ficticio"}).status_code == 201
+    assert (filas(app, "reservas"), filas(app, "cancelaciones_reserva")) == antes
+
+
+@pytest.mark.bd
+def test_anular_restaura_vencimiento_y_rechaza_entrada(pagos, reloj_fijo):
+    app, cliente, autor, datos = pagos
+    hoy = fecha_local(reloj_fijo.ahora())
+    with app.app_context(), transaccion() as cursor:
+        cursor.execute(
+            "UPDATE membresias SET desde=%s, hasta=%s WHERE socio_id=%s",
+            (hoy - timedelta(days=30), hoy - timedelta(days=1), a_bytes(desde_texto(datos["socio_id"]))),
+        )
+        cursor.execute("SELECT id FROM sedes ORDER BY id LIMIT 1")
+        sede_id = str(desde_bytes(cursor.fetchone()["id"]))
+    pago = escribir(cliente, "/api/pagos", datos).json
+    with app.app_context():
+        assert socios.consultar_membresia(desde_texto(datos["socio_id"]), hoy)
+    assert escribir(cliente, f"/api/pagos/{pago['id']}/anular", {"motivo": "Error ficticio"}).status_code == 201
+    with app.app_context():
+        assert socios.consultar_membresia(desde_texto(datos["socio_id"]), hoy) is None
+        with pytest.raises(ErrorDeDominio) as error:
+            visitas.registrar_entrada({"id": str(nuevo_id()), "socio_id": datos["socio_id"], "sede_id": sede_id}, autor)
+        assert error.value.codigo == "membresia_no_vigente"
+
+
+@pytest.mark.bd
+def test_lista_total_fechas_locales_y_anulacion(pagos, reloj_fijo):
+    from datetime import UTC, datetime
+
+    _, cliente, _, datos = pagos
+    reloj_fijo.fijar(datetime(2026, 10, 28, 2, 59, tzinfo=UTC))
+    primero = escribir(cliente, "/api/pagos", datos).json
+    reloj_fijo.avanzar(timedelta(minutes=1))
+    segundo = escribir(cliente, "/api/pagos", datos | {"monto": 123}).json
+    lista = cliente.get("/api/pagos").json
+    assert [pago["id"] for pago in lista["pagos"]] == [segundo["id"]]
+    assert lista["total"] == 123
+    assert cliente.get("/api/pagos?desde=2026-10-27&hasta=2026-10-27").json["pagos"][0]["id"] == primero["id"]
+    assert escribir(cliente, f"/api/pagos/{segundo['id']}/anular", {"motivo": "Error ficticio"}).status_code == 201
+    lista = cliente.get("/api/pagos?desde=2026-10-27&hasta=2026-10-28").json
+    assert lista["total"] == 250000
+    assert lista["pagos"][0]["anulacion"]["motivo"] == "Error ficticio"
+    assert lista["pagos"][0]["socio"] and lista["pagos"][0]["autor"] and lista["pagos"][0]["tipo"]
+
+
+@pytest.mark.parametrize("desde,hasta", [("2026-01-01", "2026-03-04"), ("2026-02-02", "2026-02-01"), ("mal", None)])
+def test_intervalo_invalido(desde, hasta):
+    from gimnasio.comun.reloj import ZONA_SEDE
+
+    with pytest.raises(ErrorDeDominio) as error:
+        servicio.intervalo_fechas(desde, hasta, date(2026, 2, 1), ZONA_SEDE)
+    assert error.value.estado_http == 422
+
+
+@pytest.mark.bd
+@pytest.mark.parametrize(
+    "rol,personal,propios",
+    [("socio", 403, 200), ("recepcion", 200, 403), ("entrenador", 403, 403), ("administracion", 200, 403)],
+)
+def test_permisos_nuevas_rutas(pagos, rol, personal, propios):
+    _, cliente, _, datos = pagos
+    pago = escribir(cliente, "/api/pagos", datos).json
+    cliente.post(f"/api/sesion/demo/{rol}", headers={"X-Gimnasio": "1"})
+    assert cliente.get("/api/pagos").status_code == personal
+    assert cliente.get("/api/yo/pagos").status_code == propios
+    assert escribir(cliente, f"/api/pagos/{pago['id']}/anular", {"motivo": "Error ficticio"}).status_code == (
+        201 if personal == 200 else 403
+    )
+
+
+@pytest.mark.bd
+def test_pagos_propios_ignora_identificador_ajeno(pagos):
+    _, cliente, _, datos = pagos
+    usuario = cliente.post("/api/sesion/demo/socio", headers={"X-Gimnasio": "1"}).json["usuario"]
+    cliente.post("/api/sesion/demo/administracion", headers={"X-Gimnasio": "1"})
+    personas = cliente.get("/api/pagos/socios").json["socios"]
+    otro = next(persona["id"] for persona in personas if persona["id"] != usuario["id"])
+    propio = escribir(cliente, "/api/pagos", datos | {"socio_id": usuario["id"]}).json
+    escribir(cliente, "/api/pagos", datos | {"socio_id": otro})
+    cliente.post("/api/sesion/demo/socio", headers={"X-Gimnasio": "1"})
+    respuesta = cliente.get(f"/api/yo/pagos?socio_id={otro}").json
+    assert [pago["id"] for pago in respuesta["pagos"]] == [propio["id"]]
+    assert respuesta["membresia"]["vigente"]
+    assert respuesta["dias_restantes"] is not None
+
+
+@pytest.mark.bd
+def test_anulaciones_concurrentes_insertan_una_sola_fila(pagos):
+    app, cliente, autor, datos = pagos
+    pago = escribir(cliente, "/api/pagos", datos).json
+
+    def anular(_):
+        with app.app_context():
+            try:
+                servicio.anular_pago(pago["id"], {"motivo": "Error ficticio"}, autor)
+                return 201
+            except ErrorDeDominio as error:
+                return error.estado_http
+
+    with ThreadPoolExecutor(max_workers=2) as ejecutor:
+        assert sorted(ejecutor.map(anular, range(2))) == [201, 409]
+    assert len(filas(app, "anulaciones_pago")) == 1
+
+
+@pytest.mark.bd
+def test_anula_pago_de_socio_inactivo(pagos):
+    app, cliente, _, datos = pagos
+    pago = escribir(cliente, "/api/pagos", datos).json
+    with app.app_context(), transaccion() as cursor:
+        cursor.execute("UPDATE usuarios SET activo=FALSE WHERE id=%s", (a_bytes(desde_texto(datos["socio_id"])),))
+    assert escribir(cliente, f"/api/pagos/{pago['id']}/anular", {"motivo": "Error ficticio"}).status_code == 201
+
+
+@pytest.mark.bd
+def test_renovar_ve_anulacion_posterior_a_su_primera_lectura(pagos):
+    app, cliente, autor, datos = pagos
+    pago = escribir(cliente, "/api/pagos", datos).json
+
+    def anular():
+        with app.app_context():
+            servicio.anular_pago(pago["id"], {"motivo": "Error ficticio"}, autor)
+
+    with app.app_context(), transaccion() as cursor:
+        # Fija una lectura anterior a la anulación bajo REPEATABLE READ.
+        cursor.execute("SELECT COUNT(*) AS cantidad FROM anulaciones_pago")
+        assert cursor.fetchone()["cantidad"] == 0
+        with ThreadPoolExecutor(max_workers=1) as ejecutor:
+            ejecutor.submit(anular).result(timeout=10)
+        nueva = servicio.registrar_pago(datos, autor)
+    assert nueva["membresia"]["desde"] == pago["membresia"]["desde"]
+
+
+@pytest.mark.bd
+def test_lista_no_hace_consulta_por_pago(pagos, monkeypatch):
+    from contextlib import contextmanager
+
+    app, cliente, _, datos = pagos
+    for _ in range(3):
+        assert escribir(cliente, "/api/pagos", datos).status_code == 201
+    consultas = []
+
+    @contextmanager
+    def contar():
+        with transaccion() as cursor:
+
+            class Contador:
+                def execute(self, *argumentos):
+                    consultas.append(argumentos[0])
+                    return cursor.execute(*argumentos)
+
+                def __getattr__(self, nombre):
+                    return getattr(cursor, nombre)
+
+            yield Contador()
+
+    monkeypatch.setattr(servicio, "transaccion", contar)
+    with app.app_context():
+        assert len(servicio.listar_pagos()["pagos"]) == 3
+    assert len(consultas) == 2
+
+
+def test_intervalo_admite_exactamente_62_dias():
+    from gimnasio.comun.reloj import ZONA_SEDE
+
+    desde, hasta = servicio.intervalo_fechas("2026-01-01", "2026-03-03", date(2026, 1, 1), ZONA_SEDE)
+    assert hasta - desde == timedelta(days=62)
