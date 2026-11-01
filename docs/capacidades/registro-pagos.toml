@@ -1,6 +1,7 @@
 id = "registro-pagos"
 nombre = "Registro de pagos en guaraníes"
 # Incluye anulación con motivo, lista por fecha y membresía y pagos propios en Mi ficha (#222).
+# Las anulaciones respetan el orden de renovación incluso con pagos concurrentes.
 grupo = "Operación"
 etapa = 5
 nivel = "funcional"

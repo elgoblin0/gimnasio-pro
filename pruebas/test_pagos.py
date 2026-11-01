@@ -2,6 +2,7 @@
 
 from concurrent.futures import ThreadPoolExecutor
 from datetime import date, timedelta
+from threading import Event
 from uuid import uuid4
 
 import pytest
@@ -243,6 +244,46 @@ def test_pagos_concurrentes_de_tipos_distintos(pagos):
         pagos_nuevos = list(ejecutor.map(registrar, [datos["tipo_id"], otro["id"]]))
     membresias = sorted((pago["membresia"] for pago in pagos_nuevos), key=lambda membresia: membresia["desde"])
     assert date.fromisoformat(membresias[1]["desde"]) == date.fromisoformat(membresias[0]["hasta"]) + timedelta(days=1)
+
+
+@pytest.mark.bd
+@pytest.mark.parametrize("demora", [timedelta(0), timedelta(seconds=1)])
+def test_anulacion_respeta_orden_de_renovaciones_concurrentes(pagos, reloj_fijo, monkeypatch, demora):
+    app, cliente, autor, datos = pagos
+    otro = escribir(cliente, "/api/tipos-membresia", {"nombre": "Semanal", "duracion_dias": 7, "precio": 50000}).json
+    esperando, continuar = Event(), Event()
+    bloquear = socios.bloquear_socio_activo
+
+    def esperar_bloqueo(*argumentos, **opciones):
+        esperando.set()
+        assert continuar.wait(timeout=10)
+        return bloquear(*argumentos, **opciones)
+
+    def registrar_demorado():
+        with app.app_context():
+            return servicio.registrar_pago(datos, autor)
+
+    with ThreadPoolExecutor(max_workers=1) as ejecutor, monkeypatch.context() as parche:
+        parche.setattr(socios, "bloquear_socio_activo", esperar_bloqueo)
+        pendiente = ejecutor.submit(registrar_demorado)
+        try:
+            assert esperando.wait(timeout=10)
+            parche.setattr(socios, "bloquear_socio_activo", bloquear)
+            reloj_fijo.avanzar(demora)
+            primera = escribir(cliente, "/api/pagos", datos | {"tipo_id": otro["id"]}).json
+        finally:
+            continuar.set()
+        segunda = pendiente.result(timeout=10)
+
+    assert date.fromisoformat(segunda["membresia"]["desde"]) == date.fromisoformat(
+        primera["membresia"]["hasta"]
+    ) + timedelta(days=1)
+    assert escribir(cliente, f"/api/pagos/{primera['id']}/anular", {"motivo": "Error ficticio"}).status_code == 409
+    assert escribir(cliente, f"/api/pagos/{segunda['id']}/anular", {"motivo": "Error ficticio"}).status_code == 201
+    with app.app_context():
+        socio_id = desde_texto(datos["socio_id"])
+        assert socios.consultar_membresia(socio_id, date.fromisoformat(segunda["membresia"]["desde"])) is None
+    assert escribir(cliente, f"/api/pagos/{primera['id']}/anular", {"motivo": "Error ficticio"}).status_code == 201
 
 
 @pytest.mark.parametrize(

@@ -93,7 +93,6 @@ def registrar_pago(datos, usuario):
     if not isinstance(medio, str) or medio not in {"efectivo", "transferencia", "tarjeta", "otro"}:
         raise ErrorDeDominio("medio_invalido", "Elegí efectivo, transferencia, tarjeta u otro.", 422)
     monto = validar_entero(datos["monto"], "El monto") if "monto" in datos else None
-    ahora, pago_id = reloj_actual().ahora(), nuevo_id()
     with transaccion() as cursor:
         tipo = _tipo(cursor, tipo_id)
         if tipo["archivado"]:
@@ -103,6 +102,7 @@ def registrar_pago(datos, usuario):
             raise ErrorDeDominio("sede_inexistente", "La sede no existe.", 404)
         monto = tipo["precio"] if monto is None else monto
         socios.bloquear_socio_activo(socio_id, cursor=cursor)
+        ahora, pago_id = reloj_actual().ahora(), nuevo_id()
         repositorio.insertar_pago(cursor, pago_id, socio_id, tipo_id, medio, monto, identificar(usuario["id"]), ahora)
         membresia = socios.renovar_membresia(
             socio_id,
