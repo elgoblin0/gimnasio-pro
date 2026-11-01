@@ -165,7 +165,8 @@ function dibujar(propuesta) {
     explicacion.dataset.ajuste = ejercicio.id;
     for (const razon of ejercicio.explicacion ?? []) {
       const texto = document.createElement("li");
-      texto.textContent = razon.datos.explicacion;
+      // Tras un borrado de datos de salud, la razón guardada conserva la regla y no el texto.
+      texto.textContent = razon.datos.explicacion ?? "Se aplicó un freno de seguridad.";
       explicacion.append(texto);
     }
     tarjeta.append(explicacion);

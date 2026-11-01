@@ -2,6 +2,7 @@ import time
 import uuid
 from concurrent.futures import ThreadPoolExecutor
 
+import mysql.connector
 import pytest
 
 from gimnasio.comun import migrar
@@ -217,6 +218,46 @@ def test_avisos_sucesivos_conservan_hechos_de_la_migracion_anterior(tmp_path, bd
         despues = cursor.fetchall()
         assert len(despues) == 2
         assert antes[0] in despues
+
+
+@pytest.mark.bd
+def test_0056_conserva_los_textos_y_ata_el_vacio_con_anonimizada(tmp_path, bd_vacia, reloj_fijo):
+    from gimnasio import crear_app
+    from gimnasio.comun.bd import transaccion
+    from gimnasio.comun.ids import nuevo_id
+    from gimnasio.permisos.servicio import crear_usuario
+
+    for migracion in leer_migraciones():
+        if migracion.version < "0056":
+            (tmp_path / migracion.nombre).write_text(migracion.sql, encoding="utf-8", newline="\n")
+    aplicar(bd_vacia, tmp_path, salida=lambda _: None)
+    app = crear_app({"ENTORNO": "prueba", "SECRET_KEY": "solo-pruebas", "MODO_DEMO": True, "BD": bd_vacia}, reloj_fijo)
+    ahora = reloj_fijo.ahora()
+    inserciones = (
+        "INSERT INTO condiciones_salud (id,socio_id,descripcion,registrada_en) VALUES (%s,%s,{},%s)",
+        "INSERT INTO restricciones_salud (id,socio_id,zona,descripcion,autor_id,registrada_en) "
+        "VALUES (%s,%s,'rodillas',{},%s,%s)",
+        "INSERT INTO avisos_personal (id,socio_id,texto,autor_id,registrado_en) VALUES (%s,%s,{},%s,%s)",
+    )
+
+    def parametros(sql, socio):
+        return (nuevo_id().bytes, socio, ahora) if "autor_id" not in sql else (nuevo_id().bytes, socio, socio, ahora)
+
+    with app.app_context(), transaccion() as cursor:
+        socio = crear_usuario(cursor, {"nombre": "Lucía", "apellido": "Ficticia", "cedula": "9900001"}, "socio").bytes
+        for sql in inserciones:
+            cursor.execute(sql.format("'Texto ficticio'"), parametros(sql, socio))
+    assert aplicar(bd_vacia, salida=lambda _: None) == _versiones_desde("0056")
+    with app.app_context(), transaccion() as cursor:
+        cursor.execute("SELECT descripcion,anonimizada FROM condiciones_salud")
+        assert cursor.fetchone() == {"descripcion": "Texto ficticio", "anonimizada": 0}
+        cursor.execute("SELECT descripcion,anonimizada FROM restricciones_salud")
+        assert cursor.fetchone() == {"descripcion": "Texto ficticio", "anonimizada": 0}
+        cursor.execute("SELECT texto,anonimizada FROM avisos_personal")
+        assert cursor.fetchone() == {"texto": "Texto ficticio", "anonimizada": 0}
+    for sql in inserciones:
+        with pytest.raises(mysql.connector.Error), app.app_context(), transaccion() as cursor:
+            cursor.execute(sql.format("NULL"), parametros(sql, socio))
 
 
 @pytest.mark.bd

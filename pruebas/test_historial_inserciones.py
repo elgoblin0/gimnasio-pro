@@ -13,6 +13,19 @@ sys.path.insert(0, str(RAIZ / "scripts"))
 from verificar_pr import HECHOS  # noqa: E402  (necesita scripts/ en sys.path, que se agrega arriba)
 
 EXCEPCION = "gimnasio/demo/repositorio.py"
+EXCEPCION_BORRADO = "gimnasio/salud/borrado.py"
+# Solo UPDATE: el borrado de datos de salud conserva filas e ids (ADR 0025).
+TABLAS_BORRADO = {
+    "avisos_entrenador",
+    "avisos_personal",
+    "condiciones_salud",
+    "dolores_reportados",
+    "prescripciones_ajustadas",
+    "prescripciones_efectivas",
+    "restricciones_salud",
+    "revisiones_aviso",
+    "revisiones_condicion",
+}
 DINAMICA = "__tabla_dinamica__"
 COMENTARIOS_Y_VALORES = re.compile(r"--[^\n]*|\#[^\n]*|/\*.*?\*/|'(?:''|\\.|[^'])*'|\"(?:\"\"|\\.|[^\"])*\"", re.S)
 TOKENS = re.compile(r"`(?:``|[^`])+`|[a-zA-Z_][a-zA-Z_0-9]*|[.,=;()]")
@@ -144,8 +157,10 @@ def violaciones_historial(raiz):
             sql = texto_sql(nodo)
             if sql is None:
                 continue
+            borra = re.search(r"\bdelete\b", COMENTARIOS_Y_VALORES.sub(" ", sql), re.I)
+            admitidas = TABLAS_BORRADO if relativo == EXCEPCION_BORRADO and not borra else set()
             # Una tabla dinámica no permite demostrar que el catálogo de hechos queda excluido.
-            for tabla in tablas_modificadas(sql) & (HECHOS | {DINAMICA}):
+            for tabla in (tablas_modificadas(sql) & (HECHOS | {DINAMICA})) - admitidas:
                 encontradas.add(f"{relativo}:{nodo.lineno}: {tabla} solo admite INSERT")
     return sorted(encontradas)
 
@@ -199,6 +214,24 @@ def test_excepcion_solo_en_repositorio_demo_y_no_en_otro_modulo(tmp_path):
     assert len(resultado) == 2
     assert any("gimnasio/demo/servicio.py" in mensaje for mensaje in resultado)
     assert any("gimnasio/visitas/repositorio.py" in mensaje for mensaje in resultado)
+
+
+def test_el_borrado_de_salud_solo_actualiza_las_tablas_de_su_lista(tmp_path):
+    for tabla in sorted(TABLAS_BORRADO):
+        escribir(tmp_path, EXCEPCION_BORRADO, f'sql = "UPDATE {tabla} SET anonimizada=TRUE"')
+        assert violaciones_historial(tmp_path) == []
+    for sql in (
+        "UPDATE series_realizadas SET carga=NULL",
+        "UPDATE borrados_salud SET socio_id=NULL",
+        "UPDATE consentimientos SET otorgado=TRUE",
+        "DELETE FROM condiciones_salud WHERE id=%s",
+        "DELETE FROM dolores_reportados WHERE id=%s",
+    ):
+        escribir(tmp_path, EXCEPCION_BORRADO, f'sql = "{sql}"')
+        assert len(violaciones_historial(tmp_path)) == 1, sql
+    escribir(tmp_path, EXCEPCION_BORRADO, "")
+    escribir(tmp_path, "gimnasio/salud/servicio.py", 'sql = "UPDATE condiciones_salud SET descripcion=NULL"')
+    assert len(violaciones_historial(tmp_path)) == 1
 
 
 @pytest.mark.parametrize(

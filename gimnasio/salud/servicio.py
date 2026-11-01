@@ -4,6 +4,8 @@ from contextlib import nullcontext
 from datetime import UTC, date, datetime
 from decimal import Decimal
 
+from mysql.connector import IntegrityError, errorcode
+
 from gimnasio.comun.bd import transaccion
 from gimnasio.comun.errores import ErrorDeDominio
 from gimnasio.comun.ids import desde_bytes, desde_texto, nuevo_id
@@ -174,6 +176,16 @@ def _texto(datos, campo, *, opcional=False):
     return valor.strip()
 
 
+def _insertar_id_nuevo(insertar, *argumentos):
+    """El id de un dato borrado sigue ocupado aunque ya no se pueda leer."""
+    try:
+        insertar(*argumentos)
+    except IntegrityError as error:
+        if error.errno != errorcode.ER_DUP_ENTRY:
+            raise
+        raise ErrorDeDominio("id_en_uso", "Ese dato ya no se puede registrar. Volvé a intentarlo.", 409) from error
+
+
 def _condicion(cursor, socio_id, condicion_id):
     fila = next((f for f in repositorio.condiciones_vigentes(cursor, socio_id) if f["id"] == condicion_id.bytes), None)
     if fila is None:
@@ -198,7 +210,15 @@ def declarar_condicion(socio_texto, usuario, datos):
             return {"condicion": _publicar(cursor_fila)}
         if reemplaza:
             _condicion(cursor, socio_id, reemplaza)
-        repositorio.insertar_condicion(cursor, identificador, socio_id, descripcion, reemplaza, reloj_actual().ahora())
+        _insertar_id_nuevo(
+            repositorio.insertar_condicion,
+            cursor,
+            identificador,
+            socio_id,
+            descripcion,
+            reemplaza,
+            reloj_actual().ahora(),
+        )
         return {"condicion": _publicar(repositorio.obtener_condicion(cursor, identificador))}
 
 
@@ -260,7 +280,8 @@ def gestionar(socio_texto, usuario, datos, *, condicion_texto=None, restriccion_
             if existente["socio_id"] != socio_id.bytes:
                 raise ErrorDeDominio("id_ajeno", "La restricción pertenece a otro socio.", 403)
             return {"restriccion_id": str(identificador)}
-        repositorio.insertar_restriccion(
+        _insertar_id_nuevo(
+            repositorio.insertar_restriccion,
             cursor,
             identificador,
             socio_id,
@@ -330,6 +351,7 @@ def consultar_consentimiento(socio_id):
     return {
         "salud": {
             "otorgado": bool(fila and fila["otorgado"]),
+            "revocado": bool(fila and not fila["otorgado"]),
             "version_texto": repositorio.VERSION_TEXTO,
             "texto": repositorio.TEXTO_CONSENTIMIENTO,
         }

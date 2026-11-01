@@ -1,5 +1,8 @@
 [data-personales], [data-perfil], [data-consentimientos], [data-membresia-pagos] { margin-block: var(--espacio-5); }
 [data-membresia-pagos] { overflow-wrap: anywhere; }
+[data-borrado-salud] { margin-block: var(--espacio-4); padding-block-start: var(--espacio-3); border-block-start: 1px solid var(--borde); }
+[data-borrado-salud] label { display: block; margin-block-end: var(--espacio-3); }
+[data-borrado-salud] input { display: block; font: inherit; color: var(--texto); background: var(--superficie); border: 1px solid var(--texto-suave); border-radius: var(--radio-1); padding: var(--espacio-3); width: 100%; min-width: 0; max-width: 100%; }
 [data-consultas-ficha] { margin-block: var(--espacio-5); min-width: 0; overflow-wrap: anywhere; }
 [data-consultas-ficha] button { margin: var(--espacio-2); }
 [data-perfil] select { font: inherit; color: var(--texto); background: var(--superficie); padding: var(--espacio-3); max-width: 100%; }
