@@ -10,7 +10,7 @@ import pytest
 
 from gimnasio.comun.bd import transaccion
 from gimnasio.comun.formatos import normalizar_cedula, normalizar_telefono
-from gimnasio.comun.ids import desde_bytes
+from gimnasio.comun.ids import desde_bytes, nuevo_id
 from gimnasio.comun.reloj import ZONA_SEDE, fecha_local
 from gimnasio.demo import servicio
 from gimnasio.demo.nombres import APELLIDOS, NOMBRES
@@ -56,6 +56,38 @@ def consultar(app, sql):
     with app.app_context(), transaccion() as cursor:
         cursor.execute(sql)
         return cursor.fetchall()
+
+
+@pytest.mark.bd
+def test_reinicio_despues_de_dolor_con_prescripcion_ajustada(app_con_bd):
+    from gimnasio.entrenamiento.servicio import consultar_sesion, crear_sesion, registrar_dolor
+
+    app_con_bd.config["MODO_DEMO"] = True
+    with app_con_bd.app_context():
+        servicio.reiniciar()
+        with transaccion() as cursor:
+            cursor.execute("SELECT id FROM usuarios WHERE rol='socio' AND es_demo=TRUE")
+            socio_id = cursor.fetchone()["id"]
+            socio = {"id": str(desde_bytes(socio_id)), "rol": "socio"}
+            cursor.execute(
+                "SELECT s.id FROM sesiones_planificadas s "
+                "JOIN programas_entrenamiento p ON p.id=s.programa_id "
+                "WHERE p.socio_id=%s ORDER BY s.posicion LIMIT 1",
+                (socio_id,),
+            )
+            planificada_id = str(desde_bytes(cursor.fetchone()["id"]))
+        sesion_id = str(nuevo_id())
+        crear_sesion({"id": sesion_id, "sesion_planificada_id": planificada_id}, socio)
+        sesion = consultar_sesion(sesion_id, socio)
+        registrar_dolor(
+            sesion_id,
+            {"id": str(nuevo_id()), "ejercicio_planificado_id": sesion["ejercicios"][0]["id"], "zonas": ["cuadriceps"]},
+            socio,
+        )
+        assert len(consultar(app_con_bd, "SELECT id FROM prescripciones_ajustadas")) == 1
+        servicio.reiniciar()
+        assert consultar(app_con_bd, "SELECT id FROM prescripciones_ajustadas") == []
+        assert consultar(app_con_bd, "SELECT id FROM dolores_reportados") == []
 
 
 def datos_semilla(app):
