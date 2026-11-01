@@ -23,7 +23,7 @@ def test_administracion_crea_personal_y_asigna_socio(pagina_demo, demo_aislada):
     alta.get_by_label("Nombre", exact=True).fill("Personal nuevo")
     alta.get_by_label("Apellido", exact=True).fill("Ficticio")
     alta.get_by_label("Cédula", exact=True).fill("8899801")
-    alta.get_by_label("Rol", exact=True).select_option("entrenador")
+    alta.get_by_role("combobox").select_option("entrenador")
     with pagina.expect_response(lambda r: r.request.method == "POST" and r.url.endswith("/api/usuarios")) as creacion:
         alta.get_by_role("button", name="Crear personal").click()
     assert creacion.value.status == 201
