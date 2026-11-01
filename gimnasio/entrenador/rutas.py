@@ -20,6 +20,12 @@ def consultar_socio(socio_id):
     return jsonify(servicio.consultar_socio(socio_id, usuario_actual()))
 
 
+@bp.get("/socios/<socio_id>/resumen-semanal")
+@requiere("socios.ver_asignados")
+def consultar_resumen_semanal(socio_id):
+    return jsonify(servicio.consultar_resumen_semanal(socio_id, usuario_actual(), request.args.get("semana")))
+
+
 @bp.post("/socios/<socio_id>/avisos/revision")
 @requiere("avisos.revisar")
 def revisar_avisos(socio_id):

@@ -5,9 +5,11 @@ import random
 import secrets
 from collections import OrderedDict, deque
 from datetime import UTC, date, datetime, time, timedelta
+from decimal import Decimal
 from itertools import count
 from math import ceil
 from threading import Lock
+from types import SimpleNamespace
 from typing import NamedTuple
 from zoneinfo import ZoneInfo
 
@@ -18,10 +20,11 @@ from gimnasio.comun.errores import ErrorDeDominio
 from gimnasio.comun.formatos import normalizar_cedula, normalizar_telefono
 from gimnasio.comun.ids import desde_bytes, desde_texto, nuevo_id
 from gimnasio.comun.reloj import ZONA_SEDE, fecha_local, reloj_actual
-from gimnasio.comun.tipos import ZONAS_CUERPO
+from gimnasio.comun.tipos import ZONAS_CUERPO, PrescripcionEjercicio
 from gimnasio.demo import repositorio
 from gimnasio.demo.nombres import APELLIDOS, NOMBRES
 from gimnasio.permisos import servicio as permisos
+from gimnasio.reglas.progresion import mantener_carga
 from gimnasio.reglas.simulacion import simular_visitas
 from gimnasio.reglas.version import VERSION_REGLAS
 from gimnasio.salud.borrado import CEDULA_SOCIO_BORRADO_DEMO
@@ -46,6 +49,7 @@ CASOS_ACOMPANAMIENTO = (
     ("Elsa", "Cabrera", 200, True, (3, 12, 29, 32, 35, 38, 42, 45, 50)),
     ("Tomás", "Acosta", 200, False, tuple(range(2, 56, 4))),
 )
+NOMBRES_FUERZA = ("Sentadilla ficticia", "Sentadilla con mancuernas ficticia")
 HORARIO_SEDE = {str(dia): [["06:00", "22:00"]] for dia in range(1, 6)}
 HORARIO_SEDE["6"] = [["08:00", "14:00"]]
 TIPOS_MEMBRESIA = (("Mensual", 30, 150_000), ("Trimestral", 90, 400_000), ("Anual", 365, 1_400_000))
@@ -92,8 +96,8 @@ def _cargar_programas(cursor, socios, siguiente_id, ahora):
     zonas_fuerza = tuple(z for z in ZONAS_CUERPO if z in {"gluteos", "cuadriceps", "rodillas", "zona_lumbar"})
     zonas_cardio = tuple(z for z in ZONAS_CUERPO if z in {"cuadriceps", "pantorrillas"})
     for identificador, nombre, equipo in (
-        (fuerza, "Sentadilla ficticia", "barra"),
-        (alternativa_fuerza, "Sentadilla con mancuernas ficticia", "mancuernas"),
+        (fuerza, NOMBRES_FUERZA[0], "barra"),
+        (alternativa_fuerza, NOMBRES_FUERZA[1], "mancuernas"),
     ):
         repositorio.insertar_ejercicio(
             cursor,
@@ -140,7 +144,9 @@ def _cargar_programas(cursor, socios, siguiente_id, ahora):
     _cargar_plantillas(cursor, siguiente_id, ahora, fuerza)
     for socio_id in socios[:2]:
         programa, primera, segunda = siguiente_id(), siguiente_id(), siguiente_id()
-        repositorio.insertar_programa(cursor, programa, socio_id, ahora)
+        # El de Lucía es anterior a su historial: el resumen semanal lo encuentra vigente en esas semanas.
+        publicado = ahora - timedelta(weeks=4) if socio_id == socios[0] else ahora
+        repositorio.insertar_programa(cursor, programa, socio_id, publicado)
         repositorio.insertar_sesion_planificada(cursor, primera, programa, 1, "Fuerza y cardio")
         repositorio.insertar_sesion_planificada(cursor, segunda, programa, 2, "Fuerza")
         ejercicio_fuerza = siguiente_id()
@@ -203,8 +209,10 @@ def _cargar_programas(cursor, socios, siguiente_id, ahora):
                 repositorio.insertar_sesion_planificada(
                     cursor, planificada, programa, semana - 4, "Fuerza ficticia anterior"
                 )
+                planificados = []
                 for posicion, ejercicio, reps in ((1, fuerza, repeticiones), (2, alternativa_fuerza, repeticiones - 2)):
                     planificado = siguiente_id()
+                    planificados.append((planificado, ejercicio, NOMBRES_FUERZA[posicion - 1], reps))
                     repositorio.insertar_ejercicio_planificado(
                         cursor,
                         planificado,
@@ -228,11 +236,44 @@ def _cargar_programas(cursor, socios, siguiente_id, ahora):
                         momento,
                         reps,
                     )
+                if semana == 3:
+                    _prescripcion_de_la_semana_cerrada(cursor, siguiente_id, realizada, momento, planificados)
         if socio_id == socios[1]:
             repositorio.insertar_parcial(
                 cursor, siguiente_id(), siguiente_id(), socio_id, primera, ejercicio_fuerza, ahora
             )
     return fuerza
+
+
+def _prescripcion_de_la_semana_cerrada(cursor, siguiente_id, realizada, momento, planificados):
+    """La sesión de la última semana cerrada guarda la doble progresión que la propuso: el resumen semanal la muestra.
+
+    Las repeticiones buscadas son las que hizo, una más que la semana anterior; la carga no cambia.
+    """
+    explicacion, ejercicios = [], []
+    for planificado, ejercicio, nombre, reps in planificados:
+        prescripcion = PrescripcionEjercicio(str(planificado), 2, 8, 12, Decimal("20.50"), 2, 90)
+        anterior = SimpleNamespace(
+            series=(SimpleNamespace(repeticiones=reps - 1),) * 2, fecha_local=fecha_local(momento - timedelta(weeks=1))
+        )
+        ajustada, razon = mantener_carga(prescripcion, SimpleNamespace(nombre=nombre), anterior)
+        explicacion.append({"regla": razon.regla, "version": razon.version, "datos": dict(razon.datos)})
+        ejercicios.append(
+            {
+                "id": str(planificado),
+                "ejercicio_id": str(ejercicio),
+                "ejercicio_hecho_id": None,
+                "no_disponible": False,
+                "nombre": nombre,
+                "objetivos": {
+                    campo: getattr(ajustada, campo)
+                    for campo in ("series", "repeticiones_minimas", "repeticiones_maximas", "carga", "rir_objetivo")
+                }
+                | {"carga": "20.50", "descanso": 90},
+                "explicacion": [explicacion[-1]],
+            }
+        )
+    repositorio.insertar_prescripcion(cursor, siguiente_id(), realizada, momento, ejercicios, explicacion)
 
 
 def _cargar_plantillas(cursor, siguiente_id, ahora, fuerza):

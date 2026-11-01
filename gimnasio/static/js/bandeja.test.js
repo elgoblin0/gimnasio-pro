@@ -27,7 +27,7 @@ function preparar(llamarApi) {
     return elementos.get(selector);
   };
   const contexto = vm.createContext({
-    ...textos, ...textosAcompanamiento, crear, llamarApi, crearControlDeOperacion, registrarPwa() {}, montarPerfil() {},
+    ...textos, ...textosAcompanamiento, crear, llamarApi, crearControlDeOperacion, registrarPwa() {}, montarPerfil() {}, montarResumenSemanal() {},
     document: { querySelector: obtener }, ZONAS_CUERPO: [],
     formatearFechaHora: (fecha) => fecha, crypto: { randomUUID: () => "clave" },
     FormData: class { get() { return "Nota ficticia"; } },

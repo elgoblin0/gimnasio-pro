@@ -40,6 +40,11 @@
   [data-estado] { color: var(--texto-suave); }
   [role="alert"] { color: var(--peligro); }
   :focus-visible { outline: 3px solid var(--foco); outline-offset: 3px; }
+  .resumen-semanal-navegacion { display: flex; align-items: center; justify-content: space-between; gap: var(--espacio-2); }
+  .resumen-semanal-navegacion button { min-width: 2.75rem; }
+  .resumen-semanal h4 { margin: var(--espacio-4) 0 var(--espacio-1); }
+  .resumen-semanal ul { margin: 0; padding-inline-start: var(--espacio-5); }
+  .resumen-semanal li + li { margin-block-start: var(--espacio-1); }
   @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after { animation-duration: 0ms !important; transition-duration: 0ms !important; }
   }

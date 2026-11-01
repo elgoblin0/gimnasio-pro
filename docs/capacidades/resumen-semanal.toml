@@ -2,5 +2,7 @@ id = "resumen-semanal"
 nombre = "Resumen semanal"
 grupo = "Acompañamiento"
 etapa = 6
-nivel = "pendiente"
-prueba = ""
+nivel = "funcional"
+prueba = "pruebas/e2e/test_resumen_semanal.py"
+
+# Calculado al consultar, sin tablas (#284). El entrenador sin consentimiento de salud lo recibe filtrado (ADR 0024).

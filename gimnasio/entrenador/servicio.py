@@ -3,7 +3,7 @@
 from dataclasses import asdict
 from datetime import UTC
 
-from gimnasio.acompanamiento.servicio import estados_de_socios, incorporacion_de
+from gimnasio.acompanamiento.servicio import estados_de_socios, incorporacion_de, resumen_semanal
 from gimnasio.comun.bd import LecturaConMemoria, transaccion
 from gimnasio.comun.errores import ErrorDeDominio
 from gimnasio.comun.ids import desde_bytes, nuevo_id
@@ -110,6 +110,16 @@ def consultar_socio(socio_texto, usuario):
         "incorporacion": incorporacion,
         "riesgo_abandono": acompanamiento["riesgo"],
     }
+
+
+def consultar_resumen_semanal(socio_texto, usuario, semana_texto=None):
+    """El mismo resumen que ve el socio; sin consentimiento de salud, sin sus datos (ADR 0024)."""
+    socio_id, entrenador_id = identificar(socio_texto), identificar(usuario["id"])
+    with transaccion() as cursor:
+        _exigir_asignacion(cursor, socio_id, entrenador_id)
+        consentimiento = tiene_consentimiento(cursor, socio_id, "salud")
+        resumen = resumen_semanal(cursor, socio_id, semana_texto)
+    return resumen if consentimiento else _sin_datos_salud(resumen)
 
 
 def revisar_avisos(socio_texto, datos, usuario):

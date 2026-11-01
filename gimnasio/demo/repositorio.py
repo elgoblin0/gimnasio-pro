@@ -473,3 +473,19 @@ def insertar_consultas_ficha(cursor, consultas):
         "INSERT INTO consultas_ficha (id,socio_id,consultado_por,registrada_en) VALUES (%s,%s,%s,%s)",
         [(a_bytes(i), a_bytes(socio), a_bytes(por), m) for i, socio, por, m in consultas],
     )
+
+
+def insertar_prescripcion(cursor, identificador, sesion_id, momento, ejercicios, explicacion):
+    cursor.execute(
+        """INSERT INTO prescripciones_efectivas
+           (id,sesion_realizada_id,version_reglas,creada_en,ejercicios,explicacion,frenos)
+           VALUES (%s,%s,%s,%s,%s,%s,'[]')""",
+        (
+            a_bytes(identificador),
+            a_bytes(sesion_id),
+            explicacion[0]["version"],
+            momento.astimezone(UTC).replace(tzinfo=None),
+            json.dumps(ejercicios, ensure_ascii=False),
+            json.dumps(explicacion, ensure_ascii=False),
+        ),
+    )
