@@ -72,6 +72,19 @@ def comprobar_error(respuesta, estado, codigo):
     assert respuesta.get_json()["error"]["codigo"] == codigo
 
 
+def test_agenda_marca_la_ocurrencia_ya_empezada(reservas):
+    app, cliente, clase, *_ = reservas
+
+    def empezada():
+        return next(o for o in agenda(cliente) if o["clase_id"] == clase and o["fecha"] == "2026-10-27")["empezada"]
+
+    assert empezada() is False
+    app.extensions["reloj"].fijar(datetime(2026, 10, 27, 20, 59, tzinfo=UTC))
+    assert empezada() is False
+    app.extensions["reloj"].fijar(datetime(2026, 10, 27, 21, tzinfo=UTC))
+    assert empezada() is True
+
+
 def test_cancelar_promueve_y_volver_a_reservar_va_al_final(reservas):
     app, cliente, clase, socios, _, _ = reservas
     primera = solicitar(cliente, clase, socios[0]).get_json()

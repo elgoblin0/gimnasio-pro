@@ -282,7 +282,7 @@ async function abrirTarjeta(socioId, enfocar = true) {
     if (membresia?.hasta) {
       const estado = !membresia.vigente ? "vencida" : membresia.dias_restantes <= 7 ? "por vencer" : "vigente";
       const hasta = membresia.hasta.split("-").reverse().join("/");
-      agregar(`Membresía ${estado} · hasta ${hasta} · ${membresia.dias_restantes} días restantes`, `membresia-${estado.replaceAll(" ", "-")}`);
+      agregar(`Membresía ${estado} · hasta ${hasta}${membresia.vigente ? ` · ${membresia.dias_restantes} días restantes` : ""}`, `membresia-${estado.replaceAll(" ", "-")}`);
     } else agregar("Sin membresía iniciada.");
     if (datos.pago_pendiente) {
       agregar("Pago pendiente");

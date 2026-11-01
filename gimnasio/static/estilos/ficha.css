@@ -1,3 +1,4 @@
+.barra { display: flex; align-items: center; justify-content: space-between; gap: var(--espacio-3); flex-wrap: wrap; }
 [data-personales], [data-perfil], [data-consentimientos], [data-membresia-pagos] { margin-block: var(--espacio-5); }
 [data-membresia-pagos] { overflow-wrap: anywhere; }
 [data-borrado-salud] { margin-block: var(--espacio-4); padding-block-start: var(--espacio-3); border-block-start: 1px solid var(--borde); }

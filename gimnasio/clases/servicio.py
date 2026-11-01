@@ -76,7 +76,8 @@ def agenda(usuario=None, socio_texto=None):
     socio_id = _socio_consulta(usuario, socio_texto)
     with transaccion() as cursor:
         zona_horaria = repositorio.zona_horaria(cursor)
-        hoy = reloj_actual().ahora().astimezone(ZoneInfo(zona_horaria)).date()
+        ahora = reloj_actual().ahora().astimezone(ZoneInfo(zona_horaria)).replace(tzinfo=None)
+        hoy = ahora.date()
         desde = hoy - timedelta(days=hoy.weekday())
         hasta = desde + timedelta(days=13)
         clases = _clases(cursor)
@@ -111,6 +112,7 @@ def agenda(usuario=None, socio_texto=None):
                 entrenador=f"{clase['entrenador_nombre']} {clase['entrenador_apellido']}",
                 cupo=cupo,
                 cancelada=cancelada,
+                empezada=datetime.fromisoformat(f"{fecha}T{fila['hora_inicio']}") <= ahora,
                 libres=0 if cancelada else cupo - len(estado["con_lugar"]),
                 espera=len(estado["en_espera"]),
                 reserva=_estado_propio(estado, propia),

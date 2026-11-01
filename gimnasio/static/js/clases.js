@@ -107,8 +107,9 @@ function dibujarOcurrencia(fila, cambio) {
   }
   if (reserva) elemento.append(crear("span", { className: "sello-agenda", "data-sello": reserva.estado }, textoReserva(reserva)));
   else if (fila.libres === 0) elemento.append(crear("p", { className: "ocurrencia-sin-lugar" }, "Sin lugar: se reserva en lista de espera."));
+  if (fila.empezada) elemento.append(crear("p", { className: "nota-suave" }, "Ya empezó."));
   const acciones = [];
-  if (usuario.rol === "socio" || usuario.rol === "recepcion") {
+  if (!fila.empezada && (usuario.rol === "socio" || usuario.rol === "recepcion")) {
     acciones.push(accion(reserva ? "Cancelar reserva" : "Reservar", reserva ? "cancelar_reserva" : "reservar", reserva ? "boton-borde" : "boton-reservar",
       (evento) => escribir(reserva ? `/api/clases/reservas/${reserva.id}/cancelar` : "/api/clases/reservas", "POST",
         reserva ? undefined : { clase_id: fila.clase_id, fecha: fila.fecha,
@@ -118,7 +119,7 @@ function dibujarOcurrencia(fila, cambio) {
   if (["entrenador", "recepcion", "administracion"].includes(usuario.rol)) {
     acciones.push(accion("Ver reservas", "ver_reservas", "boton-enlace", (evento) => verReservas(fila, evento.currentTarget)));
   }
-  if (["recepcion", "administracion"].includes(usuario.rol)) {
+  if (!fila.empezada && ["recepcion", "administracion"].includes(usuario.rol)) {
     acciones.push(accion("Cancelar ocurrencia", "cancelar_ocurrencia", "boton-enlace", (evento) => pedirMotivo(fila, evento.currentTarget)));
   }
   elemento.append(crear("div", { className: "ocurrencia-acciones" }, ...acciones));

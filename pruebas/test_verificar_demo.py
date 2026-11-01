@@ -28,6 +28,16 @@ def test_una_demo_correcta_no_da_fallas():
     assert verificar_demo.verificar("https://demo.test/", demo_simulada()) == []
 
 
+def test_acepta_retry_after_en_minusculas():
+    abrir = demo_simulada()
+
+    def en_minusculas(metodo, url, cuerpo=None):
+        estado, encabezados, texto = abrir(metodo, url, cuerpo)
+        return estado, {nombre.lower(): valor for nombre, valor in encabezados.items()}, texto
+
+    assert verificar_demo.verificar("https://demo.test", en_minusculas) == []
+
+
 def test_detecta_cada_incumplimiento():
     assert any("modo_demo" in f for f in verificar_demo.verificar("https://demo.test", demo_simulada(modo_demo=False)))
     assert any("413" in f for f in verificar_demo.verificar("https://demo.test", demo_simulada(rechaza_grande=False)))
