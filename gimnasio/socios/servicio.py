@@ -15,9 +15,14 @@ from gimnasio.reglas.membresia import vigencia_renovada
 from gimnasio.socios import repositorio
 
 
+def bloquear_socio(socio_id, *, cursor):
+    """Serializa pagos y anulaciones, incluso si el socio quedó inactivo."""
+    return repositorio.bloquear_socio(cursor, socio_id)
+
+
 def bloquear_socio_activo(socio_id, *, cursor):
     """Serializa pagos antes de insertar sus referencias al socio."""
-    socio = repositorio.bloquear_socio(cursor, socio_id)
+    socio = bloquear_socio(socio_id, cursor=cursor)
     if socio is None or socio["rol"] != "socio" or not socio["activo"]:
         raise ErrorDeDominio("socio_inactivo", "El pago requiere un socio activo.", 422)
 

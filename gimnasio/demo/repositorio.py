@@ -26,6 +26,7 @@ def vaciar_datos(cursor):
     cursor.execute("DELETE FROM ocurrencias_clase")
     cursor.execute("DELETE FROM clases")
     cursor.execute("DELETE FROM membresias")
+    cursor.execute("DELETE FROM anulaciones_pago")
     cursor.execute("DELETE FROM pagos")
     cursor.execute("DELETE FROM tipos_membresia")
     cursor.execute("DELETE FROM cambios_sede")

@@ -7,6 +7,9 @@ los aplica cada servicio. Acá solo se decide si el rol puede intentar la acció
 ROLES = ("socio", "recepcion", "entrenador", "administracion")
 
 PERMISOS = {
+    "pagos.anular": {"recepcion", "administracion"},
+    "pagos.ver": {"recepcion", "administracion"},
+    "pagos.ver_propios": {"socio"},
     "clases.cancelar_ocurrencia": {"recepcion", "administracion"},
     "avisos_socio.ver_propios": {"socio"},
     "clases.ver": set(ROLES),
