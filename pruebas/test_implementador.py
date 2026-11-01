@@ -337,8 +337,7 @@ def test_con_cambios_publica_el_cuerpo_y_cierra_el_pedido(atencion):
 def test_la_verificacion_compara_contra_el_punto_de_partida_del_intento(atencion, monkeypatch):
     bases = []
     atencion.responder("Corregido.", cambios=True)
-    monkeypatch.setattr(implementador, "git", lambda *a, **k: SimpleNamespace(stdout="abc123
-"))
+    monkeypatch.setattr(implementador, "git", lambda *a, **k: SimpleNamespace(stdout="abc123"))
     monkeypatch.setattr(implementador, "verificar", lambda c, base=None: bases.append(base) or (["ruff: ok"], True))
     implementador.atender(PR_DE_CODEX, PEDIDO_CORREGIR)
     assert bases == ["abc123"]
