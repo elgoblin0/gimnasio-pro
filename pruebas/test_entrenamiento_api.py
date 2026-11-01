@@ -1424,13 +1424,11 @@ def test_prescripcion_de_programa_anterior_no_interfiere(entrenamiento_api):
 
 
 @pytest.fixture
-def dolor_api(entrenamiento_api):
-    from gimnasio.demo import servicio as demo
+def dolor_api(entrenamiento_api, sembrar_demo):
 
     datos = entrenamiento_api
     datos.app.config["MODO_DEMO"] = True
-    with datos.app.app_context():
-        demo.reiniciar()
+    sembrar_demo(datos.app)
     cliente = datos.app.test_client()
     assert cliente.post("/api/sesion/demo/socio", headers={"X-Gimnasio": "1"}).status_code == 200
     datos.cliente_dolor = cliente

@@ -14,10 +14,9 @@ pytestmark = pytest.mark.bd
 
 
 @pytest.fixture
-def equipos(app_con_bd):
+def equipos(app_con_bd, sembrar_demo):
     app_con_bd.config["MODO_DEMO"] = True
-    with app_con_bd.app_context():
-        demo.reiniciar()
+    sembrar_demo(app_con_bd)
     cliente = app_con_bd.test_client()
     cliente.post("/api/sesion/demo/entrenador", headers={"X-Gimnasio": "1"})
     equipo = next(e for e in cliente.get("/api/equipos").get_json()["equipos"] if e["estado"] == "disponible")

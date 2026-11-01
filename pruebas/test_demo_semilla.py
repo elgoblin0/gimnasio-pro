@@ -192,6 +192,18 @@ def test_historial_de_ocho_semanas_con_horario_y_aforo(app_con_bd, reloj_fijo):
 
 
 @pytest.mark.bd
+def test_la_semilla_copiada_de_las_pruebas_es_igual_a_la_generada(app_con_bd, sembrar_demo):
+    app_con_bd.config["MODO_DEMO"] = True
+    with app_con_bd.app_context():
+        servicio.reiniciar()
+    generada = datos_semilla(app_con_bd)
+    # La primera puede generarla; la segunda siempre la copia.
+    sembrar_demo(app_con_bd)
+    sembrar_demo(app_con_bd)
+    assert datos_semilla(app_con_bd) == generada
+
+
+@pytest.mark.bd
 def test_dos_reinicios_dejan_los_mismos_datos(app_con_bd, reloj_fijo):
     app_con_bd.config["MODO_DEMO"] = True
     migraciones = consultar(app_con_bd, "SELECT * FROM migraciones_aplicadas ORDER BY version")

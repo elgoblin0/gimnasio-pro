@@ -10,12 +10,9 @@ pytestmark = pytest.mark.e2e
 
 
 @pytest.fixture
-def pagina_demo(demo_aislada, playwright):
+def pagina_demo(demo_aislada, navegador):
     """Sin service worker: lo que pasa por él no llega a `page.route` ni a los eventos de la página."""
-    with (
-        playwright.chromium.launch(channel="chromium") as navegador,
-        navegador.new_context(locale="es-PY", service_workers="block") as contexto,
-    ):
+    with navegador.new_context(locale="es-PY", service_workers="block") as contexto:
         yield contexto.new_page()
 
 

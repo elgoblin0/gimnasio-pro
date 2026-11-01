@@ -24,10 +24,9 @@ def escribir(cliente, ruta, cuerpo=None, *, metodo="post", clave=None):
 
 
 @pytest.fixture
-def pagos(app_con_bd):
+def pagos(app_con_bd, sembrar_demo):
     app_con_bd.config["MODO_DEMO"] = True
-    with app_con_bd.app_context():
-        demo.reiniciar()
+    sembrar_demo(app_con_bd)
     cliente = app_con_bd.test_client()
     autor = cliente.post("/api/sesion/demo/administracion", headers={"X-Gimnasio": "1"}).get_json()["usuario"]
     tipo = escribir(cliente, "/api/tipos-membresia", {"nombre": "Mensual", "duracion_dias": 30, "precio": 250000})

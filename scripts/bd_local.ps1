@@ -14,7 +14,7 @@ switch ($Accion) {
     "iniciar" {
         if (Responde) { "MySQL ya está activo."; break }
         $ini = Join-Path $local "my.ini"
-        $ini_texto = "[mysqld]`nbasedir=$($local -replace '\\','/')/mysql`ndatadir=$($local -replace '\\','/')/datos`nbind-address=127.0.0.1`nport=3306`nmysqlx=OFF`n"
+        $ini_texto = "[mysqld]`nbasedir=$($local -replace '\\','/')/mysql`ndatadir=$($local -replace '\\','/')/datos`nbind-address=127.0.0.1`nport=3306`nmysqlx=OFF`nskip-log-bin`ninnodb_flush_log_at_trx_commit=0`n"
         Set-Content -Path $ini -Value $ini_texto -Encoding ascii
         if (-not (Test-Path (Join-Path $local "datos"))) {
             & "$bin\mysqld.exe" "--defaults-file=$ini" --initialize-insecure 2>$null
