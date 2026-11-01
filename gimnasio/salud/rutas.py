@@ -61,6 +61,5 @@ def levantar(socio_id, restriccion_id):
 @bp.post("/socios/<socio_id>/salud/condiciones/<condicion_id>/revisar")
 @requiere("salud.gestionar_restricciones")
 def revisar(socio_id, condicion_id):
-    return jsonify(
-        servicio.gestionar(socio_id, usuario_actual(), request.get_json(silent=True), condicion_texto=condicion_id)
-    )
+    datos = request.get_json(silent=True) if request.data else {}
+    return jsonify(servicio.gestionar(socio_id, usuario_actual(), datos, condicion_texto=condicion_id))

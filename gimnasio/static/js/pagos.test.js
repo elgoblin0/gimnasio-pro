@@ -6,7 +6,7 @@ import vm from "node:vm";
 const codigo = readFileSync(new URL("./pagos.js", import.meta.url), "utf8")
   .replace(/^import .*;\r?\n/gm, "").replace(/iniciar\(\)\.catch\([\s\S]*$/, "");
 
-function preparar(error, socio = "") {
+function preparar(error, socio = "", esAlta = false) {
   const elementos = new Map();
   const obtener = (selector) => {
     if (!elementos.has(selector)) elementos.set(selector, {
@@ -22,7 +22,7 @@ function preparar(error, socio = "") {
   let fallo = error;
   const avisos = [];
   const contexto = vm.createContext({
-    URLSearchParams, location: { search: socio ? `?socio=${socio}` : "", origin: "https://gimnasio.test" },
+    URLSearchParams, location: { search: esAlta ? "?alta=1" : socio ? `?socio=${socio}` : "", origin: "https://gimnasio.test" },
     window: { parent: { postMessage: (...argumentos) => avisos.push(argumentos) } },
     document: { querySelector: obtener }, registrarPwa() {},
     crypto: { randomUUID: () => String(envios.length + 1) },
@@ -37,11 +37,31 @@ function preparar(error, socio = "") {
     evento: { preventDefault() {}, target: formulario },
   });
   vm.runInContext(codigo, contexto);
-  return { obtener, formulario, envios, avisos,
+  return { obtener, formulario, envios, avisos, contexto,
     registrar: () => vm.runInContext("registrar(evento)", contexto),
     reintentar: () => vm.runInContext("enviar()", contexto),
     resolver: () => { fallo = null; } };
 }
+
+test("alta sin pago conserva cuerpo y clave ante una respuesta perdida", async () => {
+  const pantalla = preparar({ estadoHttp: 0 }, "", true);
+  pantalla.formulario.datos = { nombre: "Ana", apellido: "Ficticia", cedula: "8899001", consentimiento_datos: "on" };
+  pantalla.obtener("[data-primer-pago]").checked = false;
+  await pantalla.registrar();
+  assert.deepEqual(pantalla.envios[0].cuerpo, { nombre: "Ana", apellido: "Ficticia", cedula: "8899001", consentimiento_datos: true });
+  await pantalla.reintentar();
+  assert.deepEqual(pantalla.envios[1], pantalla.envios[0]);
+});
+
+test("alta con primer pago reutiliza tipo, medio y monto del formulario de pagos", async () => {
+  const pantalla = preparar({ estadoHttp: 0 }, "", true);
+  pantalla.formulario.datos = { nombre: "Ana", apellido: "Ficticia", cedula: "8899001", tipo_id: "tipo", medio: "efectivo", monto: "250000" };
+  pantalla.obtener("[data-primer-pago]").checked = true;
+  await pantalla.registrar();
+  assert.deepEqual(pantalla.envios[0].cuerpo.primer_pago, { tipo_id: "tipo", medio: "efectivo", monto: 250000 });
+  assert.equal("tipo_id" in pantalla.envios[0].cuerpo, false);
+  assert.equal("socio_id" in pantalla.envios[0].cuerpo, false);
+});
 
 for (const error of [{ estadoHttp: 0 }, { estadoHttp: 422 }]) {
   test(`pago contextual conserva socio y formulario ante fallo ${error.estadoHttp}`, async () => {

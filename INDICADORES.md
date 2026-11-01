@@ -33,7 +33,7 @@ Guía para explicar el recorrido de etapa 1. Las referencias `archivo:línea` se
 | Indicador | Evidencia vigente |
 |---|---|
 | Construcción y estructura | Inicio con idioma español, viewport y dirección B: `gimnasio/static/index.html:2`. Formulario de ingreso: `gimnasio/static/index.html:30`. Recepción y entrenamiento usan `main`, `header`, secciones y controles etiquetados: `gimnasio/static/recepcion.html:28`, `gimnasio/static/entrenamiento.html:17`. |
-| Coordinación con el servidor | Formulario de entrada y selección de socio: `gimnasio/static/recepcion.html:56`, conectado por el módulo de recepción. Los formularios de series se crean según la respuesta real: `gimnasio/static/js/entrenamiento.js:60`. |
+| Coordinación con el servidor | Formulario de entrada y selección de socio: `gimnasio/static/recepcion.html:57`, conectado por el módulo de recepción. Los formularios de series se crean según la respuesta real: `gimnasio/static/js/entrenamiento.js:60`. |
 | Navegación | La pantalla inicial ofrece enlaces según rol; recepción y entrenamiento vuelven a inicio y permiten cerrar sesión: `gimnasio/static/recepcion.html:30`, `gimnasio/static/entrenamiento.html:18`. |
 
 ## Hojas de estilo y CSS (5 + 5 pts)

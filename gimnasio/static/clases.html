@@ -11,6 +11,7 @@
   <link rel="stylesheet" href="/estilos/base.css">
   <link rel="stylesheet" href="/estilos/entrenador.css">
   <link rel="stylesheet" href="/estilos/administracion.css">
+  <link rel="stylesheet" href="/estilos/agenda.css">
   <script type="importmap">{"imports":{"@comun/":"/js/comun/"}}</script>
   <script type="module" src="/js/clases.js"></script>
 </head>
@@ -27,18 +28,42 @@
   <p data-error role="alert"></p>
   <button type="button" data-reintentar hidden>Volver a cargar</button>
   <button type="button" data-reintentar-operacion hidden>Reintentar operación</button>
-  <section aria-labelledby="titulo-agenda">
-    <h2 id="titulo-agenda">Esta semana y la siguiente</h2>
-    <p data-rango></p>
-    <div data-recepcion hidden>
+  <section class="agenda" aria-labelledby="titulo-agenda">
+    <div class="agenda-cabecera">
+      <h2 id="titulo-agenda">Esta semana y la siguiente</h2>
+      <p class="nota-suave" data-rango></p>
+    </div>
+    <div class="agenda-recepcion" data-recepcion hidden>
       <p><label>Buscar socio <input type="search" data-buscar-socio placeholder="Nombre o cédula"></label></p>
       <p><label for="socio">Socio</label> <select id="socio" data-socio><option value="">Elegí un socio</option></select></p>
-      <p data-socios-estado role="status"></p>
+      <p class="nota-suave" data-socios-estado role="status"></p>
     </div>
-    <p data-vacio hidden>No hay ocurrencias de clase en estas dos semanas.</p>
-    <ol data-agenda></ol>
-    <section data-lista-reservas hidden aria-label="Reservas de la clase" aria-live="polite"></section>
+    <ul class="agenda-leyenda nota-suave" data-leyenda hidden aria-hidden="true">
+      <li><span class="marca" data-marca="ocupado"></span> Ocupado</li>
+      <li><span class="marca" data-marca="libre"></span> Libre</li>
+      <li data-leyenda-propia><span class="marca" data-marca="propio"></span> Tu lugar</li>
+      <li><span class="marca marca-espera" data-marca="espera"></span> En espera</li>
+    </ul>
+    <p class="agenda-vacia" data-vacio hidden>No hay ocurrencias de clase en estas dos semanas.</p>
+    <div data-agenda></div>
+    <p class="solo-lector" data-anuncio role="status" aria-live="polite"></p>
   </section>
+  <dialog class="agenda-dialogo" data-lista-reservas aria-label="Reservas de la clase">
+    <div data-lista-contenido></div>
+    <form class="agenda-dialogo-cerrar" method="dialog"><button type="submit" class="boton-borde">Cerrar</button></form>
+  </dialog>
+  <dialog class="agenda-dialogo" data-dialogo-cancelar aria-labelledby="titulo-cancelar">
+    <h3 id="titulo-cancelar">Cancelar ocurrencia</h3>
+    <p data-cancelar-detalle></p>
+    <p class="nota-suave">Se cancelan sus reservas y cada socio recibe un aviso. El horario de la clase no cambia.</p>
+    <form data-formulario-cancelar>
+      <label>Motivo de la cancelación <textarea name="motivo" rows="3" required></textarea></label>
+      <div class="agenda-dialogo-acciones">
+        <button type="button" class="boton-borde" data-cerrar-cancelar>Volver</button>
+        <button type="submit" class="boton-tinta">Cancelar ocurrencia</button>
+      </div>
+    </form>
+  </dialog>
   <section data-configuracion hidden aria-labelledby="titulo-configuracion">
     <h2 id="titulo-configuracion">Configurar clases</h2>
     <p>Cada clase tiene un día y hora semanal. Las ocurrencias ya fijadas conservan su fecha, hora y duración.</p>

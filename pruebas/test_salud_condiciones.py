@@ -144,6 +144,22 @@ def test_el_socio_ve_el_nombre_del_ejercicio_restringido(salud):
     assert [r["ejercicio_nombre"] for r in restricciones] == [ejercicio["nombre"]]
 
 
+def test_revisar_condicion_admite_cuerpo_vacio_y_no_duplica(salud):
+    cid = declarar(salud)
+    entrenador = salud.cliente("entrenador")
+    ruta = salud.ruta + f"/condiciones/{cid}/revisar"
+    for _ in range(2):
+        respuesta = entrenador.post(ruta, headers={"X-Gimnasio": "1", "Idempotency-Key": str(uuid4())})
+        assert respuesta.status_code == 200
+    condiciones = entrenador.get(salud.ruta).json["condiciones"]
+    assert condiciones[0]["revision_id"] is not None
+    assert condiciones[0]["nota"] is None
+    assert motivos(salud) == []
+    with salud.app.app_context(), transaccion() as cursor:
+        cursor.execute("SELECT COUNT(*) AS total FROM revisiones_condicion")
+        assert cursor.fetchone()["total"] == 1
+
+
 def test_todas_las_operaciones_exigen_consentimiento_asignacion_y_rol(salud):
     datos = salud
     cid = declarar(datos)

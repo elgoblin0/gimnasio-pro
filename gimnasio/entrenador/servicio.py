@@ -7,7 +7,7 @@ from gimnasio.comun.bd import LecturaConMemoria, transaccion
 from gimnasio.comun.errores import ErrorDeDominio
 from gimnasio.comun.ids import desde_bytes, nuevo_id
 from gimnasio.comun.reloj import reloj_actual
-from gimnasio.comun.tipos import MotivoBandeja, SocioBandeja
+from gimnasio.comun.tipos import EjercicioCatalogo, MotivoBandeja, SocioBandeja
 from gimnasio.entrenador import repositorio
 from gimnasio.entrenamiento.servicio import (
     avisos_para_entrenador,
@@ -21,9 +21,11 @@ from gimnasio.entrenamiento.servicio import (
 from gimnasio.permisos.servicio import socios_asignados, tiene_asignacion_vigente, tiene_consentimiento
 from gimnasio.programas.servicio import listar_equipos, listar_programas, socios_con_programa
 from gimnasio.reglas.bandeja import priorizar_bandeja
+from gimnasio.reglas.restricciones import excluido
 from gimnasio.salud.servicio import (
     condiciones_para_entrenador,
     condiciones_pendientes,
+    historial_restricciones,
     restricciones_vigentes,
     revocaciones_de_salud,
 )
@@ -123,6 +125,30 @@ def revisar_avisos(socio_texto, datos, usuario):
     return {"aviso_ids": sorted(str(identificador) for identificador in ids)}
 
 
+def _fecha_restriccion(cursor, socio_id, ejercicio):
+    # consultar_propuesta ya leyó estas filas: LecturaConMemoria evita repetir la consulta.
+    filas = [
+        f for f in historial_restricciones(socio_id, cursor=cursor, consentimiento=True) if f["levantada_en"] is None
+    ]
+    restricciones = restricciones_vigentes(socio_id, cursor=cursor, consentimiento=True, historial=filas)
+    catalogado = EjercicioCatalogo(
+        ejercicio["ejercicio_id"],
+        ejercicio["nombre"],
+        None,
+        patron_movimiento=ejercicio["patron_movimiento"],
+        zonas=tuple(ejercicio["zonas"]),
+    )
+    return (
+        min(
+            fila["registrada_en"]
+            for fila, restriccion in zip(filas, restricciones, strict=True)
+            if excluido(catalogado, (restriccion,))
+        )
+        .replace(tzinfo=UTC)
+        .isoformat()
+    )
+
+
 def consultar_bandeja(usuario):
     """Lectura de asignaciones vigentes; no crea propuestas ni avisos persistidos.
 
@@ -192,7 +218,7 @@ def consultar_bandeja(usuario):
                                 {
                                     "tipo": "ejercicio_sin_alternativa",
                                     "ejercicio_id": ejercicio["id"],
-                                    "fecha": propuesta["fecha_local"] + "T00:00:00-03:00",
+                                    "fecha": _fecha_restriccion(cursor, socio_id, ejercicio),
                                 }
                             )
             if socio_id in revocaciones:

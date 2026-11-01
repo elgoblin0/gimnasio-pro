@@ -1,6 +1,6 @@
 import { llamarApi } from "@comun/api.js";
 import { montarPerfil } from "./perfil-entrenamiento.js";
-import { montarSalud } from "./salud.js";
+import { invalidarSalud, montarSalud } from "./salud.js";
 import { formatearCarga, formatearFechaHora } from "@comun/formatos.js";
 import { crearControlDeOperacion } from "@comun/operaciones.js";
 import { crear, exigirRol, prepararBarra } from "@comun/personal.js";
@@ -201,6 +201,8 @@ async function leerSocio(id) {
 
 function mostrarSocio(id, { enfocar = false } = {}) {
   if (id !== socioAbierto) {
+    invalidarSalud($("[data-salud]"));
+    delete $("[data-salud]").dataset.saludSocio;
     if (control.actual && !control.enCurso) control.descartar();
     $("[data-nota]").value = "";
     $("[data-error-revision]").textContent = "";

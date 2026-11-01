@@ -168,17 +168,23 @@ def test_restriccion_a_mitad_de_sesion_con_dolor_no_cambia_lectura_reintento_ni_
 def test_restriccion_sin_alternativa_queda_pendiente_y_en_bandeja(sesiones_salud):
     datos = sesiones_salud
     cliente = datos.cliente()
+    registrada_en = datos.reloj.ahora().isoformat()
     rid = restringir(datos, patron_movimiento="sentadilla")
     propuesta = cliente.get("/api/entrenamiento/propuesta").json
     assert all(e["no_disponible"] and e["pendiente"] == 2 for e in propuesta["ejercicios"])
-    bandeja = datos.cliente("entrenador").get("/api/entrenador/bandeja")
-    assert bandeja.status_code == 200
-    assert any(
-        m["tipo"] == "ejercicio_sin_alternativa"
-        for g in bandeja.json["grupos"]
-        for s in g["socios"]
-        for m in s["motivos"]
-    )
+    for dias in (0, 1):
+        datos.reloj.avanzar(timedelta(days=dias))
+        bandeja = datos.cliente("entrenador").get("/api/entrenador/bandeja")
+        assert bandeja.status_code == 200
+        motivos = [
+            m
+            for g in bandeja.json["grupos"]
+            for s in g["socios"]
+            for m in s["motivos"]
+            if m["tipo"] == "ejercicio_sin_alternativa"
+        ]
+        assert motivos
+        assert all(m["fecha"] == registrada_en for m in motivos)
     sid, _ = iniciar(datos)
     with datos.app.app_context():
         serie_id = str(nuevo_id())
@@ -201,6 +207,38 @@ def test_restriccion_sin_alternativa_queda_pendiente_y_en_bandeja(sesiones_salud
     datos.reloj.avanzar(timedelta(seconds=1))
     assert escribir(datos.cliente("entrenador"), datos.ruta + f"/restricciones/{rid}/levantar", {}).status_code == 200
     assert all(not e["no_disponible"] for e in cliente.get("/api/entrenamiento/propuesta").json["ejercicios"])
+
+
+def test_bandeja_usa_la_restriccion_vigente_mas_antigua_que_excluye_el_ejercicio(sesiones_salud, monkeypatch):
+    from mysql.connector.cursor import MySQLCursor
+
+    datos = sesiones_salud
+    levantada = restringir(datos, patron_movimiento="sentadilla")
+    restringir(datos, zona="hombros")
+    datos.reloj.avanzar(timedelta(days=1))
+    assert (
+        escribir(datos.cliente("entrenador"), datos.ruta + f"/restricciones/{levantada}/levantar", {}).status_code
+        == 200
+    )
+    registrada_en = datos.reloj.ahora().isoformat()
+    restringir(datos, zona="gluteos")
+    datos.reloj.avanzar(timedelta(days=1))
+    restringir(datos, patron_movimiento="sentadilla")
+    consultas = []
+    ejecutar = MySQLCursor.execute
+
+    def contar(cursor, sql, *args, **opciones):
+        if "FROM restricciones_salud" in sql:
+            consultas.append(sql)
+        return ejecutar(cursor, sql, *args, **opciones)
+
+    monkeypatch.setattr(MySQLCursor, "execute", contar)
+    bandeja = datos.cliente("entrenador").get("/api/entrenador/bandeja")
+    assert bandeja.status_code == 200
+    motivos = [m for g in bandeja.json["grupos"] for s in g["socios"] for m in s["motivos"]]
+    assert motivos
+    assert all(m["fecha"] == registrada_en for m in motivos)
+    assert len(consultas) == 1
 
 
 def test_sesiones_pasadas_proyectan_igual_y_restricciones_se_leen_una_vez(sesiones_salud, monkeypatch):

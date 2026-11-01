@@ -7,6 +7,10 @@ import { ZONAS_CUERPO } from "./comun/zonas.js";
 const lecturas = new WeakMap();
 const finalidad = "Usamos las condiciones, restricciones y dolores para adaptar el entrenamiento y aplicar los frenos de seguridad.";
 
+export function invalidarSalud(contenedor) {
+  lecturas.delete(contenedor);
+}
+
 export async function montarSalud(contenedor, socio = null, alGuardar = () => {}) {
   const lectura = {};
   lecturas.set(contenedor, lectura);
@@ -27,6 +31,7 @@ export async function montarSalud(contenedor, socio = null, alGuardar = () => {}
       forma.addEventListener("input", () => { pendiente = null; });
       forma.addEventListener("submit", async (evento) => {
         evento.preventDefault();
+        if (lecturas.get(contenedor) !== lectura) return;
         boton.disabled = true;
         estado.textContent = "Guardando…";
         pendiente ??= { clave: crypto.randomUUID(), cuerpo: datos(new FormData(forma)) };
@@ -36,6 +41,7 @@ export async function montarSalud(contenedor, socio = null, alGuardar = () => {}
           await montarSalud(contenedor, socio, alGuardar);
           alGuardar();
         } catch (error) {
+          if (lecturas.get(contenedor) !== lectura) return;
           estado.textContent = error.message;
           boton.disabled = false;
         }

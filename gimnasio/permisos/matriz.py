@@ -9,6 +9,7 @@ ROLES = ("socio", "recepcion", "entrenador", "administracion")
 PERMISOS = {
     "salud.declarar_condicion": {"socio"},
     "salud.gestionar_restricciones": {"entrenador"},
+    "socios.dar_alta": {"recepcion", "administracion"},
     "pagos.anular": {"recepcion", "administracion"},
     "pagos.ver": {"recepcion", "administracion"},
     "pagos.ver_propios": {"socio"},
