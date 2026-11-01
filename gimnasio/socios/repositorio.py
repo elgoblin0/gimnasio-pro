@@ -2,21 +2,6 @@
 
 from gimnasio.comun.ids import a_bytes
 
-
-def contar_altas_demo(cursor, desde, hasta):
-    # La sede serializa altas simultáneas para que no excedan el tope diario.
-    cursor.execute("SELECT id FROM sedes ORDER BY id LIMIT 1 FOR UPDATE")
-    cursor.fetchone()
-    cursor.execute(
-        "SELECT COUNT(*) AS cantidad FROM usuarios u WHERE u.es_demo=TRUE AND u.rol='socio' "
-        "AND u.creado_en >= %s AND u.creado_en < %s "
-        "AND EXISTS (SELECT 1 FROM consentimientos c WHERE c.socio_id=u.id "
-        "AND c.tipo='datos_personales' AND c.registrado_por<>u.id)",
-        (desde, hasta),
-    )
-    return cursor.fetchone()["cantidad"]
-
-
 CAMPOS_PERSONALES = ("nombre", "apellido", "cedula", "telefono", "correo", "fecha_nacimiento")
 CAMPOS_PERFIL = ("objetivo", "experiencia", "disponibilidad_semanal", "tiempo_por_sesion", "preferencias")
 

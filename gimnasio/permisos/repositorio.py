@@ -84,6 +84,20 @@ def actualizar_figura_cuerpo(cursor, usuario_id, figura, momento):
     )
 
 
+def contar_altas_demo(cursor, desde, hasta):
+    # La sede serializa altas simultáneas para que no excedan el tope diario.
+    cursor.execute("SELECT id FROM sedes ORDER BY id LIMIT 1 FOR UPDATE")
+    cursor.fetchone()
+    cursor.execute(
+        "SELECT COUNT(*) AS cantidad FROM usuarios u WHERE u.es_demo=TRUE AND u.rol='socio' "
+        "AND u.creado_en >= %s AND u.creado_en < %s "
+        "AND EXISTS (SELECT 1 FROM consentimientos c WHERE c.socio_id=u.id "
+        "AND c.tipo='datos_personales' AND c.registrado_por<>u.id)",
+        (desde, hasta),
+    )
+    return cursor.fetchone()["cantidad"]
+
+
 def insertar_usuario(cursor, usuario_id, persona_id, rol, clave_hash, es_demo, momento):
     cursor.execute(
         """INSERT INTO usuarios (id, persona_id, rol, clave_hash, es_demo, activo, creado_en, actualizado_en)

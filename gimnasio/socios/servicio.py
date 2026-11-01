@@ -13,6 +13,7 @@ from gimnasio.comun.formatos import normalizar_cedula, normalizar_correo, normal
 from gimnasio.comun.ids import desde_bytes, desde_texto, nuevo_id
 from gimnasio.comun.reloj import fecha_local, reloj_actual
 from gimnasio.permisos.servicio import (
+    contar_altas_demo,
     crear_usuario,
     fijar_clave_provisional,
     registrar_consentimiento,
@@ -40,7 +41,7 @@ def dar_alta(datos, autor, es_demo):
                 ahora = reloj_actual().ahora()
                 zona = ZoneInfo("America/Asuncion")
                 desde = datetime.combine(fecha_local(ahora), time.min, zona).astimezone(UTC)
-                if repositorio.contar_altas_demo(cursor, desde, desde + timedelta(days=1)) >= 20:
+                if contar_altas_demo(cursor, desde, desde + timedelta(days=1)) >= 20:
                     raise ErrorDeDominio("limite_altas_demo", "La demo admite 20 altas por día.", 429)
             usuario_id = crear_usuario(cursor, persona, "socio", es_demo=es_demo)
             if clave:

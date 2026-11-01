@@ -140,6 +140,10 @@ def socios_demo():
         return [{**fila, "id": str(desde_bytes(fila["id"]))} for fila in repositorio.listar_socios_demo(cursor)]
 
 
+def contar_altas_demo(cursor, desde, hasta):
+    return repositorio.contar_altas_demo(cursor, desde, hasta)
+
+
 def fijar_clave_provisional(cursor, usuario_id, clave):
     repositorio.cambiar_clave(cursor, usuario_id, generate_password_hash(clave), True, reloj_actual().ahora())
 
