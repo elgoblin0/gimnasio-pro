@@ -3,6 +3,7 @@ import { llamarApi } from "@comun/api.js";
 import { formatearCedula, formatearFechaHora } from "@comun/formatos.js";
 import { crearControlDeOperacion, cerrarSesion } from "@comun/operaciones.js";
 import { registrarPwa } from "@comun/pwa.js";
+import { textoDia, textosDeRiesgo } from "./acompanamiento-textos.js";
 
 import { crearSondeo } from "@comun/sondeo.js";
 
@@ -324,6 +325,8 @@ async function abrirTarjeta(socioId, enfocar = true) {
     else if (datos.ultima_visita) agregar(`Última visita: ${formatearFechaHora(datos.ultima_visita.desde)} a ${formatearFechaHora(datos.ultima_visita.hasta)}`);
     else agregar("Sin visitas registradas.");
     agregar(`Visitas de las últimas cuatro semanas: ${datos.visitas_ultimas_4_semanas}`);
+    if (datos.incorporacion) agregar(`Incorporación: ${textoDia(datos.incorporacion.dia)}`);
+    if (datos.riesgo_abandono.length) agregar(`Riesgo de abandono: ${textosDeRiesgo(datos.riesgo_abandono).join(" · ")}`);
     const habitual = datos.permanencia_habitual;
     agregar(habitual.suficiente ? `Permanencia habitual: ${habitual.mediana} min` : `Permanencia habitual: datos insuficientes (${habitual.observaciones} visitas)`);
   } catch (error) {

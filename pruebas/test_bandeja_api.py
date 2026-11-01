@@ -37,7 +37,8 @@ def test_etag_aviso_nuevo_y_revisado(vista):
         )
     nueva = cliente.get(RUTA, headers={"If-None-Match": revisada.headers["ETag"]})
     assert nueva.status_code == 200
-    assert nueva.json["grupos"][-1]["socios"][0]["motivos"][0]["tipo"] == "aviso_progresion"
+    progresion = next(g for g in nueva.json["grupos"] if g["tipo"] == "aviso_progresion")
+    assert progresion["socios"][0]["motivos"][0]["tipo"] == "aviso_progresion"
     assert "zonas" not in str(nueva.json)
 
 

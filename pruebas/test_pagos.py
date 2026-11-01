@@ -173,9 +173,9 @@ def test_pago_no_toca_visitas_y_reinicio_demo(pagos):
     assert (filas(app, "entradas"), filas(app, "salidas")) == antes
     with app.app_context():
         demo.reiniciar()
-    # El reinicio deja los tres tipos y los pagos de la semilla (#233), sin el pago de esta prueba.
+    # El reinicio deja los tres tipos y los pagos de la semilla (#233 y #283), sin el pago de esta prueba.
     assert len(filas(app, "tipos_membresia")) == 3
-    assert len(filas(app, "pagos")) == 89
+    assert len(filas(app, "pagos")) == 94
 
 
 @pytest.mark.bd

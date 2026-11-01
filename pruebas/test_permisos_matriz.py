@@ -30,6 +30,7 @@ ESPERADO = {
     "entrenamiento.ver_propio": {S},
     "entrenamiento.registrar_propio": {S},
     "salud.ver_propia": {S},
+    "acompanamiento.ver_propio": {S},
     "consentimientos.gestionar_propios": {S},
     "visitas.registrar": {R},
     "visitas.ver": {R},

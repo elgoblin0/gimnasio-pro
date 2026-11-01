@@ -1,6 +1,7 @@
 import { llamarApi } from "@comun/api.js";
 import { registrarPwa } from "@comun/pwa.js";
 import { crear } from "@comun/personal.js";
+import { textoDia, textosDeHitos } from "./acompanamiento-textos.js";
 
 registrarPwa();
 
@@ -35,7 +36,25 @@ function mostrarBienvenida(usuario) {
   recorrido.textContent = usuario.rol === "socio" ? "Ver mi entrenamiento" : "Ir a recepción";
   $("[data-mi-ficha]").hidden = usuario.rol !== "socio";
   $("[data-avisos]").hidden = usuario.rol !== "socio";
-  if (usuario.rol === "socio") cargarAvisos();
+  $("[data-incorporacion]").hidden = true;
+  if (usuario.rol === "socio") {
+    cargarAvisos();
+    cargarIncorporacion();
+  }
+}
+
+async function cargarIncorporacion() {
+  try {
+    const { incorporacion } = await llamarApi("/api/yo/incorporacion");
+    $("[data-incorporacion]").hidden = !incorporacion;
+    if (!incorporacion) return;
+    $("[data-incorporacion-dia]").textContent = textoDia(incorporacion.dia);
+    $("[data-incorporacion-hitos]").replaceChildren(...textosDeHitos(incorporacion.hitos).map(({ texto, cumplido }) =>
+      crear("li", { "data-cumplido": String(cumplido) }, `${cumplido ? "✓" : "○"} ${texto}`)));
+  } catch {
+    // La incorporación acompaña al inicio: si falla, el resto de la pantalla sigue sirviendo.
+    $("[data-incorporacion]").hidden = true;
+  }
 }
 
 const textosAviso = {

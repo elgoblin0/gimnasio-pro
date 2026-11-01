@@ -12,6 +12,7 @@ GRUPOS = (
     "ejercicio_sin_alternativa",
     "sin_consentimiento_salud",
     "aviso_progresion",
+    "riesgo_abandono",
 )
 
 

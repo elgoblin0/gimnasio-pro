@@ -87,4 +87,6 @@ def test_bandeja_acota_las_consultas_a_la_base(app_con_bd):
         bandeja = consultar_bandeja(marcos)
         hechas = consultas() - antes - 1
         assert sum(len(grupo["socios"]) for grupo in bandeja["grupos"]) > 80
-        assert hechas <= 110
+        # Unas 109 hasta la etapa 5; #283 suma tres agrupadas para el riesgo de abandono y cuatro socios con
+        # programa, que pagan su propuesta (unas ocho cada uno).
+        assert hechas <= 150

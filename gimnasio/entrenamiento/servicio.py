@@ -1371,6 +1371,11 @@ def dolores_para_entrenador(cursor, socio_id):
     ]
 
 
+def socios_con_sesion(cursor, socio_ids):
+    """Cuáles de los socios tienen alguna sesión realizada."""
+    return {desde_bytes(fila["socio_id"]) for fila in repositorio.socios_con_sesion(cursor, socio_ids)}
+
+
 def ultima_serie_para_entrenador(cursor, socio_id):
     """Fecha de la última serie vigente, sin exponer sus medidas."""
     filas = repositorio.listar_series_vigentes(cursor, socio_id)

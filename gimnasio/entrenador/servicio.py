@@ -3,6 +3,7 @@
 from dataclasses import asdict
 from datetime import UTC
 
+from gimnasio.acompanamiento.servicio import estados_de_socios, incorporacion_de
 from gimnasio.comun.bd import LecturaConMemoria, transaccion
 from gimnasio.comun.errores import ErrorDeDominio
 from gimnasio.comun.ids import desde_bytes, nuevo_id
@@ -77,6 +78,8 @@ def consultar_socio(socio_texto, usuario):
             registrar_consulta_ficha(cursor, socio_id, entrenador_id)
         programas = listar_programas(socio_id, cursor=cursor)
         sesiones = historial_para_entrenador(cursor, socio_id)
+        acompanamiento = estados_de_socios(cursor, [socio_id])[socio_id]
+        incorporacion = incorporacion_de(cursor, socio_id, acompanamiento)
         avisos = avisos_para_entrenador(cursor, socio_id)
         revisiones = {
             str(desde_bytes(f["aviso_id"])): _revision_publica(f, consentimiento)
@@ -104,6 +107,8 @@ def consultar_socio(socio_texto, usuario):
         "avisos": avisos if consentimiento else _sin_datos_salud(avisos),
         "salud": salud,
         "sin_consentimiento": not consentimiento,
+        "incorporacion": incorporacion,
+        "riesgo_abandono": acompanamiento["riesgo"],
     }
 
 
@@ -176,6 +181,7 @@ def consultar_bandeja(usuario):
         asignaciones = repositorio.fechas_asignacion_vigente(cursor, socio_ids, entrenador_id)
         revocaciones = revocaciones_de_salud(socio_ids, cursor=cursor)
         condiciones = condiciones_pendientes(socio_ids, cursor=cursor)
+        acompanamiento = estados_de_socios(cursor, socio_ids)
         for socio, socio_id in zip(asignados, socio_ids, strict=True):
             motivos = []
             if socio_id in condiciones:
@@ -227,7 +233,10 @@ def consultar_bandeja(usuario):
             if socio_id in revocaciones:
                 fecha = revocaciones[socio_id].replace(tzinfo=UTC).isoformat()
                 motivos.append({"tipo": "sin_consentimiento_salud", "fecha": fecha})
-            socios.append({**socio, "motivos": motivos})
+            riesgo = acompanamiento[socio_id]["riesgo"]
+            if riesgo:
+                motivos.append({"tipo": "riesgo_abandono", "fecha": acompanamiento[socio_id]["desde"]})
+            socios.append({**socio, "motivos": motivos, "riesgo_abandono": riesgo})
     por_id = {s["id"]: s for s in socios}
     grupos = priorizar_bandeja(
         tuple(SocioBandeja(s["id"], tuple(MotivoBandeja(**m) for m in s["motivos"])) for s in socios)

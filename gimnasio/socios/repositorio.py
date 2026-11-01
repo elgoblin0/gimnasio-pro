@@ -87,6 +87,18 @@ def buscar_membresia_vigente(cursor, socio_id, fecha_local):
     return cursor.fetchone()
 
 
+def datos_de_acompanamiento(cursor, socio_ids):
+    marcas = ",".join(["%s"] * len(socio_ids))
+    cursor.execute(
+        f"""SELECT u.id, p.creada_en, p.simulada,
+                   (SELECT MAX(m.hasta) FROM membresias m WHERE m.socio_id = u.id
+                    AND NOT EXISTS (SELECT 1 FROM anulaciones_pago a WHERE a.pago_id = m.pago_id)) AS ultimo_hasta
+            FROM usuarios u JOIN personas p ON p.id = u.persona_id WHERE u.id IN ({marcas})""",
+        [a_bytes(socio_id) for socio_id in socio_ids],
+    )
+    return cursor.fetchall()
+
+
 def buscar_ultimo_hasta(cursor, socio_id):
     cursor.execute(
         "SELECT MAX(hasta) AS ultimo_hasta FROM membresias m WHERE socio_id = %s "

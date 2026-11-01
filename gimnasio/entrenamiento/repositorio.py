@@ -11,6 +11,15 @@ from gimnasio.comun.ids import a_bytes, desde_bytes
 MEDIDAS = ("repeticiones", "carga", "duracion", "distancia")
 
 
+def socios_con_sesion(cursor, socio_ids):
+    marcas = ",".join(["%s"] * len(socio_ids))
+    cursor.execute(
+        f"SELECT DISTINCT socio_id FROM sesiones_realizadas WHERE socio_id IN ({marcas})",
+        [a_bytes(socio_id) for socio_id in socio_ids],
+    )
+    return cursor.fetchall()
+
+
 def listar_zonas_trabajadas(cursor, socio_id, sesion_id):
     series = listar_series_vigentes(cursor, socio_id, sesion_id)
     zonas = set()

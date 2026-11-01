@@ -35,6 +35,17 @@ USUARIOS_DEMO = (
 )
 SOCIOS_ADICIONALES = 36
 SOCIOS_HISTORIAL = 40
+DIAS_DE_ALTA_LUCIA = 5
+# (nombre, apellido, días desde el alta, con programa, hace cuántos días vino): un caso por estado del acompañamiento.
+# La bandeja muestra a cada socio en su grupo más urgente: sin programa, el riesgo no se vería. Tomás no lo
+# necesita, y cada programa suma su propuesta a las consultas de la bandeja.
+CASOS_ACOMPANAMIENTO = (
+    ("Nadia", "Ferreira", 44, True, tuple(range(1, 44, 3))),
+    ("Darío", "Vera", 30, True, (10, 14, 20, 27)),
+    ("Ramón", "Ortiz", 200, True, (20, 23, 26, 30, 33, 40)),
+    ("Elsa", "Cabrera", 200, True, (3, 12, 29, 32, 35, 38, 42, 45, 50)),
+    ("Tomás", "Acosta", 200, False, tuple(range(2, 56, 4))),
+)
 HORARIO_SEDE = {str(dia): [["06:00", "22:00"]] for dia in range(1, 6)}
 HORARIO_SEDE["6"] = [["08:00", "14:00"]]
 TIPOS_MEMBRESIA = (("Mensual", 30, 150_000), ("Trimestral", 90, 400_000), ("Anual", 365, 1_400_000))
@@ -419,6 +430,7 @@ def reiniciar():
         actores = Actores(recepcion_id, entrenador_id, administracion_id, mensual, id_pago)
         _cargar_bandeja(cursor, siguiente_id, entrenador_id, ahora, actores)
         _cargar_operacion(cursor, siguiente_id, ahora, socios, actores, ejercicio_fuerza)
+        _cargar_acompanamiento(cursor, siguiente_id, ahora, socios, actores, sede_id, ejercicio_fuerza)
 
 
 def _cargar_simulacion(cursor, siguiente_id, ahora):
@@ -640,7 +652,7 @@ def _alta_socio(cursor, siguiente_id, ahora, actores, cedula, nombre, apellido, 
     return socio
 
 
-def _programa_con_historial(cursor, siguiente_id, socio, ejercicio, ahora):
+def _programa_de_una_sesion(cursor, siguiente_id, socio, ejercicio, ahora):
     programa, sesion, planificado = siguiente_id(), siguiente_id(), siguiente_id()
     repositorio.insertar_programa(cursor, programa, socio, ahora)
     repositorio.insertar_sesion_planificada(cursor, sesion, programa, 1, "Fuerza ficticia")
@@ -657,6 +669,11 @@ def _programa_con_historial(cursor, siguiente_id, socio, ejercicio, ahora):
         descanso=90,
         carga="20.50",
     )
+    return sesion, planificado
+
+
+def _programa_con_historial(cursor, siguiente_id, socio, ejercicio, ahora):
+    sesion, planificado = _programa_de_una_sesion(cursor, siguiente_id, socio, ejercicio, ahora)
     repositorio.insertar_historial(
         cursor, siguiente_id(), (siguiente_id(), siguiente_id()), socio, sesion, planificado, ahora, 12
     )
@@ -704,6 +721,31 @@ def _cargar_clases(cursor, siguiente_id, ahora, socios, hugo, actores):
     repositorio.insertar_aviso_socio(
         cursor, siguiente_id(), socios[5], ocurrencias[CLASE_CANCELADA], "ocurrencia_cancelada", ahora
     )
+
+
+def _cargar_acompanamiento(cursor, siguiente_id, ahora, socios, actores, sede_id, ejercicio):
+    """Reparte las altas y agrega un socio por cada estado de incorporación y riesgo de abandono.
+
+    Quien no tiene visitas queda a menos de siete días del alta: si no, todos estarían en riesgo.
+    """
+    altas = [(socio, ahora - timedelta(days=indice % 7)) for indice, socio in enumerate(socios[:SOCIOS_ADICIONALES])]
+    altas.append((socios[0], ahora - timedelta(days=DIAS_DE_ALTA_LUCIA)))
+    altas.append((socios[SOCIOS_ADICIONALES], ahora - timedelta(days=40)))
+    altas.extend((socio, ahora - timedelta(days=200)) for socio in socios[SOCIOS_ADICIONALES + 1 :])
+    visitas_de_casos = []
+    for indice, (nombre, apellido, dias_de_alta, con_programa, dias_de_visita) in enumerate(CASOS_ACOMPANAMIENTO):
+        socio = _alta_socio(cursor, siguiente_id, ahora, actores, str(95_000_010 + indice), nombre, apellido)
+        if con_programa:
+            _programa_de_una_sesion(cursor, siguiente_id, socio, ejercicio, ahora)
+        altas.append((socio, ahora - timedelta(days=dias_de_alta)))
+        for dias in dias_de_visita:
+            fecha = fecha_local(ahora) - timedelta(days=dias)
+            # La sede no abre los domingos y los sábados cierra a las 14.
+            fecha -= timedelta(days=fecha.isoweekday() == 7)
+            entrada = datetime.combine(fecha, time(10), ZONA_SEDE)
+            visitas_de_casos.append((socio, entrada.astimezone(UTC), (entrada + timedelta(hours=1)).astimezone(UTC)))
+    repositorio.fijar_altas(cursor, altas)
+    repositorio.insertar_visitas(cursor, sede_id, actores.recepcion, visitas_de_casos, siguiente_id)
 
 
 def _cargar_operacion(cursor, siguiente_id, ahora, socios, actores, ejercicio):
