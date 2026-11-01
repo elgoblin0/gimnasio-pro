@@ -43,7 +43,9 @@ def test_terminar_sesion_parcial_muestra_resumen_sin_agregar_hechos(pagina_demo,
     antes = contar(demo_aislada)
     pagina.get_by_role("button", name="Terminar sesión", exact=True).click()
     expect(pagina.get_by_role("heading", name="Resumen de la sesión", exact=True)).to_be_visible()
-    expect(pagina.get_by_role("img", name="Zonas trabajadas y con dolor de la sesión")).to_be_visible()
+    # El 3D oculta la silueta al terminar de cargar: se ve una u otra, según cuánto haya tardado.
+    cuerpo = pagina.locator("[data-zonas-resumen]").locator("canvas, svg[role=img]")
+    expect(cuerpo.locator("visible=true").first).to_be_visible()
     expect(pagina.locator("[data-pendientes]")).to_contain_text("Sentadilla ficticia: series 2")
     expect(pagina.locator("[data-pendientes]")).to_contain_text("Caminata ficticia")
     assert pagina.evaluate("document.documentElement.scrollWidth <= innerWidth")

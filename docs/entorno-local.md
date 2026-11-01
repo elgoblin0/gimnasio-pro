@@ -30,6 +30,7 @@ En el CI, `pruebas` corre partido en dos y `e2e` en cuatro (`GIMNASIO_FRAGMENTO=
 
 ## Trampas de Windows
 - Al escribir archivos en pruebas, pasar `encoding="utf-8"` y `newline="\n"`; la codificación por defecto es cp1252.
+- Chromium falla de vez en cuando una petición a `127.0.0.1` con `net::ERR_ADDRESS_IN_USE` (unas 4 en 8 corridas completas, con el servidor e2e en serie o con hilos) y no la reintenta. Si cae en algo que la prueba necesita, falla una prueba sin relación con tu cambio: una espera vencida o un clic de 30 s. Causa de fondo sin confirmar. Antes de investigar, repetí esa prueba sola. El CI es la puerta.
 
 ## Codex en el sandbox de Windows
 
