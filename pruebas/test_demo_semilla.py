@@ -216,7 +216,7 @@ def test_dos_reinicios_dejan_los_mismos_datos(app_con_bd, reloj_fijo):
     assert len(primera["membresias"]) == len(socios)
     assert {m["cedula"] for m in primera["membresias"]} == {p["cedula"] for p in socios}
     assert all(m["hasta"] - m["desde"] == timedelta(days=29) for m in primera["membresias"])
-    assert len(primera["consentimientos"]) == round((sum(not p["simulada"] for p in socios) - 8) * 0.8) + 8 == 70
+    assert len(primera["consentimientos"]) == sum(not p["simulada"] for p in socios) == 85
     assert all(c["tipo"] == "salud" and c["otorgado"] and c["propio"] for c in primera["consentimientos"])
     assert all(p["activo"] for p in primera["personas"])
     assert len({c["clave_hash"] for c in claves if c["clave_hash"]}) == 80
@@ -288,3 +288,16 @@ def test_membresias_de_semilla_sin_superposiciones_y_sin_depender_de_salud(app_c
         ]
         assert sum(m is not None for m in vigentes) == 144
         assert sum(m is None for m in vigentes) == 1  # Caso explícito de membresía vencida de #48.
+
+
+@pytest.mark.bd
+def test_consentimiento_de_todos_los_socios_de_recorridos(app_con_bd):
+    app_con_bd.config["MODO_DEMO"] = True
+    with app_con_bd.app_context():
+        servicio.reiniciar()
+    socios = consultar(
+        app_con_bd,
+        "SELECT u.id FROM usuarios u JOIN personas p ON p.id=u.persona_id WHERE u.rol='socio' AND NOT p.simulada",
+    )
+    consentimientos = consultar(app_con_bd, "SELECT socio_id,otorgado FROM consentimientos WHERE tipo='salud'")
+    assert {f["id"] for f in socios} == {f["socio_id"] for f in consentimientos if f["otorgado"]}

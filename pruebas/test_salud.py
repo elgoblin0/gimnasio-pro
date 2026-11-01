@@ -1,13 +1,14 @@
 """Restricciones ficticias, bajas por inserción, privacidad y aviso transaccional."""
 
 import json
+from uuid import uuid4
 
 import mysql.connector
 import pytest
 
 from gimnasio.comun.bd import transaccion
 from gimnasio.comun.errores import ErrorDeDominio
-from gimnasio.comun.ids import desde_bytes, nuevo_id
+from gimnasio.comun.ids import a_bytes, desde_bytes, nuevo_id
 from gimnasio.demo.servicio import reiniciar
 from gimnasio.entrenamiento import repositorio as repositorio_entrenamiento
 from gimnasio.entrenamiento.servicio import (
@@ -18,6 +19,7 @@ from gimnasio.entrenamiento.servicio import (
     registrar_serie,
 )
 from gimnasio.salud.servicio import restricciones_vigentes
+from pruebas.test_entrenamiento_api import entrenamiento_api as entrenamiento_api
 
 
 @pytest.mark.bd
@@ -218,3 +220,70 @@ def test_reinicio_limpia_las_constancias_de_borrado(app_con_bd):
         with transaccion() as cursor:
             cursor.execute("SELECT COUNT(*) AS total FROM borrados_salud")
             assert cursor.fetchone()["total"] == 0
+
+
+def guardar(cliente, otorgado=True, clave=None, **extras):
+    return cliente.post(
+        "/api/yo/consentimientos/salud",
+        json={"otorgado": otorgado, "version_texto": "salud-1", **extras},
+        headers={"X-Gimnasio": "1", "Idempotency-Key": clave or str(uuid4())},
+    )
+
+
+@pytest.mark.bd
+def test_alternar_conserva_historial_y_reintento_no_duplica(entrenamiento_api):
+    datos = entrenamiento_api
+    cliente = datos.cliente()
+    assert cliente.get("/api/yo/consentimientos").json["salud"]["otorgado"] is False
+    for otorgado in (True, False, True, False, True):
+        clave = str(uuid4())
+        respuesta = guardar(cliente, otorgado, clave)
+        assert respuesta.status_code == 200
+        assert respuesta.json["salud"]["otorgado"] is otorgado
+        assert guardar(cliente, otorgado, clave).json == respuesta.json
+        assert cliente.get("/api/yo/consentimientos").json == respuesta.json
+    assert datos.cliente("ajeno").get("/api/yo/consentimientos").json["salud"]["otorgado"] is False
+    with datos.app.app_context(), transaccion() as cursor:
+        cursor.execute("SELECT * FROM consentimientos ORDER BY registrado_en,id")
+        filas = cursor.fetchall()
+        assert [bool(f["otorgado"]) for f in filas] == [True, False, True, False, True]
+        assert all(f["socio_id"] == f["registrado_por"] == a_bytes(datos.usuarios["socio"]) for f in filas)
+
+
+@pytest.mark.parametrize("rol", ["recepcion", "entrenador", "administracion"])
+@pytest.mark.bd
+def test_personal_no_gestiona_consentimiento(entrenamiento_api, rol):
+    cliente = entrenamiento_api.cliente(rol)
+    assert cliente.get("/api/yo/consentimientos").status_code == 403
+    assert guardar(cliente).status_code == 403
+
+
+@pytest.mark.parametrize(
+    "extras", [{"socio_id": "ajeno"}, {"version_texto": "viejo"}, {"otorgado": "false"}, {"tipo": "imagen"}]
+)
+@pytest.mark.bd
+def test_no_admite_otro_socio_tipo_version_o_valor(entrenamiento_api, extras):
+    assert guardar(entrenamiento_api.cliente(), **extras).status_code == 422
+
+
+@pytest.mark.bd
+def test_revocar_conserva_las_restricciones_del_socio(app_con_bd):
+    from gimnasio.comun.ids import desde_bytes
+    from gimnasio.demo.servicio import reiniciar
+    from gimnasio.salud.servicio import restricciones_vigentes
+
+    app_con_bd.config["MODO_DEMO"] = True
+    with app_con_bd.app_context():
+        reiniciar()
+        with transaccion() as cursor:
+            cursor.execute("SELECT socio_id FROM restricciones_salud LIMIT 1")
+            socio = desde_bytes(cursor.fetchone()["socio_id"])
+        antes = restricciones_vigentes(socio)
+        assert antes
+    cliente = app_con_bd.test_client()
+    with cliente.session_transaction() as sesion:
+        sesion["usuario_id"] = str(socio)
+    assert guardar(cliente, False).status_code == 200
+    with app_con_bd.app_context():
+        assert restricciones_vigentes(socio) == antes
+    assert cliente.get("/api/yo/ficha").status_code == 200
