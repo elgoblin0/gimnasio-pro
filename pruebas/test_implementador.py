@@ -295,6 +295,7 @@ def atencion(entorno, tmp_path, monkeypatch):
     monkeypatch.setattr(implementador, "revisiones_pendientes", lambda numero: "")
     monkeypatch.setattr(implementador, "verificar", lambda c: (["ruff: sin observaciones"], True))
     monkeypatch.setattr(implementador, "git", lambda *a, **k: SimpleNamespace(stdout=""))
+    monkeypatch.setattr(implementador, "ESPERA_REINTENTO_SEGUNDOS", 0)
     return SimpleNamespace(responder=responder, publicado=publicado)
 
 
@@ -339,6 +340,164 @@ def test_una_duda_reconocida_cierra_el_pedido_sin_cambios(atencion):
     assert implementador.MARCA_HECHO in atencion.publicado.comentarios[-1]
     assert atencion.publicado.etiquetas[0]["agregar"] == ["necesita-criterio"]
     assert not any(a[:2] == ("pr", "edit") for a in atencion.publicado.gh)
+
+
+def test_un_pr_que_fallo_espera_y_deja_pasar_a_los_demas(atencion, monkeypatch):
+    monkeypatch.setattr(implementador, "ESPERA_REINTENTO_SEGUNDOS", 600)
+    monkeypatch.setitem(implementador.SESION, "reintentar_desde", {})
+    atencion.responder("No hice nada.")
+    comentarios = [PEDIDO_CORREGIR]
+    monkeypatch.setattr(implementador.cadena, "prs_de_codex", lambda: [PR_DE_CODEX])
+    monkeypatch.setattr(implementador.cadena, "comentarios_del_pr", lambda n: comentarios)
+    assert implementador.una_vuelta() is True
+    assert implementador.una_vuelta() is False  # sigue en espera: ni reintenta ni se bloquea
+    assert atencion.publicado.etiquetas == []
+    implementador.SESION["reintentar_desde"][PR_DE_CODEX["number"]] = 0
+    assert implementador.una_vuelta() is True
+
+
+def test_un_pedido_de_implementar_sobre_trabajo_ya_hecho_relanza_el_ci(atencion, monkeypatch):
+    relanzados = []
+    atencion.responder("La rama ya tiene todo.", cuerpo="Closes #3\n\nCuerpo.")
+    monkeypatch.setattr(implementador, "archivos_cambiados", lambda carpeta: ["gimnasio/a.py"])
+    monkeypatch.setattr(implementador, "relanzar_ci", lambda *a: relanzados.append(a[1]))
+    implementador.atender(PR_DE_CODEX, f"{implementador.cadena.MARCA_PEDIDO}\nOpus resolvió la duda: seguí")
+    assert relanzados == ["codex/issue-3"]
+    assert implementador.MARCA_HECHO in atencion.publicado.comentarios[-1]
+
+
+def test_una_correccion_sin_cambios_sigue_siendo_fallo_aunque_la_rama_tenga_trabajo(atencion, monkeypatch):
+    atencion.responder("No corregí nada.")
+    monkeypatch.setattr(implementador, "archivos_cambiados", lambda carpeta: ["gimnasio/a.py"])
+    monkeypatch.setattr(implementador, "relanzar_ci", lambda *a: pytest.fail("sin corregir no se relanza"))
+    with pytest.raises(RuntimeError, match="sin cambios"):
+        implementador.atender(PR_DE_CODEX, PEDIDO_CORREGIR)
+
+
+@pytest.mark.parametrize(("resultados", "esperado"), [([False, True], "listo"), ([False, False], "con observaciones")])
+def test_lo_que_falla_la_verificacion_se_corrige_una_vez_antes_de_subir(atencion, monkeypatch, resultados, esperado):
+    atencion.responder("Hecho.", cambios=True)
+    prompts = []
+    monkeypatch.setattr(
+        implementador, "correr_codex", lambda c, prompt, nivel=None: (prompts.append(prompt), (0, "Hecho.", 1))[1]
+    )
+    pendientes = iter(resultados)
+    monkeypatch.setattr(implementador, "verificar", lambda c: (["pytest: 1 failed"], next(pendientes)))
+    implementador.atender(PR_DE_CODEX, PEDIDO_CORREGIR)
+    assert len(prompts) == 2 and "pytest: 1 failed" in prompts[1]
+    assert esperado in implementador.SESION["atendidos"][-1]["resultado"]
+    assert implementador.MARCA_HECHO in atencion.publicado.comentarios[-1]
+
+
+def test_si_la_correccion_previa_se_queda_sin_cupo_sube_lo_hecho(atencion, monkeypatch):
+    atencion.responder("Hecho.", cambios=True)
+    llamadas = []
+
+    def codex(carpeta, prompt, nivel=None):
+        llamadas.append(prompt)
+        if len(llamadas) > 1:
+            raise implementador.SinCupo("hit your usage limit")
+        return 0, "Hecho.", 1
+
+    monkeypatch.setattr(implementador, "correr_codex", codex)
+    monkeypatch.setattr(implementador, "verificar", lambda c: (["ruff: con hallazgos"], False))
+    implementador.atender(PR_DE_CODEX, PEDIDO_CORREGIR)
+    assert implementador.MARCA_HECHO in atencion.publicado.comentarios[-1]
+
+
+def test_el_respaldo_recibe_las_formas_de_comando_que_tiene_permitidas(atencion, monkeypatch):
+    atencion.responder("Hecho.", cambios=True)
+    prompts = []
+    monkeypatch.setattr(
+        implementador, "correr_claude", lambda c, prompt, modelo: (prompts.append(prompt), (0, "Hecho.", 1))[1]
+    )
+    implementador.atender(PR_DE_CODEX, PEDIDO_CORREGIR, motor="sonnet")
+    assert prompts[0].startswith(implementador.INSTRUCCIONES_RESPALDO)
+    assert "Invoke-Expression" in prompts[0]
+
+
+SW_EN_CONFLICTO = (
+    '// inicio\n<<<<<<< HEAD\nconst VERSION = "49";\n=======\nconst VERSION = "52";\n>>>>>>> origin/main\n// fin\n'
+)
+
+
+def test_resuelve_el_conflicto_de_version_en_la_mayor_mas_uno():
+    assert implementador.resolver_version_sw(SW_EN_CONFLICTO) == '// inicio\nconst VERSION = "53";\n// fin\n'
+
+
+def test_deja_a_codex_los_conflictos_del_sw_que_no_son_de_version():
+    mezclado = SW_EN_CONFLICTO + "<<<<<<< HEAD\nconst A = 1;\n=======\nconst A = 2;\n>>>>>>> origin/main\n"
+    resuelto = implementador.resolver_version_sw(mezclado)
+    assert 'const VERSION = "53";' in resuelto
+    assert implementador.CONFLICTO.search(resuelto)
+    version_y_mas = '<<<<<<< HEAD\nconst VERSION = "1";\nconst A = 1;\n=======\nconst VERSION = "2";\n>>>>>>> x\n'
+    assert implementador.resolver_version_sw(version_y_mas) == version_y_mas
+
+
+@pytest.fixture
+def repo_en_conflicto(tmp_path):
+    """Una rama y main que cambiaron VERSION de `sw.js`, con la fusión a medias."""
+    carpeta = tmp_path / "repo"
+    sw = carpeta / implementador.SERVICE_WORKER
+    sw.parent.mkdir(parents=True)
+
+    def anotar(version):
+        sw.write_text(f'const VERSION = "{version}";\nconst A = 1;\n', encoding="utf-8", newline="\n")
+        implementador.git("add", "-A", cwd=carpeta)
+        implementador.git("-c", "user.name=p", "-c", "user.email=p@p", "commit", "-qm", version, cwd=carpeta)
+
+    implementador.git("init", "-q", "-b", "main", cwd=carpeta)
+    anotar("1")
+    implementador.git("checkout", "-qb", "rama", cwd=carpeta)
+    anotar("2")
+    implementador.git("checkout", "-q", "main", cwd=carpeta)
+    anotar("5")
+    implementador.git("checkout", "-q", "rama", cwd=carpeta)
+    implementador.git("merge", "main", "--no-edit", cwd=carpeta, chequear=False)
+    return carpeta
+
+
+def test_el_conflicto_de_version_no_necesita_agente_en_un_repo_real(repo_en_conflicto):
+    assert implementador.archivos_en_conflicto(repo_en_conflicto) == [implementador.SERVICE_WORKER]
+    assert implementador.resolver_conflictos_previsibles(repo_en_conflicto) == [implementador.SERVICE_WORKER]
+    assert implementador.archivos_en_conflicto(repo_en_conflicto) == []
+    assert 'const VERSION = "6";' in (repo_en_conflicto / implementador.SERVICE_WORKER).read_text(encoding="utf-8")
+
+
+def test_el_mapa_se_regenera_salvo_que_las_fichas_esten_en_conflicto(tmp_path, monkeypatch):
+    corridas, agregados = [], []
+    conflictos = [implementador.MAPA_CAPACIDADES]
+    monkeypatch.setattr(implementador, "archivos_en_conflicto", lambda carpeta: conflictos)
+    monkeypatch.setattr(
+        implementador, "correr", lambda comando, carpeta, minutos: (corridas.append(comando), (0, ""))[1]
+    )
+    monkeypatch.setattr(implementador, "git", lambda *a, **k: agregados.append(a))
+    assert implementador.resolver_conflictos_previsibles(tmp_path) == [implementador.MAPA_CAPACIDADES]
+    assert corridas[0][-1] == "scripts/mapa_capacidades.py"
+    assert agregados == [("add", implementador.MAPA_CAPACIDADES)]
+    conflictos.append("docs/capacidades/x.toml")
+    assert implementador.resolver_conflictos_previsibles(tmp_path) == []
+
+
+def test_un_conflicto_ya_resuelto_se_sube_sin_llamar_a_un_agente(atencion, monkeypatch):
+    monkeypatch.setattr(implementador, "correr_codex", lambda *a: pytest.fail("no hace falta un agente"))
+    monkeypatch.setattr(implementador, "archivos_en_conflicto", lambda carpeta: [])
+    monkeypatch.setattr(implementador, "asegurar_cache", lambda carpeta, archivos: None)
+    monkeypatch.setattr(implementador, "archivos_cambiados", lambda carpeta: [])
+    monkeypatch.setattr(implementador, "integrar_main", lambda *a: True)
+    pedido = f"{implementador.cadena.MARCA_CORREGIR}\n<!-- cadena:origen conflicto -->\nintegrá main"
+    implementador.atender(PR_DE_CODEX, pedido)
+    assert implementador.MARCA_HECHO in atencion.publicado.comentarios[-1]
+    assert implementador.SESION["atendidos"][-1]["motor"] == "script"
+
+
+def test_un_conflicto_que_sigue_abierto_va_al_agente(atencion, monkeypatch):
+    atencion.responder("Resuelto.", cambios=True)
+    monkeypatch.setattr(implementador, "archivos_en_conflicto", lambda carpeta: ["gimnasio/a.py"])
+    monkeypatch.setattr(implementador, "integrar_main", lambda *a: pytest.fail("quedan conflictos"))
+    pedido = f"{implementador.cadena.MARCA_CORREGIR}\n<!-- cadena:origen conflicto -->\nintegrá main"
+    implementador.atender(PR_DE_CODEX, pedido)
+    assert "Implementado en esta PC con Codex." in atencion.publicado.comentarios[-1]
 
 
 def test_el_prompt_exige_el_prefijo_exacto_de_la_duda():
@@ -407,23 +566,6 @@ def test_detecta_pruebas_con_el_mismo_nombre_en_carpetas_distintas():
         "test_pagos.py": ["pruebas/e2e/test_pagos.py", "pruebas/test_pagos.py"]
     }
     assert implementador.nombres_de_prueba_repetidos(existentes[2:]) == {}
-
-
-def test_elige_los_e2e_del_modulo_o_del_js_tocado():
-    e2e = [
-        "pruebas/e2e/test_recepcion.py",
-        "pruebas/e2e/test_pagos_recepcion.py",
-        "pruebas/e2e/test_clases_agenda.py",
-    ]
-    assert implementador.e2e_a_correr(["gimnasio/static/js/recepcion.js"], e2e) == ["pruebas/e2e/test_recepcion.py"]
-    assert implementador.e2e_a_correr(["gimnasio/static/js/recepcion.test.js"], e2e) == [
-        "pruebas/e2e/test_recepcion.py"
-    ]
-    assert implementador.e2e_a_correr(["gimnasio/clases/servicio.py"], e2e) == ["pruebas/e2e/test_clases_agenda.py"]
-    assert implementador.e2e_a_correr(["pruebas/e2e/test_pagos_recepcion.py"], e2e) == [
-        "pruebas/e2e/test_pagos_recepcion.py"
-    ]
-    assert implementador.e2e_a_correr(["gimnasio/static/sw.js", "docs/x.md"], e2e) == []
 
 
 def test_cuenta_el_resumen_de_pytest():

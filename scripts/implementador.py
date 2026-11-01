@@ -42,9 +42,10 @@ INACTIVIDAD_AVISO_MINUTOS = 10  # sin una línea nueva de Codex: se avisa
 INACTIVIDAD_CORTE_MINUTOS = 20  # sin una línea nueva de Codex: se lo mata y cuenta como fallo del pedido
 CUENTA_REGRESIVA_SEGUNDOS = 5 * 60
 LIMITE_PRUEBAS_MINUTOS = 20
-LIMITE_E2E_MINUTOS = 15
 SERVICE_WORKER = verificar_cache_pwa.SERVICE_WORKER
+MAPA_CAPACIDADES = "docs/MAPA-CAPACIDADES.md"
 VERSION_SW = re.compile(r'(const VERSION = ")(\d+)(")')
+CONFLICTO = re.compile(r"<<<<<<< [^\n]*\n(.*?)=======\n(.*?)>>>>>>> [^\n]*\n", re.DOTALL)
 SESION = {
     "inicio": time.time(),
     "atendidos": [],
@@ -52,10 +53,12 @@ SESION = {
     "sin_cupo": 0,
     "sin_borrar": set(),
     "codex_sin_cupo_hasta": 0.0,  # mientras dure, implementa el respaldo en vez de esperar a Codex
+    "reintentar_desde": {},  # PR que acaba de fallar → cuándo se reintenta; mientras tanto se atienden los demás
 }
 MARCA_HECHO = cadena.MARCA_HECHO
 MARCA_FALLO = cadena.MARCA_FALLO
-MAX_FALLOS = 2
+MAX_FALLOS = 3
+ESPERA_REINTENTO_SEGUNDOS = 10 * 60  # un fallo pasajero se cura solo: el PR se bloquea recién tras varios intentos
 LIMITE_MINUTOS = 60
 ESPERA_SEGUNDOS = 60
 LIMITE_REVISIONES = 20000
@@ -82,6 +85,13 @@ HERRAMIENTAS_PROHIBIDAS = (
     + " WebFetch WebSearch"
 )
 PEDIDO = re.compile(r"^\s*@codex\s+(?!review\b)\S", re.IGNORECASE)
+# Claude Code niega en `-p` la ruta completa al .venv, `Invoke-Expression`, `$env:` y `cd`: son las formas de AGENTS.md.
+INSTRUCCIONES_RESPALDO = (
+    "En esta corrida los comandos permitidos son `python`, `pytest`, `ruff`, `node` y `git` de solo lectura. "
+    "Ya salen del .venv y `GIMNASIO_BD_*` ya está definida. Corré uno por llamada, sin ruta, y sin `.venv`, "
+    "`Invoke-Expression`, `$env:` ni `cd`, aunque AGENTS.md los muestre: se niegan. Si un comando se niega, "
+    "seguí con el pedido: el implementador verifica antes de subir y el CI es la puerta.\n\n"
+)
 
 
 class SinCupo(RuntimeError):
@@ -181,8 +191,8 @@ def prompt_para_codex(pedido, revisiones=""):
         "Si la rama tiene conflictos con main sin resolver, resolvelos preservando el alcance del issue.\n"
         "Escribí el cuerpo del PR (plantilla completa, con «Notas para el próximo agente», el conteo de passed/skipped "
         f"y lo que no pudiste correr) en `{ARCHIVO_CUERPO}` en la raíz: lo publica el implementador (sin `gh`).\n"
-        "Para ahorrar cupo: corré ruff y solo las pruebas de los módulos que tocás (con MySQL si hace falta); la suite "
-        "completa la corre el CI y los e2e relacionados los corre el implementador antes de subir; no los repitas. "
+        "Para ahorrar tiempo y cupo: corré ruff y solo las pruebas de los módulos que tocás (con MySQL si hace falta). "
+        "La suite completa y los e2e los corre el CI: corré un e2e solo para diagnosticar uno que el CI marcó en rojo. "
         "No lances revisiones aparte: las hace la cadena.\n"
         "Lista de control: si tocás algo de `gimnasio/static/` que no sea una prueba, subí `VERSION` en "
         "`gimnasio/static/sw.js` (si no, los navegadores con el service worker viejo no reciben el cambio); "
@@ -193,6 +203,15 @@ def prompt_para_codex(pedido, revisiones=""):
     )
     detalle = f"\n\n--- Revisiones del PR a atender ---\n{revisiones}" if revisiones else ""
     return encabezado + texto + detalle
+
+
+def prompt_de_verificacion(informe):
+    """El pedido de arreglar lo que la verificación encontró, antes de gastar una vuelta del CI."""
+    return (
+        "Trabajás en un worktree de la rama de este PR. No hagas commit ni push: lo hace el implementador.\n"
+        "La verificación previa a subir falló. Arreglá solo esto, sin salirte del alcance del issue, "
+        f"y no toques `{ARCHIVO_CUERPO}`:\n\n" + "\n".join(informe)
+    )
 
 
 def tokens_de(salida):
@@ -210,24 +229,6 @@ def tests_a_correr(archivos, existentes):
             elegidas.add(archivo)
         elif len(partes) >= 3 and partes[0] == "gimnasio":
             elegidas.update(t for t in existentes if PurePosixPath(t).name.startswith(f"test_{partes[1]}"))
-    return sorted(elegidas)
-
-
-def e2e_a_correr(archivos, existentes):
-    """Los e2e que corresponden a lo cambiado: los tocados y los que llevan el nombre del módulo o del JS tocado."""
-    elegidas = set()
-    for archivo in archivos:
-        ruta = PurePosixPath(archivo)
-        if archivo in existentes:
-            elegidas.add(archivo)
-        elif ruta.parts[:3] == ("gimnasio", "static", "js"):
-            nombre = ruta.name.split(".")[0]
-        elif len(ruta.parts) >= 3 and ruta.parts[0] == "gimnasio" and ruta.parts[1] != "static":
-            nombre = ruta.parts[1]
-        else:
-            continue
-        if archivo not in existentes:
-            elegidas.update(e for e in existentes if PurePosixPath(e).name.startswith(f"test_{nombre}"))
     return sorted(elegidas)
 
 
@@ -258,6 +259,20 @@ def subir_version_sw(codigo):
     if not VERSION_SW.search(codigo):
         return None
     return VERSION_SW.sub(lambda m: f"{m[1]}{int(m[2]) + 1}{m[3]}", codigo, count=1)
+
+
+def resolver_version_sw(codigo):
+    """`sw.js` con los conflictos que son solo de VERSION resueltos en la mayor + 1; los demás quedan como están."""
+
+    def resolver(conflicto):
+        ours, theirs = conflicto[1].strip(), conflicto[2].strip()
+        version = re.compile(r'const VERSION = "(\d+)";?')
+        (uno, otro) = version.fullmatch(ours), version.fullmatch(theirs)
+        if not (uno and otro):
+            return conflicto[0]
+        return VERSION_SW.sub(lambda m: f"{m[1]}{max(int(uno[1]), int(otro[1])) + 1}{m[3]}", conflicto[1])
+
+    return CONFLICTO.sub(resolver, codigo)
 
 
 def etapa_del_pr(etiquetas, hay_pedido, checks, sensible, parada=False):
@@ -458,9 +473,33 @@ def preparar_worktree(rama, numero):
         carpeta = CARPETA_TRABAJO / f"issue-{numero}-{intento}"
     git("worktree", "prune")
     git("worktree", "add", "-B", rama, str(carpeta), f"origin/{rama}")
-    # Si hay conflictos con main, quedan en el árbol para que Codex los resuelva.
+    # Los conflictos previsibles se resuelven aquí; los demás quedan en el árbol para que Codex los resuelva.
     git("merge", "origin/main", "--no-edit", cwd=carpeta, chequear=False)
+    if resueltos := resolver_conflictos_previsibles(carpeta):
+        paso("Conflictos resueltos sin agente: " + ", ".join(resueltos))
     return carpeta
+
+
+def archivos_en_conflicto(carpeta):
+    return git("diff", "--name-only", "--diff-filter=U", cwd=carpeta).stdout.split()
+
+
+def resolver_conflictos_previsibles(carpeta):
+    """VERSION de `sw.js` y el mapa generado no necesitan a un agente. Devuelve los archivos que resolvió."""
+    conflictos, resueltos = archivos_en_conflicto(carpeta), []
+    if SERVICE_WORKER in conflictos:
+        sw = carpeta / SERVICE_WORKER
+        codigo = resolver_version_sw(sw.read_text(encoding="utf-8"))
+        if not CONFLICTO.search(codigo):
+            sw.write_text(codigo, encoding="utf-8", newline="\n")
+            resueltos.append(SERVICE_WORKER)
+    fichas_sanas = not any(a.startswith("docs/capacidades/") for a in conflictos)
+    regenerar = [python_del_proyecto(), "scripts/mapa_capacidades.py"]
+    if MAPA_CAPACIDADES in conflictos and fichas_sanas and correr(regenerar, carpeta, 2)[0] == 0:
+        resueltos.append(MAPA_CAPACIDADES)
+    if resueltos:
+        git("add", *resueltos, cwd=carpeta)
+    return resueltos
 
 
 def carpetas_sobrantes(nombres, abiertos):
@@ -757,6 +796,23 @@ def subir_cambios(carpeta, rama, titulo):
     return True
 
 
+def integrar_main(carpeta, rama, titulo):
+    """Sube la fusión con main ya resuelta, sin agente; False si la rama no quedó adelante de lo publicado."""
+    if git("rev-parse", "-q", "--verify", "MERGE_HEAD", cwd=carpeta, chequear=False).returncode == 0:
+        git("add", "-A", cwd=carpeta)
+        git("commit", "-m", titulo, cwd=carpeta)
+    if git("rev-list", "--count", f"origin/{rama}..HEAD", cwd=carpeta).stdout.strip() == "0":
+        return False
+    git("push", "origin", f"HEAD:{rama}", cwd=carpeta)
+    return True
+
+
+def relanzar_ci(carpeta, rama, titulo):
+    """Commit vacío: la rama ya tiene el trabajo y solo falta que corran el CI y la revisión."""
+    git("commit", "--allow-empty", "-m", titulo, cwd=carpeta)
+    git("push", "origin", f"HEAD:{rama}", cwd=carpeta)
+
+
 # --- Verificación propia ---------------------------------------------------
 
 
@@ -801,7 +857,7 @@ def asegurar_cache(carpeta, archivos):
 def verificar(carpeta):
     """Formato, ruff y las pruebas del módulo tocado, corridos aquí: el sandbox de Codex a veces no puede.
 
-    Devuelve (líneas del informe, True si todo salió bien). No frena la subida: el CI sigue siendo la puerta.
+    Devuelve (líneas del informe, True si todo salió bien). Los e2e y la suite completa quedan para el CI, la puerta.
     """
     informe, bien = [], True
     archivos = archivos_cambiados(carpeta)
@@ -834,20 +890,7 @@ def verificar(carpeta):
         if cuenta.get("skipped") and not os.environ.get("GIMNASIO_BD_HOST"):
             informe.append("⚠ Hay pruebas saltadas y no está `GIMNASIO_BD_HOST`: un «skipped» no cuenta como verde.")
         bien = bien and codigo == 0
-    # Los e2e relacionados se corren aquí: lo que rompen (selectores, relojes) si no se ve recién en el CI.
-    e2e = e2e_a_correr(archivos, {p for p in todas if PurePosixPath(p).parent.as_posix() == "pruebas/e2e"})
-    if not e2e:
-        return informe, bien
-    if not os.environ.get("GIMNASIO_BD_HOST"):
-        informe.append(f"e2e ({len(e2e)} archivos): sin `GIMNASIO_BD_HOST`, no se corrieron; los corre el CI.")
-        return informe, bien
-    codigo, salida = correr(
-        [python, "-m", "pytest", "-q", "-p", "no:cacheprovider", "-m", "e2e", *e2e], carpeta, LIMITE_E2E_MINUTOS
-    )
-    cuenta = contar_pruebas(salida)
-    detalle = ", ".join(f"{n} {palabra}" for palabra, n in cuenta.items()) or "sin resumen"
-    informe.append(f"e2e ({len(e2e)} archivos): {detalle}" + ("" if codigo == 0 else f"\n{salida[-800:]}"))
-    return informe, bien and codigo == 0
+    return informe, bien
 
 
 # --- Pasos -----------------------------------------------------------------
@@ -863,6 +906,44 @@ def revisiones_pendientes(numero):
     return texto_de_revisiones(resenas, en_linea, desde)
 
 
+def correr_motor(motor, carpeta, prompt, nivel):
+    """(código, texto, tokens) de Codex o, si `motor` es un modelo de Claude, del respaldo."""
+    if motor == "codex":
+        return correr_codex(carpeta, prompt, nivel)
+    return correr_claude(carpeta, INSTRUCCIONES_RESPALDO + prompt, motor)
+
+
+def corregir_lo_verificado(carpeta, motor, nivel, informe):
+    """Una vuelta para arreglar lo que falló la verificación. Devuelve (informe, bien, tokens); no pierde lo hecho."""
+    paso("La verificación falló: pido la corrección antes de subir…")
+    try:
+        _, _, tokens = correr_motor(motor, carpeta, prompt_de_verificacion(informe), nivel)
+    except (SinCupo, RuntimeError) as error:  # lo que ya hizo se sube igual: el CI sigue siendo la puerta
+        paso(f"No se pudo corregir antes de subir: {error}")
+        return informe, False, 0
+    (carpeta / ARCHIVO_CUERPO).unlink(missing_ok=True)
+    return *verificar(carpeta), tokens
+
+
+def atender_conflicto_sin_agente(pr, carpeta):
+    """Si el script ya resolvió los conflictos, sube la fusión y cierra el pedido; False si hace falta un agente."""
+    numero, rama = pr["number"], pr["headRefName"]
+    if archivos_en_conflicto(carpeta):
+        return False
+    titulo = f"Integra main en {rama}"
+    if (aviso := asegurar_cache(carpeta, archivos_cambiados(carpeta))) is not None:
+        paso(aviso)
+    if not integrar_main(carpeta, rama, titulo):
+        return False
+    cadena.comentar(
+        numero, f"{MARCA_HECHO}\n{medida_del_respaldo('script', 0, 0)}\nConflictos con main resueltos por script."
+    )
+    git("worktree", "remove", "--force", str(carpeta), chequear=False)
+    SESION["atendidos"].append({"pr": numero, "resultado": "listo", "minutos": 0, "tokens": 0, "motor": "script"})
+    paso(f"Listo el PR #{numero}: conflictos resueltos sin agente.")
+    return True
+
+
 def atender(pr, pedido, nivel=None, motor="codex"):
     """Implementa o corrige el pedido con Codex o, si `motor` es un modelo de Claude, con el respaldo."""
     numero, rama = pr["number"], pr["headRefName"]
@@ -876,22 +957,24 @@ def atender(pr, pedido, nivel=None, motor="codex"):
     comienzo = time.monotonic()
     paso(f"Preparando el worktree de {rama} (fetch + fusión con main)…")
     carpeta = preparar_worktree(rama, numero_issue)
+    if cadena.origen_de(pedido) == "conflicto" and atender_conflicto_sin_agente(pr, carpeta):
+        return
     paso("Leyendo las revisiones pendientes del PR…")
     prompt = prompt_para_codex(pedido, revisiones_pendientes(numero))
     detalle = f"esfuerzo {nivel}" if motor == "codex" else "respaldo por falta de cupo de Codex"
     paso(f"Corriendo {nombre} ({detalle}, límite {LIMITE_MINUTOS} min); su salida va con │:")
     inicio = time.monotonic()
-    if motor == "codex":
-        codigo, texto, tokens = correr_codex(carpeta, prompt, nivel)
-    else:
-        codigo, texto, tokens = correr_claude(carpeta, prompt, motor)
+    codigo, texto, tokens = correr_motor(motor, carpeta, prompt, nivel)
     minutos_codex = (time.monotonic() - inicio) / 60
     paso(f"{nombre} terminó con código {codigo} en {minutos_codex:.1f} min ({tokens:,} tokens).")
-    medida = (
-        medida_de_codex(minutos_codex, tokens, nivel)
-        if motor == "codex"
-        else medida_del_respaldo(motor, minutos_codex, tokens)
-    )
+
+    def medida():
+        return (
+            medida_de_codex(minutos_codex, tokens, nivel)
+            if motor == "codex"
+            else medida_del_respaldo(motor, minutos_codex, tokens)
+        )
+
     archivo_cuerpo = carpeta / ARCHIVO_CUERPO
     cuerpo = cuerpo_del_pr(archivo_cuerpo.read_text(encoding="utf-8") if archivo_cuerpo.exists() else "", numero_issue)
     archivo_cuerpo.unlink(missing_ok=True)  # no debe viajar en el commit
@@ -903,7 +986,7 @@ def atender(pr, pedido, nivel=None, motor="codex"):
         )
         cadena.comentar(
             numero,
-            f"{MARCA_HECHO}\n{medida}\n{nombre} tiene una duda de criterio; quedó en el issue #{numero_issue}.",
+            f"{MARCA_HECHO}\n{medida()}\n{nombre} tiene una duda de criterio; quedó en el issue #{numero_issue}.",
         )
         paso(f"Duda de criterio: quedó en el issue #{numero_issue} (necesita-criterio).")
         avisar("Implementador", f"PR #{numero}: {nombre} tiene una duda de criterio.")
@@ -916,12 +999,24 @@ def atender(pr, pedido, nivel=None, motor="codex"):
     paso("Verificando aquí (formato, ruff y pruebas del módulo tocado)…")
     informe, bien = verificar(carpeta)
     paso("\n".join(informe))
+    if not bien:
+        inicio = time.monotonic()
+        informe, bien, tokens_extra = corregir_lo_verificado(carpeta, motor, nivel, informe)
+        tokens += tokens_extra
+        minutos_codex += (time.monotonic() - inicio) / 60
+        paso("\n".join(informe))
     paso("Haciendo commit y push de los cambios…")
-    if not subir_cambios(carpeta, rama, f"{pr['title']} (#{numero_issue})"):
+    titulo = f"{pr['title']} (#{numero_issue})"
+    if not subir_cambios(carpeta, rama, titulo):
         # Sin commit no hay CI ni revisión nueva: un «hecho» dejaría el PR parado, aunque Codex haya escrito el cuerpo.
-        raise RuntimeError(
-            f"{nombre} terminó sin cambios y sin una línea `{cadena.PEDIDO_CRITERIO}`.\n\n{texto[-1500:]}"
-        )
+        # Si es un pedido de implementar y la rama ya trae el trabajo, alcanza con que corran el CI y la revisión.
+        es_implementar = cadena.MARCA_PEDIDO in pedido and cadena.MARCA_CORREGIR not in pedido
+        if not es_implementar or not archivos_cambiados(carpeta):
+            raise RuntimeError(
+                f"{nombre} terminó sin cambios y sin una línea `{cadena.PEDIDO_CRITERIO}`.\n\n{texto[-1500:]}"
+            )
+        paso("La rama ya trae el trabajo: subo un commit vacío para que corran el CI y la revisión.")
+        relanzar_ci(carpeta, rama, titulo)
     resumen = git("show", "--stat", "--format=", "HEAD", cwd=carpeta).stdout.strip()
     paso(f"Cambios subidos:\n{resumen}")
     if cuerpo:
@@ -931,7 +1026,7 @@ def atender(pr, pedido, nivel=None, motor="codex"):
     verificacion = "\n".join(f"- {linea}" for linea in informe)
     cadena.comentar(
         numero,
-        f"{MARCA_HECHO}\n{medida}\n"
+        f"{MARCA_HECHO}\n{medida()}\n"
         f"Implementado en esta PC con {nombre}.\n\n{texto[-1500:]}\n\n"
         f"Verificación del implementador (fuera del sandbox):\n{verificacion}",
     )
@@ -974,6 +1069,8 @@ def una_vuelta(solo_pr=None, simular=False):
             if solo_pr is not None:
                 paso(f"El PR #{pr['number']} está `bloqueado`: lo desbloquea el dueño.")
             continue
+        if time.time() < SESION["reintentar_desde"].get(pr["number"], 0):
+            continue
         comentarios = cadena.comentarios_del_pr(pr["number"])
         pedido, fallos = pedido_pendiente(comentarios)
         if simular:
@@ -1012,6 +1109,7 @@ def una_vuelta(solo_pr=None, simular=False):
         except Exception as error:  # un fallo no frena el ciclo: queda registrado en el PR
             paso(f"Falló el PR #{pr['number']}: {error}")
             SESION["fallos"].append(pr["number"])
+            SESION["reintentar_desde"][pr["number"]] = time.time() + ESPERA_REINTENTO_SEGUNDOS
             avisar("Implementador", f"Falló el PR #{pr['number']}.")
             cadena.comentar(pr["number"], f"{MARCA_FALLO}\nEl implementador falló:\n\n```\n{error}\n```")
         return True
