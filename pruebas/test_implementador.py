@@ -1,6 +1,7 @@
 """Pruebas de la lógica pura del implementador local (sin gh, git ni Codex)."""
 
 import json
+import subprocess
 import sys
 from pathlib import Path
 from types import SimpleNamespace
@@ -834,3 +835,37 @@ def test_el_resumen_de_fallo_descarta_el_ruido_del_servidor():
     assert "werkzeug" not in resumen
     assert "FAILED pruebas/e2e/test_a.py::test_x" in resumen
     assert implementador.resumen_de_fallo("sin indicios\notra") == "sin indicios\notra"
+
+
+def _repo_con_main_y_rama(tmp_path, conflicto):
+    def g(*a):
+        return subprocess.run(["git", *a], cwd=tmp_path, check=False, capture_output=True, text=True).stdout.strip()
+
+    g("init", "-q", "-b", "main")
+    g("config", "user.email", "t@t")
+    g("config", "user.name", "t")
+    (tmp_path / "a.txt").write_text("base\n", encoding="utf-8", newline="\n")
+    g("add", ".")
+    g("commit", "-qm", "base")
+    g("checkout", "-qb", "rama")
+    (tmp_path / "a.txt").write_text("rama\n", encoding="utf-8", newline="\n")
+    g("commit", "-qam", "rama")
+    g("checkout", "-q", "main")
+    nombre = "a.txt" if conflicto else "b.txt"
+    (tmp_path / nombre).write_text("main\n", encoding="utf-8", newline="\n")
+    g("add", ".")
+    g("commit", "-qm", "main")
+    g("update-ref", "refs/remotes/origin/main", "main")
+    g("checkout", "-q", "rama")
+    g("merge", "main", "--no-edit")
+    return g
+
+
+def test_con_la_fusion_limpia_el_punto_de_partida_es_el_head(tmp_path):
+    g = _repo_con_main_y_rama(tmp_path, conflicto=False)
+    assert implementador.punto_de_partida_del_intento(tmp_path) == g("rev-parse", "HEAD")
+
+
+def test_con_la_fusion_en_conflicto_se_mide_contra_main_y_no_contra_la_punta_del_pr(tmp_path):
+    _repo_con_main_y_rama(tmp_path, conflicto=True)
+    assert implementador.punto_de_partida_del_intento(tmp_path) == "origin/main"
