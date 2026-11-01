@@ -323,7 +323,10 @@ def consultar_propuesta(
         autorizar_socio(lectura, socio_id, usuario)
         if consentimiento is None:
             consentimiento = tiene_consentimiento_salud(lectura, socio_id)
-        restricciones = restricciones_vigentes(socio_id, cursor=lectura, consentimiento=consentimiento)
+        restricciones_historicas = historial_restricciones(socio_id, cursor=lectura, consentimiento=consentimiento)
+        restricciones = restricciones_vigentes(
+            socio_id, cursor=lectura, consentimiento=consentimiento, historial=restricciones_historicas
+        )
         equipos_no_disponibles = equipos_fuera_de_servicio(lectura)
         sede = repositorio.obtener_sede(lectura)
         if sede is None:
@@ -356,9 +359,12 @@ def consultar_propuesta(
         # Las quitadas en vivo también acreditan el pendiente sin reescribir hechos.
         efectivas_guardadas = efectivas
         if consentimiento:
-            restricciones_historicas = historial_restricciones(socio_id, cursor=lectura, consentimiento=True)
-            dolores = preparar_dolores_sesiones(
-                efectivas, repositorio.listar_dolores_socio(lectura, socio_id), ZoneInfo(sede["zona_horaria"])
+            dolores = (
+                preparar_dolores_sesiones(
+                    efectivas, repositorio.listar_dolores_socio(lectura, socio_id), ZoneInfo(sede["zona_horaria"])
+                )
+                if efectivas
+                else {}
             )
             equipos_por_momento = equipos_fuera_de_servicio_en_momentos(
                 lectura, [e["ultimo_dolor"] or e["sesion_creada_en"] for e in efectivas]

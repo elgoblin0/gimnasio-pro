@@ -214,15 +214,23 @@ def leer_con_consentimiento(consentimiento, leer, vacio=()):
     return leer() if consentimiento else vacio
 
 
-def restricciones_vigentes(socio_id, *, cursor=None, consentimiento=None):
+def restricciones_vigentes(socio_id, *, cursor=None, consentimiento=None, historial=None):
     """Solo para servicios que ya controlaron el alcance; no se expone una API.
 
     Quien ya conoce el consentimiento de la operación lo pasa para no consultarlo otra vez.
+    Si ya leyó el historial de restricciones, reutiliza sus filas para obtener las vigentes.
     """
     with nullcontext(cursor) if cursor is not None else transaccion() as lectura:
         if consentimiento is None:
             consentimiento = tiene_consentimiento_salud(lectura, socio_id)
-        filas = leer_con_consentimiento(consentimiento, lambda: repositorio.restricciones_vigentes(lectura, socio_id))
+        filas = leer_con_consentimiento(
+            consentimiento,
+            lambda: (
+                repositorio.restricciones_vigentes(lectura, socio_id)
+                if historial is None
+                else [f for f in historial if f["levantada_en"] is None]
+            ),
+        )
     return tuple(
         RestriccionSalud(
             str(desde_bytes(f["ejercicio_id"])) if f["ejercicio_id"] else None,

@@ -2,6 +2,8 @@
 
 from datetime import UTC, datetime, timedelta
 
+import pytest
+
 from gimnasio.salud import servicio
 
 
@@ -30,3 +32,23 @@ def test_sin_consentimiento_no_consulta_restricciones(monkeypatch):
 
     monkeypatch.setattr(servicio.repositorio, "restricciones_con_levantamiento", no_leer)
     assert servicio.restricciones_al_iniciar(None, datetime(2026, 11, 1), cursor=None, consentimiento=False) == ()
+
+
+@pytest.mark.parametrize("consentimiento", [False, True])
+def test_reutilizar_historial_respeta_levantamiento_y_consentimiento(monkeypatch, consentimiento):
+    def no_leer(*args):
+        raise AssertionError("El historial ya leído no debe volver a consultar restricciones")
+
+    monkeypatch.setattr(servicio.repositorio, "restricciones_vigentes", no_leer)
+    fila = {
+        "ejercicio_id": None,
+        "patron_movimiento": None,
+        "zona": "rodillas",
+        "descripcion": "Restricción ficticia vigente",
+        "levantada_en": None,
+    }
+    historial = [fila, {**fila, "zona": "hombros", "levantada_en": datetime(2026, 11, 1)}]
+    vigentes = servicio.restricciones_vigentes(
+        None, cursor=object(), consentimiento=consentimiento, historial=historial
+    )
+    assert [r.zona for r in vigentes] == (["rodillas"] if consentimiento else [])
