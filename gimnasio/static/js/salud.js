@@ -76,11 +76,11 @@ export async function montarSalud(contenedor, socio = null, alGuardar = () => {}
       contenedor.append(fila);
     }
     if (socio) {
-      const tipo = crear("select", { name: "tipo" },
+      const tipo = crear("select", { name: "tipo", "aria-label": "Objetivo" },
         ...[["ejercicio_id", "Ejercicio"], ["patron_movimiento", "Patrón de movimiento"], ["zona", "Zona del cuerpo"]]
           .map(([value, nombre]) => crear("option", { value }, nombre)));
       const busqueda = crear("input", { type: "search", placeholder: "Buscar objetivo" });
-      const objetivo = crear("select", { name: "objetivo", required: true, size: 5 });
+      const objetivo = crear("select", { name: "objetivo", required: true, size: 5, "aria-label": "Resultado" });
       const actualizar = () => {
         const opciones = tipo.value === "ejercicio_id" ? ejercicios.map((e) => [e.id, e.nombre])
           : tipo.value === "zona" ? ZONAS_CUERPO.map((z) => [z.id, z.nombre])
@@ -91,7 +91,7 @@ export async function montarSalud(contenedor, socio = null, alGuardar = () => {}
       tipo.addEventListener("change", actualizar);
       busqueda.addEventListener("input", actualizar);
       actualizar();
-      const condicion = crear("select", { name: "condicion_id" }, crear("option", { value: "" }, "Sin condición asociada"),
+      const condicion = crear("select", { name: "condicion_id", "aria-label": "Condición que se revisa" }, crear("option", { value: "" }, "Sin condición asociada"),
         ...salud.condiciones.filter((c) => !c.revision_id).map((c) => crear("option", { value: c.id }, c.descripcion)));
       contenedor.append(crear("h3", {}, "Registrar restricción"), formulario("Registrar restricción", `${ruta}/restricciones`,
         [crear("label", {}, "Objetivo", tipo), crear("label", {}, "Buscar ejercicio, patrón o zona", busqueda),
