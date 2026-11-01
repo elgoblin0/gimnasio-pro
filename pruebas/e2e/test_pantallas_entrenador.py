@@ -249,6 +249,37 @@ def test_bandeja_no_muestra_los_datos_del_socio_anterior_si_falla_la_lectura(pag
     expect(pagina.locator("[data-socio]")).to_be_visible()
 
 
+def test_bandeja_guardar_salud_no_oculta_la_ficha_abierta_despues(pagina_demo, demo_aislada):
+    pagina = pagina_demo
+    entrar(pagina, demo_aislada, "entrenador")
+    pagina.wait_for_url("**/bandeja.html")
+    filas = pagina.locator('[data-grupo="aviso_seguridad"] [data-enlace-socio]')
+    expect(filas.nth(1)).to_be_visible()
+    socio_a = filas.first.get_attribute("data-enlace-socio")
+    socio_b = filas.nth(1).get_attribute("data-enlace-socio")
+    nombre_b = filas.nth(1).locator(".fila-nombre").inner_text()
+    filas.first.click()
+    salud = pagina.locator("[data-salud]")
+    salud.get_by_label("Objetivo", exact=True).select_option("zona")
+    salud.get_by_label("Resultado", exact=True).select_option("rodillas")
+    salud.get_by_label("Descripción de la restricción", exact=True).fill("Restricción ficticia de prueba")
+
+    retenidas = []
+    pagina.route(f"**/api/socios/{socio_a}/salud", lambda ruta: retenidas.append(ruta))
+    pagina.route(f"**/api/entrenador/socios/{socio_b}", lambda ruta: retenidas.append(ruta))
+    with pagina.expect_request(f"**/api/socios/{socio_a}/salud"):
+        salud.get_by_role("button", name="Registrar restricción", exact=True).click()
+    with pagina.expect_request(f"**/api/entrenador/socios/{socio_b}"):
+        pagina.locator(f'[data-enlace-socio="{socio_b}"]').first.click()
+
+    # La recarga de salud de A termina mientras la lectura de B sigue en curso.
+    retenidas[0].continue_()
+    expect(salud.locator("h3", has_text="Registrar restricción")).to_be_attached()
+    retenidas[1].continue_()
+    expect(pagina.locator("[data-socio-nombre]")).to_have_text(nombre_b)
+    expect(pagina.locator("[data-socio]")).to_be_visible()
+
+
 @pytest.mark.parametrize("alternativa", ["sin_webgl", "movimiento_reducido"])
 def test_editor_cambia_las_series_por_zona_sin_llamar_a_la_api(pagina_demo, demo_aislada, alternativa):
     pagina = pagina_demo

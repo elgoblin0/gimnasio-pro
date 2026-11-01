@@ -154,7 +154,8 @@ function dibujarSalud(vista) {
     montarSalud(contenedor, vista.socio.id, () => {
       sondeo?.invalidar();
       sondeo?.actualizar();
-      leerSocio(vista.socio.id);
+      // Si ya se abrió otra ficha, releer esta anularía su lectura en curso y la dejaría oculta.
+      if (vista.socio.id === socioAbierto) leerSocio(vista.socio.id);
     });
   }
 }
