@@ -351,14 +351,27 @@ def obtener_prescripcion(cursor, sesion_id):
     return cursor.fetchone()
 
 
-def insertar_prescripcion_ajustada(cursor, ajustada_id, sesion_id, version_reglas, ejercicios, explicacion, ahora):
+def insertar_prescripcion_ajustada(
+    cursor,
+    ajustada_id,
+    sesion_id,
+    prescripcion_efectiva_id,
+    dolor_reportado_id,
+    version_reglas,
+    ejercicios,
+    explicacion,
+    ahora,
+):
     cursor.execute(
         """INSERT INTO prescripciones_ajustadas
-           (id, sesion_realizada_id, version_reglas, creada_en, ejercicios, explicacion)
-           VALUES (%s,%s,%s,%s,%s,%s)""",
+           (id, sesion_realizada_id, prescripcion_efectiva_id, dolor_reportado_id,
+            version_reglas, creada_en, ejercicios, explicacion)
+           VALUES (%s,%s,%s,%s,%s,%s,%s,%s)""",
         (
             a_bytes(ajustada_id),
             a_bytes(sesion_id),
+            a_bytes(prescripcion_efectiva_id),
+            a_bytes(dolor_reportado_id),
             version_reglas,
             _fecha_utc(ahora),
             json.dumps(ejercicios, default=str, ensure_ascii=False),

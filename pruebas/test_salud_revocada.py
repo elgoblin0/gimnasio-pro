@@ -4,6 +4,7 @@ import json
 from decimal import Decimal
 
 import pytest
+from mysql.connector import IntegrityError
 
 from gimnasio.comun.bd import transaccion
 from gimnasio.comun.ids import a_bytes, desde_texto, nuevo_id
@@ -61,9 +62,17 @@ def lectura(datos):
     return datos.cliente_dolor.get(datos.ruta_dolor).json
 
 
-def test_dolor_guarda_prescripcion_ajustada_y_el_reintento_no_agrega_otra(dolor_api):
+def test_dolor_guarda_prescripcion_ajustada_y_el_reintento_no_agrega_otra(dolor_api, monkeypatch):
     datos = dolor_api
     cliente, ruta = datos.cliente_dolor, datos.ruta_dolor
+    with datos.app.app_context(), transaccion() as cursor:
+        cursor.execute(
+            "SELECT id, version_reglas FROM prescripciones_efectivas WHERE sesion_realizada_id=%s",
+            (a_bytes(desde_texto(datos.sesion_dolor)),),
+        )
+        efectiva = cursor.fetchone()
+    # La sesión conserva la versión con la que empezó aunque cambie el motor.
+    monkeypatch.setattr("gimnasio.entrenamiento.servicio.VERSION_REGLAS", "0.0.0")
     assert contar(datos, "prescripciones_ajustadas", datos.sesion_dolor) == 0
     assert escribir(cliente, ruta + "/dolores", datos.cuerpo_dolor).status_code == 201
     assert contar(datos, "prescripciones_ajustadas", datos.sesion_dolor) == 1
@@ -72,7 +81,19 @@ def test_dolor_guarda_prescripcion_ajustada_y_el_reintento_no_agrega_otra(dolor_
     with datos.app.app_context(), transaccion() as cursor:
         cursor.execute("SELECT * FROM prescripciones_ajustadas")
         fila = cursor.fetchone()
-    assert fila["version_reglas"] == "3.2.0"
+    assert fila["version_reglas"] == efectiva["version_reglas"]
+    assert fila["prescripcion_efectiva_id"] == efectiva["id"]
+    assert fila["dolor_reportado_id"] == a_bytes(desde_texto(datos.cuerpo_dolor["id"]))
+    with pytest.raises(IntegrityError) as error, datos.app.app_context(), transaccion() as cursor:
+        cursor.execute(
+            "INSERT INTO prescripciones_ajustadas "
+            "(id, sesion_realizada_id, prescripcion_efectiva_id, dolor_reportado_id, "
+            "version_reglas, creada_en, ejercicios, explicacion) "
+            "SELECT %s, sesion_realizada_id, prescripcion_efectiva_id, dolor_reportado_id, "
+            "version_reglas, creada_en, ejercicios, explicacion FROM prescripciones_ajustadas WHERE id=%s",
+            (a_bytes(nuevo_id(datos.reloj)), fila["id"]),
+        )
+    assert error.value.errno == 1062
     ejercicios = json.loads(fila["ejercicios"])
     assert [e["id"] for e in ejercicios] == [e["id"] for e in lectura(datos)["ejercicios"]]
     assert any(r["regla"] == "dolor_reportado" for r in json.loads(fila["explicacion"]))

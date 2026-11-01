@@ -3,10 +3,14 @@
 CREATE TABLE prescripciones_ajustadas (
     id BINARY(16) PRIMARY KEY,
     sesion_realizada_id BINARY(16) NOT NULL,
+    prescripcion_efectiva_id BINARY(16) NOT NULL,
+    dolor_reportado_id BINARY(16) NOT NULL UNIQUE,
     version_reglas VARCHAR(20) NOT NULL,
     creada_en DATETIME(6) NOT NULL,
     ejercicios JSON NOT NULL,
     explicacion JSON NOT NULL,
     KEY ix_prescripciones_ajustadas_sesion (sesion_realizada_id, creada_en, id),
-    FOREIGN KEY (sesion_realizada_id) REFERENCES sesiones_realizadas(id)
+    FOREIGN KEY (sesion_realizada_id) REFERENCES sesiones_realizadas(id),
+    FOREIGN KEY (prescripcion_efectiva_id) REFERENCES prescripciones_efectivas(id),
+    FOREIGN KEY (dolor_reportado_id) REFERENCES dolores_reportados(id)
 ) ENGINE=InnoDB;

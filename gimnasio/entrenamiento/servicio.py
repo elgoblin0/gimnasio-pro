@@ -1201,7 +1201,15 @@ def registrar_dolor(sesion_texto, datos, usuario):
             r for e in ejercicios for r in e["explicacion"] if r["regla"] in {"dolor_reportado", "restriccion_salud"}
         ]
         repositorio.insertar_prescripcion_ajustada(
-            cursor, nuevo_id(), sesion_id, VERSION_REGLAS, ejercicios, explicacion, ahora
+            cursor,
+            nuevo_id(),
+            sesion_id,
+            desde_bytes(efectiva["id"]),
+            dolor_id,
+            efectiva["version_reglas"],
+            ejercicios,
+            explicacion,
+            ahora,
         )
         explicacion.append(
             {
