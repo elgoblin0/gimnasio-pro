@@ -498,6 +498,19 @@ def preparar_worktree(rama, numero):
     return carpeta
 
 
+def punto_de_partida_del_intento(carpeta):
+    """Contra qué se mide lo que cambió el intento.
+
+    Con la fusión de main limpia es el HEAD. Con conflictos la fusión queda abierta y HEAD es la punta del PR:
+    medir contra él contaría como «cambiado» todo lo que entró de main, y pytest correría esas pruebas;
+    contra `origin/main` quedan solo los archivos del propio PR.
+    """
+    ruta = git("rev-parse", "--git-path", "MERGE_HEAD", cwd=carpeta).stdout.strip()
+    if (carpeta / ruta).exists():
+        return "origin/main"
+    return git("rev-parse", "HEAD", cwd=carpeta).stdout.strip()
+
+
 def archivos_en_conflicto(carpeta):
     return git("diff", "--name-only", "--diff-filter=U", cwd=carpeta).stdout.split()
 
@@ -987,7 +1000,7 @@ def atender(pr, pedido, nivel=None, motor="codex"):
     comienzo = time.monotonic()
     paso(f"Preparando el worktree de {rama} (fetch + fusión con main)…")
     carpeta = preparar_worktree(rama, numero_issue)
-    punto_de_partida = git("rev-parse", "HEAD", cwd=carpeta).stdout.strip()
+    punto_de_partida = punto_de_partida_del_intento(carpeta)
     if cadena.origen_de(pedido) == "conflicto" and atender_conflicto_sin_agente(pr, carpeta):
         return
     paso("Leyendo las revisiones pendientes del PR…")
