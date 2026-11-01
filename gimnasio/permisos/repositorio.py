@@ -115,7 +115,7 @@ def listar_usuarios(cursor, rol, consulta, activo, pagina):
 def socios_sin_entrenador(cursor):
     cursor.execute(
         "SELECT u.id, p.nombre, p.apellido, p.cedula FROM usuarios u "
-        "JOIN personas p ON p.id=u.persona_id WHERE u.rol='socio' AND u.activo=TRUE "
+        "JOIN personas p ON p.id=u.persona_id WHERE u.rol='socio' AND u.activo=TRUE AND NOT p.simulada "
         "AND NOT EXISTS (SELECT 1 FROM asignaciones_entrenador a "
         "JOIN usuarios e ON e.id=a.entrenador_id AND e.rol='entrenador' AND e.activo=TRUE "
         "WHERE a.socio_id=u.id AND a.hasta IS NULL) ORDER BY u.creado_en,u.id"

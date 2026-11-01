@@ -60,6 +60,17 @@ def test_socios_sin_entrenador_y_validacion(entrenamiento_api):
     cliente = datos.cliente("administracion")
     ruta = "/api/socios/sin-entrenador"
     assert [s["id"] for s in cliente.get(ruta).json["socios"]] == [str(datos.usuarios["ajeno"])]
+    with datos.app.app_context(), transaccion() as cursor:
+        cursor.execute(
+            "UPDATE personas p JOIN usuarios u ON u.persona_id=p.id SET p.simulada=TRUE WHERE u.id=%s",
+            (datos.usuarios["ajeno"].bytes,),
+        )
+    assert cliente.get(ruta).json == {"socios": []}
+    with datos.app.app_context(), transaccion() as cursor:
+        cursor.execute(
+            "UPDATE personas p JOIN usuarios u ON u.persona_id=p.id SET p.simulada=FALSE WHERE u.id=%s",
+            (datos.usuarios["ajeno"].bytes,),
+        )
     assert asignar(datos, "recepcion", "ajeno").status_code == 422
     assert asignar(datos, "otro", "ajeno").status_code == 200
     assert cliente.get(ruta).json == {"socios": []}

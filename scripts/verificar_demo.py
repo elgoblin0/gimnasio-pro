@@ -47,7 +47,9 @@ def verificar(base, abrir=abrir_http):
     for _ in range(SOLICITUDES_POR_MINUTO):
         estado, encabezados, _ = abrir("GET", f"{base}/api/estado")
         if estado == 429:
-            if not encabezados.get("Retry-After", "").isdigit():
+            # Cloudflare entrega los encabezados en minúsculas.
+            minusculas = {nombre.lower(): valor for nombre, valor in encabezados.items()}
+            if not minusculas.get("retry-after", "").isdigit():
                 fallas.append("429 sin Retry-After numérico")
             break
     else:

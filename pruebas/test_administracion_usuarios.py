@@ -140,6 +140,12 @@ def test_cada_ruta_solo_administracion(pagos, rol):
 def test_ultima_administracion_y_reactivacion_sin_asignaciones(pagos):
     app, cliente, autor, datos = pagos
     app.config["MODO_DEMO"] = False
+    # La lista de socios sin entrenador deja afuera a los simulados, como el que trae este fixture.
+    with app.app_context(), transaccion() as cursor:
+        cursor.execute(
+            "UPDATE personas p JOIN usuarios u ON u.persona_id=p.id SET p.simulada=FALSE WHERE u.id=%s",
+            (UUID(datos["socio_id"]).bytes,),
+        )
     rechazo = escribir(cliente, f"/api/usuarios/{autor['id']}/desactivar")
     assert rechazo.status_code == 409
     assert rechazo.json["error"]["codigo"] == "ultima_administracion"

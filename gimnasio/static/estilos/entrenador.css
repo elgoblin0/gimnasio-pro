@@ -18,6 +18,7 @@ body.personal { padding: 0; }
 .personal-marca { font-family: var(--fuente-display); font-size: 1.15rem; color: var(--acento); text-decoration: none; }
 .personal-barra nav { display: flex; gap: var(--espacio-1); }
 .personal-barra nav a { display: inline-flex; align-items: center; min-height: 44px; padding-inline: var(--espacio-3); color: var(--texto-suave); text-decoration: none; border-block-end: 2px solid transparent; }
+.personal-barra nav a[hidden] { display: none; }
 .personal-barra nav a[aria-current="page"] { color: var(--texto); border-block-end-color: var(--acento); font-weight: 600; }
 .personal-demo { margin: 0 0 0 auto; color: var(--texto-suave); font-size: .85rem; }
 .personal-barra [data-cerrar] { min-height: 40px; padding: 0 var(--espacio-3); background: transparent; border-color: var(--borde); font-size: .9rem; }
