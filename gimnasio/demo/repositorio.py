@@ -255,6 +255,14 @@ def insertar_historial(cursor, sesion_id, series, socio_id, planificada_id, ejer
         )
 
 
+def fijar_altas(cursor, altas):
+    """La semilla reparte las fechas de alta, que crear_usuario fija en el momento del reinicio."""
+    cursor.executemany(
+        "UPDATE personas p JOIN usuarios u ON u.persona_id = p.id SET p.creada_en = %s WHERE u.id = %s",
+        [(momento.astimezone(UTC).replace(tzinfo=None), a_bytes(socio_id)) for socio_id, momento in altas],
+    )
+
+
 def insertar_visitas(cursor, sede_id, autor_id, visitas, siguiente_id):
     """Carga las entradas y las salidas confirmadas en dos lotes, sin correcciones."""
     entradas, salidas = [], []

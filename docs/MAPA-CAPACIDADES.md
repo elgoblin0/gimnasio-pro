@@ -97,5 +97,5 @@ Generado por `scripts/mapa_capacidades.py` desde `docs/capacidades/`. No editar 
 
 | Capacidad | Etapa | Nivel | Prueba |
 |---|---|---|---|
-| Incorporación de 90 días y riesgo de abandono | 6 | pendiente | — |
+| Incorporación de 90 días y riesgo de abandono | 6 | funcional | `pruebas/e2e/test_incorporacion_abandono.py` |
 | Resumen semanal | 6 | pendiente | — |

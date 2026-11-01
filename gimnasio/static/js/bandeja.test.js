@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 import vm from "node:vm";
 import * as textos from "./bandeja-textos.js";
+import * as textosAcompanamiento from "./acompanamiento-textos.js";
 import { crearControlDeOperacion } from "./comun/operaciones.js";
 
 const codigoSalud = readFileSync(new URL("./salud.js", import.meta.url), "utf8")
@@ -26,7 +27,7 @@ function preparar(llamarApi) {
     return elementos.get(selector);
   };
   const contexto = vm.createContext({
-    ...textos, crear, llamarApi, crearControlDeOperacion, registrarPwa() {}, montarPerfil() {},
+    ...textos, ...textosAcompanamiento, crear, llamarApi, crearControlDeOperacion, registrarPwa() {}, montarPerfil() {},
     document: { querySelector: obtener }, ZONAS_CUERPO: [],
     formatearFechaHora: (fecha) => fecha, crypto: { randomUUID: () => "clave" },
     FormData: class { get() { return "Nota ficticia"; } },
@@ -35,7 +36,7 @@ function preparar(llamarApi) {
   return { contexto, obtener, ejecutar: (codigo) => vm.runInContext(codigo, contexto) };
 }
 
-const vista = (id) => ({ socio: { id }, avisos: [], sesiones_realizadas: [], salud: {}, sin_consentimiento: false });
+const vista = (id) => ({ socio: { id }, avisos: [], sesiones_realizadas: [], salud: {}, sin_consentimiento: false, incorporacion: null, riesgo_abandono: [] });
 const salud = () => ({ condiciones: [{ id: "condicion", descripcion: "Condición ficticia", registrada_en: "2026-11-01T12:00:00+00:00" }], restricciones: [], dolores: [] });
 const terminarLecturas = () => new Promise((resolver) => setImmediate(resolver));
 

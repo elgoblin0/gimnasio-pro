@@ -2,5 +2,7 @@ id = "incorporacion-abandono"
 nombre = "Incorporación de 90 días y riesgo de abandono"
 grupo = "Acompañamiento"
 etapa = 6
-nivel = "pendiente"
-prueba = ""
+nivel = "funcional"
+prueba = "pruebas/e2e/test_incorporacion_abandono.py"
+
+# Calculada al consultar, sin tablas (#283). El socio ve su incorporación, nunca el riesgo.

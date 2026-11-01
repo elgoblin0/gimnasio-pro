@@ -48,6 +48,7 @@ def crear_app(config=None, reloj=None):
     registrar_manejadores(app)
     registrar_cierre(app)
 
+    from gimnasio.acompanamiento.rutas import bp as acompanamiento
     from gimnasio.administracion.rutas import bp as administracion
     from gimnasio.clases.rutas import bp as clases
     from gimnasio.clases.rutas import bp_avisos as avisos_socio
@@ -63,6 +64,7 @@ def crear_app(config=None, reloj=None):
     from gimnasio.socios.rutas import bp as socios
     from gimnasio.visitas.rutas import bp as visitas
 
+    app.register_blueprint(acompanamiento)
     app.register_blueprint(administracion)
     app.register_blueprint(clases)
     app.register_blueprint(avisos_socio)

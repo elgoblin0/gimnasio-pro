@@ -173,8 +173,11 @@ _Evitar_: Perfil sin calificar, cuestionario.
 **Incorporación**:
 Primeros 90 días de un socio desde su alta, con seguimiento específico.
 
+**Hito de incorporación**:
+Paso que se calcula solo durante la incorporación: programa asignado, primera visita y primera sesión realizada.
+
 **Riesgo de abandono**:
-Indicador calculado por reglas (asistencia, tendencia y señales) de que un socio puede dejar de venir. No es una predicción estadística.
+Indicador calculado por reglas (asistencia, tendencia y señales) de que un socio puede dejar de venir. No es una predicción estadística, no usa datos de salud y lo ve el personal, no el socio.
 
 **Resumen semanal**:
 Informe para socio y entrenador con lo cumplido, los cambios y los pendientes de la semana (lunes a domingo).

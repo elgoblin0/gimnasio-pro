@@ -211,6 +211,18 @@ def perfil_entrenamiento(socio_id, usuario, datos=None, *, guardar=False):
         return {"perfil_entrenamiento": actual}
 
 
+def datos_de_acompanamiento(cursor, socio_ids):
+    """Fecha de alta y último vencimiento de cada socio, de una sola consulta."""
+    return {
+        desde_bytes(fila["id"]): {
+            "alta": fila["creada_en"],
+            "simulada": bool(fila["simulada"]),
+            "ultimo_hasta": fila["ultimo_hasta"],
+        }
+        for fila in repositorio.datos_de_acompanamiento(cursor, socio_ids)
+    }
+
+
 def membresia_para_tarjeta(socio_id: UUID, fecha_local: date) -> dict:
     """Última membresía iniciada y máximo hasta, incluidas las renovaciones futuras."""
     with transaccion() as cursor:

@@ -147,6 +147,7 @@ def test_historial_de_ocho_semanas_con_horario_y_aforo(app_con_bd, reloj_fijo):
                FROM entradas e LEFT JOIN salidas s ON s.entrada_id = e.id
                JOIN usuarios u ON u.id = e.socio_id JOIN personas p ON p.id = u.persona_id
                JOIN usuarios a ON a.id = e.autor_id JOIN membresias m ON m.socio_id = u.id
+               WHERE p.correo LIKE 'historial%'
                ORDER BY e.registrada_en, e.socio_id""",
         )
 
@@ -254,7 +255,7 @@ def test_dos_reinicios_dejan_los_mismos_datos(app_con_bd, reloj_fijo):
         }
     ]
     socios = [p for p in primera["personas"] if p["rol"] == "socio"]
-    assert len(socios) == 149
+    assert len(socios) == 154
     sin_entrenador = {"95000003"}
     assert {a["cedula"] for a in primera["asignaciones"]} == {
         p["cedula"] for p in socios if not p["simulada"] and p["cedula"] not in sin_entrenador
@@ -263,7 +264,7 @@ def test_dos_reinicios_dejan_los_mismos_datos(app_con_bd, reloj_fijo):
     assert len(primera["membresias"]) == len(socios)
     assert {m["cedula"] for m in primera["membresias"]} == {p["cedula"] for p in socios}
     assert all(m["hasta"] - m["desde"] == timedelta(days=29) for m in primera["membresias"])
-    assert len(primera["consentimientos"]) == sum(not p["simulada"] for p in socios) + 1 == 90
+    assert len(primera["consentimientos"]) == sum(not p["simulada"] for p in socios) + 1 == 95
     assert all(c["tipo"] == "salud" and c["propio"] for c in primera["consentimientos"])
     # La única revocación es la del socio que muestra la progresión congelada.
     assert [c["otorgado"] for c in primera["consentimientos"]].count(False) == 1
@@ -329,13 +330,13 @@ def test_membresias_de_semilla_sin_superposiciones_y_sin_depender_de_salud(app_c
             membresias = cursor.fetchall()
             cursor.execute("SELECT DISTINCT socio_id FROM consentimientos WHERE tipo = 'salud'")
             con_salud = {fila["socio_id"] for fila in cursor.fetchall()}
-        assert len(membresias) == 149
+        assert len(membresias) == 154
         assert all(m["cantidad"] == 1 for m in membresias)
         assert len(con_salud) < len(membresias)
         vigentes = [
             consultar_membresia(desde_bytes(m["socio_id"]), fecha_local(reloj_fijo.ahora())) for m in membresias
         ]
-        assert sum(m is not None for m in vigentes) == 148
+        assert sum(m is not None for m in vigentes) == 153
         assert sum(m is None for m in vigentes) == 1  # Caso explícito de membresía vencida de #48.
 
 

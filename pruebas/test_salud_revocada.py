@@ -186,7 +186,7 @@ def test_sin_consentimiento_la_propuesta_congela_y_lo_explica(dolor_api):
     propuesta = cliente.get("/api/entrenamiento/propuesta").json
     reglas = {r["regla"] for r in propuesta["explicacion"]}
     assert "subir_carga" not in reglas and "tope_semanal" not in reglas
-    assert propuesta["version_reglas"] == "3.3.0"
+    assert propuesta["version_reglas"] == "3.4.0"
 
 
 def test_ejercicio_excluido_por_restriccion_vuelve_a_proponerse_y_se_excluye_otra_vez(entrenamiento_api):

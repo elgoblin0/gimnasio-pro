@@ -243,11 +243,12 @@ def test_reinicio_demo_borra_correcciones_y_sesiones_antes_del_programa(entrenam
     assert repositorio.obtener_sesion(datos.cursor, datos.sesion) is None
     assert repositorio.obtener_serie(datos.cursor, original) is None
     assert repositorio.obtener_serie(datos.cursor, correccion) is None
-    # #185 agrega una secuencia terminada y cuatro sesiones con avisos; #233, un programa con historial.
+    # #185 agrega una secuencia terminada y cuatro sesiones con avisos; #233, un programa con historial;
+    # #283, cuatro programas de casos de acompañamiento.
     for tabla, cantidad in (
         ("series_realizadas", 13 + 2 + 2),
         ("sesiones_realizadas", 4 + 5 + 1),
-        ("programas_entrenamiento", 2 + 7 + 1),
+        ("programas_entrenamiento", 2 + 7 + 1 + 4),
     ):
         datos.cursor.execute(f"SELECT COUNT(*) AS cantidad FROM {tabla}")
         assert datos.cursor.fetchone()["cantidad"] == cantidad

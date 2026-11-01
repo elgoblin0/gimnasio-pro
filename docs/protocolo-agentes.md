@@ -4,6 +4,8 @@ Desde el 28/10/2026, por decisión del dueño, el trabajo corre en una cadena au
 
 Este documento describe la orquestación. Para implementar un issue, Codex solo necesita `AGENTS.md`.
 
+**Excepción de la etapa 6 (decisión del dueño, 01/11/2026):** Opus implementa directamente, sin implementador, Codex ni revisión cruzada, con el CI en verde como puerta. Sus tickets van con `ejecutor:opus` y sin `estado:listo`, para que la cadena no los tome. Todo lo demás de este documento sigue vigente.
+
 ## Cadena automática
 
 Corre en GitHub Actions y todo queda a la vista en los comentarios de cada PR y en la pestaña Actions.

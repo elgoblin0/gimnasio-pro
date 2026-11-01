@@ -166,7 +166,7 @@ def test_tarjeta_con_historial(visitas_api, estado):
     respuesta = datos.cliente().get(f"/api/socios/{socio}/tarjeta")
     assert respuesta.status_code == 200
     tarjeta = respuesta.json
-    for clave in ("salud", "restricciones", "dolores", "rodillas", "confidencial", "pagos", "incorporacion", "riesgo"):
+    for clave in ("salud", "restricciones", "dolores", "rodillas", "confidencial", "pagos"):
         assert clave not in respuesta.get_data(as_text=True)
     assert set(tarjeta) == {
         "socio",
@@ -177,6 +177,8 @@ def test_tarjeta_con_historial(visitas_api, estado):
         "permanencia_habitual",
         "pago_pendiente",
         "aviso_personal",
+        "incorporacion",
+        "riesgo_abandono",
     }
     assert set(tarjeta["socio"]) == {"id", "nombre", "apellido", "cedula", "simulada"}
     assert tarjeta["socio"]["simulada"] is False
@@ -301,8 +303,8 @@ def test_tarjeta_agrega_solo_una_consulta(visitas_api, monkeypatch):
     monkeypatch.setattr(visitas_servicio, "transaccion", contar)
     with datos.app.app_context():
         visitas_servicio.consultar_tarjeta(str(datos.socios[0]))
-    # Seis consultas existentes y una para el aviso y su consentimiento juntos.
-    assert len(consultas) == 7
+    # Seis consultas existentes, una para el aviso y su consentimiento juntos y dos agrupadas del acompañamiento.
+    assert len(consultas) == 9
 
 
 def test_anulacion_vuelve_a_mostrar_pago_pendiente(visitas_api):

@@ -217,6 +217,17 @@ def listar_visitas_del_socio(cursor, socio_id, hasta):
     return cursor.fetchall()
 
 
+def listar_entradas_de_socios(cursor, socio_ids):
+    marcas = ",".join(["%s"] * len(socio_ids))
+    cursor.execute(
+        _ESTADOS_VIGENTES
+        + f"""SELECT socio_id, registrada_en FROM estados_vigentes
+              WHERE anulada = FALSE AND socio_id IN ({marcas})""",
+        [a_bytes(socio_id) for socio_id in socio_ids],
+    )
+    return cursor.fetchall()
+
+
 def listar_duraciones_confiables(cursor, sede_id, desde, hasta, socio_id=None):
     """Entrada y salida vigentes de las últimas ocho semanas, sin anulaciones.
 

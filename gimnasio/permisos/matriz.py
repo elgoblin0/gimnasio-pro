@@ -27,6 +27,7 @@ PERMISOS = {
     "entrenamiento.ver_propio": {"socio"},
     "entrenamiento.registrar_propio": {"socio"},
     "salud.ver_propia": {"socio"},
+    "acompanamiento.ver_propio": {"socio"},
     "consentimientos.gestionar_propios": {"socio"},
     # Recepción
     "ocupacion.ver": set(ROLES),

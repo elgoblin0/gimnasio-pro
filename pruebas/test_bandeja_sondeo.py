@@ -37,6 +37,7 @@ def sondeo(monkeypatch, reloj_fijo):
     monkeypatch.setattr(servicio, "revocaciones_de_salud", lambda ids, cursor: {})
     monkeypatch.setattr(servicio, "condiciones_pendientes", lambda ids, cursor: {})
     monkeypatch.setattr(servicio, "socios_con_programa", lambda cursor, ids: set())
+    monkeypatch.setattr(servicio, "estados_de_socios", lambda cursor, ids: {i: {"riesgo": []} for i in ids})
     monkeypatch.setattr(
         servicio.repositorio,
         "fechas_asignacion_vigente",

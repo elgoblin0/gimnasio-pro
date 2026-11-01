@@ -1,6 +1,7 @@
 import { llamarApi } from "@comun/api.js";
 import { montarPerfil } from "./perfil-entrenamiento.js";
 import { invalidarSalud, montarSalud } from "./salud.js";
+import { textoDia, textosDeHitos, textosDeRiesgo } from "./acompanamiento-textos.js";
 import { formatearCarga, formatearFechaHora } from "@comun/formatos.js";
 import { crearControlDeOperacion } from "@comun/operaciones.js";
 import { crear, exigirRol, prepararBarra } from "@comun/personal.js";
@@ -160,6 +161,20 @@ function dibujarSalud(vista) {
   }
 }
 
+function dibujarAcompanamiento(vista) {
+  const { incorporacion, riesgo_abandono: riesgo } = vista;
+  $("[data-acompanamiento]").hidden = !incorporacion && !riesgo.length;
+  $("[data-incorporacion]").replaceChildren(...(incorporacion ? [
+    crear("h3", {}, `Incorporación: ${textoDia(incorporacion.dia)}`),
+    crear("ul", {}, textosDeHitos(incorporacion.hitos).map(({ texto, cumplido }) =>
+      crear("li", { "data-cumplido": String(cumplido) }, `${cumplido ? "✓" : "○"} ${texto}`))),
+  ] : []));
+  $("[data-riesgo]").replaceChildren(...(riesgo.length ? [
+    crear("h3", {}, "Riesgo de abandono"),
+    crear("ul", {}, textosDeRiesgo(riesgo).map((texto) => crear("li", {}, texto))),
+  ] : []));
+}
+
 function dibujarSocio(vista) {
   const { socio } = vista;
   $("[data-socio-nombre]").textContent = `${socio.nombre} ${socio.apellido}`;
@@ -180,6 +195,7 @@ function dibujarSocio(vista) {
   const revisados = vista.avisos.filter((aviso) => aviso.revisado);
   $("[data-historial]").hidden = revisados.length === 0;
   $("[data-avisos-revisados]").replaceChildren(...revisados.map(renglonAviso));
+  dibujarAcompanamiento(vista);
   dibujarPrograma(vista.programa_vigente);
   dibujarSesiones(vista.sesiones_realizadas, vista.programa_vigente);
   dibujarSalud(vista);

@@ -7,6 +7,7 @@ export const GRUPOS_BANDEJA = Object.freeze({
   ejercicio_sin_alternativa: "Ejercicio sin alternativa disponible",
   sin_consentimiento_salud: "Sin consentimiento de salud",
   aviso_progresion: "Avisos por chequeo o tope",
+  riesgo_abandono: "Riesgo de abandono",
 });
 
 const MOTIVOS = {
@@ -17,6 +18,7 @@ const MOTIVOS = {
   ejercicio_sin_alternativa: ["Ejercicio sin alternativa", "ejercicios sin alternativa"],
   sin_consentimiento_salud: ["Sin consentimiento de salud"],
   aviso_progresion: ["Aviso por chequeo o tope", "avisos por chequeo o tope"],
+  riesgo_abandono: ["Riesgo de abandono"],
 };
 
 const FRENOS = {

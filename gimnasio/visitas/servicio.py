@@ -10,7 +10,7 @@ from gimnasio.comun.bd import transaccion
 from gimnasio.comun.errores import ErrorDeDominio
 from gimnasio.comun.formatos import formatear_cedula
 from gimnasio.comun.ids import desde_bytes, desde_texto
-from gimnasio.comun.reloj import fecha_local, reloj_actual
+from gimnasio.comun.reloj import ZONA_SEDE, fecha_local, reloj_actual
 from gimnasio.reglas.horarios import calcular_mejores_horarios
 from gimnasio.reglas.membresia import pago_pendiente
 from gimnasio.reglas.permanencia import calcular_permanencia_habitual, es_visita_por_conciliar
@@ -29,7 +29,22 @@ def identificar(texto):
         raise ErrorDeDominio("id_invalido", "El identificador debe ser un UUIDv7.", 422) from error
 
 
+def zona_de_la_sede(cursor):
+    """Sin sede configurada, como en una instalación nueva, vale la zona por omisión."""
+    sede = repositorio.obtener_sede(cursor)
+    return ZoneInfo(sede["zona_horaria"]) if sede else ZONA_SEDE
+
+
+def visitas_de_socios(cursor, socio_ids):
+    """Momento de entrada de las visitas vigentes de cada socio, en UTC."""
+    visitas = {}
+    for fila in repositorio.listar_entradas_de_socios(cursor, socio_ids):
+        visitas.setdefault(desde_bytes(fila["socio_id"]), []).append(fila["registrada_en"].replace(tzinfo=UTC))
+    return visitas
+
+
 def consultar_tarjeta(socio_id):
+    from gimnasio.acompanamiento.servicio import estados_de_socios
     from gimnasio.salud.servicio import aviso_personal_vigente
 
     socio_id = identificar(socio_id)
@@ -46,6 +61,7 @@ def consultar_tarjeta(socio_id):
         duraciones = repositorio.listar_duraciones_confiables(
             cursor, desde_bytes(sede["id"]), ahora - timedelta(weeks=8), ahora, socio_id
         )
+        acompanamiento = estados_de_socios(cursor, [socio_id], ZoneInfo(sede["zona_horaria"]))[socio_id]
     abierta = next((visita for visita in visitas if visita["abierta"]), None)
     ultima = next((visita for visita in visitas if visita["salida_registrada_en"] is not None), None)
     hoy = fecha_local(ahora, ZoneInfo(sede["zona_horaria"]))
@@ -53,6 +69,8 @@ def consultar_tarjeta(socio_id):
     ultimo_hasta = membresia["ultimo_hasta"]
     return {
         "aviso_personal": aviso_personal,
+        "incorporacion": {"dia": acompanamiento["dia"]} if acompanamiento["dia"] else None,
+        "riesgo_abandono": acompanamiento["riesgo"],
         "pago_pendiente": pago_pendiente(hoy, date.fromisoformat(ultimo_hasta) if ultimo_hasta else None),
         "socio": {
             "id": str(socio_id),
