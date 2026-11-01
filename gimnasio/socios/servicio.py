@@ -1,9 +1,8 @@
 """Ficha del socio, perfil de entrenamiento y consultas de membresía."""
 
 import secrets
-from datetime import UTC, date, datetime, time, timedelta
+from datetime import date
 from uuid import UUID
-from zoneinfo import ZoneInfo
 
 from mysql.connector import IntegrityError
 
@@ -13,7 +12,7 @@ from gimnasio.comun.formatos import normalizar_cedula, normalizar_correo, normal
 from gimnasio.comun.ids import desde_bytes, desde_texto, nuevo_id
 from gimnasio.comun.reloj import fecha_local, reloj_actual
 from gimnasio.permisos.servicio import (
-    contar_altas_demo,
+    comprobar_tope_demo,
     crear_usuario,
     fijar_clave_provisional,
     registrar_consentimiento,
@@ -29,7 +28,9 @@ def dar_alta(datos, autor, es_demo):
         raise ErrorDeDominio("consentimiento_requerido", "Se requiere consentimiento de datos personales.", 422)
     if not all(campo in datos for campo in ("nombre", "apellido", "cedula")):
         raise ErrorDeDominio("datos_invalidos", "Enviá nombre, apellido y cédula.", 422)
-    persona = _validar_personales({campo: datos[campo] for campo in repositorio.CAMPOS_PERSONALES if campo in datos})
+    persona = validar_datos_personales(
+        {campo: datos[campo] for campo in repositorio.CAMPOS_PERSONALES if campo in datos}
+    )
     if "primer_pago" in datos and not isinstance(datos["primer_pago"], dict):
         raise ErrorDeDominio("datos_invalidos", "El primer pago debe ser un objeto.", 422)
     if "primer_pago" in datos:
@@ -38,11 +39,7 @@ def dar_alta(datos, autor, es_demo):
     try:
         with transaccion() as cursor:
             if es_demo:
-                ahora = reloj_actual().ahora()
-                zona = ZoneInfo("America/Asuncion")
-                desde = datetime.combine(fecha_local(ahora), time.min, zona).astimezone(UTC)
-                if contar_altas_demo(cursor, desde, desde + timedelta(days=1)) >= 20:
-                    raise ErrorDeDominio("limite_altas_demo", "La demo admite 20 altas por día.", 429)
+                comprobar_tope_demo(cursor)
             usuario_id = crear_usuario(cursor, persona, "socio", es_demo=es_demo)
             if clave:
                 fijar_clave_provisional(cursor, usuario_id, clave)
@@ -100,7 +97,7 @@ def _objeto(datos, permitidos):
         raise ErrorDeDominio("datos_invalidos", "Enviá solo los campos permitidos del formulario.", 422)
 
 
-def _validar_personales(datos):
+def validar_datos_personales(datos):
     resultado = {}
     for campo, valor in datos.items():
         try:
@@ -160,7 +157,7 @@ def ficha_socio(socio_id, usuario, datos=None, *, guardar=False, propia=False):
     if guardar:
         permitidos = ("telefono", "correo", "perfil_entrenamiento") if propia else repositorio.CAMPOS_PERSONALES
         _objeto(datos, permitidos)
-        personales = _validar_personales(
+        personales = validar_datos_personales(
             {campo: valor for campo, valor in datos.items() if campo != "perfil_entrenamiento"}
         )
         if "perfil_entrenamiento" in datos:

@@ -86,16 +86,60 @@ def actualizar_figura_cuerpo(cursor, usuario_id, figura, momento):
 
 def contar_altas_demo(cursor, desde, hasta):
     # La sede serializa altas simultáneas para que no excedan el tope diario.
+    # El personal de la semilla tiene hash opaco; las altas demo nunca tienen clave.
     cursor.execute("SELECT id FROM sedes ORDER BY id LIMIT 1 FOR UPDATE")
     cursor.fetchone()
     cursor.execute(
-        "SELECT COUNT(*) AS cantidad FROM usuarios u WHERE u.es_demo=TRUE AND u.rol='socio' "
+        "SELECT COUNT(*) AS cantidad FROM usuarios u WHERE u.es_demo=TRUE "
         "AND u.creado_en >= %s AND u.creado_en < %s "
-        "AND EXISTS (SELECT 1 FROM consentimientos c WHERE c.socio_id=u.id "
-        "AND c.tipo='datos_personales' AND c.registrado_por<>u.id)",
+        "AND ((u.rol<>'socio' AND u.clave_hash IS NULL) OR EXISTS "
+        "(SELECT 1 FROM consentimientos c WHERE c.socio_id=u.id "
+        "AND c.tipo='datos_personales' AND c.registrado_por<>u.id))",
         (desde, hasta),
     )
     return cursor.fetchone()["cantidad"]
+
+
+def listar_usuarios(cursor, rol, consulta, activo, pagina):
+    cursor.execute(
+        "SELECT u.id, u.rol, u.activo, p.nombre, p.apellido, p.cedula "
+        "FROM usuarios u JOIN personas p ON p.id=u.persona_id "
+        "WHERE (%s IS NULL OR u.rol=%s) AND (%s IS NULL OR u.activo=%s) "
+        "AND (p.nombre LIKE %s OR p.apellido LIKE %s OR p.cedula LIKE %s) "
+        "ORDER BY p.apellido, p.nombre, u.id LIMIT 51 OFFSET %s",
+        (rol, rol, activo, activo, *([f"%{consulta}%"] * 3), (pagina - 1) * 50),
+    )
+    return cursor.fetchall()
+
+
+def socios_sin_entrenador(cursor):
+    cursor.execute(
+        "SELECT u.id, p.nombre, p.apellido, p.cedula FROM usuarios u "
+        "JOIN personas p ON p.id=u.persona_id WHERE u.rol='socio' AND u.activo=TRUE "
+        "AND NOT EXISTS (SELECT 1 FROM asignaciones_entrenador a "
+        "JOIN usuarios e ON e.id=a.entrenador_id AND e.rol='entrenador' AND e.activo=TRUE "
+        "WHERE a.socio_id=u.id AND a.hasta IS NULL) ORDER BY u.creado_en,u.id"
+    )
+    return cursor.fetchall()
+
+
+def cambiar_asignacion(cursor, identificador, socio_id, entrenador_id, momento):
+    cursor.execute(
+        "SELECT entrenador_id FROM asignaciones_entrenador WHERE socio_id=%s AND hasta IS NULL FOR UPDATE",
+        (a_bytes(socio_id),),
+    )
+    vigentes = cursor.fetchall()
+    if any(fila["entrenador_id"] == a_bytes(entrenador_id) for fila in vigentes):
+        return False
+    cursor.execute(
+        "UPDATE asignaciones_entrenador SET hasta=%s WHERE socio_id=%s AND hasta IS NULL",
+        (momento, a_bytes(socio_id)),
+    )
+    cursor.execute(
+        "INSERT INTO asignaciones_entrenador (id,socio_id,entrenador_id,desde) VALUES (%s,%s,%s,%s)",
+        (a_bytes(identificador), a_bytes(socio_id), a_bytes(entrenador_id), momento),
+    )
+    return True
 
 
 def insertar_usuario(cursor, usuario_id, persona_id, rol, clave_hash, es_demo, momento):
