@@ -2,7 +2,8 @@ id = "incorporacion-abandono"
 nombre = "Incorporación de 90 días y riesgo de abandono"
 grupo = "Acompañamiento"
 etapa = 6
-nivel = "funcional"
+nivel = "validada"
 prueba = "pruebas/e2e/test_incorporacion_abandono.py"
+validacion = "https://github.com/elgoblin0/gimnasio-pro/issues/285"
 
 # Calculada al consultar, sin tablas (#283). El socio ve su incorporación, nunca el riesgo.

@@ -2,7 +2,8 @@ id = "resumen-semanal"
 nombre = "Resumen semanal"
 grupo = "Acompañamiento"
 etapa = 6
-nivel = "funcional"
+nivel = "validada"
 prueba = "pruebas/e2e/test_resumen_semanal.py"
+validacion = "https://github.com/elgoblin0/gimnasio-pro/issues/285"
 
 # Calculado al consultar, sin tablas (#284). El entrenador sin consentimiento de salud lo recibe filtrado (ADR 0024).

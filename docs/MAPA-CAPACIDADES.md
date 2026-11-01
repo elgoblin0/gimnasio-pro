@@ -97,5 +97,5 @@ Generado por `scripts/mapa_capacidades.py` desde `docs/capacidades/`. No editar 
 
 | Capacidad | Etapa | Nivel | Prueba |
 |---|---|---|---|
-| Incorporación de 90 días y riesgo de abandono | 6 | funcional | `pruebas/e2e/test_incorporacion_abandono.py` |
-| Resumen semanal | 6 | funcional | `pruebas/e2e/test_resumen_semanal.py` |
+| Incorporación de 90 días y riesgo de abandono | 6 | validada | `pruebas/e2e/test_incorporacion_abandono.py` · https://github.com/elgoblin0/gimnasio-pro/issues/285 |
+| Resumen semanal | 6 | validada | `pruebas/e2e/test_resumen_semanal.py` · https://github.com/elgoblin0/gimnasio-pro/issues/285 |
