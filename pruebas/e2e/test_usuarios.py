@@ -18,12 +18,18 @@ def test_administracion_crea_personal_y_asigna_socio(pagina_demo, demo_aislada):
     errores = entrar(pagina, demo_aislada, "administración")
     pagina.wait_for_url("**/administracion.html")
     panel = pagina.locator("#usuarios")
-    expect(panel.get_by_role("button", name="Crear personal")).to_be_visible()
-    panel.get_by_label("Nombre", exact=True).fill("Personal nuevo")
-    panel.get_by_label("Apellido", exact=True).fill("Ficticio")
-    panel.get_by_label("Cédula", exact=True).fill("8899801")
-    panel.get_by_label("Rol", exact=True).first.select_option("entrenador")
-    panel.get_by_role("button", name="Crear personal").click()
+    alta = panel.locator("form").filter(has=pagina.get_by_role("button", name="Crear personal"))
+    expect(alta.get_by_role("button", name="Crear personal")).to_be_visible()
+    alta.get_by_label("Nombre", exact=True).fill("Personal nuevo")
+    alta.get_by_label("Apellido", exact=True).fill("Ficticio")
+    alta.get_by_label("Cédula", exact=True).fill("8899801")
+    alta.get_by_label("Rol", exact=True).select_option("entrenador")
+    with pagina.expect_response(lambda r: r.request.method == "POST" and r.url.endswith("/api/usuarios")) as creacion:
+        alta.get_by_role("button", name="Crear personal").click()
+    assert creacion.value.status == 201
+    entrenadores = pagina.request.get(demo_aislada.url + "/api/usuarios?rol=entrenador&q=8899801")
+    assert entrenadores.status == 200
+    assert [usuario["id"] for usuario in entrenadores.json()["usuarios"]] == [creacion.value.json()["usuario_id"]]
     expect(panel).to_contain_text("Usuario creado en modo demo, sin clave.")
     # Alta de socio por su ruta propia, sin asignación inicial.
     respuesta = pagina.request.post(
