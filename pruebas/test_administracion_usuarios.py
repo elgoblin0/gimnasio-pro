@@ -375,3 +375,18 @@ def test_estado_valida_cuerpo_id_y_encabezados(pagos):
     with app.app_context():
         inexistente = nuevo_id()
     assert escribir(cliente, f"/api/usuarios/{inexistente}/desactivar").status_code == 404
+
+
+def test_no_se_reserva_con_entrenador_desactivado(reservas):
+    app, cliente, clase, socios, datos, _ = reservas
+    reserva = solicitar(cliente, clase, socios[0]).json["id"]
+    assert escribir(cliente, f"/api/clases/reservas/{reserva}/cancelar").status_code == 200
+    entrar(cliente, "administracion")
+    assert escribir(cliente, f"/api/clases/{clase}/archivar").status_code == 200
+    app.config["MODO_DEMO"] = False
+    assert escribir(cliente, f"/api/usuarios/{datos['entrenador_id']}/desactivar").status_code == 200
+    app.config["MODO_DEMO"] = True
+    entrar(cliente, "recepcion")
+    respuesta = solicitar(cliente, clase, socios[1])
+    assert respuesta.status_code == 409
+    assert respuesta.json["error"]["codigo"] == "entrenador_inactivo"

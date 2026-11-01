@@ -181,6 +181,8 @@ def reservar(datos, usuario):
         clase = repositorio.clase_para_reserva(cursor, clase_id)
         if clase is None:
             raise ErrorDeDominio("clase_inexistente", "La clase no existe.", 404)
+        if not repositorio.entrenador_activo(cursor, desde_bytes(clase["entrenador_id"])):
+            raise ErrorDeDominio("entrenador_inactivo", "El entrenador de la clase está desactivado.", 409)
         ocurrencia = repositorio.ocurrencia_para_reserva(cursor, clase_id, fecha)
         candidata = ocurrencia or dict(clase, fecha=fecha)
         if ocurrencia and ocurrencia["cancelada"]:
