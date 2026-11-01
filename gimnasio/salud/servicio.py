@@ -13,6 +13,32 @@ from gimnasio.permisos.servicio import tiene_asignacion_vigente
 from gimnasio.salud import repositorio
 
 
+def aviso_personal_vigente(socio_id, *, cursor):
+    fila = repositorio.aviso_personal_vigente(cursor, socio_id)
+    return fila["texto"] or None if fila else None
+
+
+def escribir_aviso_personal(socio_texto, usuario, datos):
+    socio_id = _identificar(socio_texto)
+    with transaccion() as cursor:
+        _autorizar(cursor, socio_id, usuario, bloquear=True)
+        if usuario["rol"] != "entrenador":
+            raise ErrorDeDominio("sin_permiso", "Solo el entrenador asignado escribe avisos para el personal.", 403)
+        if (
+            not isinstance(datos, dict)
+            or set(datos) != {"texto"}
+            or not isinstance(datos["texto"], str)
+            or len(datos["texto"]) > 200
+        ):
+            raise ErrorDeDominio("texto_invalido", "Escribí un aviso para el personal de hasta 200 caracteres.", 422)
+        texto = datos["texto"].strip()
+        identificador = nuevo_id()
+        repositorio.insertar_aviso_personal(
+            cursor, identificador, socio_id, texto, _identificar(usuario["id"]), reloj_actual().ahora()
+        )
+    return {"aviso_personal_id": str(identificador)}
+
+
 def registrar_consulta_ficha(cursor, socio_id, consultado_por):
     repositorio.insertar_consulta_ficha(cursor, nuevo_id(), socio_id, consultado_por, reloj_actual().ahora())
 
@@ -120,6 +146,8 @@ def consultar_salud(socio_texto, usuario, *, solo_condiciones=False):
         if usuario["rol"] == "entrenador":
             registrar_consulta_ficha(cursor, socio_id, _identificar(usuario["id"]))
         resultado = {"condiciones": condiciones_para_entrenador(cursor, socio_id)}
+        if usuario["rol"] == "entrenador" and not solo_condiciones:
+            resultado["aviso_personal"] = aviso_personal_vigente(socio_id, cursor=cursor)
         if not solo_condiciones:
             restricciones = [_publicar(f) for f in repositorio.restricciones_vigentes(cursor, socio_id)]
             # El socio no puede leer el catálogo: el nombre viaja con la restricción.

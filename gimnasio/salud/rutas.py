@@ -9,6 +9,12 @@ from gimnasio.salud import servicio
 bp = Blueprint("salud", __name__, url_prefix="/api")
 
 
+@bp.post("/socios/<socio_id>/aviso-personal")
+@requiere("avisos_personal.escribir")
+def escribir_aviso_personal(socio_id):
+    return jsonify(servicio.escribir_aviso_personal(socio_id, usuario_actual(), request.get_json(silent=True))), 201
+
+
 @bp.get("/yo/salud/consultas")
 @requiere("salud.ver_propia")
 def consultas_ficha():

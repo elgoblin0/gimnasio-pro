@@ -511,6 +511,13 @@ def test_descarga_todas_las_secciones_propias_incluso_con_salud_revocada(entrena
                 registrado_en=ahora,
             )
             insertar("consultas_ficha", socio_id=socio.bytes, consultado_por=autor, registrada_en=ahora)
+            insertar(
+                "avisos_personal",
+                socio_id=socio.bytes,
+                texto=f"Aviso para el personal de {nombre}",
+                autor_id=autor,
+                registrado_en=ahora,
+            )
             registrar_consentimiento(cursor, socio, "salud", True, "salud-1", socio)
             registrar_consentimiento(cursor, socio, "salud", False, "salud-1", socio)
     respuesta = datos.cliente().get("/api/yo/datos?socio_id=" + str(datos.usuarios["ajeno"]))
@@ -532,6 +539,7 @@ def test_descarga_todas_las_secciones_propias_incluso_con_salud_revocada(entrena
         "reservas",
         "cancelaciones_reserva",
         "avisos_socio",
+        "avisos_personal",
         "vistos_aviso_socio",
         "condiciones",
         "revisiones_condicion",
@@ -548,6 +556,7 @@ def test_descarga_todas_las_secciones_propias_incluso_con_salud_revocada(entrena
     assert descarga["condiciones"][0]["descripcion"] == "Condición de socio"
     assert descarga["restricciones"][0]["descripcion"] == "Restricción de socio"
     assert descarga["dolores"][0]["zona"] == "rodillas"
+    assert descarga["avisos_personal"][0]["texto"] == "Aviso para el personal de socio"
     assert descarga["series_realizadas"][0]["carga"] == "20.50"
     for seccion in descarga.values():
         for fila in seccion:

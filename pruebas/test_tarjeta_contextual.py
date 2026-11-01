@@ -14,6 +14,120 @@ from pruebas import test_visitas_api
 pytestmark = pytest.mark.bd
 
 
+def preparar_aviso(datos, *, asignado=True, consentimiento=True):
+    from gimnasio.permisos.servicio import registrar_consentimiento
+
+    with datos.app.app_context(), transaccion() as cursor:
+        if asignado:
+            cursor.execute(
+                "INSERT INTO asignaciones_entrenador (id,socio_id,entrenador_id,desde) VALUES (%s,%s,%s,%s)",
+                (
+                    nuevo_id(datos.reloj).bytes,
+                    datos.socios[0].bytes,
+                    datos.usuarios["entrenador"].bytes,
+                    datos.reloj.ahora(),
+                ),
+            )
+        registrar_consentimiento(cursor, datos.socios[0], "salud", consentimiento, "salud-1", datos.socios[0])
+
+
+def enviar_aviso(datos, cuerpo, *, rol="entrenador", clave=None):
+    return datos.cliente(rol).post(
+        f"/api/socios/{datos.socios[0]}/aviso-personal",
+        json=cuerpo,
+        headers={"X-Gimnasio": "1", "Idempotency-Key": clave or str(nuevo_id(datos.reloj))},
+    )
+
+
+def test_aviso_historial_correccion_retiro_y_consentimiento(visitas_api):
+    from gimnasio.permisos.servicio import registrar_consentimiento
+
+    datos = visitas_api
+    preparar_aviso(datos)
+    ruta = f"/api/socios/{datos.socios[0]}/tarjeta"
+    assert datos.cliente().get(ruta).json["aviso_personal"] is None
+    for texto in ("Consultar al entrenador", "Entrenar acompañado"):
+        clave = str(nuevo_id(datos.reloj))
+        primera = enviar_aviso(datos, {"texto": texto}, clave=clave)
+        assert primera.status_code == 201
+        assert enviar_aviso(datos, {"texto": texto}, clave=clave).data == primera.data
+        assert datos.cliente().get(ruta).json["aviso_personal"] == texto
+    for otorgado in (False, True):
+        datos.reloj.avanzar(timedelta(seconds=1))
+        with datos.app.app_context(), transaccion() as cursor:
+            registrar_consentimiento(cursor, datos.socios[0], "salud", otorgado, "salud-1", datos.socios[0])
+        assert datos.cliente().get(ruta).json["aviso_personal"] == ("Entrenar acompañado" if otorgado else None)
+    assert enviar_aviso(datos, {"texto": ""}).status_code == 201
+    assert datos.cliente().get(ruta).json["aviso_personal"] is None
+    with datos.app.app_context(), transaccion() as cursor:
+        cursor.execute("SELECT texto FROM avisos_personal ORDER BY registrado_en,id")
+        assert [f["texto"] for f in cursor.fetchall()] == ["Consultar al entrenador", "Entrenar acompañado", ""]
+
+
+@pytest.mark.parametrize("asignado,consentimiento", [(False, True), (True, False)])
+def test_aviso_exige_asignacion_y_consentimiento(visitas_api, asignado, consentimiento):
+    preparar_aviso(visitas_api, asignado=asignado, consentimiento=consentimiento)
+    assert enviar_aviso(visitas_api, {"texto": "Consultar al entrenador"}).status_code == 403
+
+
+@pytest.mark.parametrize(
+    "cuerpo", [None, {}, {"texto": None}, {"texto": 1}, {"texto": "x" * 201}, {"texto": "", "otro": 1}]
+)
+def test_aviso_valida_cuerpo(visitas_api, cuerpo):
+    preparar_aviso(visitas_api)
+    assert enviar_aviso(visitas_api, cuerpo).status_code == 422
+
+
+@pytest.mark.parametrize("rol", [None, "socio", "recepcion", "administracion"])
+def test_aviso_solo_entrenador(visitas_api, rol):
+    assert enviar_aviso(visitas_api, {"texto": "Consultar al entrenador"}, rol=rol).status_code == (
+        401 if rol is None else 403
+    )
+
+
+def test_aviso_limite_y_encabezados(visitas_api):
+    datos = visitas_api
+    preparar_aviso(datos)
+    cliente = datos.cliente("entrenador")
+    ruta = f"/api/socios/{datos.socios[0]}/aviso-personal"
+    assert cliente.post(ruta, json={"texto": "x"}, headers={"X-Gimnasio": "1"}).status_code == 428
+    assert (
+        cliente.post(ruta, json={"texto": "x"}, headers={"Idempotency-Key": str(nuevo_id(datos.reloj))}).status_code
+        == 403
+    )
+    assert enviar_aviso(datos, {"texto": "x" * 200}).status_code == 201
+    assert datos.cliente().get(f"/api/socios/{datos.socios[0]}/tarjeta").json["aviso_personal"] == "x" * 200
+
+
+def test_aviso_se_conserva_al_cambiar_entrenador(visitas_api):
+    from gimnasio.permisos.servicio import crear_usuario
+
+    datos = visitas_api
+    preparar_aviso(datos)
+    assert enviar_aviso(datos, {"texto": "Consultar al entrenador"}).status_code == 201
+    anterior = datos.usuarios["entrenador"]
+    datos.reloj.avanzar(timedelta(seconds=1))
+    with datos.app.app_context(), transaccion() as cursor:
+        nuevo = crear_usuario(cursor, {"nombre": "Otra", "apellido": "Ficticia", "cedula": "9900999"}, "entrenador")
+        cursor.execute(
+            "UPDATE asignaciones_entrenador SET hasta=%s WHERE socio_id=%s",
+            (datos.reloj.ahora(), datos.socios[0].bytes),
+        )
+        cursor.execute(
+            "INSERT INTO asignaciones_entrenador (id,socio_id,entrenador_id,desde) VALUES (%s,%s,%s,%s)",
+            (nuevo_id(datos.reloj).bytes, datos.socios[0].bytes, nuevo.bytes, datos.reloj.ahora()),
+        )
+    ruta = f"/api/socios/{datos.socios[0]}/tarjeta"
+    assert datos.cliente().get(ruta).json["aviso_personal"] == "Consultar al entrenador"
+    assert enviar_aviso(datos, {"texto": "Anterior"}).status_code == 403
+    datos.usuarios["entrenador"] = nuevo
+    assert enviar_aviso(datos, {"texto": "Nuevo entrenador"}).status_code == 201
+    assert datos.cliente().get(ruta).json["aviso_personal"] == "Nuevo entrenador"
+    with datos.app.app_context(), transaccion() as cursor:
+        cursor.execute("SELECT autor_id FROM avisos_personal ORDER BY registrado_en,id")
+        assert [f["autor_id"] for f in cursor.fetchall()] == [anterior.bytes, nuevo.bytes]
+
+
 @pytest.fixture
 def visitas_api(app_con_bd, reloj_fijo):
     return test_visitas_api.visitas_api.__wrapped__(app_con_bd, reloj_fijo)
@@ -62,6 +176,7 @@ def test_tarjeta_con_historial(visitas_api, estado):
         "visitas_ultimas_4_semanas",
         "permanencia_habitual",
         "pago_pendiente",
+        "aviso_personal",
     }
     assert set(tarjeta["socio"]) == {"id", "nombre", "apellido", "cedula", "simulada"}
     assert tarjeta["socio"]["simulada"] is False
@@ -186,8 +301,8 @@ def test_tarjeta_agrega_solo_una_consulta(visitas_api, monkeypatch):
     monkeypatch.setattr(visitas_servicio, "transaccion", contar)
     with datos.app.app_context():
         visitas_servicio.consultar_tarjeta(str(datos.socios[0]))
-    # Antes: cuatro consultas de visitas y una de membresía. Ahora: una más.
-    assert len(consultas) == 6
+    # Seis consultas existentes y una para el aviso y su consentimiento juntos.
+    assert len(consultas) == 7
 
 
 def test_anulacion_vuelve_a_mostrar_pago_pendiente(visitas_api):

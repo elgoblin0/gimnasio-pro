@@ -3,6 +3,24 @@
 from gimnasio.comun.ids import a_bytes
 
 
+def insertar_aviso_personal(cursor, identificador, socio_id, texto, autor_id, momento):
+    cursor.execute(
+        "INSERT INTO avisos_personal (id,socio_id,texto,autor_id,registrado_en) VALUES (%s,%s,%s,%s,%s)",
+        (a_bytes(identificador), a_bytes(socio_id), texto, a_bytes(autor_id), momento),
+    )
+
+
+def aviso_personal_vigente(cursor, socio_id):
+    cursor.execute(
+        """SELECT a.texto FROM avisos_personal a WHERE a.socio_id=%s
+           AND (SELECT c.otorgado FROM consentimientos c WHERE c.socio_id=a.socio_id AND c.tipo='salud'
+                ORDER BY c.registrado_en DESC,c.id DESC LIMIT 1)=TRUE
+           ORDER BY a.registrado_en DESC,a.id DESC LIMIT 1""",
+        (a_bytes(socio_id),),
+    )
+    return cursor.fetchone()
+
+
 def insertar_consulta_ficha(cursor, identificador, socio_id, consultado_por, momento):
     cursor.execute(
         "INSERT INTO consultas_ficha (id,socio_id,consultado_por,registrada_en) VALUES (%s,%s,%s,%s)",
@@ -28,6 +46,7 @@ def datos_propios(cursor, socio_id):
     No se lee usuarios salvo para localizar la persona: sus claves quedan fuera.
     """
     consultas = {
+        "avisos_personal": "SELECT * FROM avisos_personal WHERE socio_id=%s",
         "persona": "SELECT p.* FROM personas p JOIN usuarios u ON u.persona_id=p.id WHERE u.id=%s",
         "perfil_entrenamiento": "SELECT * FROM perfiles_entrenamiento WHERE socio_id=%s",
         "membresias": "SELECT * FROM membresias WHERE socio_id=%s",

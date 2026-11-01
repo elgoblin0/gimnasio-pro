@@ -78,6 +78,17 @@ function preparar(t) {
     operar: async (ruta) => { operacion = { ruta, cuerpo: {} }; await vm.runInContext("enviar()", contexto); } };
 }
 
+test("la tarjeta muestra el aviso como texto y lo retira al revocar", async () => {
+  const pantalla = preparar();
+  pantalla.ejecutar('llamarApi = async () => ({ socio: {}, aviso_personal: "<b>Consultar al entrenador</b>", permanencia_habitual: {} });');
+  await pantalla.ejecutar('abrirTarjeta("socio")');
+  const contenido = pantalla.obtener("[data-tarjeta-datos]");
+  assert.ok(contenido.hijos.some(hijo => hijo.textContent === "Aviso para el personal: <b>Consultar al entrenador</b>"));
+  pantalla.ejecutar('llamarApi = async () => ({ socio: {}, aviso_personal: null, permanencia_habitual: {} });');
+  await pantalla.ejecutar('abrirTarjeta("socio")');
+  assert.ok(!contenido.hijos.some(hijo => hijo.textContent?.startsWith("Aviso para el personal:")));
+});
+
 test("al confirmar el pago refresca la tarjeta y mantiene el socio para la entrada", async () => {
   const pantalla = preparar();
   await pantalla.ejecutar('abrirTarjeta("socio")');
