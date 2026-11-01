@@ -82,6 +82,11 @@ def buscar_membresia_vigente(cursor, socio_id, fecha_local):
     return cursor.fetchone()
 
 
+def buscar_ultimo_hasta(cursor, socio_id):
+    cursor.execute("SELECT MAX(hasta) AS ultimo_hasta FROM membresias WHERE socio_id = %s", (a_bytes(socio_id),))
+    return cursor.fetchone()["ultimo_hasta"]
+
+
 def buscar_ultima_membresia(cursor, socio_id, fecha_local):
     cursor.execute(
         """SELECT m.desde, m.hasta, u.rol, u.activo

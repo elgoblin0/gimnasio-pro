@@ -229,10 +229,31 @@ async function enviar() {
 let consultaTarjeta = 0;
 let focoAnteriorTarjeta;
 let socioTarjeta;
+let pagoSinConfirmar = false;
+window.addEventListener("message", async (evento) => {
+  const formulario = $("[data-pago-tarjeta]");
+  if (!formulario || evento.origin !== location.origin || evento.source !== formulario.contentWindow) return;
+  if (evento.data?.tipo === "pago-en-curso" || evento.data?.tipo === "pago-libre") {
+    pagoSinConfirmar = evento.data.tipo === "pago-en-curso";
+    $("[data-descartar-pago]").disabled = pagoSinConfirmar;
+    return;
+  }
+  if (evento.data?.tipo !== "pago-registrado") return;
+  pagoSinConfirmar = false;
+  formulario.remove();
+  await abrirTarjeta(socioTarjeta, false);
+});
 async function abrirTarjeta(socioId, enfocar = true) {
+  const panel = $("[data-tarjeta-contextual]");
+  // El formulario conserva el cuerpo y la clave de un pago sin confirmar.
+  // Se puede descartar cuando no hay un envío sin confirmar.
+  if ($("[data-pago-tarjeta]")) {
+    if (!panel.open) panel.show();
+    if (enfocar) $("[data-cerrar-tarjeta]").focus();
+    return;
+  }
   socioTarjeta = socioId;
   const consulta = ++consultaTarjeta;
-  const panel = $("[data-tarjeta-contextual]");
   $("[data-tarjeta-datos]").textContent = "Cargando tarjeta contextual…";
   if (!panel.open) {
     focoAnteriorTarjeta = document.activeElement;
@@ -241,7 +262,7 @@ async function abrirTarjeta(socioId, enfocar = true) {
   if (enfocar) $("[data-cerrar-tarjeta]").focus();
   try {
     const datos = await llamarApi(`/api/socios/${socioId}/tarjeta`);
-    if (consulta !== consultaTarjeta || !panel.open) return;
+    if (consulta !== consultaTarjeta || !panel.open || $("[data-pago-tarjeta]")) return;
     const contenido = $("[data-tarjeta-datos]");
     contenido.replaceChildren();
     const agregar = (texto, clase = "") => {
@@ -257,11 +278,47 @@ async function abrirTarjeta(socioId, enfocar = true) {
     ficha.textContent = "Ver ficha del socio";
     contenido.append(ficha);
     const membresia = datos.membresia;
-    if (membresia) {
+    if (membresia?.hasta) {
       const estado = !membresia.vigente ? "vencida" : membresia.dias_restantes <= 7 ? "por vencer" : "vigente";
       const hasta = membresia.hasta.split("-").reverse().join("/");
       agregar(`Membresía ${estado} · hasta ${hasta} · ${membresia.dias_restantes} días restantes`, `membresia-${estado.replaceAll(" ", "-")}`);
     } else agregar("Sin membresía iniciada.");
+    if (datos.pago_pendiente) {
+      agregar("Pago pendiente");
+      const pagar = document.createElement("button");
+      pagar.type = "button";
+      pagar.textContent = "Registrar pago";
+      pagar.addEventListener("click", () => {
+        if ($("[data-pago-tarjeta]")) return;
+        const formulario = document.createElement("iframe");
+        formulario.dataset.pagoTarjeta = "";
+        formulario.title = "Registrar pago del socio";
+        formulario.src = `/pagos.html?socio=${encodeURIComponent(socioId)}`;
+        formulario.style.width = "100%";
+        formulario.style.height = "650px";
+        pagoSinConfirmar = false;
+        const descartar = document.createElement("button");
+        descartar.type = "button";
+        descartar.dataset.descartarPago = "";
+        descartar.textContent = "Descartar pago";
+        descartar.addEventListener("click", async () => {
+          if (pagoSinConfirmar) return;
+          formulario.remove();
+          await abrirTarjeta(socioTarjeta, false);
+        });
+        contenido.append(formulario, descartar);
+      });
+      contenido.append(pagar);
+    }
+    const entrada = document.createElement("button");
+    entrada.type = "button";
+    entrada.textContent = "Registrar entrada";
+    entrada.addEventListener("click", () => {
+      if (control.actual || cargando || !sedeId) return;
+      control.preparar("/api/entradas", { socio_id: socioId, sede_id: sedeId });
+      enviar();
+    });
+    contenido.append(entrada);
     if (datos.visita_abierta) agregar(`Visita abierta desde ${formatearFechaHora(datos.visita_abierta.desde)} · ${datos.visita_abierta.minutos} min`);
     else if (datos.ultima_visita) agregar(`Última visita: ${formatearFechaHora(datos.ultima_visita.desde)} a ${formatearFechaHora(datos.ultima_visita.hasta)}`);
     else agregar("Sin visitas registradas.");
@@ -269,7 +326,7 @@ async function abrirTarjeta(socioId, enfocar = true) {
     const habitual = datos.permanencia_habitual;
     agregar(habitual.suficiente ? `Permanencia habitual: ${habitual.mediana} min` : `Permanencia habitual: datos insuficientes (${habitual.observaciones} visitas)`);
   } catch (error) {
-    if (consulta === consultaTarjeta && panel.open) $("[data-tarjeta-datos]").textContent = error.message;
+    if (consulta === consultaTarjeta && panel.open && !$("[data-pago-tarjeta]")) $("[data-tarjeta-datos]").textContent = error.message;
   }
 }
 $("[data-cerrar-tarjeta]").addEventListener("click", () => $("[data-tarjeta-contextual]").close());
@@ -315,6 +372,9 @@ $("[data-descartar-conciliacion]").addEventListener("click", () => {
   actualizarBotones();
 });
 
+$("#socio").addEventListener("change", () => {
+  if ($("#socio").value) return abrirTarjeta($("#socio").value);
+});
 $("[data-entrada]").addEventListener("submit", (evento) => {
   evento.preventDefault();
   if (control.actual || cargando || !$("#socio").value || !sedeId) return;

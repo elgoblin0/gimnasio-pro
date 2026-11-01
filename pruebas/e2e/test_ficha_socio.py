@@ -41,7 +41,7 @@ def test_recepcion_abre_ficha_desde_tarjeta_sin_perfil(pagina_demo, demo_aislada
     )
     socio = next(opcion for opcion in opciones if "Lucía Benítez" in opcion["nombre"])
     pagina.get_by_label("Socio", exact=True).select_option(socio["id"])
-    pagina.get_by_role("button", name="Registrar entrada", exact=True).click()
+    pagina.locator("[data-entrada]").get_by_role("button", name="Registrar entrada", exact=True).click()
     pagina.get_by_role("link", name="Ver ficha del socio", exact=True).click()
     expect(pagina.get_by_label("Nombre", exact=True)).to_be_visible()
     expect(pagina.locator("[data-perfil]")).to_be_hidden()
