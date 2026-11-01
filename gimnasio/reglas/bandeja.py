@@ -15,6 +15,10 @@ GRUPOS = (
 )
 
 
+def _del_grupo(motivo, tipo):
+    return motivo.tipo == tipo or tipo == "aviso_seguridad" and motivo.tipo == "condicion_sin_revisar"
+
+
 def priorizar_bandeja(socios):
     """Recibe socios inmutables con motivos y fechas ISO en UTC.
 
@@ -25,8 +29,8 @@ def priorizar_bandeja(socios):
     for socio in socios:
         if not socio.motivos:
             continue
-        tipo = next(tipo for tipo in GRUPOS if any(m.tipo == tipo for m in socio.motivos))
-        fecha = min(m.fecha for m in socio.motivos if m.tipo == tipo)
+        tipo = next(tipo for tipo in GRUPOS if any(_del_grupo(m, tipo) for m in socio.motivos))
+        fecha = min(m.fecha for m in socio.motivos if _del_grupo(m, tipo))
         explicacion = Razon(
             "prioridad_bandeja",
             VERSION_REGLAS,
@@ -39,7 +43,7 @@ def priorizar_bandeja(socios):
             tuple(
                 sorted(
                     grupos[tipo],
-                    key=lambda socio: (min(m.fecha for m in socio.motivos if m.tipo == tipo), socio.id),
+                    key=lambda socio: (min(m.fecha for m in socio.motivos if _del_grupo(m, tipo)), socio.id),
                 )
             ),
         )

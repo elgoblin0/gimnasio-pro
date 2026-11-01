@@ -70,7 +70,8 @@ def test_iniciar_sesion_restringida_deja_aviso_sin_exponer_descripcion(app_con_b
         afectado = next(
             e for e in sesion["ejercicios"] if any(r["regla"] == "restriccion_salud" for r in e["explicacion"])
         )
-        assert bool(afectado["objetivos"]["series"]) == con_alternativa
+        assert afectado["no_disponible"] is not con_alternativa
+        assert afectado["objetivos"]["series"] > 0
         if con_alternativa:
             assert sesion["sustituciones"][afectado["id"]]["sustitucion"]["motivo"] == "restriccion_salud"
         with pytest.raises(ErrorDeDominio):

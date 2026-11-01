@@ -1,7 +1,7 @@
 // Textos de la bandeja y de los avisos, sin DOM: la API entrega códigos y fechas.
 
 export const GRUPOS_BANDEJA = Object.freeze({
-  aviso_seguridad: "Avisos por dolor o restricción",
+  aviso_seguridad: "Condiciones de salud, dolor o restricción",
   sin_programa: "Sin programa",
   secuencia_terminada: "Secuencia terminada",
   ejercicio_sin_alternativa: "Ejercicio sin alternativa disponible",
@@ -10,6 +10,7 @@ export const GRUPOS_BANDEJA = Object.freeze({
 });
 
 const MOTIVOS = {
+  condicion_sin_revisar: ["Condición sin revisar", "condiciones sin revisar"],
   aviso_seguridad: ["Aviso por dolor o restricción", "avisos por dolor o restricción"],
   sin_programa: ["Sin programa"],
   secuencia_terminada: ["Secuencia terminada"],
@@ -31,7 +32,7 @@ export const textoFreno = (freno) => FRENOS[freno] ?? "Aviso al entrenador";
 export function textosDeMotivos(motivos) {
   const cuenta = new Map();
   for (const { tipo } of motivos) cuenta.set(tipo, (cuenta.get(tipo) ?? 0) + 1);
-  return Object.keys(GRUPOS_BANDEJA)
+  return ["condicion_sin_revisar", ...Object.keys(GRUPOS_BANDEJA)]
     .filter((tipo) => cuenta.has(tipo))
     .map((tipo) => {
       const [uno, varios] = MOTIVOS[tipo];

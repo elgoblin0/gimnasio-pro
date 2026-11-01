@@ -38,12 +38,13 @@ def test_freno_2_sin_ejercicio_en_catalogo(tipo, sin_identificador_catalogo):
         assert prescripcion.series == planificado.series
         assert "restriccion_salud" not in propuesta.frenos
     else:
-        assert prescripcion.series == 0
+        assert prescripcion.series == planificado.series
+        assert prescripcion.no_disponible
         assert prescripcion.ejercicio_hecho_id is None
         assert "restriccion_salud" in propuesta.frenos
         razon = next(r for r in propuesta.explicacion if r.regla == "restriccion_salud")
         assert dict(razon.datos)["explicacion"] == (
-            "Se quita el ejercicio por una restricción registrada por tu entrenador."
+            "El ejercicio no está disponible por una restricción registrada por tu entrenador. Sigue pendiente."
         )
 
 
@@ -65,12 +66,14 @@ def test_freno_2_restriccion_nunca_propuesta(tipo, con_alternativa):
     propuesta = proponer_sesion(replace(datos, catalogo=catalogo, restricciones=(restriccion,)))
     prescripcion = propuesta.prescripcion[0]
     assert "restriccion_salud" in propuesta.frenos
-    if prescripcion.series:
+    disponible = con_alternativa and tipo != "patron"
+    if disponible:
         hecho = next(e for e in catalogo if e.ejercicio_id == prescripcion.ejercicio_hecho_id)
         assert not excluido(hecho, (restriccion,))
     else:
         assert prescripcion.ejercicio_hecho_id is None
-    assert bool(prescripcion.series) == (con_alternativa and tipo != "patron")
+    assert prescripcion.no_disponible is not disponible
+    assert prescripcion.series == datos.programa.sesiones[0].ejercicios[0].series
     assert restriccion.descripcion not in str(propuesta.explicacion)
     assert "restricción registrada por tu entrenador" in str(propuesta.explicacion)
 
@@ -80,7 +83,7 @@ def test_alternativa_por_dolor_tambien_respeta_todas_las_restricciones():
         datos_dolor(), dolores_actuales=("rodillas",), restricciones=(RestriccionSalud(ejercicio_id="cajon"),)
     )
     propuesta = proponer_sesion(datos)
-    assert propuesta.prescripcion[0].series == 0
+    assert propuesta.prescripcion[0].no_disponible
     assert set(propuesta.frenos) == {"dolor_reportado", "restriccion_salud"}
 
 
@@ -92,7 +95,7 @@ def test_alternativa_no_puede_infringir_otra_restriccion():
             RestriccionSalud(ejercicio_id="cajon"),
         ),
     )
-    assert proponer_sesion(datos).prescripcion[0].series == 0
+    assert proponer_sesion(datos).prescripcion[0].no_disponible
 
 
 @pytest.mark.parametrize("tipo", ["ejercicio", "patron", "zona", "levantada", "sin_choques"])
