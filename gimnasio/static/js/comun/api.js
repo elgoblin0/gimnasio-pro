@@ -39,6 +39,7 @@ export function crearApi({ fetch: pedir = globalThis.fetch, nuevaClave = () => c
     }
     if (!respuesta.ok) {
       const error = datos?.error ?? {};
+      if (error.codigo === "debe_cambiar_clave" && globalThis.location && location.pathname !== "/clave.html") location.replace("/clave.html");
       throw new ErrorDeApi(error.codigo ?? "error", error.mensaje ?? "Error inesperado", respuesta.status, error);
     }
     return datos;

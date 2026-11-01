@@ -60,6 +60,7 @@ async function cargar() {
     $("[data-personales]").hidden = false;
     $("[data-estado]").textContent = "";
     if (propia) {
+      formulario.append(crear("p", {}, "Revocar el consentimiento de datos personales equivale a pedir la baja. Solicitá la baja en recepción."));
       await montarPagos();
       $("[data-perfil]").hidden = false;
       await montarConsentimiento();

@@ -48,6 +48,7 @@ def _publico(fila):
         "apellido": fila["apellido"],
         "es_demo": bool(fila["es_demo"]),
         "figura_cuerpo": fila["figura_cuerpo"],
+        "debe_cambiar_clave": bool(fila.get("debe_cambiar_clave", False)),
     }
 
 
@@ -112,15 +113,54 @@ def _iniciar_sesion(identificador, clave, ip):
     return g.usuario
 
 
-def entrar_como_demo(rol):
+def entrar_como_demo(rol, usuario_id=None):
     """Solo en modo demo y solo con usuarios marcados `es_demo`: nunca abre la sesión de un usuario real."""
     if not current_app.config.get("MODO_DEMO") or rol not in ROLES:
         raise ErrorDeDominio("no_encontrado", "No existe.", 404)
     with transaccion() as cursor:
-        fila = repositorio.primer_usuario_demo(cursor, rol)
+        if usuario_id is None:
+            fila = repositorio.primer_usuario_demo(cursor, rol)
+        else:
+            try:
+                fila = repositorio.buscar_por_id(cursor, desde_texto(usuario_id))
+            except (ValueError, TypeError, AttributeError):
+                fila = None
+            if fila and (not fila["es_demo"] or not fila["activo"] or fila["rol"] != rol):
+                fila = None
     if fila is None:
         raise ErrorDeDominio("sin_usuario_demo", "La demo no tiene un usuario para ese rol.", 404)
     _abrir_sesion(fila)
+    return g.usuario
+
+
+def socios_demo():
+    if not current_app.config.get("MODO_DEMO"):
+        raise ErrorDeDominio("no_encontrado", "No existe.", 404)
+    with transaccion() as cursor:
+        return [{**fila, "id": str(desde_bytes(fila["id"]))} for fila in repositorio.listar_socios_demo(cursor)]
+
+
+def fijar_clave_provisional(cursor, usuario_id, clave):
+    repositorio.cambiar_clave(cursor, usuario_id, generate_password_hash(clave), True, reloj_actual().ahora())
+
+
+def cambiar_clave(datos):
+    usuario = usuario_actual()
+    if usuario is None:
+        raise ErrorDeDominio("sin_sesion", "Tenés que iniciar sesión.", 401)
+    if not isinstance(datos, dict) or not isinstance(datos.get("clave_actual"), str):
+        raise ErrorDeDominio("datos_invalidos", "Enviá la clave actual y la nueva.", 422)
+    nueva = datos.get("clave_nueva")
+    if not isinstance(nueva, str) or len(nueva) < 10:
+        raise ErrorDeDominio("clave_corta", "La clave necesita al menos 10 caracteres.", 422)
+    with transaccion() as cursor:
+        fila = repositorio.buscar_por_id(cursor, desde_texto(usuario["id"]), bloquear=True)
+        if not fila["clave_hash"] or not check_password_hash(fila["clave_hash"], datos["clave_actual"]):
+            raise ErrorDeDominio("credenciales_invalidas", "La clave actual es incorrecta.", 403)
+        repositorio.cambiar_clave(
+            cursor, desde_texto(usuario["id"]), generate_password_hash(nueva), False, reloj_actual().ahora()
+        )
+    g.usuario = {**usuario, "debe_cambiar_clave": False}
     return g.usuario
 
 

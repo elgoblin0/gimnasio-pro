@@ -17,6 +17,10 @@ const $ = (selector) => document.querySelector(selector);
 const PANTALLA_INICIAL = { entrenador: "/bandeja.html", administracion: "/administracion.html" };
 
 function mostrarBienvenida(usuario) {
+  if (usuario.debe_cambiar_clave) {
+    location.replace("/clave.html");
+    return;
+  }
   if (PANTALLA_INICIAL[usuario.rol]) {
     location.replace(PANTALLA_INICIAL[usuario.rol]);
     return;
@@ -80,6 +84,18 @@ async function iniciar() {
   const { usuario } = await llamarApi("/api/sesion");
   if (usuario) mostrarBienvenida(usuario);
   else mostrarIngreso(estado.modo_demo);
+  if (estado.modo_demo) {
+    const { socios } = await llamarApi("/api/sesion/demo/socios");
+    const lista = crear("div");
+    for (const socio of socios) {
+      lista.append(crear("button", { type: "button", onclick: async () => {
+        try {
+          mostrarBienvenida((await llamarApi("/api/sesion/demo/socio", { metodo: "POST", cuerpo: { usuario_id: socio.id } })).usuario);
+        } catch (error) { $("[data-error-ingreso]").textContent = error.message; }
+      } }, `Entrar como ${socio.nombre} ${socio.apellido}`));
+    }
+    $("[data-demo]").append(lista);
+  }
 
   $("[data-formulario-ingreso]").addEventListener("submit", async (evento) => {
     evento.preventDefault();

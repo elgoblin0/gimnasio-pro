@@ -9,6 +9,20 @@ METODOS_QUE_CAMBIAN = {"POST", "PUT", "PATCH", "DELETE"}
 
 
 @bp.before_app_request
+def exigir_cambio_clave():
+    if not request.path.startswith("/api/"):
+        return None
+    usuario = servicio.usuario_actual()
+    if (
+        usuario
+        and usuario.get("debe_cambiar_clave")
+        and request.endpoint not in {"permisos.cambiar_clave", "permisos.cerrar"}
+    ):
+        raise ErrorDeDominio("debe_cambiar_clave", "Cambiá tu clave provisional para continuar.", 403)
+    return None
+
+
+@bp.before_app_request
 def exigir_encabezado_anti_csrf():
     # Junto con SameSite=Lax, un formulario de otro sitio no puede enviar este encabezado (ADR 0006).
     if (
@@ -52,4 +66,16 @@ def cambiar_figura_cuerpo():
 
 @bp.post("/demo/<rol>")
 def entrar_como(rol):
-    return jsonify({"usuario": servicio.entrar_como_demo(rol)})
+    datos = request.get_json(silent=True)
+    usuario_id = datos.get("usuario_id") if isinstance(datos, dict) else None
+    return jsonify({"usuario": servicio.entrar_como_demo(rol, usuario_id)})
+
+
+@bp.get("/demo/socios")
+def socios_demo():
+    return jsonify({"socios": servicio.socios_demo()})
+
+
+@bp.post("/clave")
+def cambiar_clave():
+    return jsonify({"usuario": servicio.cambiar_clave(request.get_json(silent=True))})
