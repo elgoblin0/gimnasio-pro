@@ -84,19 +84,6 @@ async function iniciar() {
   const { usuario } = await llamarApi("/api/sesion");
   if (usuario) mostrarBienvenida(usuario);
   else mostrarIngreso(estado.modo_demo);
-  if (estado.modo_demo) {
-    const { socios } = await llamarApi("/api/sesion/demo/socios");
-    const lista = crear("div");
-    for (const socio of socios) {
-      lista.append(crear("button", { type: "button", onclick: async () => {
-        try {
-          mostrarBienvenida((await llamarApi("/api/sesion/demo/socio", { metodo: "POST", cuerpo: { usuario_id: socio.id } })).usuario);
-        } catch (error) { $("[data-error-ingreso]").textContent = error.message; }
-      } }, `Entrar como ${socio.nombre} ${socio.apellido}`));
-    }
-    $("[data-demo]").append(lista);
-  }
-
   $("[data-formulario-ingreso]").addEventListener("submit", async (evento) => {
     evento.preventDefault();
     const datos = Object.fromEntries(new FormData(evento.target));
@@ -124,6 +111,19 @@ async function iniciar() {
       $("[data-estado]").textContent = error.message;
     }
   });
+  if (estado.modo_demo) {
+    const { socios } = await llamarApi("/api/sesion/demo/socios");
+    const lista = crear("div");
+    for (const socio of socios) {
+      lista.append(crear("button", { type: "button", onclick: async () => {
+        try {
+          mostrarBienvenida((await llamarApi("/api/sesion/demo/socio", { metodo: "POST", cuerpo: { usuario_id: socio.id } })).usuario);
+        } catch (error) { $("[data-error-ingreso]").textContent = error.message; }
+      } }, `Entrar como ${socio.nombre} ${socio.apellido}`));
+    }
+    $("[data-demo]").append(lista);
+  }
+
 }
 
 iniciar().catch((error) => {
