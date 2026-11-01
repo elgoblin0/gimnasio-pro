@@ -26,6 +26,7 @@ from gimnasio.salud.servicio import (
     condiciones_para_entrenador,
     condiciones_pendientes,
     historial_restricciones,
+    registrar_consulta_ficha,
     restricciones_vigentes,
     revocaciones_de_salud,
 )
@@ -72,6 +73,8 @@ def consultar_socio(socio_texto, usuario):
         _exigir_asignacion(cursor, socio_id, entrenador_id)
         socio = next(s for s in socios_asignados(cursor, entrenador_id) if s["id"] == str(socio_id))
         consentimiento = tiene_consentimiento(cursor, socio_id, "salud")
+        if consentimiento:
+            registrar_consulta_ficha(cursor, socio_id, entrenador_id)
         programas = listar_programas(socio_id, cursor=cursor)
         sesiones = historial_para_entrenador(cursor, socio_id)
         avisos = avisos_para_entrenador(cursor, socio_id)
