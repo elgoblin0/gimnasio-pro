@@ -12,7 +12,7 @@ def insertar_aviso_personal(cursor, identificador, socio_id, texto, autor_id, mo
 
 def aviso_personal_vigente(cursor, socio_id):
     cursor.execute(
-        """SELECT a.texto FROM avisos_personal a WHERE a.socio_id=%s
+        """SELECT a.texto FROM avisos_personal a WHERE a.socio_id=%s AND NOT a.anonimizada
            AND (SELECT c.otorgado FROM consentimientos c WHERE c.socio_id=a.socio_id AND c.tipo='salud'
                 ORDER BY c.registrado_en DESC,c.id DESC LIMIT 1)=TRUE
            ORDER BY a.registrado_en DESC,a.id DESC LIMIT 1""",
@@ -101,13 +101,25 @@ def bloquear_socio(cursor, socio_id):
     return cursor.fetchone()
 
 
+def admite_borrado_en_demo(cursor, socio_id, cedula):
+    """El socio dedicado de la semilla o uno dado de alta en la demo, con el mismo criterio que sus altas."""
+    cursor.execute(
+        """SELECT u.id FROM usuarios u JOIN personas p ON p.id=u.persona_id
+           WHERE u.id=%s AND u.rol='socio' AND u.es_demo
+             AND (p.cedula=%s OR EXISTS (SELECT 1 FROM consentimientos c WHERE c.socio_id=u.id
+                                         AND c.tipo='datos_personales' AND c.registrado_por<>u.id))""",
+        (a_bytes(socio_id), cedula),
+    )
+    return cursor.fetchone() is not None
+
+
 def obtener_condicion(cursor, identificador):
-    cursor.execute("SELECT * FROM condiciones_salud WHERE id=%s", (a_bytes(identificador),))
+    cursor.execute("SELECT * FROM condiciones_salud WHERE id=%s AND NOT anonimizada", (a_bytes(identificador),))
     return cursor.fetchone()
 
 
 def obtener_restriccion(cursor, identificador):
-    cursor.execute("SELECT * FROM restricciones_salud WHERE id=%s", (a_bytes(identificador),))
+    cursor.execute("SELECT * FROM restricciones_salud WHERE id=%s AND NOT anonimizada", (a_bytes(identificador),))
     return cursor.fetchone()
 
 
@@ -115,7 +127,7 @@ def condiciones_vigentes(cursor, socio_id):
     cursor.execute(
         """SELECT c.*, r.id AS revision_id, r.nota, r.autor_id, r.registrada_en AS revisada_en
            FROM condiciones_salud c LEFT JOIN revisiones_condicion r ON r.condicion_id=c.id
-           WHERE c.socio_id=%s AND NOT EXISTS
+           WHERE c.socio_id=%s AND NOT c.anonimizada AND NOT EXISTS
              (SELECT 1 FROM condiciones_salud n WHERE n.reemplaza_a=c.id)
            ORDER BY c.registrada_en,c.id""",
         (a_bytes(socio_id),),
@@ -168,7 +180,7 @@ def condiciones_sin_revisar(cursor, socio_ids):
     lugares = ",".join(["%s"] * len(socio_ids))
     cursor.execute(
         f"""SELECT c.socio_id, MIN(c.registrada_en) AS registrada_en FROM condiciones_salud c
-            WHERE c.socio_id IN ({lugares})
+            WHERE c.socio_id IN ({lugares}) AND NOT c.anonimizada
               AND NOT EXISTS (SELECT 1 FROM condiciones_salud n WHERE n.reemplaza_a=c.id)
               AND NOT EXISTS (SELECT 1 FROM revisiones_condicion r WHERE r.condicion_id=c.id)
               AND (SELECT otorgado FROM consentimientos s WHERE s.socio_id=c.socio_id AND s.tipo='salud'

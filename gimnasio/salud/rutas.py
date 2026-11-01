@@ -1,10 +1,10 @@
 """Consentimiento de salud propio (ADR 0006 y 0025)."""
 
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, current_app, jsonify, request
 
 from gimnasio.comun.ids import desde_texto
 from gimnasio.permisos.servicio import requiere, usuario_actual
-from gimnasio.salud import servicio
+from gimnasio.salud import borrado, servicio
 
 bp = Blueprint("salud", __name__, url_prefix="/api")
 
@@ -43,6 +43,16 @@ def consultar():
 def registrar():
     return jsonify(
         servicio.registrar_consentimiento(desde_texto(usuario_actual()["id"]), request.get_json(silent=True))
+    )
+
+
+@bp.post("/yo/salud/borrar")
+@requiere("consentimientos.gestionar_propios")
+def borrar():
+    return jsonify(
+        borrado.borrar_datos_salud(
+            desde_texto(usuario_actual()["id"]), request.get_json(silent=True), current_app.config["MODO_DEMO"]
+        )
     )
 
 

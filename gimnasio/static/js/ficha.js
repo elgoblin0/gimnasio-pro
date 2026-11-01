@@ -102,10 +102,39 @@ async function montarConsentimiento() {
   mostrarConsentimiento(contenedor, salud);
 }
 
+function crearBorrado() {
+  const campo = crear("input", { type: "text", name: "confirmacion", autocomplete: "off" });
+  const boton = crear("button", { type: "submit", disabled: true }, "Borrar mis datos de salud");
+  const estado = crear("p", { role: "status" });
+  const forma = crear("form", { "data-borrado-salud": "" },
+    crear("h3", {}, "Borrar datos de salud"),
+    crear("p", {}, "Borra para siempre tus condiciones, restricciones y dolores reportados. No se puede deshacer, ni siquiera si otorgás de nuevo el consentimiento. Tus sesiones y series se conservan."),
+    crear("label", {}, "Escribí BORRAR para confirmar", campo), boton, estado);
+  let clave;
+  campo.addEventListener("input", () => { boton.disabled = campo.value !== "BORRAR"; });
+  forma.addEventListener("submit", async (evento) => {
+    evento.preventDefault();
+    if (campo.value !== "BORRAR") return;
+    boton.disabled = true;
+    estado.textContent = "Borrando datos de salud…";
+    clave ??= crypto.randomUUID();
+    try {
+      await llamarApi("/api/yo/salud/borrar", { metodo: "POST", clave, cuerpo: { confirmacion: "BORRAR" } });
+      forma.replaceChildren(crear("p", { role: "status" }, "Tus datos de salud se borraron."));
+      if (typeof montarSalud === "function") montarSalud($("[data-salud]"));
+    } catch (error) {
+      estado.textContent = error.message;
+      boton.disabled = false;
+    }
+  });
+  return forma;
+}
+
 function mostrarConsentimiento(contenedor, salud) {
   const estado = crear("p", { role: "status" }, salud.otorgado ? "Consentimiento otorgado." : "Sin consentimiento de salud vigente.");
   const boton = crear("button", { type: "button" }, salud.otorgado ? "Revocar consentimiento de salud" : "Otorgar consentimiento de salud");
-  contenedor.replaceChildren(crear("h2", {}, "Consentimiento de salud"), crear("p", {}, salud.texto), estado, boton);
+  contenedor.replaceChildren(crear("h2", {}, "Consentimiento de salud"), crear("p", {}, salud.texto), estado, boton,
+    ...(salud.revocado ? [crearBorrado()] : []));
   let clave;
   boton.addEventListener("click", async () => {
     if (salud.otorgado && !window.confirm("Al revocar, tus restricciones dejan de protegerte y no tendrás subas. ¿Confirmás la revocación de salud?")) return;
