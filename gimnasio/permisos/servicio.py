@@ -161,6 +161,8 @@ def cambiar_clave(datos):
         fila = repositorio.buscar_por_id(cursor, desde_texto(usuario["id"]), bloquear=True)
         if not fila["clave_hash"] or not check_password_hash(fila["clave_hash"], datos["clave_actual"]):
             raise ErrorDeDominio("credenciales_invalidas", "La clave actual es incorrecta.", 403)
+        if check_password_hash(fila["clave_hash"], nueva):
+            raise ErrorDeDominio("clave_repetida", "La clave nueva tiene que ser distinta de la actual.", 422)
         repositorio.cambiar_clave(
             cursor, desde_texto(usuario["id"]), generate_password_hash(nueva), False, reloj_actual().ahora()
         )

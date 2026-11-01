@@ -61,6 +61,10 @@ def test_clave_una_vez_y_respuesta_guardada_saneada(pagos, caplog):
         ).status_code
         == 403
     )
+    repetida = escribir(socio, "/api/sesion/clave", {"clave_actual": provisional, "clave_nueva": provisional})
+    assert repetida.status_code == 422
+    assert repetida.json["error"]["codigo"] == "clave_repetida"
+    assert socio.get("/api/yo/ficha").json["error"]["codigo"] == "debe_cambiar_clave"
     assert (
         escribir(
             socio, "/api/sesion/clave", {"clave_actual": provisional, "clave_nueva": "clave-definitiva"}
