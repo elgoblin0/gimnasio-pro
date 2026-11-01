@@ -8,3 +8,4 @@ nivel = "funcional"
 prueba = "pruebas/test_pagos.py"
 # Recorrido de administración y recepción: pruebas/e2e/test_pagos_recepcion.py.
 # Reintento del mismo pago ante un resultado incierto: gimnasio/static/js/pagos.test.js.
+# #234: recepción rechaza la entrada vencida, cobra desde la tarjeta y registra la entrada; el alta con primer pago no se duplica al recargar: pruebas/e2e/test_recorrido_operacion.py.

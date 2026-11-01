@@ -15,3 +15,4 @@ validacion = "https://github.com/elgoblin0/gimnasio-pro/issues/190"
 # El recorrido de la etapa 4 la ejercita de punta a punta (#189): pruebas/e2e/test_recorrido_entrenador.py.
 
 # Administración crea, edita y archiva plantillas; conserva programas y sesiones en curso (#215).
+# #234: el socio dado de alta por administración y asignado a Marcos aparece en sus socios: pruebas/e2e/test_recorrido_operacion.py.
