@@ -56,6 +56,7 @@ def crear_app(config=None, reloj=None):
     from gimnasio.entrenamiento.rutas import bp as entrenamiento
     from gimnasio.pagos.rutas import bp as pagos
     from gimnasio.permisos.rutas import bp as permisos
+    from gimnasio.permisos.rutas import bp_usuarios as usuarios
     from gimnasio.programas.rutas import bp as programas
     from gimnasio.salud.rutas import bp as salud
     from gimnasio.sistema.rutas import bp as sistema
@@ -71,6 +72,7 @@ def crear_app(config=None, reloj=None):
     app.register_blueprint(socios)
     app.register_blueprint(salud)
     app.register_blueprint(permisos)
+    app.register_blueprint(usuarios)
     app.register_blueprint(visitas)
     app.register_blueprint(entrenamiento)
     app.register_blueprint(entrenador)

@@ -1,7 +1,7 @@
 id = "configuracion-administracion"
-nombre = "Configuración de la sede y alta de socios desde administración"
+nombre = "Configuración de la sede, usuarios y asignación de entrenador"
 grupo = "Operación"
 etapa = 5
 nivel = "funcional"
-prueba = "pruebas/test_socios_alta.py"
-nota = "La sección Usuarios permite dar de alta socios con consentimiento y primer pago opcional; pruebas/test_socios_alta.py."
+prueba = "pruebas/test_administracion_usuarios.py"
+nota = "Personal, claves provisionales, lista paginada y socios sin entrenador; historial y alcance en pruebas/test_permisos_asignaciones.py. Recorridos del panel y conservación del editor en pruebas/e2e/test_usuarios.py; alta de socios en pruebas/test_socios_alta.py."

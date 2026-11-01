@@ -1,11 +1,50 @@
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, current_app, g, jsonify, request
 
 from gimnasio.comun.errores import ErrorDeDominio
 from gimnasio.permisos import servicio
 
 bp = Blueprint("permisos", __name__, url_prefix="/api/sesion")
+bp_usuarios = Blueprint("usuarios", __name__, url_prefix="/api")
 
 METODOS_QUE_CAMBIAN = {"POST", "PUT", "PATCH", "DELETE"}
+
+
+def _entregar_clave(respuesta, estado=200):
+    if "clave_provisional" in respuesta:
+        g.respuesta_para_reintento = {
+            campo: valor for campo, valor in respuesta.items() if campo != "clave_provisional"
+        } | {"clave_ya_entregada": True}
+    return jsonify(respuesta), estado
+
+
+@bp_usuarios.post("/usuarios")
+@servicio.requiere("usuarios.administrar")
+def alta_personal():
+    return _entregar_clave(servicio.alta_personal(request.get_json(silent=True), current_app.config["MODO_DEMO"]), 201)
+
+
+@bp_usuarios.get("/usuarios")
+@servicio.requiere("usuarios.administrar")
+def listar_usuarios():
+    return jsonify(servicio.consultar_usuarios(request.args))
+
+
+@bp_usuarios.post("/usuarios/<usuario_id>/clave")
+@servicio.requiere("usuarios.administrar")
+def restablecer_clave(usuario_id):
+    return _entregar_clave(servicio.restablecer_clave(usuario_id, current_app.config["MODO_DEMO"]))
+
+
+@bp_usuarios.get("/socios/sin-entrenador")
+@servicio.requiere("usuarios.administrar")
+def sin_entrenador():
+    return jsonify(servicio.consultar_sin_entrenador())
+
+
+@bp_usuarios.put("/socios/<socio_id>/entrenador")
+@servicio.requiere("usuarios.administrar")
+def asignar_entrenador(socio_id):
+    return jsonify(servicio.asignar_entrenador(socio_id, request.get_json(silent=True)))
 
 
 @bp.before_app_request

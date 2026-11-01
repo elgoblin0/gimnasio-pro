@@ -1,17 +1,19 @@
 """Acceso por rol, "entrar como…" en modo demo y consentimientos (ADR 0006). Ruta sensible."""
 
+import secrets
 from contextlib import contextmanager
-from datetime import timedelta
+from datetime import UTC, datetime, time, timedelta
 from functools import cache, wraps
 
 from flask import current_app, g, session
+from mysql.connector import IntegrityError
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from gimnasio.comun.bd import transaccion
 from gimnasio.comun.errores import ErrorDeDominio
 from gimnasio.comun.formatos import normalizar_cedula
 from gimnasio.comun.ids import desde_bytes, desde_texto, nuevo_id
-from gimnasio.comun.reloj import reloj_actual
+from gimnasio.comun.reloj import ZONA_SEDE, fecha_local, reloj_actual
 from gimnasio.permisos import repositorio
 from gimnasio.permisos.matriz import ROLES, puede
 
@@ -142,6 +144,109 @@ def socios_demo():
 
 def contar_altas_demo(cursor, desde, hasta):
     return repositorio.contar_altas_demo(cursor, desde, hasta)
+
+
+def comprobar_tope_demo(cursor):
+    ahora = reloj_actual().ahora()
+    desde = datetime.combine(fecha_local(ahora), time.min, ZONA_SEDE).astimezone(UTC)
+    if contar_altas_demo(cursor, desde, desde + timedelta(days=1)) >= 20:
+        raise ErrorDeDominio("limite_altas_demo", "La demo admite 20 altas por día.", 429)
+
+
+def _id_usuario(texto):
+    try:
+        return desde_texto(texto)
+    except (ValueError, TypeError, AttributeError) as error:
+        raise ErrorDeDominio("usuario_invalido", "El identificador debe ser un UUIDv7.", 422) from error
+
+
+def alta_personal(datos, es_demo):
+    from gimnasio.socios.servicio import validar_datos_personales
+
+    campos = {"nombre", "apellido", "cedula", "telefono", "correo", "fecha_nacimiento"}
+    if (
+        not isinstance(datos, dict)
+        or set(datos) - (campos | {"rol"})
+        or not {"nombre", "apellido", "cedula", "rol"} <= datos.keys()
+        or datos["rol"] not in ("recepcion", "entrenador", "administracion")
+    ):
+        raise ErrorDeDominio("datos_invalidos", "Enviá los datos personales y un rol del personal.", 422)
+    persona = validar_datos_personales({campo: valor for campo, valor in datos.items() if campo in campos})
+    clave = None if es_demo else secrets.token_urlsafe(18)
+    try:
+        with transaccion() as cursor:
+            if es_demo:
+                comprobar_tope_demo(cursor)
+            identificador = crear_usuario(cursor, persona, datos["rol"], es_demo=es_demo)
+            if clave:
+                fijar_clave_provisional(cursor, identificador, clave)
+            return {"usuario_id": str(identificador), "clave_ya_entregada": False} | (
+                {"clave_provisional": clave} if clave else {}
+            )
+    except IntegrityError as error:
+        if error.errno == 1062:
+            raise ErrorDeDominio("datos_repetidos", "La cédula o el correo ya están registrados.", 409) from error
+        raise
+
+
+def restablecer_clave(texto, es_demo):
+    identificador = _id_usuario(texto)
+    with transaccion() as cursor:
+        fila = repositorio.buscar_por_id(cursor, identificador, bloquear=True)
+        if fila is None:
+            raise ErrorDeDominio("usuario_no_encontrado", "No se encontró el usuario.", 404)
+        if es_demo or fila["es_demo"]:
+            raise ErrorDeDominio("sin_claves_demo", "La demo no permite restablecer claves.", 409)
+        clave = secrets.token_urlsafe(18)
+        fijar_clave_provisional(cursor, identificador, clave)
+        return {"usuario_id": texto, "clave_provisional": clave, "clave_ya_entregada": False}
+
+
+def _lista_publica(filas):
+    return [{**fila, "id": str(desde_bytes(fila["id"]))} for fila in filas]
+
+
+def consultar_usuarios(filtros):
+    rol, activo, consulta = filtros.get("rol") or None, filtros.get("activo") or None, filtros.get("q", "")
+    try:
+        pagina = int(filtros.get("pagina", "1"))
+        if (
+            pagina < 1
+            or pagina > 1000000
+            or rol not in (None, *ROLES)
+            or activo not in (None, "true", "false", "1", "0")
+            or len(consulta) > 160
+        ):
+            raise ValueError
+    except (ValueError, TypeError) as error:
+        raise ErrorDeDominio("filtros_invalidos", "Revisá rol, activo y página.", 422) from error
+    with transaccion() as cursor:
+        filas = repositorio.listar_usuarios(
+            cursor, rol, consulta, None if activo is None else activo in ("true", "1"), pagina
+        )
+    return {"usuarios": _lista_publica(filas[:50]), "pagina": pagina, "hay_mas": len(filas) > 50}
+
+
+def consultar_sin_entrenador():
+    with transaccion() as cursor:
+        return {"socios": _lista_publica(repositorio.socios_sin_entrenador(cursor))}
+
+
+def asignar_entrenador(texto, datos):
+    if not isinstance(datos, dict) or set(datos) != {"entrenador_id"}:
+        raise ErrorDeDominio("datos_invalidos", "Enviá entrenador_id.", 422)
+    socio_id, entrenador_id = _id_usuario(texto), _id_usuario(datos["entrenador_id"])
+    with transaccion() as cursor:
+        # El mismo usuario serializa la publicación de programas y los cambios de asignación.
+        socio = repositorio.buscar_por_id(cursor, socio_id, bloquear=True)
+        if socio is None or socio["rol"] != "socio" or not socio["activo"]:
+            raise ErrorDeDominio("socio_no_encontrado", "No se encontró el socio activo.", 404)
+        entrenador = repositorio.buscar_por_id(cursor, entrenador_id, bloquear=True)
+        if entrenador is None or entrenador["rol"] != "entrenador" or not entrenador["activo"]:
+            raise ErrorDeDominio("entrenador_invalido", "Elegí un entrenador activo.", 422)
+        if not repositorio.cambiar_asignacion(cursor, nuevo_id(), socio_id, entrenador_id, reloj_actual().ahora()):
+            raise ErrorDeDominio("asignacion_sin_cambio", "El socio ya tiene ese entrenador.", 409)
+    return {"socio_id": texto, "entrenador_id": datos["entrenador_id"]}
 
 
 def fijar_clave_provisional(cursor, usuario_id, clave):

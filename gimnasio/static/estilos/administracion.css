@@ -1,4 +1,8 @@
 .administracion { max-width: 75rem; margin-inline: auto; }
+#usuarios form { display: flex; flex-wrap: wrap; gap: var(--espacio-2); align-items: end; margin-block: var(--espacio-3); }
+#usuarios label { display: grid; gap: var(--espacio-1); max-width: 100%; }
+#usuarios input, #usuarios select { box-sizing: border-box; max-width: 100%; min-height: 44px; font: inherit; color: var(--texto); background: var(--superficie); border: 1px solid var(--texto-suave); border-radius: var(--radio-1); padding: var(--espacio-2); }
+#usuarios li { padding-block: var(--espacio-2); border-bottom: 1px solid var(--borde); overflow-wrap: anywhere; }
 .administracion form { max-width: 48rem; }
 .administracion fieldset { min-width: 0; margin-block: var(--espacio-3); border: 1px solid var(--borde); }
 .administracion [data-intervalo] { display: flex; flex-wrap: wrap; align-items: end; gap: var(--espacio-2); margin-block: var(--espacio-2); }
