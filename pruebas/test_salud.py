@@ -294,3 +294,263 @@ def test_revocar_conserva_las_restricciones_del_socio(app_con_bd):
     with app_con_bd.app_context():
         assert restricciones_vigentes(socio) == antes
     assert cliente.get("/api/yo/ficha").status_code == 200
+
+
+@pytest.mark.bd
+def test_consultas_solo_en_lecturas_del_entrenador_y_perduran(entrenamiento_api):
+    from gimnasio.permisos.servicio import registrar_consentimiento
+
+    datos = entrenamiento_api
+    socio = datos.usuarios["socio"]
+    propia, entrenador = datos.cliente(), datos.cliente("entrenador")
+    salud = f"/api/socios/{socio}/salud"
+    vista = f"/api/entrenador/socios/{socio}"
+    assert entrenador.get(vista).status_code == 200
+    assert entrenador.get(salud).status_code == 403
+    assert propia.get("/api/yo/salud/consultas").json["consultas"] == []
+    assert guardar(propia).status_code == 200
+    assert propia.get("/api/yo/salud").status_code == 200
+    assert propia.get("/api/entrenamiento/propuesta").status_code == 200
+    assert entrenador.get("/api/entrenador/bandeja").status_code == 200
+    assert propia.get("/api/yo/salud/consultas").json["consultas"] == []
+    assert entrenador.get(salud).status_code == 200
+    assert entrenador.get(vista).status_code == 200
+    consultas = propia.get("/api/yo/salud/consultas").json["consultas"]
+    assert len(consultas) == 2
+    assert all(c["nombre"] == "entrenador" and c["rol"] == "entrenador" for c in consultas)
+    assert consultas[0]["id"] > consultas[1]["id"]
+    assert datos.cliente("ajeno").get("/api/yo/salud/consultas").json["consultas"] == []
+    with datos.app.app_context(), transaccion() as cursor:
+        cursor.execute(
+            "UPDATE asignaciones_entrenador SET hasta=%s WHERE id=%s", (datos.reloj.ahora(), datos.asignacion.bytes)
+        )
+        cursor.execute(
+            "INSERT INTO asignaciones_entrenador (id,socio_id,entrenador_id,desde) VALUES (%s,%s,%s,%s)",
+            (nuevo_id().bytes, socio.bytes, datos.usuarios["otro"].bytes, datos.reloj.ahora()),
+        )
+    assert propia.get("/api/yo/salud/consultas").json["consultas"] == consultas
+    assert entrenador.get(salud).status_code == 403
+    assert datos.cliente("otro").get(salud).status_code == 200
+    with datos.app.app_context(), transaccion() as cursor:
+        registrar_consentimiento(cursor, socio, "salud", False, "salud-1", socio)
+    posteriores = propia.get("/api/yo/salud/consultas").json["consultas"]
+    assert posteriores[1:] == consultas
+    assert posteriores[0]["nombre"] == "otro"
+    assert datos.cliente("otro").get(vista).status_code == 200
+    assert propia.get("/api/yo/salud/consultas").json["consultas"] == posteriores
+
+
+@pytest.mark.bd
+def test_consultas_paginadas_de_a_50_y_pagina_invalida(entrenamiento_api):
+    from gimnasio.salud.servicio import registrar_consulta_ficha
+
+    datos = entrenamiento_api
+    with datos.app.app_context(), transaccion() as cursor:
+        for _ in range(51):
+            registrar_consulta_ficha(cursor, datos.usuarios["socio"], datos.usuarios["entrenador"])
+    cliente = datos.cliente()
+    primera = cliente.get("/api/yo/salud/consultas").json
+    segunda = cliente.get("/api/yo/salud/consultas?pagina=2").json
+    assert len(primera["consultas"]) == 50 and primera["hay_mas"]
+    assert len(segunda["consultas"]) == 1 and not segunda["hay_mas"]
+    assert primera["consultas"][-1]["id"] > segunda["consultas"][0]["id"]
+    assert cliente.get("/api/yo/salud/consultas?pagina=3").json["consultas"] == []
+    for pagina in ("0", "-1", "abc", "1.5"):
+        assert cliente.get(f"/api/yo/salud/consultas?pagina={pagina}").status_code == 422
+
+
+@pytest.mark.bd
+@pytest.mark.parametrize("rol", ["recepcion", "entrenador", "administracion"])
+def test_personal_no_descarga_ni_lista_consultas_propias(entrenamiento_api, rol):
+    cliente = entrenamiento_api.cliente(rol)
+    assert cliente.get("/api/yo/datos").status_code == 403
+    assert cliente.get("/api/yo/salud/consultas").status_code == 403
+
+
+@pytest.mark.bd
+def test_descarga_todas_las_secciones_propias_incluso_con_salud_revocada(entrenamiento_api):
+    from gimnasio.permisos.servicio import registrar_consentimiento
+
+    datos = entrenamiento_api
+    with datos.app.app_context(), transaccion() as cursor:
+        ahora = datos.reloj.ahora()
+        autor = datos.usuarios["entrenador"].bytes
+
+        def insertar(tabla, **campos):
+            identificador = nuevo_id().bytes
+            valores = {"id": identificador, **campos}
+            cursor.execute(
+                f"INSERT INTO {tabla} ({','.join(valores)}) VALUES ({','.join(['%s'] * len(valores))})",
+                tuple(valores.values()),
+            )
+            return identificador
+
+        tipo = insertar(
+            "tipos_membresia",
+            nombre="Tipo ficticio",
+            duracion_dias=30,
+            precio=100000,
+            creado_en=ahora,
+            actualizado_en=ahora,
+        )
+        clase = insertar(
+            "clases",
+            nombre="Clase ficticia",
+            entrenador_id=autor,
+            dia_semana=1,
+            hora_inicio="10:00:00",
+            duracion_minutos=60,
+            cupo=10,
+            creada_en=ahora,
+            actualizada_en=ahora,
+        )
+        ocurrencia = insertar(
+            "ocurrencias_clase",
+            clase_id=clase,
+            fecha=ahora.date(),
+            hora_inicio="10:00:00",
+            duracion_minutos=60,
+            creada_en=ahora,
+        )
+        for nombre in ("socio", "ajeno"):
+            socio = datos.usuarios[nombre]
+            cursor.execute(
+                """INSERT INTO perfiles_entrenamiento (socio_id,objetivo,actualizado_en,actualizado_por)
+                   VALUES (%s,%s,%s,%s)""",
+                (socio.bytes, f"Objetivo de {nombre}", ahora, socio.bytes),
+            )
+            pago = insertar(
+                "pagos",
+                socio_id=socio.bytes,
+                tipo_id=tipo,
+                medio="efectivo",
+                monto=100000,
+                autor_id=autor,
+                registrado_en=ahora,
+            )
+            insertar(
+                "anulaciones_pago", pago_id=pago, motivo=f"Anulación de {nombre}", autor_id=autor, registrado_en=ahora
+            )
+            insertar(
+                "membresias",
+                socio_id=socio.bytes,
+                desde=ahora.date(),
+                hasta=ahora.date(),
+                actualizada_en=ahora,
+                pago_id=pago,
+                tipo_id=tipo,
+            )
+            entrada = insertar(
+                "entradas",
+                socio_id=socio.bytes,
+                sede_id=datos.sede.bytes,
+                autor_id=autor,
+                registrada_en=ahora,
+            )
+            insertar("salidas", entrada_id=entrada, autor_id=autor, registrada_en=ahora)
+            sesion = insertar(
+                "sesiones_realizadas",
+                socio_id=socio.bytes,
+                sesion_planificada_id=datos.sesiones[0].bytes,
+                creada_en=ahora,
+            )
+            insertar(
+                "series_realizadas",
+                sesion_realizada_id=sesion,
+                ejercicio_planificado_id=datos.ejercicios[0][0].bytes,
+                repeticiones=10,
+                carga="20.50",
+                autor_id=socio.bytes,
+                registrada_en=ahora,
+            )
+            reserva = insertar(
+                "reservas",
+                socio_id=socio.bytes,
+                ocurrencia_id=ocurrencia,
+                solicitada_en=ahora,
+                autor_id=socio.bytes,
+            )
+            insertar("cancelaciones_reserva", reserva_id=reserva, autor_id=socio.bytes, registrado_en=ahora)
+            aviso = insertar(
+                "avisos_socio",
+                socio_id=socio.bytes,
+                ocurrencia_id=ocurrencia,
+                tipo="ocurrencia_cancelada",
+                registrado_en=ahora,
+            )
+            insertar("vistos_aviso_socio", aviso_id=aviso, registrado_en=ahora)
+            condicion = insertar(
+                "condiciones_salud",
+                socio_id=socio.bytes,
+                descripcion=f"Condición de {nombre}",
+                registrada_en=ahora,
+            )
+            insertar("revisiones_condicion", condicion_id=condicion, autor_id=autor, nota=nombre, registrada_en=ahora)
+            insertar(
+                "restricciones_salud",
+                socio_id=socio.bytes,
+                zona="rodillas",
+                descripcion=f"Restricción de {nombre}",
+                autor_id=autor,
+                registrada_en=ahora,
+            )
+            insertar(
+                "dolores_reportados",
+                socio_id=socio.bytes,
+                zona="rodillas",
+                origen="sesion",
+                sesion_realizada_id=sesion,
+                registrado_en=ahora,
+            )
+            insertar(
+                "chequeos_dia",
+                socio_id=socio.bytes,
+                fecha_local=ahora.date(),
+                sueno=3,
+                energia=3,
+                registrado_en=ahora,
+            )
+            insertar("consultas_ficha", socio_id=socio.bytes, consultado_por=autor, registrada_en=ahora)
+            registrar_consentimiento(cursor, socio, "salud", True, "salud-1", socio)
+            registrar_consentimiento(cursor, socio, "salud", False, "salud-1", socio)
+    respuesta = datos.cliente().get("/api/yo/datos?socio_id=" + str(datos.usuarios["ajeno"]))
+    assert respuesta.status_code == 200
+    assert respuesta.mimetype == "application/json"
+    assert respuesta.headers["Content-Disposition"] == 'attachment; filename="mis-datos.json"'
+    assert respuesta.cache_control.no_store
+    descarga = respuesta.json
+    assert {
+        "persona",
+        "perfil_entrenamiento",
+        "membresias",
+        "pagos",
+        "anulaciones_pago",
+        "visitas",
+        "salidas",
+        "sesiones_realizadas",
+        "series_realizadas",
+        "reservas",
+        "cancelaciones_reserva",
+        "avisos_socio",
+        "vistos_aviso_socio",
+        "condiciones",
+        "revisiones_condicion",
+        "restricciones",
+        "dolores",
+        "consentimientos",
+        "consultas_ficha",
+        "chequeos_dia",
+    } == set(descarga)
+    assert all(descarga.values()), "Cada sección lleva datos del socio de prueba"
+    texto = respuesta.get_data(as_text=True)
+    assert "clave_hash" not in texto and "ajeno" not in texto
+    assert str(datos.usuarios["ajeno"]) not in texto
+    assert descarga["condiciones"][0]["descripcion"] == "Condición de socio"
+    assert descarga["restricciones"][0]["descripcion"] == "Restricción de socio"
+    assert descarga["dolores"][0]["zona"] == "rodillas"
+    assert descarga["series_realizadas"][0]["carga"] == "20.50"
+    for seccion in descarga.values():
+        for fila in seccion:
+            if "socio_id" in fila:
+                assert fila["socio_id"] == str(datos.usuarios["socio"])
+    assert datos.cliente().get("/api/yo/salud/consultas").json["consultas"][0]["nombre"] == "entrenador"

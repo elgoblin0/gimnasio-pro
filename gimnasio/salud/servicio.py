@@ -1,7 +1,8 @@
 """Ficha de salud y tratamiento condicionado por consentimiento y asignación vigente."""
 
 from contextlib import nullcontext
-from datetime import UTC
+from datetime import UTC, date, datetime
+from decimal import Decimal
 
 from gimnasio.comun.bd import transaccion
 from gimnasio.comun.errores import ErrorDeDominio
@@ -10,6 +11,43 @@ from gimnasio.comun.reloj import reloj_actual
 from gimnasio.comun.tipos import ZONAS_CUERPO, RestriccionSalud
 from gimnasio.permisos.servicio import tiene_asignacion_vigente
 from gimnasio.salud import repositorio
+
+
+def registrar_consulta_ficha(cursor, socio_id, consultado_por):
+    repositorio.insertar_consulta_ficha(cursor, nuevo_id(), socio_id, consultado_por, reloj_actual().ahora())
+
+
+def consultar_consultas_ficha(socio_id, pagina):
+    try:
+        pagina = int(pagina)
+        if pagina < 1 or pagina > 2147483647:
+            raise ValueError
+    except (ValueError, TypeError) as error:
+        raise ErrorDeDominio("pagina_invalida", "Indicá una página mayor que cero.", 422) from error
+    with transaccion() as cursor:
+        filas = repositorio.listar_consultas_ficha(cursor, socio_id, pagina)
+    return {"consultas": [_publicar(f) for f in filas[:50]], "pagina": pagina, "hay_mas": len(filas) > 50}
+
+
+def _dato_descargable(valor):
+    if isinstance(valor, dict):
+        return {clave: _dato_descargable(dato) for clave, dato in valor.items()}
+    if isinstance(valor, list):
+        return [_dato_descargable(dato) for dato in valor]
+    if isinstance(valor, bytes):
+        return str(desde_bytes(valor))
+    if isinstance(valor, datetime):
+        return valor.replace(tzinfo=UTC).isoformat()
+    if isinstance(valor, date):
+        return valor.isoformat()
+    if isinstance(valor, Decimal):
+        return str(valor)
+    return valor
+
+
+def descargar_datos_propios(socio_id):
+    with transaccion() as cursor:
+        return _dato_descargable(repositorio.datos_propios(cursor, socio_id))
 
 
 def _identificar(texto):
@@ -79,6 +117,8 @@ def consultar_salud(socio_texto, usuario, *, solo_condiciones=False):
     socio_id = _identificar(socio_texto)
     with transaccion() as cursor:
         _autorizar(cursor, socio_id, usuario)
+        if usuario["rol"] == "entrenador":
+            registrar_consulta_ficha(cursor, socio_id, _identificar(usuario["id"]))
         resultado = {"condiciones": condiciones_para_entrenador(cursor, socio_id)}
         if not solo_condiciones:
             restricciones = [_publicar(f) for f in repositorio.restricciones_vigentes(cursor, socio_id)]
