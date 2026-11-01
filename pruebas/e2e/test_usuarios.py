@@ -18,14 +18,25 @@ def test_desactivar_confirma_muestra_rechazo_y_reactiva(pagina_demo, demo_aislad
     entrar(pagina, demo_aislada, "administración")
     pagina.wait_for_url("**/administracion.html")
     panel = pagina.locator("#usuarios")
-    fila = panel.locator("[data-usuarios-lista] > li").first
+    # La primera fila por apellido puede ser un usuario sin acceso rápido de demo.
+    administracion = pagina.request.get(demo_aislada.url + "/api/sesion").json()["usuario"]
+    assert administracion["es_demo"]
+    nombre = f"{administracion['nombre']} {administracion['apellido']}"
+    panel.get_by_role("searchbox").fill(administracion["apellido"])
+    panel.get_by_role("button", name="Buscar", exact=True).click()
+    fila = panel.locator("[data-usuarios-lista] > li").filter(has_text=nombre)
     fila.get_by_role("button", name="Desactivar", exact=True).click()
     dialogo = pagina.get_by_role("dialog", name="Desactivar usuario")
     dialogo.get_by_role("button", name="Cancelar", exact=True).click()
     expect(dialogo).to_have_count(0)
     fila.get_by_role("button", name="Desactivar", exact=True).click()
     dialogo = pagina.get_by_role("dialog", name="Desactivar usuario")
-    dialogo.get_by_role("button", name="Desactivar", exact=True).click()
+    with pagina.expect_response(
+        lambda r: r.request.method == "POST" and r.url.endswith(f"/api/usuarios/{administracion['id']}/desactivar")
+    ) as respuesta:
+        dialogo.get_by_role("button", name="Desactivar", exact=True).click()
+    assert respuesta.value.status == 409
+    assert respuesta.value.json()["error"]["codigo"] == "usuario_demo_protegido"
     expect(dialogo.get_by_role("alert")).to_contain_text("Este usuario permite entrar como")
     dialogo.get_by_role("button", name="Cancelar", exact=True).click()
     # Cuenta ficticia sin acceso rápido de demo: permite comprobar ambos cambios de estado.
