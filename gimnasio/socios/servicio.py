@@ -160,13 +160,20 @@ def perfil_entrenamiento(socio_id, usuario, datos=None, *, guardar=False):
         return {"perfil_entrenamiento": actual}
 
 
-def membresia_para_tarjeta(socio_id: UUID, fecha_local: date) -> dict | None:
-    """Última membresía que comenzó, sin autorizar el registro de entradas."""
+def membresia_para_tarjeta(socio_id: UUID, fecha_local: date) -> dict:
+    """Última membresía iniciada y máximo hasta, incluidas las renovaciones futuras."""
     with transaccion() as cursor:
         membresia = repositorio.buscar_ultima_membresia(cursor, socio_id, fecha_local)
+        ultimo_hasta = repositorio.buscar_ultimo_hasta(cursor, socio_id)
     if membresia is None:
-        return None
+        return {
+            "vigente": False,
+            "hasta": None,
+            "dias_restantes": None,
+            "ultimo_hasta": ultimo_hasta.isoformat() if ultimo_hasta else None,
+        }
     return {
+        "ultimo_hasta": ultimo_hasta.isoformat() if ultimo_hasta else None,
         "vigente": bool(
             membresia["desde"] <= fecha_local <= membresia["hasta"]
             and membresia["rol"] == "socio"

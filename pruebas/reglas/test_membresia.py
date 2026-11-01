@@ -1,10 +1,16 @@
 """Renovaciones inclusivas sin solapamientos ni días perdidos."""
 
-from datetime import date
+from datetime import date, timedelta
 
 import pytest
 
-from gimnasio.reglas.membresia import vigencia_renovada
+from gimnasio.reglas.membresia import pago_pendiente, vigencia_renovada
+
+
+@pytest.mark.parametrize("dias,pendiente", [(8, False), (7, True), (0, True), (-1, True), (None, True), (38, False)])
+def test_pago_pendiente(dias, pendiente):
+    hoy = date(2026, 10, 27)
+    assert pago_pendiente(hoy, hoy + timedelta(days=dias) if dias is not None else None) is pendiente
 
 
 @pytest.mark.parametrize(

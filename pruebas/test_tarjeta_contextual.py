@@ -61,11 +61,17 @@ def test_tarjeta_con_historial(visitas_api, estado):
         "ultima_visita",
         "visitas_ultimas_4_semanas",
         "permanencia_habitual",
+        "pago_pendiente",
     }
     assert set(tarjeta["socio"]) == {"id", "nombre", "apellido", "cedula", "simulada"}
     assert tarjeta["socio"]["simulada"] is False
     assert tarjeta["socio"]["cedula"] == "9.900.503"
-    assert tarjeta["membresia"] == {"vigente": True, "hasta": "2026-10-27", "dias_restantes": 0}
+    assert tarjeta["membresia"] == {
+        "vigente": True,
+        "hasta": "2026-10-27",
+        "dias_restantes": 0,
+        "ultimo_hasta": "2026-10-27",
+    }
     assert (tarjeta["visita_abierta"] is not None) == (estado == "abierta")
     assert (tarjeta["ultima_visita"] is not None) == (estado == "cerrada")
     assert tarjeta["visitas_ultimas_4_semanas"] == (estado != "sin_visitas")
@@ -95,10 +101,21 @@ def test_membresia_vencida_y_futura(visitas_api):
             "vigente": False,
             "hasta": "2026-10-27",
             "dias_restantes": -2,
+            "ultimo_hasta": "2026-11-30",
         }
         assert consultar_membresia(socio, dia) is None
-        assert membresia_para_tarjeta(socio, dia - timedelta(days=90)) is None
-        assert membresia_para_tarjeta(datos.socios[1], dia - timedelta(days=3)) is None
+        assert datos.cliente().get(f"/api/socios/{socio}/tarjeta").json["pago_pendiente"] is False
+        assert membresia_para_tarjeta(socio, dia - timedelta(days=90))["ultimo_hasta"] == "2026-11-30"
+        assert membresia_para_tarjeta(datos.socios[1], dia - timedelta(days=3))["hasta"] is None
+
+
+def test_tarjeta_sin_membresias(visitas_api):
+    datos = visitas_api
+    with datos.app.app_context(), transaccion() as cursor:
+        cursor.execute("DELETE FROM membresias WHERE socio_id = %s", (a_bytes(datos.socios[0]),))
+    tarjeta = datos.cliente().get(f"/api/socios/{datos.socios[0]}/tarjeta").json
+    assert tarjeta["membresia"]["ultimo_hasta"] is None
+    assert tarjeta["pago_pendiente"] is True
 
 
 def test_tarjeta_sin_sesion(reloj_fijo):
@@ -108,6 +125,71 @@ def test_tarjeta_sin_sesion(reloj_fijo):
     assert cliente.get(f"/api/socios/{nuevo_id(reloj_fijo)}/tarjeta").status_code == 401
 
 
+@pytest.mark.parametrize("abierta", [False, True])
+def test_pago_desde_tarjeta_y_entrada(visitas_api, abierta):
+    from pruebas.test_pagos import escribir
+
+    datos = visitas_api
+    cliente = datos.cliente()
+    socio = datos.socios[0]
+    ruta = f"/api/socios/{socio}/tarjeta"
+    if abierta:
+        assert test_visitas_api.enviar(cliente, datos.cuerpo()).status_code == 201
+    datos.reloj.avanzar(timedelta(days=1))
+    assert cliente.get(ruta).json["pago_pendiente"] is True
+    rechazo = test_visitas_api.enviar(cliente, datos.cuerpo())
+    assert rechazo.status_code == 422
+    assert rechazo.json["error"]["codigo"] == "membresia_no_vigente"
+    tipo = escribir(
+        datos.cliente("administracion"),
+        "/api/tipos-membresia",
+        {"nombre": "Mensual ficticia", "duracion_dias": 30, "precio": 250000},
+    )
+    assert tipo.status_code == 201
+    assert (
+        escribir(
+            cliente, "/api/pagos", {"socio_id": str(socio), "tipo_id": tipo.json["id"], "medio": "efectivo"}
+        ).status_code
+        == 201
+    )
+    assert cliente.get(ruta).json["pago_pendiente"] is False
+    entrada = test_visitas_api.enviar(cliente, datos.cuerpo())
+    assert entrada.status_code == (409 if abierta else 201)
+    if abierta:
+        assert entrada.json["error"]["codigo"] == "visita_abierta"
+
+
+def test_tarjeta_agrega_solo_una_consulta(visitas_api, monkeypatch):
+    from contextlib import contextmanager
+
+    from gimnasio.socios import servicio as socios_servicio
+    from gimnasio.visitas import servicio as visitas_servicio
+
+    datos = visitas_api
+    consultas = []
+
+    @contextmanager
+    def contar():
+        with transaccion() as cursor:
+
+            class Contador:
+                def execute(self, *argumentos):
+                    consultas.append(argumentos[0])
+                    return cursor.execute(*argumentos)
+
+                def __getattr__(self, nombre):
+                    return getattr(cursor, nombre)
+
+            yield Contador()
+
+    monkeypatch.setattr(socios_servicio, "transaccion", contar)
+    monkeypatch.setattr(visitas_servicio, "transaccion", contar)
+    with datos.app.app_context():
+        visitas_servicio.consultar_tarjeta(str(datos.socios[0]))
+    # Antes: cuatro consultas de visitas y una de membresía. Ahora: una más.
+    assert len(consultas) == 6
+
+
 @pytest.mark.parametrize("activo", [True, False])
 def test_membresia_ultimo_dia_y_socio_activo(visitas_api, activo):
     datos = visitas_api
@@ -115,7 +197,7 @@ def test_membresia_ultimo_dia_y_socio_activo(visitas_api, activo):
         with transaccion() as cursor:
             cursor.execute("UPDATE usuarios SET activo = %s WHERE id = %s", (activo, a_bytes(datos.socios[0])))
         tarjeta = membresia_para_tarjeta(datos.socios[0], fecha_local(datos.reloj.ahora()))
-        assert tarjeta == {"vigente": activo, "hasta": "2026-10-27", "dias_restantes": 0}
+        assert tarjeta == {"vigente": activo, "hasta": "2026-10-27", "dias_restantes": 0, "ultimo_hasta": "2026-10-27"}
 
 
 def test_tarjeta_fecha_local_de_sede(visitas_api):

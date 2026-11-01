@@ -21,7 +21,7 @@ def test_escena_entrada_sin_recarga_y_seleccion_por_teclado(pagina_demo, demo_ai
     expect(escena).to_be_visible()
     expect(pagina.locator("[data-punto-visita]")).to_have_count(0)
     pagina.evaluate("window.recepcionSinRecargar = true")
-    pagina.get_by_role("button", name="Registrar entrada", exact=True).click()
+    pagina.locator("[data-entrada]").get_by_role("button", name="Registrar entrada", exact=True).click()
     punto = pagina.locator("[data-punto-visita]")
     expect(punto).to_have_count(1)
     expect(punto).not_to_have_attribute("aria-label", re.compile("Lucía"))
@@ -64,7 +64,7 @@ def test_escena_sin_movimiento_ubica_entrada_inmediatamente(pagina_demo, demo_ai
         pagina.emulate_media(reduced_motion="reduce")
     ingresar(pagina, demo_aislada)
     expect(pagina.locator('[data-escena-ocupacion][data-lista="true"]')).to_be_visible()
-    pagina.get_by_role("button", name="Registrar entrada", exact=True).click()
+    pagina.locator("[data-entrada]").get_by_role("button", name="Registrar entrada", exact=True).click()
     punto = pagina.locator("[data-punto-visita]")
     expect(punto).to_be_visible()
     pagina.keyboard.press("Escape")
@@ -95,7 +95,7 @@ def test_escena_sin_webgl_conserva_seleccion_por_zona(pagina_demo, demo_aislada)
     expect(pagina.locator("[data-alternativa-escena]")).to_be_visible()
     expect(pagina.locator("[data-escena-ocupacion]")).to_be_hidden()
     expect(pagina.get_by_role("heading", name="Por zona", exact=True)).to_be_visible()
-    pagina.get_by_role("button", name="Registrar entrada", exact=True).click()
+    pagina.locator("[data-entrada]").get_by_role("button", name="Registrar entrada", exact=True).click()
     pagina.keyboard.press("Escape")
     pagina.locator('[data-elegir-zona="en_la_sede"]').click()
     pagina.locator("[data-visita-zona]").click()
@@ -114,7 +114,7 @@ def test_visitas_simuladas_a_las_diecinueve_y_entrada_real(pagina_demo, demo_ais
     pagina_demo.locator("[data-visitas]").get_by_role("button", name="Ver tarjeta contextual").first.click()
     expect(pagina_demo.locator("[data-tarjeta-contextual]")).to_contain_text("Socio simulado de la demo")
     pagina_demo.keyboard.press("Escape")
-    pagina_demo.get_by_role("button", name="Registrar entrada", exact=True).click()
+    pagina_demo.locator("[data-entrada]").get_by_role("button", name="Registrar entrada", exact=True).click()
     expect(pagina_demo.get_by_text("Entrada registrada.", exact=True)).to_be_visible()
     assert contar(demo_aislada, "entradas") == 1
 
@@ -154,13 +154,14 @@ def test_entrada_abre_tarjeta_y_escape_la_cierra(pagina_demo, demo_aislada, anch
     pagina = pagina_demo
     pagina.set_viewport_size({"width": ancho, "height": alto})
     ingresar(pagina, demo_aislada)
-    pagina.get_by_role("button", name="Registrar entrada", exact=True).click()
+    pagina.locator("[data-entrada]").get_by_role("button", name="Registrar entrada", exact=True).click()
     tarjeta = pagina.locator("[data-tarjeta-contextual]")
     expect(tarjeta).to_be_visible()
     expect(tarjeta).to_contain_text("Membresía")
     expect(tarjeta).to_contain_text("Lucía Benítez")
     # La tarjeta abierta no debe tapar las operaciones de recepción (regresión del CI).
-    for nombre in ("Cerrar sesión", "Registrar entrada", "Registrar salida de Lucía Benítez"):
+    pagina.locator("[data-entrada]").get_by_role("button", name="Registrar entrada", exact=True).click(trial=True)
+    for nombre in ("Cerrar sesión", "Registrar salida de Lucía Benítez"):
         pagina.get_by_role("button", name=nombre, exact=True).click(trial=True)
     assert pagina.evaluate("document.documentElement.scrollWidth <= window.innerWidth")
     pagina.keyboard.press("Escape")
@@ -181,7 +182,7 @@ def test_sondeo_entre_recepciones_y_ocupacion_del_socio(pagina_demo, demo_aislad
         expect(segunda.get_by_text("Recepción lista.", exact=True)).to_be_visible()
         expect(segunda.locator("[data-ocupacion]")).to_have_text("0 de 60")
         primera.bring_to_front()
-        primera.get_by_role("button", name="Registrar entrada", exact=True).click()
+        primera.locator("[data-entrada]").get_by_role("button", name="Registrar entrada", exact=True).click()
         expect(primera.locator("[data-ocupacion]")).to_have_text("1 de 60")
         segunda.bring_to_front()
         expect(segunda.locator("[data-ocupacion]")).to_have_text("1 de 60", timeout=9000)
@@ -219,7 +220,7 @@ def test_entrada_salida_recarga_y_teclado(pagina_demo, demo_aislada, ancho, alto
     ingresar(pagina, demo_aislada)
     expect(pagina.get_by_text("Datos ficticios que se reinician cada día. Requiere conexión.")).to_be_visible()
     expect(pagina.locator("[data-ocupacion]")).to_have_text("0 de 60")
-    boton = pagina.get_by_role("button", name="Registrar entrada", exact=True)
+    boton = pagina.locator("[data-entrada]").get_by_role("button", name="Registrar entrada", exact=True)
     boton.focus()
     pagina.keyboard.press("Enter")
     expect(pagina.get_by_text("Entrada registrada.", exact=True)).to_be_visible()
@@ -251,7 +252,7 @@ def test_respuesta_perdida_reintento_manual_y_cierre_sin_salida(pagina_demo, dem
       };
     })();""")
     ingresar(pagina, demo_aislada)
-    pagina.get_by_role("button", name="Registrar entrada", exact=True).dblclick()
+    pagina.locator("[data-entrada]").get_by_role("button", name="Registrar entrada", exact=True).dblclick()
     expect(pagina.get_by_role("button", name="Reintentar operación")).to_be_visible()
     assert contar(demo_aislada, "entradas") == 1
     pagina.get_by_role("button", name="Reintentar operación").click()
@@ -269,7 +270,7 @@ def test_red_fallida_no_reenvia_al_recuperar_conexion(pagina_demo, demo_aislada)
     pagina = pagina_demo
     ingresar(pagina, demo_aislada)
     pagina.context.set_offline(True)
-    pagina.get_by_role("button", name="Registrar entrada", exact=True).click()
+    pagina.locator("[data-entrada]").get_by_role("button", name="Registrar entrada", exact=True).click()
     expect(pagina.get_by_role("button", name="Reintentar operación")).to_be_visible()
     pagina.context.set_offline(False)
     pagina.get_by_role("button", name="Actualizar visitas").click()
@@ -290,14 +291,14 @@ def test_membresia_aforo_y_acceso_del_socio(pagina_demo, demo_aislada):
             "UPDATE membresias SET desde='2026-09-27', hasta='2026-10-26' WHERE socio_id=%s",
             (a_bytes(desde_texto(socio["id"])),),
         )
-    pagina.get_by_role("button", name="Registrar entrada", exact=True).click()
+    pagina.locator("[data-entrada]").get_by_role("button", name="Registrar entrada", exact=True).click()
     expect(pagina.get_by_role("alert")).to_contain_text("membresía vigente")
     with demo_aislada.app.app_context(), transaccion() as cursor:
         cursor.execute(
             "UPDATE membresias SET hasta='2026-11-26' WHERE socio_id=%s", (a_bytes(desde_texto(socio["id"])),)
         )
         cursor.execute("UPDATE sedes SET aforo_maximo=0")
-    pagina.get_by_role("button", name="Registrar entrada", exact=True).click()
+    pagina.locator("[data-entrada]").get_by_role("button", name="Registrar entrada", exact=True).click()
     expect(pagina.get_by_role("alert")).to_contain_text("aforo máximo")
     assert contar(demo_aislada, "entradas") == 0
     pagina.get_by_role("button", name="Cerrar sesión", exact=True).click()
@@ -330,7 +331,7 @@ def test_foco_durante_post_no_intercala_lecturas_anteriores(pagina_demo, demo_ai
     # Congelar los temporizadores: un sondeo posterior al POST sí es válido.
     pagina.clock.pause_at(pagina.evaluate("Date.now() / 1000 + 1"))
     lecturas = pagina.evaluate("window.lecturasDeVisitas")
-    pagina.get_by_role("button", name="Registrar entrada", exact=True).click()
+    pagina.locator("[data-entrada]").get_by_role("button", name="Registrar entrada", exact=True).click()
     pagina.wait_for_function("window.entradaEnEspera === true")
     pagina.evaluate("window.dispatchEvent(new Event('focus'))")
     pagina.get_by_role("button", name="Actualizar visitas").click()
@@ -365,7 +366,7 @@ def test_reintento_espera_la_lectura_en_curso(pagina_demo, demo_aislada):
       };
     })();""")
     ingresar(pagina, demo_aislada)
-    pagina.get_by_role("button", name="Registrar entrada", exact=True).click()
+    pagina.locator("[data-entrada]").get_by_role("button", name="Registrar entrada", exact=True).click()
     expect(pagina.get_by_role("button", name="Reintentar operación")).to_be_visible()
     pagina.evaluate("window.retenerLectura = true")
     pagina.get_by_role("button", name="Actualizar visitas").click()
@@ -407,7 +408,7 @@ def test_conciliar_salida_desaparece_sin_recargar(pagina_demo, demo_aislada):
         )
     pagina.get_by_role("button", name="Actualizar visitas").click()
     pagina.get_by_role("button", name="Conciliar salida", exact=True).click()
-    dialogo = pagina.get_by_role("dialog")
+    dialogo = pagina.get_by_role("dialog", name="Conciliar salida", exact=True)
     dialogo.get_by_label("Motivo", exact=True).fill("El socio confirmó que salió una hora después de entrar")
     dialogo.get_by_role("button", name="Confirmar salida", exact=True).click()
     expect(dialogo).not_to_be_visible()

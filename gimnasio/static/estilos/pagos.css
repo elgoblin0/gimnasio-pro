@@ -2,7 +2,7 @@
 .pagos fieldset { display: grid; gap: .75rem; min-width: 0; }
 .pagos input, .pagos select { width: 100%; min-width: 0; box-sizing: border-box; }
 .pagos [role="alert"] { color: var(--peligro); }
-.personal-barra a[hidden] { display: none; }
+.personal-barra[hidden], .personal-barra a[hidden] { display: none; }
 #tipos-membresia { margin-top: 3rem; }
 #tipos-membresia fieldset { display: grid; gap: .75rem; min-width: 0; }
 #tipos-membresia input { max-width: 100%; box-sizing: border-box; }
