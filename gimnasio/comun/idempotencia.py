@@ -95,9 +95,11 @@ def registrar_idempotencia(app, obtener_usuario):
             conexion.rollback()
         if respuesta.status_code >= 500:
             return respuesta
+        saneada = g.pop("respuesta_para_reintento", None)
+        cuerpo = json.dumps(saneada).encode() if isinstance(saneada, dict) else respuesta.get_data()
         guardada = json.dumps(
             {
-                "cuerpo": b64encode(respuesta.get_data()).decode("ascii"),
+                "cuerpo": b64encode(cuerpo).decode("ascii"),
                 "encabezados": [(k, v) for k, v in respuesta.headers if k.lower() != "set-cookie"],
             }
         ).encode()

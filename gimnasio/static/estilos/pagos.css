@@ -1,5 +1,8 @@
 .pagos { max-width: 48rem; margin: 0 auto; padding: var(--espacio-4, 1.5rem); }
 .pagos fieldset { display: grid; gap: .75rem; min-width: 0; }
+.alta-personales { display: grid; gap: .75rem; }
+.pagos input[type="checkbox"] { width: auto; }
+.pagos [data-resultado] { overflow-wrap: anywhere; }
 .pagos input, .pagos select, .pagos textarea { width: 100%; min-width: 0; box-sizing: border-box; }
 .pagos textarea { min-height: 5rem; font: inherit; resize: vertical; }
 .pagos article { padding-block: var(--espacio-4); border-bottom: 1px solid var(--borde); overflow-wrap: anywhere; }

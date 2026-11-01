@@ -3,7 +3,7 @@
 from gimnasio.comun.ids import a_bytes
 
 COLUMNAS_USUARIO = """
-    u.id, u.rol, u.clave_hash, u.es_demo, u.activo,
+    u.id, u.rol, u.clave_hash, u.es_demo, u.activo, u.debe_cambiar_clave,
     p.id AS persona_id, p.nombre, p.apellido, p.cedula, p.correo, p.figura_cuerpo
 """
 
@@ -23,9 +23,10 @@ def buscar_para_ingreso(cursor, cedula=None, correo=None):
     return cursor.fetchone()
 
 
-def buscar_por_id(cursor, usuario_id):
+def buscar_por_id(cursor, usuario_id, *, bloquear=False):
     cursor.execute(
-        f"SELECT {COLUMNAS_USUARIO} FROM usuarios u JOIN personas p ON p.id = u.persona_id WHERE u.id = %s",
+        f"SELECT {COLUMNAS_USUARIO} FROM usuarios u JOIN personas p ON p.id = u.persona_id WHERE u.id = %s"
+        + (" FOR UPDATE" if bloquear else ""),
         (a_bytes(usuario_id),),
     )
     return cursor.fetchone()
@@ -39,6 +40,21 @@ def primer_usuario_demo(cursor, rol):
         (rol,),
     )
     return cursor.fetchone()
+
+
+def cambiar_clave(cursor, usuario_id, clave_hash, debe_cambiar, momento):
+    cursor.execute(
+        "UPDATE usuarios SET clave_hash=%s, debe_cambiar_clave=%s, actualizado_en=%s WHERE id=%s",
+        (clave_hash, debe_cambiar, momento, a_bytes(usuario_id)),
+    )
+
+
+def listar_socios_demo(cursor):
+    cursor.execute(
+        "SELECT u.id, p.nombre, p.apellido FROM usuarios u JOIN personas p ON p.id=u.persona_id "
+        "WHERE u.es_demo=TRUE AND u.activo=TRUE AND u.rol='socio' ORDER BY u.creado_en, u.id"
+    )
+    return cursor.fetchall()
 
 
 def insertar_persona(cursor, persona_id, datos, momento):
@@ -66,6 +82,20 @@ def actualizar_figura_cuerpo(cursor, usuario_id, figura, momento):
            SET p.figura_cuerpo = %s, p.actualizada_en = %s WHERE u.id = %s""",
         (figura, momento, a_bytes(usuario_id)),
     )
+
+
+def contar_altas_demo(cursor, desde, hasta):
+    # La sede serializa altas simultáneas para que no excedan el tope diario.
+    cursor.execute("SELECT id FROM sedes ORDER BY id LIMIT 1 FOR UPDATE")
+    cursor.fetchone()
+    cursor.execute(
+        "SELECT COUNT(*) AS cantidad FROM usuarios u WHERE u.es_demo=TRUE AND u.rol='socio' "
+        "AND u.creado_en >= %s AND u.creado_en < %s "
+        "AND EXISTS (SELECT 1 FROM consentimientos c WHERE c.socio_id=u.id "
+        "AND c.tipo='datos_personales' AND c.registrado_por<>u.id)",
+        (desde, hasta),
+    )
+    return cursor.fetchone()["cantidad"]
 
 
 def insertar_usuario(cursor, usuario_id, persona_id, rol, clave_hash, es_demo, momento):

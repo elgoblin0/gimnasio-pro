@@ -1,7 +1,9 @@
 """Ficha del socio, perfil de entrenamiento y consultas de membresía."""
 
-from datetime import date
+import secrets
+from datetime import UTC, date, datetime, time, timedelta
 from uuid import UUID
+from zoneinfo import ZoneInfo
 
 from mysql.connector import IntegrityError
 
@@ -10,9 +12,56 @@ from gimnasio.comun.errores import ErrorDeDominio
 from gimnasio.comun.formatos import normalizar_cedula, normalizar_correo, normalizar_telefono
 from gimnasio.comun.ids import desde_bytes, desde_texto, nuevo_id
 from gimnasio.comun.reloj import fecha_local, reloj_actual
-from gimnasio.permisos.servicio import tiene_asignacion_vigente
+from gimnasio.permisos.servicio import (
+    contar_altas_demo,
+    crear_usuario,
+    fijar_clave_provisional,
+    registrar_consentimiento,
+    tiene_asignacion_vigente,
+)
 from gimnasio.reglas.membresia import vigencia_renovada
 from gimnasio.socios import repositorio
+
+
+def dar_alta(datos, autor, es_demo):
+    _objeto(datos, (*repositorio.CAMPOS_PERSONALES, "consentimiento_datos", "primer_pago"))
+    if datos.get("consentimiento_datos") is not True:
+        raise ErrorDeDominio("consentimiento_requerido", "Se requiere consentimiento de datos personales.", 422)
+    if not all(campo in datos for campo in ("nombre", "apellido", "cedula")):
+        raise ErrorDeDominio("datos_invalidos", "Enviá nombre, apellido y cédula.", 422)
+    persona = _validar_personales({campo: datos[campo] for campo in repositorio.CAMPOS_PERSONALES if campo in datos})
+    if "primer_pago" in datos and not isinstance(datos["primer_pago"], dict):
+        raise ErrorDeDominio("datos_invalidos", "El primer pago debe ser un objeto.", 422)
+    if "primer_pago" in datos:
+        _objeto(datos["primer_pago"], ("tipo_id", "medio", "monto"))
+    clave = None if es_demo else secrets.token_urlsafe(18)
+    try:
+        with transaccion() as cursor:
+            if es_demo:
+                ahora = reloj_actual().ahora()
+                zona = ZoneInfo("America/Asuncion")
+                desde = datetime.combine(fecha_local(ahora), time.min, zona).astimezone(UTC)
+                if contar_altas_demo(cursor, desde, desde + timedelta(days=1)) >= 20:
+                    raise ErrorDeDominio("limite_altas_demo", "La demo admite 20 altas por día.", 429)
+            usuario_id = crear_usuario(cursor, persona, "socio", es_demo=es_demo)
+            if clave:
+                fijar_clave_provisional(cursor, usuario_id, clave)
+            registrar_consentimiento(cursor, usuario_id, "datos_personales", True, "1", _identificador(autor["id"]))
+            respuesta = {"usuario_id": str(usuario_id), "clave_ya_entregada": False}
+            if "primer_pago" in datos:
+                # Importación local: pagos renueva membresías a través de este servicio.
+                from gimnasio.pagos.servicio import registrar_pago
+
+                respuesta["pago"] = registrar_pago(
+                    dict(datos["primer_pago"], socio_id=str(usuario_id)), autor, cursor=cursor
+                )
+            if clave:
+                respuesta["clave_provisional"] = clave
+            return respuesta
+    except IntegrityError as error:
+        if error.errno == 1062:
+            raise ErrorDeDominio("datos_repetidos", "La cédula o el correo ya están registrados.", 409) from error
+        raise
 
 
 def bloquear_socio(socio_id, *, cursor):

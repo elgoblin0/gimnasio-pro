@@ -1,5 +1,6 @@
 """Registro de pago y renovación en una sola transacción."""
 
+from contextlib import nullcontext
 from datetime import UTC, date, datetime, time, timedelta
 from zoneinfo import ZoneInfo
 
@@ -84,7 +85,7 @@ def archivar_tipo(tipo_id):
         return tipo_publico(_tipo(cursor, tipo_id))
 
 
-def registrar_pago(datos, usuario):
+def registrar_pago(datos, usuario, *, cursor=None):
     requeridos = {"socio_id", "tipo_id", "medio"}
     if not isinstance(datos, dict) or not requeridos <= set(datos) or set(datos) - requeridos - {"monto"}:
         raise ErrorDeDominio("cuerpo_invalido", "Enviá socio_id, tipo_id, medio y opcionalmente monto.", 422)
@@ -93,7 +94,7 @@ def registrar_pago(datos, usuario):
     if not isinstance(medio, str) or medio not in {"efectivo", "transferencia", "tarjeta", "otro"}:
         raise ErrorDeDominio("medio_invalido", "Elegí efectivo, transferencia, tarjeta u otro.", 422)
     monto = validar_entero(datos["monto"], "El monto") if "monto" in datos else None
-    with transaccion() as cursor:
+    with transaccion() if cursor is None else nullcontext(cursor) as cursor:
         tipo = _tipo(cursor, tipo_id)
         if tipo["archivado"]:
             raise ErrorDeDominio("tipo_archivado", "El tipo de membresía está archivado.", 422)

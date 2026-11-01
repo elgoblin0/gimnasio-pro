@@ -15,6 +15,20 @@ CABECERA = {"X-Gimnasio": "1"}
 CLAVE = "clave-de-prueba"
 
 
+@pytest.mark.parametrize("rol", ["socio", "recepcion", "entrenador", "administracion"])
+def test_demo_no_abre_usuario_real_ni_otro_rol(app_con_bd, rol):
+    app_con_bd.config["MODO_DEMO"] = True
+    real = crear(app_con_bd, rol, "8899111")
+    demo = crear(app_con_bd, rol, "8899112", es_demo=True)
+    cliente = app_con_bd.test_client()
+    assert cliente.post(f"/api/sesion/demo/{rol}", json={"usuario_id": str(real)}, headers=CABECERA).status_code == 404
+    otro = "entrenador" if rol == "socio" else "socio"
+    assert cliente.post(f"/api/sesion/demo/{otro}", json={"usuario_id": str(demo)}, headers=CABECERA).status_code == 404
+    respuesta = cliente.post(f"/api/sesion/demo/{rol}", json={"usuario_id": str(demo)}, headers=CABECERA)
+    assert respuesta.status_code == 200
+    assert respuesta.json["usuario"]["id"] == str(demo)
+
+
 def crear(app, rol, cedula, clave=CLAVE, es_demo=False, correo=None, nombre="Ana"):
     persona = {"nombre": nombre, "apellido": "Prueba", "cedula": cedula, "correo": correo}
     with app.app_context(), transaccion() as cursor:

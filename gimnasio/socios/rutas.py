@@ -1,11 +1,22 @@
 """Ficha del socio y perfil de entrenamiento con permisos y alcance explícitos."""
 
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, current_app, g, jsonify, request
 
 from gimnasio.permisos.servicio import requiere, usuario_actual
 from gimnasio.socios import servicio
 
 bp = Blueprint("socios", __name__, url_prefix="/api")
+
+
+@bp.post("/socios")
+@requiere("socios.dar_alta")
+def dar_alta():
+    respuesta = servicio.dar_alta(request.get_json(silent=True), usuario_actual(), current_app.config["MODO_DEMO"])
+    if "clave_provisional" in respuesta:
+        g.respuesta_para_reintento = {
+            campo: valor for campo, valor in respuesta.items() if campo != "clave_provisional"
+        } | {"clave_ya_entregada": True}
+    return jsonify(respuesta), 201
 
 
 @bp.route("/yo/ficha", methods=["GET", "PUT"])

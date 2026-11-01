@@ -4,3 +4,4 @@ grupo = "Acceso"
 etapa = 0
 nivel = "funcional"
 prueba = "pruebas/e2e/test_direccion_visual.py::test_ingreso_en_b_claro_y_oscuro_con_teclado_sin_desborde"
+nota = "Alta con clave provisional de una sola entrega y cambio obligatorio (ADR 0004 y 0031); en demo, Entrar como… permite elegir el socio dado de alta. pruebas/test_socios_alta.py y pruebas/test_permisos_sesion.py."

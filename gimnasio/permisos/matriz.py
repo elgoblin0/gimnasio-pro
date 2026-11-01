@@ -7,6 +7,7 @@ los aplica cada servicio. Acá solo se decide si el rol puede intentar la acció
 ROLES = ("socio", "recepcion", "entrenador", "administracion")
 
 PERMISOS = {
+    "socios.dar_alta": {"recepcion", "administracion"},
     "pagos.anular": {"recepcion", "administracion"},
     "pagos.ver": {"recepcion", "administracion"},
     "pagos.ver_propios": {"socio"},
