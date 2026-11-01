@@ -1,5 +1,6 @@
 import os
 import uuid
+from types import SimpleNamespace
 
 import pytest
 from fragmentos import fragmento_de
@@ -63,6 +64,88 @@ def bd_vacia():
         administracion.close()
 
 
+@pytest.fixture(scope="session")
+def bd_migrada():
+    """Una base con todas las migraciones por proceso: migrar cuesta segundos y vaciarla, milisegundos."""
+    from gimnasio.comun.migrar import aplicar
+
+    nombre = f"gimnasio_prueba_{uuid.uuid4().hex[:10]}"
+    administracion = conectar(parametros_desde_entorno(base=None) | {"database": None})
+    cursor = administracion.cursor()
+    cursor.execute(f"CREATE DATABASE `{nombre}` CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci")
+    try:
+        aplicar(parametros_desde_entorno(base=nombre), salida=lambda _: None)
+        cursor.execute(f"USE `{nombre}`")
+        # Una prueba que deja una transacción abierta falla pronto, en vez de colgar la siguiente.
+        cursor.execute("SET SESSION innodb_lock_wait_timeout = 5, foreign_key_checks = 0")
+        cursor.execute("SHOW TABLES")
+        tablas = [fila[0] for fila in cursor.fetchall() if fila[0] != "migraciones_aplicadas"]
+        # Un pool por proceso: abrir una conexión por solicitud deja miles de puertos en TIME_WAIT en Windows.
+        parametros = parametros_desde_entorno(base=nombre) | {"pool_name": uuid.uuid4().hex, "pool_size": 8}
+        yield SimpleNamespace(nombre=nombre, parametros=parametros, conexion=administracion, tablas=tablas, semillas={})
+    finally:
+        cursor.execute("SHOW DATABASES LIKE %s", (f"{nombre}%",))
+        for (base,) in cursor.fetchall():
+            cursor.execute(f"DROP DATABASE IF EXISTS `{base}`")
+        administracion.close()
+
+
+def _vaciar(bd_migrada):
+    with bd_migrada.conexion.cursor() as cursor:
+        for tabla in bd_migrada.tablas:
+            cursor.execute(f"DELETE FROM `{tabla}`")
+    bd_migrada.conexion.commit()
+
+
+@pytest.fixture
+def bd_limpia(bd_migrada):
+    """La base migrada de este proceso, sin filas. Las migraciones no insertan datos: equivale a recién migrada."""
+    _vaciar(bd_migrada)
+    return dict(bd_migrada.parametros)
+
+
+def _guardar_semilla(bd_migrada):
+    """Copia a una base aparte las tablas con filas y devuelve (base, tablas)."""
+    base = f"{bd_migrada.nombre}_s{len(bd_migrada.semillas)}"
+    con_filas = []
+    with bd_migrada.conexion.cursor() as cursor:
+        cursor.execute(f"CREATE DATABASE `{base}` CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci")
+        for tabla in bd_migrada.tablas:
+            cursor.execute(f"SELECT EXISTS (SELECT 1 FROM `{tabla}`)")
+            if cursor.fetchone()[0]:
+                cursor.execute(f"CREATE TABLE `{base}`.`{tabla}` LIKE `{tabla}`")
+                cursor.execute(f"INSERT INTO `{base}`.`{tabla}` SELECT * FROM `{tabla}`")
+                con_filas.append(tabla)
+    bd_migrada.conexion.commit()
+    return base, con_filas
+
+
+@pytest.fixture
+def sembrar_demo(bd_migrada):
+    """Deja la semilla demo en la base del proceso: la genera una vez por momento y después copia sus tablas.
+
+    Generarla son cientos de INSERT por prueba. Solo para preparar: lo que prueba `reiniciar()` debe llamarlo.
+    """
+    from gimnasio.demo.servicio import reiniciar
+
+    def sembrar(app):
+        assert app.config["MODO_DEMO"], "reiniciar() rechaza sembrar fuera de la demo"
+        ahora = app.extensions["reloj"].ahora()
+        if ahora not in bd_migrada.semillas:
+            with app.app_context():
+                reiniciar()
+            bd_migrada.semillas[ahora] = _guardar_semilla(bd_migrada)
+            return
+        base, tablas = bd_migrada.semillas[ahora]
+        _vaciar(bd_migrada)
+        with bd_migrada.conexion.cursor() as cursor:
+            for tabla in tablas:
+                cursor.execute(f"INSERT INTO `{tabla}` SELECT * FROM `{base}`.`{tabla}`")
+        bd_migrada.conexion.commit()
+
+    return sembrar
+
+
 @pytest.fixture
 def reloj_fijo():
     from datetime import UTC, datetime
@@ -73,12 +156,10 @@ def reloj_fijo():
 
 
 @pytest.fixture
-def app_con_bd(bd_vacia, reloj_fijo):
-    """App de prueba sobre una base vacía con todas las migraciones aplicadas y un RelojFijo."""
+def app_con_bd(bd_limpia, reloj_fijo):
+    """App de prueba sobre una base sin filas con todas las migraciones aplicadas y un RelojFijo."""
     from gimnasio import crear_app
-    from gimnasio.comun.migrar import aplicar
 
-    aplicar(bd_vacia, salida=lambda _: None)
     return crear_app(
-        {"ENTORNO": "prueba", "SECRET_KEY": "solo-pruebas", "MODO_DEMO": False, "BD": bd_vacia}, reloj_fijo
+        {"ENTORNO": "prueba", "SECRET_KEY": "solo-pruebas", "MODO_DEMO": False, "BD": bd_limpia}, reloj_fijo
     )

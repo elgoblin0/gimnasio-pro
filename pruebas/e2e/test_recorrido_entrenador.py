@@ -10,12 +10,6 @@ from pruebas.e2e.test_esqueleto_andante import ingresar, preparar, tiempo_de_rec
 pytestmark = pytest.mark.e2e
 
 
-@pytest.fixture
-def navegador(playwright):
-    with playwright.chromium.launch(channel="chromium") as instancia:
-        yield instancia
-
-
 def abrir_contexto(navegador):
     """Cada persona con su sesión; sin service worker, como las demás pantallas del entrenador."""
     return navegador.new_context(locale="es-PY", service_workers="block")

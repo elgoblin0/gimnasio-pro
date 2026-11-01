@@ -4,16 +4,14 @@ import pytest
 
 from gimnasio.comun.bd import transaccion
 from gimnasio.comun.ids import desde_bytes
-from gimnasio.demo.servicio import reiniciar
 
 pytestmark = pytest.mark.bd
 
 
 @pytest.fixture
-def app_horarios(app_con_bd):
+def app_horarios(app_con_bd, sembrar_demo):
     app_con_bd.config["MODO_DEMO"] = True
-    with app_con_bd.app_context():
-        reiniciar()
+    sembrar_demo(app_con_bd)
     return app_con_bd
 
 

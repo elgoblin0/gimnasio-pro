@@ -21,9 +21,9 @@ Invoke-Expression (.\scripts\bd_local.ps1 entorno)  # define GIMNASIO_BD_* en es
 .\.venv\Scripts\python.exe scripts/mapa_capacidades.py --verificar
 node --test "gimnasio/static/**/*.test.js"
 .\.venv\Scripts\python.exe -m gimnasio.comun.migrar ; .\.venv\Scripts\python.exe -m gimnasio.comun.migrar --sin-pendientes
-.\.venv\Scripts\python.exe -m pytest -q            # unitarias y con MySQL
-.\.venv\Scripts\python.exe -m pytest -m e2e -q -rs # Chromium contra el servidor demo
+.\.venv\Scripts\python.exe -m pytest -n 6 --dist worksteal -q -rs  # toda la suite, e2e incluidos, en unos 2 minutos
 ```
+Con más procesos que núcleos la suite tarda más. `bd_local.ps1` arranca MySQL sin binlog ni escritura a disco en cada `commit`: los datos son descartables, y el cambio rige desde el próximo `iniciar`.
 En el CI, `pruebas` corre partido en dos y `e2e` en cuatro (`GIMNASIO_FRAGMENTO=k/N`, repartidos por un hash del id de cada prueba en `pruebas/conftest.py`); los trabajos `pruebas` y `e2e` son la compuerta que espera los dos. Local no hace falta: corre todo junto.
 
 `bd_local.ps1 detener` apaga el servidor. Sin `GIMNASIO_BD_*` las pruebas con MySQL y los e2e se saltan en silencio: si ves «skipped», revisá el entorno.

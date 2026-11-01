@@ -155,13 +155,12 @@ def test_medidas_de_duracion_y_distancia():
 
 
 @pytest.fixture
-def programas_api(app_con_bd):
+def programas_api(app_con_bd, sembrar_demo):
     app_con_bd.config["MODO_DEMO"] = True
-    with app_con_bd.app_context():
-        demo.reiniciar()
-        with transaccion() as cursor:
-            cursor.execute("SELECT id FROM usuarios WHERE rol='socio' AND es_demo=TRUE")
-            socio = str(desde_bytes(cursor.fetchone()["id"]))
+    sembrar_demo(app_con_bd)
+    with app_con_bd.app_context(), transaccion() as cursor:
+        cursor.execute("SELECT id FROM usuarios WHERE rol='socio' AND es_demo=TRUE")
+        socio = str(desde_bytes(cursor.fetchone()["id"]))
     cliente = app_con_bd.test_client()
     cliente.post("/api/sesion/demo/entrenador", headers={"X-Gimnasio": "1"})
     ejercicios = cliente.get("/api/ejercicios").json["ejercicios"]

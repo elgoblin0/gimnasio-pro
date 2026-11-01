@@ -19,6 +19,7 @@ from gimnasio.comun.bd import conectar, parametros_desde_entorno
 CARPETA = Path(__file__).resolve().parents[2] / "migraciones"
 PATRON = re.compile(r"^(\d{4})_[a-z0-9_]+\.sql$")
 CANDADO = "gimnasio_migraciones"
+SEGUNDOS_DE_ESPERA_DEL_CANDADO = 30
 
 TABLA_REGISTRO = """
 CREATE TABLE IF NOT EXISTS migraciones_aplicadas (
@@ -79,13 +80,19 @@ def dividir_sentencias(sql):
     return sentencias
 
 
+def _candado_de(base):
+    """GET_LOCK vale para todo el servidor y admite 64 caracteres: el nombre distingue la base con una suma."""
+    return f"{CANDADO}:{hashlib.sha256(base.encode('utf-8')).hexdigest()[:40]}"
+
+
 def aplicar(parametros=None, carpeta=CARPETA, salida=print):
     """Aplica las migraciones pendientes y devuelve las versiones aplicadas."""
     migraciones = leer_migraciones(carpeta)
     conexion = conectar(parametros or parametros_desde_entorno())
     cursor = conexion.cursor()
+    candado = _candado_de(conexion.database)
     try:
-        cursor.execute("SELECT GET_LOCK(%s, 30)", (CANDADO,))
+        cursor.execute("SELECT GET_LOCK(%s, %s)", (candado, SEGUNDOS_DE_ESPERA_DEL_CANDADO))
         if cursor.fetchone()[0] != 1:
             raise ErrorDeMigracion("otro proceso está migrando")
         cursor.execute(TABLA_REGISTRO)
@@ -107,7 +114,7 @@ def aplicar(parametros=None, carpeta=CARPETA, salida=print):
             conexion.commit()
         return [m.version for m in pendientes]
     finally:
-        cursor.execute("SELECT RELEASE_LOCK(%s)", (CANDADO,))
+        cursor.execute("SELECT RELEASE_LOCK(%s)", (candado,))
         cursor.fetchall()
         conexion.close()
 
