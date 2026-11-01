@@ -18,7 +18,7 @@ def app_horarios(app_con_bd, sembrar_demo):
 @pytest.mark.parametrize("rol", ["socio", "recepcion", "entrenador", "administracion"])
 def test_prevision_martes_desde_semilla(app_horarios, rol):
     with app_horarios.app_context(), transaccion() as cursor:
-        cursor.execute("SELECT id FROM usuarios WHERE rol = %s AND es_demo = TRUE", (rol,))
+        cursor.execute("SELECT id FROM usuarios WHERE rol = %s AND es_demo = TRUE ORDER BY id LIMIT 1", (rol,))
         usuario_id = str(desde_bytes(cursor.fetchone()["id"]))
     cliente = app_horarios.test_client()
     with cliente.session_transaction() as sesion:

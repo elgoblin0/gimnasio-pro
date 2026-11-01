@@ -56,7 +56,7 @@ def test_validacion(campo, valor):
 @pytest.fixture
 def clases(app_con_bd, sembrar_demo):
     app_con_bd.config["MODO_DEMO"] = True
-    sembrar_demo(app_con_bd)
+    sembrar_demo(app_con_bd, sin_pagos_ni_clases=True)
     cliente = app_con_bd.test_client()
     cliente.post("/api/sesion/demo/administracion", headers={"X-Gimnasio": "1"})
     entrenador = cliente.get("/api/clases").get_json()["entrenadores"][0]["id"]

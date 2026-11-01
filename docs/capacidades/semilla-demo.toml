@@ -1,5 +1,5 @@
 id = "semilla-demo"
-nombre = "Semilla ficticia de Paraguay con catálogo, recorrido, historial, socios simulados y bandeja del entrenador"
+nombre = "Semilla ficticia de Paraguay con catálogo, recorrido, historial, socios simulados, bandeja del entrenador, clases, pagos y salud"
 grupo = "Demo"
 etapa = 0
 nivel = "funcional"
@@ -7,3 +7,5 @@ prueba = "pruebas/test_demo_semilla.py"
 
 # Ocho socios adicionales cubren los cinco grupos, avisos revisados y ningún motivo.
 # Determinismo y equipos aislados del recorrido: pruebas/test_demo_bandeja.py (#185).
+# #233: tipos de membresía y pagos, clases de la semana (llena, con cupo y cancelada), pagos pendientes,
+# consultas de ficha y el socio dedicado al borrado. Prueba de las tres horas del reloj: pruebas/test_demo_semilla.py.

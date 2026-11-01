@@ -348,3 +348,120 @@ def insertar_equipo_fuera_de_servicio(cursor, identificador, equipo_id, entrenad
         "VALUES (%s,%s,'fuera_de_servicio',%s,%s)",
         (a_bytes(identificador), a_bytes(equipo_id), a_bytes(entrenador_id), ahora),
     )
+
+
+def insertar_tipos_membresia(cursor, tipos, momento):
+    cursor.executemany(
+        "INSERT INTO tipos_membresia (id,nombre,duracion_dias,precio,archivado,creado_en,actualizado_en) "
+        "VALUES (%s,%s,%s,%s,FALSE,%s,%s)",
+        [(a_bytes(i), nombre, dias, precio, momento, momento) for i, nombre, dias, precio in tipos],
+    )
+
+
+def insertar_pagos(cursor, pagos):
+    """Un lote de (id, socio, tipo, medio, monto, autor, momento)."""
+    cursor.executemany(
+        "INSERT INTO pagos (id,socio_id,tipo_id,medio,monto,autor_id,registrado_en) VALUES (%s,%s,%s,%s,%s,%s,%s)",
+        [
+            (a_bytes(i), a_bytes(socio), a_bytes(tipo), medio, monto, a_bytes(autor), m)
+            for i, socio, tipo, medio, monto, autor, m in pagos
+        ],
+    )
+
+
+def insertar_membresias_con_pago(cursor, membresias):
+    """Un lote de (id, socio, desde, hasta, momento, pago, tipo)."""
+    cursor.executemany(
+        "INSERT INTO membresias (id,socio_id,desde,hasta,actualizada_en,pago_id,tipo_id) VALUES (%s,%s,%s,%s,%s,%s,%s)",
+        [
+            (a_bytes(i), a_bytes(socio), d, h, m, a_bytes(pago), a_bytes(tipo))
+            for i, socio, d, h, m, pago, tipo in membresias
+        ],
+    )
+
+
+def insertar_clases(cursor, clases, entrenador_id, momento):
+    cursor.executemany(
+        "INSERT INTO clases (id,nombre,entrenador_id,dia_semana,hora_inicio,duracion_minutos,cupo,archivada,"
+        "creada_en,actualizada_en) VALUES (%s,%s,%s,%s,%s,%s,%s,FALSE,%s,%s)",
+        [
+            (a_bytes(i), nombre, a_bytes(entrenador_id), dia, hora, minutos, cupo, momento, momento)
+            for i, nombre, dia, hora, minutos, cupo in clases
+        ],
+    )
+
+
+def insertar_ocurrencia(cursor, identificador, clase_id, fecha, hora, minutos, momento):
+    cursor.execute(
+        "INSERT INTO ocurrencias_clase (id,clase_id,fecha,hora_inicio,duracion_minutos,creada_en) "
+        "VALUES (%s,%s,%s,%s,%s,%s)",
+        (a_bytes(identificador), a_bytes(clase_id), fecha, hora, minutos, momento),
+    )
+
+
+def insertar_reservas(cursor, reservas):
+    """Un lote de (id, ocurrencia, socio, momento); el socio reserva por su cuenta."""
+    cursor.executemany(
+        "INSERT INTO reservas (id,ocurrencia_id,socio_id,solicitada_en,autor_id) VALUES (%s,%s,%s,%s,%s)",
+        [(a_bytes(i), a_bytes(o), a_bytes(socio), m, a_bytes(socio)) for i, o, socio, m in reservas],
+    )
+
+
+def insertar_cancelacion_ocurrencia(cursor, identificador, ocurrencia_id, motivo, autor_id, momento):
+    cursor.execute(
+        "INSERT INTO cancelaciones_ocurrencia (id,ocurrencia_id,motivo,autor_id,registrado_en) VALUES (%s,%s,%s,%s,%s)",
+        (a_bytes(identificador), a_bytes(ocurrencia_id), motivo, a_bytes(autor_id), momento),
+    )
+
+
+def insertar_aviso_socio(cursor, identificador, socio_id, ocurrencia_id, tipo, momento):
+    cursor.execute(
+        "INSERT INTO avisos_socio (id,socio_id,ocurrencia_id,tipo,registrado_en) VALUES (%s,%s,%s,%s,%s)",
+        (a_bytes(identificador), a_bytes(socio_id), a_bytes(ocurrencia_id), tipo, momento),
+    )
+
+
+def insertar_perfil(cursor, socio_id, perfil, autor_id, momento):
+    cursor.execute(
+        "INSERT INTO perfiles_entrenamiento (socio_id,objetivo,experiencia,disponibilidad_semanal,"
+        "tiempo_por_sesion,preferencias,actualizado_en,actualizado_por) VALUES (%s,%s,%s,%s,%s,%s,%s,%s)",
+        (
+            a_bytes(socio_id),
+            perfil["objetivo"],
+            perfil["experiencia"],
+            perfil["disponibilidad_semanal"],
+            perfil["tiempo_por_sesion"],
+            perfil["preferencias"],
+            momento,
+            a_bytes(autor_id),
+        ),
+    )
+
+
+def insertar_condicion(cursor, identificador, socio_id, descripcion, momento):
+    cursor.execute(
+        "INSERT INTO condiciones_salud (id,socio_id,descripcion,registrada_en) VALUES (%s,%s,%s,%s)",
+        (a_bytes(identificador), a_bytes(socio_id), descripcion, momento),
+    )
+
+
+def insertar_revision_condicion(cursor, identificador, condicion_id, autor_id, momento):
+    cursor.execute(
+        "INSERT INTO revisiones_condicion (id,condicion_id,autor_id,nota,registrada_en) VALUES (%s,%s,%s,%s,%s)",
+        (a_bytes(identificador), a_bytes(condicion_id), a_bytes(autor_id), "Condición ficticia revisada.", momento),
+    )
+
+
+def insertar_aviso_personal(cursor, identificador, socio_id, texto, autor_id, momento):
+    cursor.execute(
+        "INSERT INTO avisos_personal (id,socio_id,texto,autor_id,registrado_en) VALUES (%s,%s,%s,%s,%s)",
+        (a_bytes(identificador), a_bytes(socio_id), texto, a_bytes(autor_id), momento),
+    )
+
+
+def insertar_consultas_ficha(cursor, consultas):
+    """Un lote de (id, socio, consultado_por, momento)."""
+    cursor.executemany(
+        "INSERT INTO consultas_ficha (id,socio_id,consultado_por,registrada_en) VALUES (%s,%s,%s,%s)",
+        [(a_bytes(i), a_bytes(socio), a_bytes(por), m) for i, socio, por, m in consultas],
+    )

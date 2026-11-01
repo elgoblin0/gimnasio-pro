@@ -628,7 +628,7 @@ def test_propuesta_devuelve_rango_y_catalogo_de_la_demo(entrenamiento_api):
     with datos.app.app_context():
         demo.reiniciar()
         with transaccion() as cursor:
-            cursor.execute("SELECT id FROM usuarios WHERE es_demo=TRUE AND rol='socio'")
+            cursor.execute("SELECT id FROM usuarios WHERE es_demo=TRUE AND rol='socio' ORDER BY id LIMIT 1")
             socio = cursor.fetchone()["id"]
     cliente = datos.app.test_client()
     with cliente.session_transaction() as sesion:
