@@ -1380,3 +1380,40 @@ def ultima_serie_para_entrenador(cursor, socio_id):
     """Fecha de la última serie vigente, sin exponer sus medidas."""
     filas = repositorio.listar_series_vigentes(cursor, socio_id)
     return max((f["registrada_en"] for f in filas), default=None)
+
+
+def sesiones_de_la_semana(cursor, socio_id, desde, hasta):
+    """Lectura interna: sesiones realizadas en [desde, hasta) con sus series vigentes y su explicación guardada.
+
+    El servicio llamador controla el alcance y filtra los datos de salud cuando corresponde.
+    """
+    filas = repositorio.listar_sesiones_entre(cursor, socio_id, desde, hasta)
+    if not filas:
+        return []
+    ids = {fila["id"] for fila in filas}
+    series = {}
+    for fila in repositorio.listar_series_vigentes(cursor, socio_id):
+        if fila["sesion_realizada_id"] in ids:
+            series.setdefault(fila["sesion_realizada_id"], []).append(
+                {
+                    "ejercicio_planificado_id": str(desde_bytes(fila["ejercicio_planificado_id"])),
+                    **{medida: fila[medida] for medida in ("repeticiones", "duracion", "distancia")},
+                }
+            )
+    sesiones = []
+    for fila in filas:
+        razones = json.loads(fila["explicacion"]) if fila["explicacion"] else []
+        ajustadas = json.loads(fila["explicacion_ajustada"]) if fila["explicacion_ajustada"] else []
+        sesiones.append(
+            {
+                **sesion_publica(fila | {"socio_id": socio_id.bytes}),
+                "series": series.get(fila["id"], []),
+                "razones": razones + [razon for razon in ajustadas if razon not in razones],
+            }
+        )
+    return sesiones
+
+
+def primera_sesion(cursor, socio_id):
+    momento = repositorio.primera_sesion(cursor, socio_id)
+    return momento.replace(tzinfo=UTC) if momento else None

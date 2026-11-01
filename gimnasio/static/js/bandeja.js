@@ -1,5 +1,6 @@
 import { llamarApi } from "@comun/api.js";
 import { montarPerfil } from "./perfil-entrenamiento.js";
+import { montarResumenSemanal } from "./resumen-semanal.js";
 import { invalidarSalud, montarSalud } from "./salud.js";
 import { textoDia, textosDeHitos, textosDeRiesgo } from "./acompanamiento-textos.js";
 import { formatearCarga, formatearFechaHora } from "@comun/formatos.js";
@@ -185,6 +186,12 @@ function dibujarSocio(vista) {
   if (perfil.dataset.perfilSocio !== socio.id) {
     perfil.dataset.perfilSocio = socio.id;
     montarPerfil(perfil, `/api/socios/${socio.id}/perfil`);
+  }
+  // El sondeo vuelve a dibujar la vista: el resumen se lee al abrir el socio y al navegar sus semanas.
+  const resumen = $("[data-resumen-semanal]");
+  if (resumen.dataset.resumenSocio !== socio.id) {
+    resumen.dataset.resumenSocio = socio.id;
+    montarResumenSemanal(resumen, `/api/entrenador/socios/${socio.id}/resumen-semanal`);
   }
   const sinRevisar = avisosSinRevisar(vista.avisos);
   // Lo que se revisa es exactamente lo que esta pantalla mostró: un aviso posterior no queda revisado sin verse.

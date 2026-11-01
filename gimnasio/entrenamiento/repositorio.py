@@ -591,3 +591,23 @@ def listar_dolores(cursor, socio_id):
         (a_bytes(socio_id),),
     )
     return cursor.fetchall()
+
+
+def listar_sesiones_entre(cursor, socio_id, desde, hasta):
+    """Sesiones realizadas en [desde, hasta) con la explicación efectiva y la de su última prescripción ajustada."""
+    cursor.execute(
+        """SELECT s.id, s.sesion_planificada_id, s.creada_en, p.explicacion,
+                  (SELECT a.explicacion FROM prescripciones_ajustadas a WHERE a.sesion_realizada_id=s.id
+                   ORDER BY a.creada_en DESC, a.id DESC LIMIT 1) AS explicacion_ajustada
+           FROM sesiones_realizadas s LEFT JOIN prescripciones_efectivas p ON p.sesion_realizada_id=s.id
+           WHERE s.socio_id=%s AND s.creada_en>=%s AND s.creada_en<%s ORDER BY s.creada_en, s.id""",
+        (a_bytes(socio_id), _fecha_utc(desde), _fecha_utc(hasta)),
+    )
+    return cursor.fetchall()
+
+
+def primera_sesion(cursor, socio_id):
+    cursor.execute(
+        "SELECT MIN(creada_en) AS creada_en FROM sesiones_realizadas WHERE socio_id=%s", (a_bytes(socio_id),)
+    )
+    return cursor.fetchone()["creada_en"]

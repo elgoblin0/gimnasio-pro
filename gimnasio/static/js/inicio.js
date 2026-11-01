@@ -2,6 +2,7 @@ import { llamarApi } from "@comun/api.js";
 import { registrarPwa } from "@comun/pwa.js";
 import { crear } from "@comun/personal.js";
 import { textoDia, textosDeHitos } from "./acompanamiento-textos.js";
+import { montarResumenSemanal } from "./resumen-semanal.js";
 
 registrarPwa();
 
@@ -37,9 +38,11 @@ function mostrarBienvenida(usuario) {
   $("[data-mi-ficha]").hidden = usuario.rol !== "socio";
   $("[data-avisos]").hidden = usuario.rol !== "socio";
   $("[data-incorporacion]").hidden = true;
+  $("[data-resumen-semanal]").hidden = usuario.rol !== "socio";
   if (usuario.rol === "socio") {
     cargarAvisos();
     cargarIncorporacion();
+    montarResumenSemanal($("[data-resumen-semanal-contenido]"), "/api/yo/resumen-semanal");
   }
 }
 
