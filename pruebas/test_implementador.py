@@ -293,7 +293,7 @@ def atencion(entorno, tmp_path, monkeypatch):
     monkeypatch.setattr(implementador.cadena, "etiquetar", lambda *a, **k: publicado.etiquetas.append(k))
     monkeypatch.setattr(implementador, "preparar_worktree", lambda rama, numero: carpeta)
     monkeypatch.setattr(implementador, "revisiones_pendientes", lambda numero: "")
-    monkeypatch.setattr(implementador, "verificar", lambda c: (["ruff: sin observaciones"], True))
+    monkeypatch.setattr(implementador, "verificar", lambda c, base: (["ruff: sin observaciones"], True))
     monkeypatch.setattr(implementador, "git", lambda *a, **k: SimpleNamespace(stdout=""))
     return SimpleNamespace(responder=responder, publicado=publicado)
 
@@ -331,6 +331,32 @@ def test_con_cambios_publica_el_cuerpo_y_cierra_el_pedido(atencion):
     implementador.atender(PR_DE_CODEX, PEDIDO_CORREGIR)
     assert implementador.MARCA_HECHO in atencion.publicado.comentarios[-1]
     assert atencion.publicado.gh == [("pr", "edit", "7", "--body", "Closes #3\n\nCuerpo.")]
+
+
+def test_si_la_verificacion_falla_se_la_devuelve_a_codex_una_vez_antes_de_subir(atencion, monkeypatch):
+    prompts = []
+
+    def correr_codex(carpeta, prompt, nivel=None):
+        prompts.append(prompt)
+        return 0, "Corregido.", 10
+
+    resultados = iter([(["e2e: 1 failed"], False), (["e2e: 2 passed"], True)])
+    monkeypatch.setattr(implementador, "correr_codex", correr_codex)
+    monkeypatch.setattr(implementador, "subir_cambios", lambda *a: True)
+    monkeypatch.setattr(implementador, "verificar", lambda c, base: next(resultados))
+    implementador.atender(PR_DE_CODEX, PEDIDO_CORREGIR)
+    assert len(prompts) == 2
+    assert "e2e: 1 failed" in prompts[1]
+    assert "e2e: 2 passed" in atencion.publicado.comentarios[-1]
+
+
+def test_si_la_verificacion_pasa_codex_corre_una_sola_vez(atencion, monkeypatch):
+    llamadas = []
+    atencion.responder("Corregido.", cambios=True)
+    corrida = implementador.correr_codex
+    monkeypatch.setattr(implementador, "correr_codex", lambda *a, **k: llamadas.append(1) or corrida(*a, **k))
+    implementador.atender(PR_DE_CODEX, PEDIDO_CORREGIR)
+    assert len(llamadas) == 1
 
 
 def test_una_duda_reconocida_cierra_el_pedido_sin_cambios(atencion):

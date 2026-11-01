@@ -769,19 +769,27 @@ def python_del_proyecto():
 
 def correr(comando, carpeta, minutos):
     """Corre un comando fuera del sandbox de Codex; devuelve (código, salida). Un tiempo agotado cuenta como fallo."""
+    inicio = time.monotonic()
+    nombre = " ".join(str(p) for p in comando[1:6])[:90]
     try:
         r = subprocess.run(
             comando, cwd=carpeta, capture_output=True, text=True, encoding="utf-8", errors="replace",
             timeout=minutos * 60,
         )  # fmt: skip
     except subprocess.TimeoutExpired:
+        paso(f"⏱ {nombre}: cortado a los {minutos} min")
         return 1, f"Pasaron {minutos} min sin terminar y se lo cortó."
+    paso(f"⏱ {nombre}: {time.monotonic() - inicio:.0f} s (código {r.returncode})")
     return r.returncode, (r.stdout + r.stderr).strip()
 
 
-def archivos_cambiados(carpeta):
-    """Lo que la rama cambia respecto de main, incluidos los archivos nuevos que Codex todavía no agregó."""
-    cambiados = git("diff", "--name-only", "origin/main", cwd=carpeta).stdout.split()
+def archivos_cambiados(carpeta, base="origin/main"):
+    """Lo que cambió respecto de `base`, incluidos los archivos nuevos que Codex todavía no agregó.
+
+    `base` es el commit con que arrancó el intento: así una corrección chica no vuelve a correr las pruebas de
+    todo el PR (el CI ya las corre).
+    """
+    cambiados = git("diff", "--name-only", base, cwd=carpeta).stdout.split()
     nuevos = git("ls-files", "--others", "--exclude-standard", cwd=carpeta).stdout.split()
     return sorted(set(cambiados + nuevos) - {ARCHIVO_CUERPO})
 
@@ -798,16 +806,16 @@ def asegurar_cache(carpeta, archivos):
     return "Subí `VERSION` en `sw.js`: Codex tocó recursos de la PWA sin hacerlo."
 
 
-def verificar(carpeta):
+def verificar(carpeta, base="origin/main"):
     """Formato, ruff y las pruebas del módulo tocado, corridos aquí: el sandbox de Codex a veces no puede.
 
     Devuelve (líneas del informe, True si todo salió bien). No frena la subida: el CI sigue siendo la puerta.
     """
     informe, bien = [], True
-    archivos = archivos_cambiados(carpeta)
-    if (aviso := asegurar_cache(carpeta, archivos)) is not None:
+    archivos = archivos_cambiados(carpeta, base)
+    if (aviso := asegurar_cache(carpeta, archivos_cambiados(carpeta))) is not None:
         informe.append(aviso)
-        archivos = archivos_cambiados(carpeta)
+        archivos = archivos_cambiados(carpeta, base)
     python = python_del_proyecto()
     fuentes = [a for a in archivos if a.endswith(".py") and (carpeta / a).exists()]
     if fuentes:
@@ -876,6 +884,7 @@ def atender(pr, pedido, nivel=None, motor="codex"):
     comienzo = time.monotonic()
     paso(f"Preparando el worktree de {rama} (fetch + fusión con main)…")
     carpeta = preparar_worktree(rama, numero_issue)
+    punto_de_partida = git("rev-parse", "HEAD", cwd=carpeta).stdout.strip()
     paso("Leyendo las revisiones pendientes del PR…")
     prompt = prompt_para_codex(pedido, revisiones_pendientes(numero))
     detalle = f"esfuerzo {nivel}" if motor == "codex" else "respaldo por falta de cupo de Codex"
@@ -914,8 +923,31 @@ def atender(pr, pedido, nivel=None, motor="codex"):
     if codigo != 0:
         raise RuntimeError(f"{nombre} terminó con código {codigo}.\n\n{texto[-1500:]}")
     paso("Verificando aquí (formato, ruff y pruebas del módulo tocado)…")
-    informe, bien = verificar(carpeta)
+    informe, bien = verificar(carpeta, punto_de_partida)
     paso("\n".join(informe))
+    if not bien:
+        # Subir algo que ya falla aquí cuesta una vuelta entera de CI y revisión: se lo devuelve una vez.
+        paso(f"La verificación falló: se la devuelvo a {nombre} una vez, antes de subir.")
+        prompt += "\n\n--- La verificación local falló; corregilo ---\n" + "\n".join(informe)
+        inicio = time.monotonic()
+        if motor == "codex":
+            codigo, texto, mas_tokens = correr_codex(carpeta, prompt, nivel)
+        else:
+            codigo, texto, mas_tokens = correr_claude(carpeta, prompt, motor)
+        tokens += mas_tokens
+        minutos_codex += (time.monotonic() - inicio) / 60
+        medida = (
+            medida_de_codex(minutos_codex, tokens, nivel)
+            if motor == "codex"
+            else medida_del_respaldo(motor, minutos_codex, tokens)
+        )
+        paso(f"{nombre} terminó la corrección con código {codigo} ({tokens:,} tokens en total).")
+        if codigo == 0:
+            if archivo_cuerpo.exists():
+                cuerpo = cuerpo_del_pr(archivo_cuerpo.read_text(encoding="utf-8"), numero_issue) or cuerpo
+                archivo_cuerpo.unlink(missing_ok=True)
+            informe, bien = verificar(carpeta, punto_de_partida)
+            paso("\n".join(informe))
     paso("Haciendo commit y push de los cambios…")
     if not subir_cambios(carpeta, rama, f"{pr['title']} (#{numero_issue})"):
         # Sin commit no hay CI ni revisión nueva: un «hecho» dejaría el PR parado, aunque Codex haya escrito el cuerpo.
