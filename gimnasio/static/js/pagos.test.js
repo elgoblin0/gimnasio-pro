@@ -49,12 +49,12 @@ for (const error of [{ estadoHttp: 0 }, { estadoHttp: 422 }]) {
     await pantalla.registrar();
     assert.equal(pantalla.envios[0].cuerpo.socio_id, "socio-fijado");
     assert.equal(pantalla.formulario.datos.tipo_id, "tipo");
-    assert.equal(pantalla.avisos.length, 0);
+    assert.equal(pantalla.avisos.at(-1)[0].tipo, error.estadoHttp === 0 ? "pago-en-curso" : "pago-libre");
     pantalla.resolver();
     if (error.estadoHttp === 0) await pantalla.reintentar();
     else await pantalla.registrar();
-    assert.equal(pantalla.avisos.length, 1);
-    assert.equal(pantalla.avisos[0][0].tipo, "pago-registrado");
+    assert.ok(pantalla.avisos.some(([aviso]) => aviso.tipo === "pago-registrado"));
+    assert.equal(pantalla.avisos.at(-1)[0].tipo, "pago-libre");
   });
 }
 

@@ -229,17 +229,24 @@ async function enviar() {
 let consultaTarjeta = 0;
 let focoAnteriorTarjeta;
 let socioTarjeta;
-let rolTarjeta;
+let pagoSinConfirmar = false;
 window.addEventListener("message", async (evento) => {
   const formulario = $("[data-pago-tarjeta]");
-  if (evento.origin !== location.origin || evento.source !== formulario?.contentWindow || evento.data?.tipo !== "pago-registrado") return;
+  if (!formulario || evento.origin !== location.origin || evento.source !== formulario.contentWindow) return;
+  if (evento.data?.tipo === "pago-en-curso" || evento.data?.tipo === "pago-libre") {
+    pagoSinConfirmar = evento.data.tipo === "pago-en-curso";
+    $("[data-descartar-pago]").disabled = pagoSinConfirmar;
+    return;
+  }
+  if (evento.data?.tipo !== "pago-registrado") return;
+  pagoSinConfirmar = false;
   formulario.remove();
   await abrirTarjeta(socioTarjeta, false);
 });
 async function abrirTarjeta(socioId, enfocar = true) {
   const panel = $("[data-tarjeta-contextual]");
   // El formulario conserva el cuerpo y la clave de un pago sin confirmar.
-  // Solo su confirmación permite reemplazarlo, incluso al elegir otro socio.
+  // Se puede descartar cuando no hay un envío sin confirmar.
   if ($("[data-pago-tarjeta]")) {
     if (!panel.open) panel.show();
     if (enfocar) $("[data-cerrar-tarjeta]").focus();
@@ -289,21 +296,29 @@ async function abrirTarjeta(socioId, enfocar = true) {
         formulario.src = `/pagos.html?socio=${encodeURIComponent(socioId)}`;
         formulario.style.width = "100%";
         formulario.style.height = "650px";
-        contenido.append(formulario);
+        pagoSinConfirmar = false;
+        const descartar = document.createElement("button");
+        descartar.type = "button";
+        descartar.dataset.descartarPago = "";
+        descartar.textContent = "Descartar pago";
+        descartar.addEventListener("click", async () => {
+          if (pagoSinConfirmar) return;
+          formulario.remove();
+          await abrirTarjeta(socioTarjeta, false);
+        });
+        contenido.append(formulario, descartar);
       });
       contenido.append(pagar);
     }
-    if (rolTarjeta === "recepcion") {
-      const entrada = document.createElement("button");
-      entrada.type = "button";
-      entrada.textContent = "Registrar entrada";
-      entrada.addEventListener("click", () => {
-        if (control.actual || cargando || !sedeId) return;
-        control.preparar("/api/entradas", { socio_id: socioId, sede_id: sedeId });
-        enviar();
-      });
-      contenido.append(entrada);
-    }
+    const entrada = document.createElement("button");
+    entrada.type = "button";
+    entrada.textContent = "Registrar entrada";
+    entrada.addEventListener("click", () => {
+      if (control.actual || cargando || !sedeId) return;
+      control.preparar("/api/entradas", { socio_id: socioId, sede_id: sedeId });
+      enviar();
+    });
+    contenido.append(entrada);
     if (datos.visita_abierta) agregar(`Visita abierta desde ${formatearFechaHora(datos.visita_abierta.desde)} · ${datos.visita_abierta.minutos} min`);
     else if (datos.ultima_visita) agregar(`Última visita: ${formatearFechaHora(datos.ultima_visita.desde)} a ${formatearFechaHora(datos.ultima_visita.hasta)}`);
     else agregar("Sin visitas registradas.");
@@ -386,22 +401,6 @@ $("[data-cerrar]").addEventListener("click", async () => {
 async function iniciar() {
   try {
     const [{ usuario }, estado] = await Promise.all([llamarApi("/api/sesion"), llamarApi("/api/estado")]);
-    rolTarjeta = usuario?.rol;
-    if (rolTarjeta === "administracion") {
-      const { socios } = await llamarApi("/api/pagos/socios");
-      $("[data-contenido]").hidden = false;
-      $("[data-entrada]").hidden = true;
-      $("[data-estado]").textContent = "Elegí un socio para ver su tarjeta contextual.";
-      $("[data-visitas]").replaceChildren();
-      for (const socio of socios) {
-        const boton = document.createElement("button");
-        boton.type = "button";
-        boton.textContent = socio.nombre;
-        boton.addEventListener("click", () => abrirTarjeta(socio.id));
-        $("[data-visitas]").append(boton);
-      }
-      return;
-    }
     $("[data-demo]").hidden = !estado.modo_demo;
     if (usuario?.rol !== "recepcion") {
       $("[data-estado]").textContent = "Ingresá como recepción desde el inicio para registrar visitas.";

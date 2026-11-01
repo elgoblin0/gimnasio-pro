@@ -60,6 +60,7 @@ async function registrar(evento) {
 async function enviar() {
   if (enCurso || !pendiente) return;
   enCurso = true;
+  if (socioFijado && window.parent !== window) window.parent.postMessage({ tipo: "pago-en-curso" }, location.origin);
   const formulario = $("[data-pago]");
   const operacion = pendiente;
   $("[data-reintentar-pago]").hidden = true;
@@ -83,6 +84,7 @@ async function enviar() {
     $("[data-error]").textContent = error.message;
   } finally {
     enCurso = false;
+    if (!pendiente && socioFijado && window.parent !== window) window.parent.postMessage({ tipo: "pago-libre" }, location.origin);
     $("[data-estado]").textContent = pendiente ? "No se confirmó el pago. Reintentá el mismo pago antes de registrar otro." : "";
     formulario.querySelector("fieldset").disabled = Boolean(pendiente);
     $("[data-recargar]").disabled = Boolean(pendiente);
