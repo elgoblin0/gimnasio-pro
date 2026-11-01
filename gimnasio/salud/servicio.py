@@ -1,7 +1,8 @@
 """Ficha de salud y tratamiento condicionado por consentimiento y asignación vigente."""
 
 from contextlib import nullcontext
-from datetime import UTC
+from datetime import UTC, date, datetime
+from decimal import Decimal
 
 from gimnasio.comun.bd import transaccion
 from gimnasio.comun.errores import ErrorDeDominio
@@ -10,6 +11,69 @@ from gimnasio.comun.reloj import reloj_actual
 from gimnasio.comun.tipos import ZONAS_CUERPO, RestriccionSalud
 from gimnasio.permisos.servicio import tiene_asignacion_vigente
 from gimnasio.salud import repositorio
+
+
+def aviso_personal_vigente(socio_id, *, cursor):
+    fila = repositorio.aviso_personal_vigente(cursor, socio_id)
+    return fila["texto"] or None if fila else None
+
+
+def escribir_aviso_personal(socio_texto, usuario, datos):
+    socio_id = _identificar(socio_texto)
+    with transaccion() as cursor:
+        _autorizar(cursor, socio_id, usuario, bloquear=True)
+        if usuario["rol"] != "entrenador":
+            raise ErrorDeDominio("sin_permiso", "Solo el entrenador asignado escribe avisos para el personal.", 403)
+        if (
+            not isinstance(datos, dict)
+            or set(datos) != {"texto"}
+            or not isinstance(datos["texto"], str)
+            or len(datos["texto"]) > 200
+        ):
+            raise ErrorDeDominio("texto_invalido", "Escribí un aviso para el personal de hasta 200 caracteres.", 422)
+        texto = datos["texto"].strip()
+        identificador = nuevo_id()
+        repositorio.insertar_aviso_personal(
+            cursor, identificador, socio_id, texto, _identificar(usuario["id"]), reloj_actual().ahora()
+        )
+    return {"aviso_personal_id": str(identificador)}
+
+
+def registrar_consulta_ficha(cursor, socio_id, consultado_por):
+    repositorio.insertar_consulta_ficha(cursor, nuevo_id(), socio_id, consultado_por, reloj_actual().ahora())
+
+
+def consultar_consultas_ficha(socio_id, pagina):
+    try:
+        pagina = int(pagina)
+        if pagina < 1 or pagina > 2147483647:
+            raise ValueError
+    except (ValueError, TypeError) as error:
+        raise ErrorDeDominio("pagina_invalida", "Indicá una página mayor que cero.", 422) from error
+    with transaccion() as cursor:
+        filas = repositorio.listar_consultas_ficha(cursor, socio_id, pagina)
+    return {"consultas": [_publicar(f) for f in filas[:50]], "pagina": pagina, "hay_mas": len(filas) > 50}
+
+
+def _dato_descargable(valor):
+    if isinstance(valor, dict):
+        return {clave: _dato_descargable(dato) for clave, dato in valor.items()}
+    if isinstance(valor, list):
+        return [_dato_descargable(dato) for dato in valor]
+    if isinstance(valor, bytes):
+        return str(desde_bytes(valor))
+    if isinstance(valor, datetime):
+        return valor.replace(tzinfo=UTC).isoformat()
+    if isinstance(valor, date):
+        return valor.isoformat()
+    if isinstance(valor, Decimal):
+        return str(valor)
+    return valor
+
+
+def descargar_datos_propios(socio_id):
+    with transaccion() as cursor:
+        return _dato_descargable(repositorio.datos_propios(cursor, socio_id))
 
 
 def _identificar(texto):
@@ -79,7 +143,11 @@ def consultar_salud(socio_texto, usuario, *, solo_condiciones=False):
     socio_id = _identificar(socio_texto)
     with transaccion() as cursor:
         _autorizar(cursor, socio_id, usuario)
+        if usuario["rol"] == "entrenador":
+            registrar_consulta_ficha(cursor, socio_id, _identificar(usuario["id"]))
         resultado = {"condiciones": condiciones_para_entrenador(cursor, socio_id)}
+        if usuario["rol"] == "entrenador" and not solo_condiciones:
+            resultado["aviso_personal"] = aviso_personal_vigente(socio_id, cursor=cursor)
         if not solo_condiciones:
             restricciones = [_publicar(f) for f in repositorio.restricciones_vigentes(cursor, socio_id)]
             # El socio no puede leer el catálogo: el nombre viaja con la restricción.

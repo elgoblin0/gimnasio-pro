@@ -6,6 +6,26 @@ import vm from "node:vm";
 const codigo = readFileSync(new URL("./salud.js", import.meta.url), "utf8")
   .replace(/^import .*;\r?\n/gm, "").replaceAll("export ", "");
 const vacia = () => ({ condiciones: [], restricciones: [], dolores: [] });
+
+test("el entrenador escribe el aviso con límite, finalidad y clave de reintento", async () => {
+  const escrituras = [];
+  const entorno = contexto(async (ruta, opciones) => {
+    if (opciones) { escrituras.push({ ruta, ...opciones }); throw new Error("Sin conexión"); }
+    return ruta === "/api/ejercicios" ? { ejercicios: [] } : { ...vacia(), aviso_personal: "Consultar al entrenador" };
+  });
+  const contenedor = crear("section");
+  await entorno.montarSalud(contenedor, "socio");
+  const forma = contenedor.hijos.find((hijo) => hijo.etiqueta === "form");
+  assert.equal(forma.hijos[0].hijos[0], "Lo lee recepción. No incluyas detalles de salud.");
+  const campo = forma.hijos.find((hijo) => hijo.etiqueta === "label").hijos[1];
+  assert.equal(campo.maxLength, 200);
+  assert.equal(campo.value, "Consultar al entrenador");
+  await forma.eventos.submit({ preventDefault() {} });
+  await forma.eventos.submit({ preventDefault() {} });
+  assert.equal(escrituras[0].ruta, "/api/socios/socio/aviso-personal");
+  assert.equal(escrituras[0].cuerpo.texto, "Condición ficticia");
+  assert.deepEqual(escrituras[0], escrituras[1]);
+});
 function crear(etiqueta, propiedades = {}, ...hijos) {
   return {
     etiqueta, ...propiedades, hijos: hijos.flat().filter(Boolean), eventos: {},

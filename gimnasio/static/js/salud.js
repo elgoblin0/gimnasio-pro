@@ -24,9 +24,9 @@ export async function montarSalud(contenedor, socio = null, alGuardar = () => {}
     const estado = crear("p", { role: "status" });
     contenedor.append(estado);
 
-    function formulario(titulo, destino, campos, datos) {
+    function formulario(titulo, destino, campos, datos, proposito = finalidad) {
       const boton = crear("button", { type: "submit" }, titulo);
-      const forma = crear("form", {}, crear("p", {}, finalidad), campos, boton);
+      const forma = crear("form", {}, crear("p", {}, proposito), campos, boton);
       let pendiente;
       forma.addEventListener("input", () => { pendiente = null; });
       forma.addEventListener("submit", async (evento) => {
@@ -51,6 +51,15 @@ export async function montarSalud(contenedor, socio = null, alGuardar = () => {}
     const texto = (nombre, etiqueta, requerido = true) => crear("label", {}, etiqueta,
       crear("textarea", { name: nombre, maxLength: 1000, required: requerido, rows: 3 }));
     const fecha = (valor) => formatearFechaHora(valor);
+    if (socio) {
+      const campo = crear("textarea", { name: "texto", maxLength: 200, rows: 3 });
+      campo.value = salud.aviso_personal ?? "";
+      contenedor.append(crear("h3", {}, "Aviso para el personal"),
+        crear("p", {}, salud.aviso_personal || "Sin aviso para el personal."),
+        formulario("Guardar aviso para el personal", `/api/socios/${encodeURIComponent(socio)}/aviso-personal`,
+          crear("label", {}, "Aviso para el personal (vacío para quitarlo)", campo),
+          (campos) => ({ texto: campos.get("texto") }), "Lo lee recepción. No incluyas detalles de salud."));
+    }
     contenedor.append(crear("h3", {}, "Condiciones de salud"));
     if (!salud.condiciones.length) contenedor.append(crear("p", {}, "Sin condiciones de salud declaradas."));
     for (const condicion of salud.condiciones) {

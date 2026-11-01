@@ -3,6 +3,87 @@
 from gimnasio.comun.ids import a_bytes
 
 
+def insertar_aviso_personal(cursor, identificador, socio_id, texto, autor_id, momento):
+    cursor.execute(
+        "INSERT INTO avisos_personal (id,socio_id,texto,autor_id,registrado_en) VALUES (%s,%s,%s,%s,%s)",
+        (a_bytes(identificador), a_bytes(socio_id), texto, a_bytes(autor_id), momento),
+    )
+
+
+def aviso_personal_vigente(cursor, socio_id):
+    cursor.execute(
+        """SELECT a.texto FROM avisos_personal a WHERE a.socio_id=%s
+           AND (SELECT c.otorgado FROM consentimientos c WHERE c.socio_id=a.socio_id AND c.tipo='salud'
+                ORDER BY c.registrado_en DESC,c.id DESC LIMIT 1)=TRUE
+           ORDER BY a.registrado_en DESC,a.id DESC LIMIT 1""",
+        (a_bytes(socio_id),),
+    )
+    return cursor.fetchone()
+
+
+def insertar_consulta_ficha(cursor, identificador, socio_id, consultado_por, momento):
+    cursor.execute(
+        "INSERT INTO consultas_ficha (id,socio_id,consultado_por,registrada_en) VALUES (%s,%s,%s,%s)",
+        (a_bytes(identificador), a_bytes(socio_id), a_bytes(consultado_por), momento),
+    )
+
+
+def listar_consultas_ficha(cursor, socio_id, pagina):
+    cursor.execute(
+        """SELECT c.id, c.registrada_en, p.nombre, p.apellido, u.rol
+           FROM consultas_ficha c JOIN usuarios u ON u.id=c.consultado_por
+           JOIN personas p ON p.id=u.persona_id WHERE c.socio_id=%s
+           ORDER BY c.registrada_en DESC,c.id DESC LIMIT 51 OFFSET %s""",
+        (a_bytes(socio_id), (pagina - 1) * 50),
+    )
+    return cursor.fetchall()
+
+
+def datos_propios(cursor, socio_id):
+    """Exportación íntegra de hechos propios, sin exigir consentimiento vigente.
+
+    Las consultas son fijas y acotadas por socio, nunca una consulta por fila.
+    No se lee usuarios salvo para localizar la persona: sus claves quedan fuera.
+    """
+    consultas = {
+        "avisos_personal": "SELECT * FROM avisos_personal WHERE socio_id=%s",
+        "persona": "SELECT p.* FROM personas p JOIN usuarios u ON u.persona_id=p.id WHERE u.id=%s",
+        "perfil_entrenamiento": "SELECT * FROM perfiles_entrenamiento WHERE socio_id=%s",
+        "membresias": "SELECT * FROM membresias WHERE socio_id=%s",
+        "pagos": "SELECT * FROM pagos WHERE socio_id=%s",
+        "anulaciones_pago": "SELECT a.* FROM anulaciones_pago a JOIN pagos p ON p.id=a.pago_id WHERE p.socio_id=%s",
+        "visitas": "SELECT * FROM entradas WHERE socio_id=%s",
+        "salidas": "SELECT s.* FROM salidas s JOIN entradas e ON e.id=s.entrada_id WHERE e.socio_id=%s",
+        "sesiones_realizadas": "SELECT * FROM sesiones_realizadas WHERE socio_id=%s",
+        "series_realizadas": (
+            "SELECT r.* FROM series_realizadas r JOIN sesiones_realizadas s ON s.id=r.sesion_realizada_id "
+            "WHERE s.socio_id=%s"
+        ),
+        "reservas": "SELECT * FROM reservas WHERE socio_id=%s",
+        "cancelaciones_reserva": (
+            "SELECT c.* FROM cancelaciones_reserva c JOIN reservas r ON r.id=c.reserva_id WHERE r.socio_id=%s"
+        ),
+        "avisos_socio": "SELECT * FROM avisos_socio WHERE socio_id=%s",
+        "vistos_aviso_socio": (
+            "SELECT v.* FROM vistos_aviso_socio v JOIN avisos_socio a ON a.id=v.aviso_id WHERE a.socio_id=%s"
+        ),
+        "condiciones": "SELECT * FROM condiciones_salud WHERE socio_id=%s",
+        "revisiones_condicion": (
+            "SELECT r.* FROM revisiones_condicion r JOIN condiciones_salud c ON c.id=r.condicion_id WHERE c.socio_id=%s"
+        ),
+        "restricciones": "SELECT * FROM restricciones_salud WHERE socio_id=%s",
+        "dolores": "SELECT * FROM dolores_reportados WHERE socio_id=%s",
+        "consentimientos": "SELECT * FROM consentimientos WHERE socio_id=%s",
+        "consultas_ficha": "SELECT * FROM consultas_ficha WHERE socio_id=%s ORDER BY registrada_en DESC,id DESC",
+        "chequeos_dia": "SELECT * FROM chequeos_dia WHERE socio_id=%s",
+    }
+    resultado = {}
+    for seccion, consulta in consultas.items():
+        cursor.execute(consulta, (a_bytes(socio_id),))
+        resultado[seccion] = cursor.fetchall()
+    return resultado
+
+
 def restricciones_con_levantamiento(cursor, socio_id):
     cursor.execute(
         """SELECT r.*, (SELECT MIN(b.registrada_en) FROM restricciones_salud b

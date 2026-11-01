@@ -4,6 +4,7 @@ import { registrarPwa } from "./comun/pwa.js";
 import { formatearCedula, formatearFecha, formatearTelefono, formatearGuaranies } from "./comun/formatos.js";
 import { montarPerfil } from "./perfil-entrenamiento.js";
 import { montarSalud } from "./salud.js";
+import { montarConsultasFicha } from "./consultas-ficha.js";
 
 registrarPwa();
 const $ = (selector) => document.querySelector(selector);
@@ -62,6 +63,7 @@ async function cargar() {
     $("[data-estado]").textContent = "";
     if (propia) {
       formulario.append(crear("p", {}, "Revocar el consentimiento de datos personales equivale a pedir la baja. Solicitá la baja en recepción."));
+      await montarConsultasFicha($("[data-consultas-ficha]"));
       await montarPagos();
       $("[data-perfil]").hidden = false;
       await montarConsentimiento();

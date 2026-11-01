@@ -9,6 +9,29 @@ from gimnasio.salud import servicio
 bp = Blueprint("salud", __name__, url_prefix="/api")
 
 
+@bp.post("/socios/<socio_id>/aviso-personal")
+@requiere("avisos_personal.escribir")
+def escribir_aviso_personal(socio_id):
+    return jsonify(servicio.escribir_aviso_personal(socio_id, usuario_actual(), request.get_json(silent=True))), 201
+
+
+@bp.get("/yo/salud/consultas")
+@requiere("salud.ver_propia")
+def consultas_ficha():
+    return jsonify(
+        servicio.consultar_consultas_ficha(desde_texto(usuario_actual()["id"]), request.args.get("pagina", "1"))
+    )
+
+
+@bp.get("/yo/datos")
+@requiere("datos.descargar_propios")
+def descargar_datos():
+    respuesta = jsonify(servicio.descargar_datos_propios(desde_texto(usuario_actual()["id"])))
+    respuesta.headers["Content-Disposition"] = 'attachment; filename="mis-datos.json"'
+    respuesta.cache_control.no_store = True
+    return respuesta
+
+
 @bp.get("/yo/consentimientos")
 @requiere("consentimientos.gestionar_propios")
 def consultar():

@@ -277,6 +277,7 @@ async function abrirTarjeta(socioId, enfocar = true) {
     ficha.href = `/ficha.html?socio=${encodeURIComponent(socioId)}`;
     ficha.textContent = "Ver ficha del socio";
     contenido.append(ficha);
+    if (datos.aviso_personal) agregar(`Aviso para el personal: ${datos.aviso_personal}`);
     const membresia = datos.membresia;
     if (membresia?.hasta) {
       const estado = !membresia.vigente ? "vencida" : membresia.dias_restantes <= 7 ? "por vencer" : "vigente";

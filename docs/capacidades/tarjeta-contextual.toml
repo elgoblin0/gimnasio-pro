@@ -5,6 +5,8 @@ etapa = 3
 nivel = "validada"
 validacion = "https://github.com/elgoblin0/gimnasio-pro/issues/154"
 prueba = "pruebas/test_tarjeta_contextual.py"
+# #227: aviso para el personal, historial por inserción y consentimiento vigente;
+# una consulta adicional, sin detalle de salud; solo escribe el entrenador asignado.
 # #214: pago pendiente, renovación futura pagada y registro desde la misma tarjeta.
 # La tarjeta abierta se actualiza tras confirmar una salida o conciliación.
 # Regresión: gimnasio/static/js/recepcion.test.js

@@ -30,6 +30,8 @@ def identificar(texto):
 
 
 def consultar_tarjeta(socio_id):
+    from gimnasio.salud.servicio import aviso_personal_vigente
+
     socio_id = identificar(socio_id)
     ahora = reloj_actual().ahora()
     with transaccion() as cursor:
@@ -39,6 +41,7 @@ def consultar_tarjeta(socio_id):
         sede = repositorio.obtener_sede(cursor)
         if sede is None:
             raise ErrorDeDominio("sede_inexistente", "La sede no existe.", 404)
+        aviso_personal = aviso_personal_vigente(socio_id, cursor=cursor)
         visitas = repositorio.listar_visitas_del_socio(cursor, socio_id, ahora)
         duraciones = repositorio.listar_duraciones_confiables(
             cursor, desde_bytes(sede["id"]), ahora - timedelta(weeks=8), ahora, socio_id
@@ -49,6 +52,7 @@ def consultar_tarjeta(socio_id):
     membresia = membresia_para_tarjeta(socio_id, hoy)
     ultimo_hasta = membresia["ultimo_hasta"]
     return {
+        "aviso_personal": aviso_personal,
         "pago_pendiente": pago_pendiente(hoy, date.fromisoformat(ultimo_hasta) if ultimo_hasta else None),
         "socio": {
             "id": str(socio_id),
