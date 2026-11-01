@@ -4,3 +4,4 @@ grupo = "Operación"
 etapa = 5
 nivel = "funcional"
 prueba = "pruebas/test_clases_avisos.py"
+# #234: Lucía cancela y Hugo ve su lugar sin recargar, con movimiento reducido y en celular: pruebas/e2e/test_recorrido_operacion.py.
