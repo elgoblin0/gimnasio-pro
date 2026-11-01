@@ -46,7 +46,7 @@ def servidor_pwa():
 
     app.config["VERSION_PWA"] = "1"
     with make_server("127.0.0.1", 0, app) as servidor:
-        hilo = Thread(target=servidor.serve_forever, daemon=True)
+        hilo = Thread(target=servidor.serve_forever, kwargs={"poll_interval": 0.01}, daemon=True)
         hilo.start()
         try:
             yield f"http://127.0.0.1:{servidor.server_port}", app, escrituras
@@ -56,8 +56,11 @@ def servidor_pwa():
 
 
 @pytest.fixture
-def contexto_pwa(navegador):
-    with navegador.new_context(locale="es-PY") as contexto:
+def contexto_pwa(playwright):
+    """Navegador propio: con el compartido, abrir la página tras actualizar el service worker a veces se cuelga."""
+    if not Path(playwright.chromium.executable_path).is_file():
+        pytest.skip("sin Chromium: ejecutá playwright install chromium")
+    with playwright.chromium.launch(channel="chromium") as navegador, navegador.new_context(locale="es-PY") as contexto:
         yield contexto
 
 

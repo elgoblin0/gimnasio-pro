@@ -80,20 +80,70 @@ def bd_migrada():
         cursor.execute("SET SESSION innodb_lock_wait_timeout = 5, foreign_key_checks = 0")
         cursor.execute("SHOW TABLES")
         tablas = [fila[0] for fila in cursor.fetchall() if fila[0] != "migraciones_aplicadas"]
-        yield SimpleNamespace(parametros=parametros_desde_entorno(base=nombre), conexion=administracion, tablas=tablas)
+        # Un pool por proceso: abrir una conexión por solicitud deja miles de puertos en TIME_WAIT en Windows.
+        parametros = parametros_desde_entorno(base=nombre) | {"pool_name": uuid.uuid4().hex, "pool_size": 8}
+        yield SimpleNamespace(nombre=nombre, parametros=parametros, conexion=administracion, tablas=tablas, semillas={})
     finally:
-        cursor.execute(f"DROP DATABASE IF EXISTS `{nombre}`")
+        cursor.execute("SHOW DATABASES LIKE %s", (f"{nombre}%",))
+        for (base,) in cursor.fetchall():
+            cursor.execute(f"DROP DATABASE IF EXISTS `{base}`")
         administracion.close()
+
+
+def _vaciar(bd_migrada):
+    with bd_migrada.conexion.cursor() as cursor:
+        for tabla in bd_migrada.tablas:
+            cursor.execute(f"DELETE FROM `{tabla}`")
+    bd_migrada.conexion.commit()
 
 
 @pytest.fixture
 def bd_limpia(bd_migrada):
     """La base migrada de este proceso, sin filas. Las migraciones no insertan datos: equivale a recién migrada."""
-    with bd_migrada.conexion.cursor() as cursor:
-        for tabla in bd_migrada.tablas:
-            cursor.execute(f"DELETE FROM `{tabla}`")
-    bd_migrada.conexion.commit()
+    _vaciar(bd_migrada)
     return dict(bd_migrada.parametros)
+
+
+def _guardar_semilla(bd_migrada):
+    """Copia a una base aparte las tablas con filas y devuelve (base, tablas)."""
+    base = f"{bd_migrada.nombre}_s{len(bd_migrada.semillas)}"
+    con_filas = []
+    with bd_migrada.conexion.cursor() as cursor:
+        cursor.execute(f"CREATE DATABASE `{base}` CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci")
+        for tabla in bd_migrada.tablas:
+            cursor.execute(f"SELECT EXISTS (SELECT 1 FROM `{tabla}`)")
+            if cursor.fetchone()[0]:
+                cursor.execute(f"CREATE TABLE `{base}`.`{tabla}` LIKE `{tabla}`")
+                cursor.execute(f"INSERT INTO `{base}`.`{tabla}` SELECT * FROM `{tabla}`")
+                con_filas.append(tabla)
+    bd_migrada.conexion.commit()
+    return base, con_filas
+
+
+@pytest.fixture
+def sembrar_demo(bd_migrada):
+    """Deja la semilla demo en la base del proceso: la genera una vez por momento y después copia sus tablas.
+
+    Generarla son cientos de INSERT por prueba. Solo para preparar: lo que prueba `reiniciar()` debe llamarlo.
+    """
+    from gimnasio.demo.servicio import reiniciar
+
+    def sembrar(app):
+        assert app.config["MODO_DEMO"], "reiniciar() rechaza sembrar fuera de la demo"
+        ahora = app.extensions["reloj"].ahora()
+        if ahora not in bd_migrada.semillas:
+            with app.app_context():
+                reiniciar()
+            bd_migrada.semillas[ahora] = _guardar_semilla(bd_migrada)
+            return
+        base, tablas = bd_migrada.semillas[ahora]
+        _vaciar(bd_migrada)
+        with bd_migrada.conexion.cursor() as cursor:
+            for tabla in tablas:
+                cursor.execute(f"INSERT INTO `{tabla}` SELECT * FROM `{base}`.`{tabla}`")
+        bd_migrada.conexion.commit()
+
+    return sembrar
 
 
 @pytest.fixture

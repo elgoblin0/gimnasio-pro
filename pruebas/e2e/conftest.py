@@ -21,7 +21,9 @@ from gimnasio.comun.reloj import RelojFijo
 from gimnasio.demo.servicio import reiniciar
 
 
-def _exigir_entorno(playwright):
+@pytest.fixture(scope="session")
+def entorno_e2e(playwright):
+    """Se comprueba una vez por proceso; si falta algo, el salto vale para todos sus casos."""
     if not os.environ.get("GIMNASIO_BD_HOST"):
         pytest.skip("sin MySQL: definí GIMNASIO_BD_HOST para correr los e2e")
     _exigir_chromium(playwright)
@@ -36,20 +38,24 @@ def _exigir_chromium(playwright):
         pytest.skip("sin Chromium: ejecutá playwright install chromium")
 
 
+def _reiniciar(app):
+    with app.app_context():
+        reiniciar()
+
+
 @contextmanager
-def servidor_demo(parametros):
+def servidor_demo(parametros, sembrar):
     """Siembra la demo sobre una base ya migrada y la sirve mientras dure el bloque."""
     app = crear_app(
         {"ENTORNO": "prueba", "SECRET_KEY": "solo-e2e", "MODO_DEMO": 1, "BD": parametros},
         RelojFijo(datetime(2026, 10, 27, 12, 0, tzinfo=UTC)),
     )
-    with app.app_context():
-        reiniciar()
+    sembrar(app)
     # El reloj fijo nunca desliza la ventana de 60 solicitudes por minuto: un recorrido largo la agotaría.
     app.extensions["limite_demo"].espera = lambda ip: 0
 
     with make_server("127.0.0.1", 0, app) as servidor:
-        hilo = Thread(target=servidor.serve_forever, daemon=True)
+        hilo = Thread(target=servidor.serve_forever, kwargs={"poll_interval": 0.01}, daemon=True)
         hilo.start()
         try:
             yield SimpleNamespace(url=f"http://127.0.0.1:{servidor.server_port}", app=app)
@@ -59,26 +65,25 @@ def servidor_demo(parametros):
 
 
 @pytest.fixture(scope="session")
-def url_base(playwright):
+def url_base(entorno_e2e):
     """Demo de solo lectura compartida por el proceso, en una base aparte de la que vacía cada caso aislado."""
-    _exigir_entorno(playwright)
     nombre = f"gimnasio_e2e_{uuid.uuid4().hex}"
     with conectar(parametros_desde_entorno() | {"database": None}) as administracion, administracion.cursor() as cursor:
         cursor.execute(f"CREATE DATABASE `{nombre}` CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci")
         try:
             parametros = parametros_desde_entorno(base=nombre)
             aplicar(parametros, salida=lambda _: None)
-            with servidor_demo(parametros) as instancia:
+            with servidor_demo(parametros, _reiniciar) as instancia:
                 yield instancia.url
         finally:
             cursor.execute(f"DROP DATABASE IF EXISTS `{nombre}`")
 
 
 @pytest.fixture
-def demo_aislada(playwright, request):
+def demo_aislada(entorno_e2e, request):
     """Cada caso recibe la base migrada de su proceso, sin filas, con la semilla y sus hechos propios."""
-    _exigir_entorno(playwright)
-    with servidor_demo(request.getfixturevalue("bd_limpia")) as instancia:
+    parametros = request.getfixturevalue("bd_limpia")
+    with servidor_demo(parametros, request.getfixturevalue("sembrar_demo")) as instancia:
         yield instancia
 
 

@@ -7,17 +7,15 @@ import pytest
 from gimnasio.comun.bd import transaccion
 from gimnasio.comun.errores import ErrorDeDominio
 from gimnasio.comun.ids import a_bytes, nuevo_id
-from gimnasio.demo import servicio as demo
 from gimnasio.programas import repositorio
 
 pytestmark = pytest.mark.bd
 
 
 @pytest.fixture
-def catalogo(app_con_bd, reloj_fijo):
+def catalogo(app_con_bd, reloj_fijo, sembrar_demo):
     app_con_bd.config["MODO_DEMO"] = True
-    with app_con_bd.app_context():
-        demo.reiniciar()
+    sembrar_demo(app_con_bd)
     cliente = app_con_bd.test_client()
     cliente.post("/api/sesion/demo/entrenador", headers={"X-Gimnasio": "1"})
     identificadores = []
