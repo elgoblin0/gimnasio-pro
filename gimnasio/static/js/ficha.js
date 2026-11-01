@@ -78,6 +78,10 @@ async function montarConsentimiento() {
   contenedor.hidden = false;
   contenedor.textContent = "Cargando consentimiento…";
   const { salud } = await llamarApi("/api/yo/consentimientos");
+  mostrarConsentimiento(contenedor, salud);
+}
+
+function mostrarConsentimiento(contenedor, salud) {
   const estado = crear("p", { role: "status" }, salud.otorgado ? "Consentimiento otorgado." : "Sin consentimiento de salud vigente.");
   const boton = crear("button", { type: "button" }, salud.otorgado ? "Revocar consentimiento de salud" : "Otorgar consentimiento de salud");
   contenedor.replaceChildren(crear("h2", {}, "Consentimiento de salud"), crear("p", {}, salud.texto), estado, boton);
@@ -88,10 +92,10 @@ async function montarConsentimiento() {
     estado.textContent = "Guardando consentimiento…";
     clave ??= crypto.randomUUID();
     try {
-      await llamarApi("/api/yo/consentimientos/salud", {
+      const { salud: actualizado } = await llamarApi("/api/yo/consentimientos/salud", {
         metodo: "POST", clave, cuerpo: { otorgado: !salud.otorgado, version_texto: salud.version_texto },
       });
-      await montarConsentimiento();
+      mostrarConsentimiento(contenedor, actualizado);
     } catch (error) {
       estado.textContent = error.message;
       boton.disabled = false;
