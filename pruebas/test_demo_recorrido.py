@@ -35,10 +35,9 @@ def test_reinicio_fuera_de_demo_se_rechaza_antes_de_acceder_a_la_base(monkeypatc
 
 
 @pytest.fixture
-def recorrido(app_con_bd):
+def recorrido(app_con_bd, sembrar_demo):
     app_con_bd.config["MODO_DEMO"] = True
-    with app_con_bd.app_context():
-        demo.reiniciar()
+    sembrar_demo(app_con_bd)
 
     def usuarios():
         with app_con_bd.app_context(), transaccion() as cursor:

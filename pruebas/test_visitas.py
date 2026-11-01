@@ -9,15 +9,13 @@ from mysql.connector import IntegrityError
 
 from gimnasio.comun.bd import conectar
 from gimnasio.comun.ids import a_bytes, nuevo_id
-from gimnasio.comun.migrar import aplicar
 from gimnasio.demo import repositorio as repositorio_demo
 from gimnasio.visitas import repositorio
 
 
 @pytest.fixture
-def historial(bd_vacia, reloj_fijo):
-    aplicar(bd_vacia, salida=lambda _: None)
-    conexion = conectar(bd_vacia)
+def historial(bd_limpia, reloj_fijo):
+    conexion = conectar(bd_limpia)
     cursor = conexion.cursor(dictionary=True)
     datos = SimpleNamespace(cursor=cursor, reloj=reloj_fijo, momento=reloj_fijo.ahora())
     for indice, nombre in enumerate(("socio_id", "otro_socio_id", "autor_id")):

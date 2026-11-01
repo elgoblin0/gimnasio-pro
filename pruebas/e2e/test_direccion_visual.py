@@ -27,7 +27,7 @@ def url_ingreso(app_con_bd, modo_demo):
             es_demo=modo_demo,
         )
     with make_server("127.0.0.1", 0, app_con_bd) as servidor:
-        hilo = Thread(target=servidor.serve_forever, daemon=True)
+        hilo = Thread(target=servidor.serve_forever, kwargs={"poll_interval": 0.01}, daemon=True)
         hilo.start()
         try:
             yield f"http://127.0.0.1:{servidor.server_port}"

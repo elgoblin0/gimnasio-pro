@@ -150,7 +150,7 @@ def test_restriccion_anonimizada_deja_de_estar_vigente(app_con_bd):
             original = cursor.fetchone()
             cursor.execute(
                 """UPDATE restricciones_salud
-                   SET anonimizada=TRUE,ejercicio_id=NULL,patron_movimiento=NULL,zona=NULL,descripcion=''
+                   SET anonimizada=TRUE,ejercicio_id=NULL,patron_movimiento=NULL,zona=NULL,descripcion=NULL
                    WHERE id=%s""",
                 (original["id"],),
             )

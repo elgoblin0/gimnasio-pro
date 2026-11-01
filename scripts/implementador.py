@@ -189,9 +189,12 @@ def prompt_para_codex(pedido, revisiones=""):
     encabezado = (
         "Trabajás en un worktree de la rama de este PR. No hagas commit ni push: lo hace el implementador.\n"
         "Si la rama tiene conflictos con main sin resolver, resolvelos preservando el alcance del issue.\n"
-        "Escribí el cuerpo del PR (plantilla completa, con «Notas para el próximo agente», el conteo de passed/skipped "
-        f"y lo que no pudiste correr) en `{ARCHIVO_CUERPO}` en la raíz: lo publica el implementador (sin `gh`).\n"
-        "Para ahorrar tiempo y cupo: corré ruff y solo las pruebas de los módulos que tocás (con MySQL si hace falta). "
+        "Escribí el cuerpo del PR (plantilla completa, con «Notas para el próximo agente» y lo que no pudiste correr) "
+        f"en `{ARCHIVO_CUERPO}` en la raíz: lo publica el implementador (sin `gh`).\n"
+        "Para ahorrar tiempo y cupo: corré ruff y `node --test`; no corras pytest sobre varios archivos: "
+        "el implementador corre las pruebas de los módulos que tocás (con MySQL) al terminar y te devuelve los fallos. "
+        "En el cuerpo escribí «pruebas de Python: las corre el implementador»; passed/skipped lo da el CI. "
+        "Corré pytest solo si necesitás diagnosticar un fallo puntual, y apuntá a un archivo. "
         "La suite completa y los e2e los corre el CI: corré un e2e solo para diagnosticar uno que el CI marcó en rojo. "
         "No lances revisiones aparte: las hace la cadena.\n"
         "Lista de control: si tocás algo de `gimnasio/static/` que no sea una prueba, subí `VERSION` en "
@@ -493,6 +496,19 @@ def preparar_worktree(rama, numero):
     if resueltos := resolver_conflictos_previsibles(carpeta):
         paso("Conflictos resueltos sin agente: " + ", ".join(resueltos))
     return carpeta
+
+
+def punto_de_partida_del_intento(carpeta):
+    """Contra qué se mide lo que cambió el intento.
+
+    Con la fusión de main limpia es el HEAD. Con conflictos la fusión queda abierta y HEAD es la punta del PR:
+    medir contra él contaría como «cambiado» todo lo que entró de main, y pytest correría esas pruebas;
+    contra `origin/main` quedan solo los archivos del propio PR.
+    """
+    ruta = git("rev-parse", "--git-path", "MERGE_HEAD", cwd=carpeta).stdout.strip()
+    if (carpeta / ruta).exists():
+        return "origin/main"
+    return git("rev-parse", "HEAD", cwd=carpeta).stdout.strip()
 
 
 def archivos_en_conflicto(carpeta):
@@ -984,7 +1000,7 @@ def atender(pr, pedido, nivel=None, motor="codex"):
     comienzo = time.monotonic()
     paso(f"Preparando el worktree de {rama} (fetch + fusión con main)…")
     carpeta = preparar_worktree(rama, numero_issue)
-    punto_de_partida = git("rev-parse", "HEAD", cwd=carpeta).stdout.strip()
+    punto_de_partida = punto_de_partida_del_intento(carpeta)
     if cadena.origen_de(pedido) == "conflicto" and atender_conflicto_sin_agente(pr, carpeta):
         return
     paso("Leyendo las revisiones pendientes del PR…")

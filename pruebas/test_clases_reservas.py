@@ -28,14 +28,13 @@ def entrar(cliente, rol):
 
 
 @pytest.fixture
-def reservas(app_con_bd):
+def reservas(app_con_bd, sembrar_demo):
     app = app_con_bd
     app.config["MODO_DEMO"] = True
-    with app.app_context():
-        demo.reiniciar()
-        with transaccion() as cursor:
-            cursor.execute("SELECT id FROM usuarios WHERE rol='socio' ORDER BY id LIMIT 4")
-            socios = [str(desde_bytes(r["id"])) for r in cursor.fetchall()]
+    sembrar_demo(app)
+    with app.app_context(), transaccion() as cursor:
+        cursor.execute("SELECT id FROM usuarios WHERE rol='socio' ORDER BY id LIMIT 4")
+        socios = [str(desde_bytes(r["id"])) for r in cursor.fetchall()]
     cliente = app.test_client()
     entrar(cliente, "administracion")
     entrenador = cliente.get("/api/clases").get_json()["entrenadores"][0]["id"]

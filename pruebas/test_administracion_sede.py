@@ -14,10 +14,9 @@ from gimnasio.visitas import servicio as visitas
 
 
 @pytest.fixture
-def sede(app_con_bd):
+def sede(app_con_bd, sembrar_demo):
     app_con_bd.config["MODO_DEMO"] = True
-    with app_con_bd.app_context():
-        demo.reiniciar()
+    sembrar_demo(app_con_bd)
     cliente = app_con_bd.test_client()
     ingreso = cliente.post("/api/sesion/demo/administracion", headers={"X-Gimnasio": "1"})
     return app_con_bd, cliente, ingreso.get_json()["usuario"]

@@ -26,8 +26,7 @@ MySQL 8.4 portable + Chromium + `.venv`, igual al CI. Detalle en `docs/entorno-l
 ```powershell
 .\scripts\bd_local.ps1 iniciar                      # MySQL en 127.0.0.1:3306 (root / solo-ci); si `estado` dice activo, no hace falta
 Invoke-Expression (.\scripts\bd_local.ps1 entorno)  # define GIMNASIO_BD_* en ESTA terminal; repetir en cada terminal nueva
-.\.venv\Scripts\python.exe -m pytest -q             # unitarias + MySQL
-.\.venv\Scripts\python.exe -m pytest -m e2e -q -rs  # Chromium contra el servidor demo
+.\.venv\Scripts\python.exe -m pytest -n 6 --dist worksteal -q -rs  # toda la suite, e2e incluidos, en unos 2 minutos
 ```
 - Sin `GIMNASIO_BD_*` las pruebas con MySQL y los e2e se **saltan sin fallar**: un «skipped» no cuenta como verde. Pegá en el PR el conteo de `passed`/`skipped`.
 - Si falta `.mysql-local/mysql/bin/mysqld.exe`, no lo descargues vos: etiquetá `necesita-criterio` o pedíselo al dueño.
