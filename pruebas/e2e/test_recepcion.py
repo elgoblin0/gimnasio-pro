@@ -311,6 +311,7 @@ def test_membresia_aforo_y_acceso_del_socio(pagina_demo, demo_aislada):
 
 def test_foco_durante_post_no_intercala_lecturas_anteriores(pagina_demo, demo_aislada):
     pagina = pagina_demo
+    pagina.clock.install()
     pagina.add_init_script("""(() => {
       const original = window.fetch;
       window.lecturasDeVisitas = 0;
@@ -327,11 +328,14 @@ def test_foco_durante_post_no_intercala_lecturas_anteriores(pagina_demo, demo_ai
       };
     })();""")
     ingresar(pagina, demo_aislada)
+    # Congelar los temporizadores: un sondeo posterior al POST sí es válido.
+    pagina.clock.pause_at(pagina.evaluate("Date.now() / 1000 + 1"))
     lecturas = pagina.evaluate("window.lecturasDeVisitas")
     pagina.locator("[data-entrada]").get_by_role("button", name="Registrar entrada", exact=True).click()
     pagina.wait_for_function("window.entradaEnEspera === true")
     pagina.evaluate("window.dispatchEvent(new Event('focus'))")
     pagina.get_by_role("button", name="Actualizar visitas").click()
+    pagina.clock.run_for(5000)
     assert pagina.evaluate("window.lecturasDeVisitas") == lecturas
     pagina.evaluate("window.liberarEntrada()")
     expect(pagina.locator("[data-ocupacion]")).to_have_text("1 de 60")

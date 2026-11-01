@@ -409,6 +409,23 @@ def test_detecta_pruebas_con_el_mismo_nombre_en_carpetas_distintas():
     assert implementador.nombres_de_prueba_repetidos(existentes[2:]) == {}
 
 
+def test_elige_los_e2e_del_modulo_o_del_js_tocado():
+    e2e = [
+        "pruebas/e2e/test_recepcion.py",
+        "pruebas/e2e/test_pagos_recepcion.py",
+        "pruebas/e2e/test_clases_agenda.py",
+    ]
+    assert implementador.e2e_a_correr(["gimnasio/static/js/recepcion.js"], e2e) == ["pruebas/e2e/test_recepcion.py"]
+    assert implementador.e2e_a_correr(["gimnasio/static/js/recepcion.test.js"], e2e) == [
+        "pruebas/e2e/test_recepcion.py"
+    ]
+    assert implementador.e2e_a_correr(["gimnasio/clases/servicio.py"], e2e) == ["pruebas/e2e/test_clases_agenda.py"]
+    assert implementador.e2e_a_correr(["pruebas/e2e/test_pagos_recepcion.py"], e2e) == [
+        "pruebas/e2e/test_pagos_recepcion.py"
+    ]
+    assert implementador.e2e_a_correr(["gimnasio/static/sw.js", "docs/x.md"], e2e) == []
+
+
 def test_cuenta_el_resumen_de_pytest():
     assert implementador.contar_pruebas("....\n1 failed, 67 passed, 2 skipped in 45.45s") == {
         "failed": 1,
@@ -512,6 +529,8 @@ def test_el_comentario_hecho_lleva_la_medida_de_codex():
 def test_reconoce_la_falta_de_cupo_de_claude():
     assert implementador.es_falta_de_cupo("You've hit your limit · resets 7pm")
     assert implementador.es_falta_de_cupo("Claude AI usage limit reached|1760000000")
+    assert implementador.es_falta_de_cupo("You've hit your 5-hour limit · resets 6pm (America/Asuncion)")
+    assert implementador.es_falta_de_cupo("You've hit your weekly limit · resets Mon 9am")
     assert not implementador.es_falta_de_cupo("el límite de filas es 100")
 
 

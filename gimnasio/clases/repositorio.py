@@ -35,12 +35,19 @@ def entrenador_activo(cursor, identificador):
 
 
 def bloquear(cursor, identificador):
-    cursor.execute("SELECT id FROM clases WHERE id=%s FOR UPDATE", (a_bytes(identificador),))
+    cursor.execute("SELECT * FROM clases WHERE id=%s FOR UPDATE", (a_bytes(identificador),))
     return cursor.fetchone()
 
 
 def ocurrencias(cursor, desde, hasta):
-    cursor.execute("SELECT * FROM ocurrencias_clase WHERE fecha BETWEEN %s AND %s", (desde, hasta))
+    cursor.execute(
+        "SELECT o.*, COALESCE(co.cupo,c.cupo) AS cupo, x.id IS NOT NULL AS cancelada "
+        "FROM ocurrencias_clase o JOIN clases c ON c.id=o.clase_id "
+        "LEFT JOIN cupos_ocurrencia co ON co.ocurrencia_id=o.id "
+        "LEFT JOIN cancelaciones_ocurrencia x ON x.ocurrencia_id=o.id "
+        "WHERE o.fecha BETWEEN %s AND %s",
+        (desde, hasta),
+    )
     return cursor.fetchall()
 
 
@@ -79,7 +86,11 @@ def clase_para_reserva(cursor, clase_id):
 
 def ocurrencia_para_reserva(cursor, clase_id, fecha):
     cursor.execute(
-        "SELECT * FROM ocurrencias_clase WHERE clase_id=%s AND fecha=%s FOR UPDATE",
+        "SELECT o.*, COALESCE(co.cupo,c.cupo) AS cupo, co.id AS cupo_id, x.id IS NOT NULL AS cancelada "
+        "FROM ocurrencias_clase o JOIN clases c ON c.id=o.clase_id "
+        "LEFT JOIN cupos_ocurrencia co ON co.ocurrencia_id=o.id "
+        "LEFT JOIN cancelaciones_ocurrencia x ON x.ocurrencia_id=o.id "
+        "WHERE o.clase_id=%s AND o.fecha=%s FOR UPDATE",
         (a_bytes(clase_id), fecha),
     )
     return cursor.fetchone()
@@ -146,8 +157,9 @@ def cancelar_reserva(cursor, cancelacion_id, reserva_id, autor_id, ahora):
 
 def lista_reservas(cursor, clase_id, fecha):
     cursor.execute(
-        "SELECT r.id,r.solicitada_en,p.nombre FROM reservas r "
+        "SELECT r.id,r.solicitada_en,p.nombre,COALESCE(co.cupo,c.cupo) AS cupo FROM reservas r "
         "JOIN ocurrencias_clase o ON o.id=r.ocurrencia_id "
+        "JOIN clases c ON c.id=o.clase_id LEFT JOIN cupos_ocurrencia co ON co.ocurrencia_id=o.id "
         "JOIN usuarios u ON u.id=r.socio_id JOIN personas p ON p.id=u.persona_id "
         "LEFT JOIN cancelaciones_reserva x ON x.reserva_id=r.id "
         "WHERE o.clase_id=%s AND o.fecha=%s AND x.id IS NULL ORDER BY r.solicitada_en,r.id",
@@ -163,3 +175,64 @@ def reservas_ocurrencia(cursor, ocurrencia_id):
         (ocurrencia_id,),
     )
     return cursor.fetchall()
+
+
+def ocurrencias_de_clase(cursor, clase_id):
+    cursor.execute(
+        "SELECT o.*, COALESCE(co.cupo,c.cupo) AS cupo, co.id AS cupo_id, x.id IS NOT NULL AS cancelada "
+        "FROM ocurrencias_clase o JOIN clases c ON c.id=o.clase_id "
+        "LEFT JOIN cupos_ocurrencia co ON co.ocurrencia_id=o.id "
+        "LEFT JOIN cancelaciones_ocurrencia x ON x.ocurrencia_id=o.id "
+        "WHERE o.clase_id=%s ORDER BY o.fecha,o.id FOR UPDATE",
+        (a_bytes(clase_id),),
+    )
+    return cursor.fetchall()
+
+
+def fijar_cupo(cursor, identificador, ocurrencia_id, cupo, ahora):
+    cursor.execute(
+        "INSERT INTO cupos_ocurrencia (id,ocurrencia_id,cupo,registrado_en) VALUES (%s,%s,%s,%s)",
+        (a_bytes(identificador), ocurrencia_id, cupo, ahora),
+    )
+
+
+def insertar_aviso(cursor, identificador, socio_id, ocurrencia_id, tipo, ahora):
+    cursor.execute(
+        "INSERT INTO avisos_socio (id,socio_id,ocurrencia_id,tipo,registrado_en) VALUES (%s,%s,%s,%s,%s)",
+        (a_bytes(identificador), socio_id, ocurrencia_id, tipo, ahora),
+    )
+
+
+def cancelar_ocurrencia(cursor, identificador, ocurrencia_id, motivo, autor_id, ahora):
+    cursor.execute(
+        "INSERT INTO cancelaciones_ocurrencia (id,ocurrencia_id,motivo,autor_id,registrado_en) VALUES (%s,%s,%s,%s,%s)",
+        (a_bytes(identificador), ocurrencia_id, motivo, a_bytes(autor_id), ahora),
+    )
+
+
+def avisos_sin_ver(cursor, socio_id):
+    cursor.execute(
+        "SELECT a.*,c.nombre AS clase,o.fecha,o.hora_inicio,COALESCE(co.cupo,c.cupo) AS cupo "
+        "FROM avisos_socio a JOIN ocurrencias_clase o ON o.id=a.ocurrencia_id "
+        "JOIN clases c ON c.id=o.clase_id LEFT JOIN cupos_ocurrencia co ON co.ocurrencia_id=o.id "
+        "LEFT JOIN vistos_aviso_socio v ON v.aviso_id=a.id "
+        "WHERE a.socio_id=%s AND v.id IS NULL ORDER BY a.registrado_en,a.id",
+        (a_bytes(socio_id),),
+    )
+    return cursor.fetchall()
+
+
+def aviso_propio(cursor, aviso_id, socio_id):
+    cursor.execute(
+        "SELECT id FROM avisos_socio WHERE id=%s AND socio_id=%s FOR UPDATE",
+        (a_bytes(aviso_id), a_bytes(socio_id)),
+    )
+    return cursor.fetchone()
+
+
+def marcar_aviso(cursor, identificador, aviso_id, ahora):
+    cursor.execute(
+        "INSERT INTO vistos_aviso_socio (id,aviso_id,registrado_en) "
+        "SELECT %s,%s,%s WHERE NOT EXISTS (SELECT 1 FROM vistos_aviso_socio WHERE aviso_id=%s)",
+        (a_bytes(identificador), a_bytes(aviso_id), ahora, a_bytes(aviso_id)),
+    )
