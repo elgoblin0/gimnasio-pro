@@ -48,6 +48,18 @@
   </form>
   <button type="button" data-reintentar-pago hidden>Reintentar el mismo pago</button>
   <p data-resultado role="status" aria-live="polite"></p>
+  <section aria-label="Lista de pagos">
+    <h2>Pagos registrados</h2>
+    <form data-filtro-pagos>
+      <label>Desde <input type="date" name="desde" required></label>
+      <label>Hasta <input type="date" name="hasta" required></label>
+      <button type="submit">Consultar pagos</button>
+    </form>
+    <p data-lista-estado role="status"></p>
+    <p data-lista-error role="alert"></p>
+    <p data-total-pagos></p>
+    <div data-lista-pagos></div>
+  </section>
 </main>
 </body>
 </html>

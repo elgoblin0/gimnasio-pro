@@ -1,6 +1,9 @@
 .pagos { max-width: 48rem; margin: 0 auto; padding: var(--espacio-4, 1.5rem); }
 .pagos fieldset { display: grid; gap: .75rem; min-width: 0; }
-.pagos input, .pagos select { width: 100%; min-width: 0; box-sizing: border-box; }
+.pagos input, .pagos select, .pagos textarea { width: 100%; min-width: 0; box-sizing: border-box; }
+.pagos textarea { min-height: 5rem; font: inherit; resize: vertical; }
+.pagos article { padding-block: var(--espacio-4); border-bottom: 1px solid var(--borde); overflow-wrap: anywhere; }
+.pagos [data-filtro-pagos] { display: grid; gap: .75rem; }
 .pagos [role="alert"] { color: var(--peligro); }
 .personal-barra[hidden], .personal-barra a[hidden] { display: none; }
 #tipos-membresia { margin-top: 3rem; }

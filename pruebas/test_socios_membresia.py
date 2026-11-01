@@ -191,4 +191,5 @@ def test_socios_solo_accede_a_sus_tablas_sin_repositorios_ajenos():
             if isinstance(nodo, ast.Constant) and isinstance(nodo.value, str):
                 # UPDATE al inicio evita confundir FOR UPDATE y ON DUPLICATE KEY UPDATE con tablas.
                 tablas.update(re.findall(r"(?:\b(?:FROM|JOIN|INTO)|^\s*UPDATE)\s+(\w+)", nodo.value, re.IGNORECASE))
-    assert tablas == {"membresias", "usuarios", "personas", "perfiles_entrenamiento"}
+    # ADR 0027: socios ignora la vigencia derivada de pagos anulados.
+    assert tablas == {"membresias", "usuarios", "personas", "perfiles_entrenamiento", "anulaciones_pago"}

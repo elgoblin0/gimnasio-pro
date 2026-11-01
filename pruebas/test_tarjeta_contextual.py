@@ -190,6 +190,28 @@ def test_tarjeta_agrega_solo_una_consulta(visitas_api, monkeypatch):
     assert len(consultas) == 6
 
 
+def test_anulacion_vuelve_a_mostrar_pago_pendiente(visitas_api):
+    from pruebas.test_pagos import escribir
+
+    datos = visitas_api
+    socio = datos.socios[0]
+    cliente = datos.cliente()
+    tipo = escribir(
+        datos.cliente("administracion"),
+        "/api/tipos-membresia",
+        {"nombre": "Mensual ficticia", "duracion_dias": 30, "precio": 250000},
+    ).json
+    ruta = f"/api/socios/{socio}/tarjeta"
+    original = cliente.get(ruta).json
+    assert original["pago_pendiente"] is True
+    pago = escribir(cliente, "/api/pagos", {"socio_id": str(socio), "tipo_id": tipo["id"], "medio": "efectivo"}).json
+    assert cliente.get(ruta).json["pago_pendiente"] is False
+    assert escribir(cliente, f"/api/pagos/{pago['id']}/anular", {"motivo": "Error ficticio"}).status_code == 201
+    tarjeta = cliente.get(ruta).json
+    assert tarjeta["pago_pendiente"] is True
+    assert tarjeta["membresia"] == original["membresia"]
+
+
 @pytest.mark.parametrize("activo", [True, False])
 def test_membresia_ultimo_dia_y_socio_activo(visitas_api, activo):
     datos = visitas_api

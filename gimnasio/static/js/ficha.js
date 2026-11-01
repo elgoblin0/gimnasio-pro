@@ -1,7 +1,7 @@
 import { llamarApi } from "./comun/api.js";
 import { crear, exigirRol, prepararBarra } from "./comun/personal.js";
 import { registrarPwa } from "./comun/pwa.js";
-import { formatearCedula, formatearFecha, formatearTelefono } from "./comun/formatos.js";
+import { formatearCedula, formatearFecha, formatearTelefono, formatearGuaranies } from "./comun/formatos.js";
 import { montarPerfil } from "./perfil-entrenamiento.js";
 import { montarSalud } from "./salud.js";
 
@@ -61,6 +61,7 @@ async function cargar() {
     $("[data-personales]").hidden = false;
     $("[data-estado]").textContent = "";
     if (propia) {
+      await montarPagos();
       $("[data-perfil]").hidden = false;
       await montarConsentimiento();
       await montarPerfil($("[data-perfil]"), ruta);
@@ -75,6 +76,20 @@ async function cargar() {
 }
 $("[data-reintentar]").addEventListener("click", cargar);
 cargar();
+
+async function montarPagos() {
+  const contenedor = $("[data-membresia-pagos]");
+  contenedor.hidden = false;
+  contenedor.textContent = "Cargando membresía y pagos…";
+  const { membresia, pagos } = await llamarApi("/api/yo/pagos");
+  const estado = membresia.vigente ? `Vigente hasta ${formatearFecha(membresia.hasta)} · ${membresia.dias_restantes} días restantes.` : "Sin membresía vigente.";
+  contenedor.replaceChildren(crear("h2", {}, "Mi membresía y pagos"), crear("p", {}, estado));
+  if (!pagos.length) contenedor.append(crear("p", {}, "Todavía no tenés pagos registrados."));
+  for (const pago of pagos) {
+    const fecha = new Intl.DateTimeFormat("es-PY", { timeZone: "America/Asuncion", day: "2-digit", month: "2-digit", year: "numeric" }).format(new Date(pago.registrado_en));
+    contenedor.append(crear("p", {}, `${fecha} · ${pago.tipo} · ${pago.medio} · ${formatearGuaranies(pago.monto)}${pago.anulacion ? ` · Anulado: ${pago.anulacion.motivo}` : ""}`));
+  }
+}
 
 async function montarConsentimiento() {
   const contenedor = $("[data-consentimientos]");

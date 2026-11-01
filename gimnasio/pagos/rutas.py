@@ -10,6 +10,24 @@ from gimnasio.visitas.servicio import listar_socios
 bp = Blueprint("pagos", __name__, url_prefix="/api")
 
 
+@bp.get("/pagos")
+@requiere("pagos.ver")
+def listar_pagos():
+    return jsonify(servicio.listar_pagos(request.args.get("desde"), request.args.get("hasta")))
+
+
+@bp.get("/yo/pagos")
+@requiere("pagos.ver_propios")
+def pagos_propios():
+    return jsonify(servicio.pagos_propios(usuario_actual()))
+
+
+@bp.post("/pagos/<pago_id>/anular")
+@requiere("pagos.anular")
+def anular_pago(pago_id):
+    return jsonify(servicio.anular_pago(pago_id, request.get_json(silent=True), usuario_actual())), 201
+
+
 @bp.get("/tipos-membresia")
 @requiere("membresias.configurar", "pagos.registrar")
 def tipos():

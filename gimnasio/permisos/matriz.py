@@ -9,6 +9,9 @@ ROLES = ("socio", "recepcion", "entrenador", "administracion")
 PERMISOS = {
     "salud.declarar_condicion": {"socio"},
     "salud.gestionar_restricciones": {"entrenador"},
+    "pagos.anular": {"recepcion", "administracion"},
+    "pagos.ver": {"recepcion", "administracion"},
+    "pagos.ver_propios": {"socio"},
     "clases.cancelar_ocurrencia": {"recepcion", "administracion"},
     "avisos_socio.ver_propios": {"socio"},
     "clases.ver": set(ROLES),
