@@ -70,7 +70,12 @@ for (const momento of ["guardado", "recarga"]) {
     if (momento === "guardado") resolverGuardado({});
     else resolverRecarga(salud());
     await guardado;
+    if (momento === "recarga") {
+      assert.equal(contenedor.hijos.find((hijo) => hijo.role === "status").hijos[0], "Cargando salud…");
+      assert.ok(!contenedor.hijos.some((hijo) => hijo.etiqueta === "h3"));
+    }
     assert.deepEqual(contenedor.hijos, hijos);
+    assert.equal(pantalla.obtener("[data-socio]").hidden, true);
     resolverSocio(vista("nuevo"));
     await terminarLecturas();
     assert.equal(pantalla.obtener("[data-socio]").hidden, false);

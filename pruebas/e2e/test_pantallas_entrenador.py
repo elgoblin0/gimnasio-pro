@@ -273,8 +273,13 @@ def test_bandeja_guardar_salud_no_oculta_la_ficha_abierta_despues(pagina_demo, d
         pagina.locator(f'[data-enlace-socio="{socio_b}"]').first.click()
 
     # La recarga de salud de A termina mientras la lectura de B sigue en curso.
-    retenidas[0].continue_()
-    expect(salud.locator("h3", has_text="Registrar restricción")).to_be_attached()
+    with pagina.expect_response("**/api/ejercicios") as lectura_catalogo:
+        retenidas[0].continue_()
+    lectura_catalogo.value.finished()
+    # A quedó invalidada: su formulario no se vuelve a dibujar y la ficha espera a B.
+    # El estado está dentro de la ficha oculta: hay que incluirlo en el localizador.
+    expect(salud.get_by_role("status", include_hidden=True)).to_have_text("Cargando salud…")
+    expect(pagina.locator("[data-socio]")).to_be_hidden()
     retenidas[1].continue_()
     expect(pagina.locator("[data-socio-nombre]")).to_have_text(nombre_b)
     expect(pagina.locator("[data-socio]")).to_be_visible()
