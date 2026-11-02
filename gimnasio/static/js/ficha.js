@@ -26,7 +26,6 @@ async function cargar() {
     const ruta = propia ? "/api/yo/ficha" : `/api/socios/${encodeURIComponent(socio)}/ficha`;
     const { datos_personales: datos } = await llamarApi(ruta);
     $("[data-titulo]").textContent = propia ? "Mi ficha" : `Ficha del socio · ${datos.nombre} ${datos.apellido}`;
-    $("[data-volver]").href = propia ? "/entrenamiento.html" : usuario.rol === "recepcion" ? "/recepcion.html" : "/equipos.html";
     const formulario = crear("form", {}, crear("p", { className: "nota-al-pie" }, "Usamos los datos personales para identificar al socio y mantener el contacto con él."));
     for (const [campo, etiqueta, tipo, longitud] of [
       ["nombre", "Nombre", "text", 80], ["apellido", "Apellido", "text", 80], ["cedula", "Cédula", "text", 16],

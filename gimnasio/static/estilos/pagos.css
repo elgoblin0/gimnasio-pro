@@ -55,7 +55,6 @@
 .pagos details textarea { min-height: 3.5rem; }
 .pagos details button { justify-self: start; }
 .pagos [role="alert"] { color: var(--peligro); }
-.cabecera a[hidden] { display: none; }
 
 #tipos-membresia { margin-top: 3rem; }
 #tipos-membresia fieldset { display: grid; gap: .75rem; min-width: 0; }

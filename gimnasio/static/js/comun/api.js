@@ -1,5 +1,6 @@
 // Cliente de la API. Toda llamada pasa por acá: agrega el encabezado anti-CSRF (ADR 0006)
 // y una clave de idempotencia en los métodos que cambian algo (ADR 0004).
+import "./menu.js";
 
 const METODOS_QUE_CAMBIAN = new Set(["POST", "PUT", "PATCH", "DELETE"]);
 
@@ -42,6 +43,8 @@ export function crearApi({ fetch: pedir = globalThis.fetch, nuevaClave = () => c
       if (error.codigo === "debe_cambiar_clave" && globalThis.location && location.pathname !== "/clave.html") location.replace("/clave.html");
       throw new ErrorDeApi(error.codigo ?? "error", error.mensaje ?? "Error inesperado", respuesta.status, error);
     }
+    if (ruta === "/api/sesion" && metodo === "DELETE") globalThis.menuGimnasio.sincronizarSesion(null);
+    else if (ruta.startsWith("/api/sesion") && datos && "usuario" in datos) globalThis.menuGimnasio.sincronizarSesion(datos.usuario);
     return datos;
   };
 }
