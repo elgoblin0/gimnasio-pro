@@ -52,9 +52,7 @@ def curva_cerrada(puntos, pasos=10):
     p0, p1, p2, p3 = np.roll(p, 1, 0), p, np.roll(p, -1, 0), np.roll(p, -2, 0)
     t = (np.arange(pasos) / pasos)[None, :, None]
     p0, p1, p2, p3 = (q[:, None, :] for q in (p0, p1, p2, p3))
-    curva = 0.5 * (
-        2 * p1 + (p2 - p0) * t + (2 * p0 - 5 * p1 + 4 * p2 - p3) * t**2 + (3 * p1 - p0 - 3 * p2 + p3) * t**3
-    )
+    curva = 0.5 * (2 * p1 + (p2 - p0) * t + (2 * p0 - 5 * p1 + 4 * p2 - p3) * t**2 + (3 * p1 - p0 - 3 * p2 + p3) * t**3)
     return curva.reshape(-1, 2)
 
 
@@ -74,12 +72,12 @@ def deformador(pares):
     n = len(origen)
     afin = np.hstack([np.ones((n, 1)), origen])
     sistema = np.block([[nucleo(origen, origen), afin], [afin.T, np.zeros((3, 3))]])
-    sistema[: n, : n] += np.eye(n) * 1e-5
+    sistema[:n, :n] += np.eye(n) * 1e-5
     pesos = np.linalg.solve(sistema, np.vstack([destino, np.zeros((3, 2))]))
 
     def aplicar_a(puntos):
         puntos = np.asarray(puntos, dtype=float)
-        return nucleo(puntos, origen) @ pesos[: n] + np.hstack([np.ones((len(puntos), 1)), puntos]) @ pesos[n:]
+        return nucleo(puntos, origen) @ pesos[:n] + np.hstack([np.ones((len(puntos), 1)), puntos]) @ pesos[n:]
 
     return aplicar_a
 

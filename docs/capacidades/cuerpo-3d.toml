@@ -5,3 +5,4 @@ etapa = 2
 nivel = "validada"
 prueba = "pruebas/e2e/test_recorrido_lucia.py::test_recorrido_lucia_etapa_2"
 validacion = "https://github.com/elgoblin0/gimnasio-pro/issues/136"
+notas = "Músculos esculpidos sobre Human Base Meshes, con un mapa por figura que enciende cada zona con la forma de sus músculos (ADR 0034). La silueta SVG de carga y sin efectos se genera desde los mismos músculos con scripts/silueta_cuerpo.py."

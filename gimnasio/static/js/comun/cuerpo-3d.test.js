@@ -19,7 +19,10 @@ const moduloThree = `
     Objeto as DirectionalLight, Objeto as MeshStandardMaterial,
     Objeto as Mesh, Objeto as CircleGeometry, Objeto as RingGeometry, Objeto as ShaderMaterial,
     Objeto as MeshBasicMaterial, Objeto as Color, Objeto as Vector3 };
-  export const DoubleSide = 2;
+  export class TextureLoader {
+    async loadAsync(url) { globalThis.mapaPedido = url; return { image: null, dispose() {} }; }
+  }
+  export const DoubleSide = 2, ACESFilmicToneMapping = 4, NoColorSpace = "", NearestFilter = 1003;
 `;
 const moduloModelo = `export class GLTFLoader {
   async loadAsync(url) { globalThis.modeloPedido = url; return { scene: { updateMatrixWorld() {}, traverse() {} } }; }
@@ -44,6 +47,9 @@ function crearDocumento() {
       MouseEvent: class { constructor(type) { this.type = type; } },
       MutationObserver: class { observe() {} },
       ResizeObserver: class { observe() {} },
+      performance: { now: () => 0 },
+      requestAnimationFrame: () => 0,
+      cancelAnimationFrame() {},
     },
     createElement(nombre) { return this.createElementNS("", nombre); },
     createElementNS(namespaceURI, nombre) {
@@ -115,11 +121,12 @@ test("cargar el cuerpo 3D entre presionar y soltar Espacio conserva Rodillas sel
 });
 
 test("cada figura carga su modelo y una desconocida usa la masculina", async () => {
-  for (const [figura, archivo] of [["femenina", "femenina.glb"], ["masculina", "masculina.glb"], ["otra", "masculina.glb"]]) {
+  for (const [figura, archivo] of [["femenina", "femenina"], ["masculina", "masculina"], ["otra", "masculina"]]) {
     const documento = crearDocumento();
     const contenedor = documento.createElement("div");
     crearSelectorZonas(contenedor);
     await crearCuerpo(contenedor, contenedor.querySelector("svg"), true, figura);
-    assert.ok(globalThis.modeloPedido.endsWith(`/vendor/cuerpo@2/${archivo}`), globalThis.modeloPedido);
+    assert.ok(globalThis.modeloPedido.endsWith(`/vendor/cuerpo@3/${archivo}.glb`), globalThis.modeloPedido);
+    assert.ok(globalThis.mapaPedido.endsWith(`/vendor/cuerpo@3/${archivo}.png`), globalThis.mapaPedido);
   }
 });

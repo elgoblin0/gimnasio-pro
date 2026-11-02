@@ -56,7 +56,9 @@ def test_lucia_ve_su_figura_y_puede_cambiarla_sin_perder_lo_marcado(demo_aislada
         contexto.add_init_script(CON_EFECTOS)
         pagina = contexto.new_page()
         modelos = []
-        pagina.on("response", lambda r: modelos.append(r.url) if "/vendor/cuerpo@2/" in r.url else None)
+        # Solo los modelos: el mapa de cada figura baja en paralelo.
+        es_modelo = lambda url: "/vendor/cuerpo@3/" in url and url.endswith(".glb")  # noqa: E731
+        pagina.on("response", lambda r: modelos.append(r.url) if es_modelo(r.url) else None)
         errores = []
         pagina.on("pageerror", lambda e: errores.append(str(e)))
         ingresar(pagina, demo_aislada, "socio")
