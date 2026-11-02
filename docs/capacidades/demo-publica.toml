@@ -4,3 +4,6 @@ grupo = "Demo"
 etapa = 1
 nivel = "funcional"
 prueba = "pruebas/test_demo_limites.py"
+
+# El límite por IP cuenta la API y las rutas inexistentes, no los archivos.
+# La portada de espera se publica aparte de la app (pruebas/e2e/test_portada_espera.py).

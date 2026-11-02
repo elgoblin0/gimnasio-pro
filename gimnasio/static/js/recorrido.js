@@ -101,7 +101,7 @@ const ACCIONES = {
     if (!visible($("[data-sesion-actual]"))) {
       await esperar(() => visible($("[data-iniciar]")) && !$("[data-iniciar]").disabled);
       $("[data-iniciar]").click();
-      await esperar(() => textoDe("[data-estado]") === "Sesión realizada iniciada." || Boolean(textoDe("[data-error]")));
+      await esperar(() => textoDe("[data-estado]") === "Sesión iniciada." || Boolean(textoDe("[data-error]")));
       if (!visible($("[data-sesion-actual]"))) return { resultado: "rechazada", motivo: textoDe("[data-error]") };
     }
     const formulario = [...document.querySelectorAll("[data-serie]")].find((f) => visible(f) && f.checkValidity());

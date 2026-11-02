@@ -30,12 +30,12 @@ def test_propuesta_explicacion_recarga_y_cierre(pagina_demo, demo_aislada, progr
     ingresar(pagina, demo_aislada)
     expect(pagina.get_by_role("heading", name="Fuerza y cardio", exact=True)).to_be_visible()
     expect(pagina.get_by_text("2 series · 8–12 reps · 20,50 kg", exact=True)).to_be_visible()
-    expect(pagina.get_by_text("1 serie · 120 s · 1.500,25 m", exact=True)).to_be_visible()
+    expect(pagina.get_by_text("1 serie · 2 min · 1.500,25 m", exact=True)).to_be_visible()
     expect(pagina.locator("[data-ajuste]").first).to_contain_text(
         "Se respeta el plan del entrenador sin ajustes de carga, repeticiones, series ni volumen."
     )
     expect(pagina.get_by_text("27/10/2026", exact=True)).to_be_visible()
-    expect(pagina.locator("[data-contenido]")).to_have_attribute("data-version-reglas", "3.4.0")
+    expect(pagina.locator("[data-contenido]")).to_have_attribute("data-version-reglas", "3.5.0")
     assert pagina.evaluate("document.documentElement.scrollWidth <= innerWidth")
     pagina.get_by_role("button", name="Actualizar propuesta", exact=True).focus()
     pagina.keyboard.press("Enter")
@@ -63,8 +63,8 @@ def test_estados_vacios_con_respuesta_controlada(pagina_demo, demo_aislada, regl
     datos = {
         "sesion_planificada": None,
         "ejercicios": [],
-        "explicacion": [{"regla": regla, "version": "3.4.0", "datos": {"explicacion": mensaje}}],
-        "version_reglas": "3.4.0",
+        "explicacion": [{"regla": regla, "version": "3.5.0", "datos": {"explicacion": mensaje}}],
+        "version_reglas": "3.5.0",
         "fecha_local": "2026-10-27",
         "semana_local": "2026-10-26",
     }
@@ -149,7 +149,7 @@ def test_chequeo_del_dia_teclado_y_prescripcion_guardada(pagina_demo, demo_aisla
     pagina.set_viewport_size({"width": ancho, "height": 900})
     ingresar(pagina, demo_aislada)
     expect(pagina.get_by_role("heading", name="Chequeo del día", exact=True)).to_be_visible()
-    iniciar = pagina.get_by_role("button", name="Iniciar sesión realizada", exact=True)
+    iniciar = pagina.get_by_role("button", name="Empezar sesión", exact=True)
     expect(iniciar).to_be_disabled()
     sueno = pagina.get_by_label("Sueño", exact=True)
     sueno.focus()
@@ -163,6 +163,6 @@ def test_chequeo_del_dia_teclado_y_prescripcion_guardada(pagina_demo, demo_aisla
     expect(pagina.locator("[data-ajuste]").first).to_contain_text("Chequeo del día desfavorable")
     assert pagina.evaluate("document.documentElement.scrollWidth <= innerWidth")
     iniciar.click()
-    expect(pagina.get_by_text("Sesión realizada iniciada.", exact=True)).to_be_visible()
+    expect(pagina.get_by_text("Sesión iniciada.", exact=True)).to_be_visible()
     pagina.reload()
     expect(pagina.locator("[data-ajuste]").first).to_contain_text("Chequeo del día desfavorable")

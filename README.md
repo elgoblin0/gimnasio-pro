@@ -15,7 +15,7 @@ Las propuestas salen de un motor de reglas determinista y versionado (`gimnasio/
 
 ## Demo pública
 
-[gimnasio-pro-demo.onrender.com](https://gimnasio-pro-demo.onrender.com): Render + Aiven, con datos ficticios que se reinician cada día. El botón **Ver recorrido** de la portada abre el **recorrido guiado**: unos dos minutos sobre la app real, pasando por los cuatro roles (ADR 0032). También se puede entrar directamente con «Entrar como…». El primer acceso después de un rato sin uso tarda cerca de un minuto, porque el servicio gratuito se duerme. [Configuración y verificación](docs/demo-publica.md).
+[elgoblin0.github.io/gimnasio-pro](https://elgoblin0.github.io/gimnasio-pro/): Render + Aiven, con datos ficticios que se reinician cada día. El botón **Ver recorrido** de la portada abre el **recorrido guiado**: unos dos minutos sobre la app real, pasando por los cuatro roles (ADR 0032). También se puede entrar directamente con «Entrar como…». El primer acceso después de un rato sin uso tarda cerca de un minuto, porque el servicio gratuito se duerme: esa portada lo despierta y abre la app sola. [Configuración y verificación](docs/demo-publica.md).
 
 ## Referencias
 
@@ -128,4 +128,4 @@ La etiqueta `base-original` conserva el punto de partida académico. `base_datos
 - Base inexistente: crear la base vacía indicada por `GIMNASIO_BD_NOMBRE` y aplicar migraciones.
 - Acceso denegado: revisar el usuario y sus permisos; configurar la clave en el entorno.
 - No aparecen accesos demo: comprobar `MODO_DEMO=1` y cargar la semilla solo en la base ficticia elegida.
-- Respuesta 429: esperar el plazo `Retry-After`; la demo admite 240 solicitudes por IP por minuto, incluidos los estáticos.
+- Respuesta 429: esperar el plazo `Retry-After`; la demo admite 240 solicitudes por IP por minuto, sin contar los archivos.

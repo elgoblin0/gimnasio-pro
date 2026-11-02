@@ -1,0 +1,35 @@
+name: Publicar portada de espera
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "demo-espera/**"
+      - ".github/workflows/publicar-espera.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: publicar-espera
+  cancel-in-progress: true
+
+jobs:
+  publicar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    environment:
+      name: github-pages
+      url: ${{ steps.despliegue.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      # La tipografía sale de la app: el repo no la duplica.
+      - run: cp gimnasio/static/vendor/newsreader@v26/*.woff2 demo-espera/
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: demo-espera
+      - id: despliegue
+        uses: actions/deploy-pages@v4

@@ -41,6 +41,17 @@ entrenador tardaba unos 10 s con 100 consultas; en local, una fracción de segun
 de región, hay que acercar también el servicio. Render fija la región al crear el servicio: para
 cambiarla hay que crearlo de nuevo con los pasos de arriba. La base y sus datos no se tocan.
 
+## Portada de espera
+
+El plan gratuito de Render duerme el servicio tras un rato sin visitas: el primer acceso muestra durante cerca de un
+minuto su página en inglés, que parece una falla. `demo-espera/index.html` es la entrada pública: una página estática
+en GitHub Pages, sin servidor, con la identidad de la app. Pide un ícono de la demo cada pocos segundos, lo que despierta
+el servicio, y abre la app cuando el ícono carga. Con la demo despierta, la redirección es casi inmediata.
+
+`.github/workflows/publicar-espera.yml` la publica al cambiar esa carpeta y copia la tipografía desde `vendor/`. Requiere
+una sola vez, a cargo del dueño, Settings → Pages → Source: GitHub Actions. Quien entra directo a la URL de Render sigue
+viendo su página: el código no la controla.
+
 ## Reinicio diario
 
 `.github/workflows/reiniciar-demo.yml` corre cada día a las 07:00 UTC (04:00 en Asunción).
@@ -56,8 +67,9 @@ No reinicia si las migraciones fallan. Las ejecuciones del workflow no se superp
 
 Solo en modo demo:
 
-- 240 solicitudes por IP en una ventana móvil de un minuto, incluyendo archivos y rutas inexistentes.
-  Al superar el límite responde 429 con `Retry-After`.
+- 240 solicitudes por IP en una ventana móvil de un minuto, contando la API y las rutas inexistentes.
+  Al superar el límite responde 429 con `Retry-After`. Los archivos no cuentan: no tocan la base, un
+  navegador nuevo pide unos 87 de una vez y tres personas en la misma wifi agotaban el cupo.
 - Cuerpo máximo de 1 MB (1.000.000 bytes). Al superar el límite responde 413, incluso en rutas
   que no leen el cuerpo y en transferencias sin `Content-Length` con fin de flujo indicado por WSGI.
 

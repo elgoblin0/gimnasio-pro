@@ -68,8 +68,12 @@
     <div class="grilla">
       <section aria-labelledby="titulo-sesion">
         <h2 id="titulo-sesion" data-titulo-sesion>Sesión propuesta</h2>
-        <button type="button" data-iniciar hidden>Iniciar sesión realizada</button>
-        <p data-sesion-actual hidden>La sesión realizada está abierta para registrar series.</p>
+        <button type="button" data-iniciar hidden>Empezar sesión</button>
+        <p data-sesion-actual hidden>La sesión está abierta para registrar series.</p>
+        <div class="sin-trabajo" data-sin-trabajo hidden>
+          <p data-sin-trabajo-texto></p>
+          <button type="button" data-avisar-entrenador>Avisar a mi entrenador</button>
+        </div>
         <ul class="lista" data-ejercicios></ul>
       </section>
       <section aria-labelledby="titulo-explicacion">
@@ -87,7 +91,7 @@
   <p data-descanso-anuncio role="status" aria-live="polite"></p>
   <section data-registro hidden aria-labelledby="titulo-registro">
     <h2 id="titulo-registro">Series guardadas</h2>
-    <p data-sin-series>Todavía no hay series guardadas en esta sesión realizada.</p>
+    <p data-sin-series>Todavía no hay series guardadas en esta sesión.</p>
     <ul class="lista" data-series></ul>
     <button type="button" data-terminar>Terminar sesión</button>
   </section>

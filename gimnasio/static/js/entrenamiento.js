@@ -10,6 +10,7 @@ import { crearSelectorZonas } from "@comun/zonas.js";
 
 import { crearDescanso } from "@comun/descanso.js";
 import { crearReloj } from "@comun/reloj.js";
+import { describirObjetivos, mensajeDeOperacion, razonesVisibles, seQuito, sinTrabajoHoy } from "./entrenamiento-textos.js";
 
 const $ = (selector) => document.querySelector(selector);
 import { crearSondeo } from "@comun/sondeo.js";
@@ -40,6 +41,7 @@ let cargando = false;
 let propuestaActual = null;
 let sesionActual = null;
 let sesionId = new URL(location.href).searchParams.get("sesion");
+let avisando = false;
 const control = crearControlDeOperacion();
 const zonasChequeo = crearSelectorZonas($("[data-zonas-chequeo]"));
 const selectoresDolor = new Set();
@@ -49,8 +51,8 @@ function actualizarBotones() {
   $("[data-terminar]").disabled = cargando || Boolean(control.actual);
   zonasChequeo.deshabilitar(Boolean(control.actual) || cargando);
   for (const selector of selectoresDolor) selector.deshabilitar(Boolean(control.actual) || cargando);
-  for (const elemento of document.querySelectorAll("[data-formulario-chequeo] select, [data-formulario-chequeo] button, [data-iniciar], [data-serie] input, [data-serie] button, [data-sustitucion] button, [data-dolor] button")) {
-    elemento.disabled = Boolean(control.actual) || cargando || (elemento.matches("[data-iniciar]") && !chequeoResuelto);
+  for (const elemento of document.querySelectorAll("[data-formulario-chequeo] select, [data-formulario-chequeo] button, [data-iniciar], [data-avisar-entrenador], [data-serie] input, [data-serie] button, [data-sustitucion] button, [data-dolor] button")) {
+    elemento.disabled = Boolean(control.actual) || cargando || (elemento.matches("[data-iniciar], [data-avisar-entrenador]") && !chequeoResuelto);
   }
   $("[data-actualizar]").disabled = cargando || control.enCurso;
   $("[data-reintento]").hidden = !control.actual || control.enCurso;
@@ -116,20 +118,21 @@ function dibujarRegistro() {
   }
 }
 
-function describirObjetivos(objetivos) {
-  const partes = [`${objetivos.series} ${objetivos.series === 1 ? "serie" : "series"}`];
-  if (objetivos.repeticiones_minimas != null) partes.push(`${objetivos.repeticiones_minimas}–${objetivos.repeticiones_maximas} reps`);
-  if (objetivos.repeticiones != null) partes.push(`${objetivos.repeticiones} repeticiones`);
-  if (objetivos.carga !== null) partes.push(formatearCarga(objetivos.carga));
-  if (objetivos.duracion !== null) partes.push(`${objetivos.duracion} s`);
-  if (objetivos.distancia !== null) partes.push(`${numero.format(Number(objetivos.distancia))} m`);
-  return partes.join(" · ");
-}
+// La sesión abierta sin nada que hacer ya dejó su aviso: no hay series para registrar ni sesión para terminar.
+const abiertaSinTrabajo = (realizada) => Boolean(realizada) && !realizada.series.length && sinTrabajoHoy(realizada.ejercicios);
 
 function dibujar(propuesta) {
   const coincide = Boolean(sesionActual && sesionActual.sesion_realizada.sesion_planificada_id === propuesta.sesion_planificada?.id);
-  $("[data-iniciar]").hidden = !propuesta.sesion_planificada || coincide;
-  $("[data-sesion-actual]").hidden = !coincide;
+  // Sin freno no nace ningún aviso: un equipo fuera de servicio no llega acá.
+  const sinTrabajo = Boolean(propuesta.sesion_planificada) && sinTrabajoHoy(propuesta.ejercicios) && propuesta.frenos.length > 0;
+  const avisado = abiertaSinTrabajo(sesionActual);
+  $("[data-iniciar]").hidden = !propuesta.sesion_planificada || coincide || sinTrabajo;
+  $("[data-sesion-actual]").hidden = !coincide || avisado;
+  $("[data-sin-trabajo]").hidden = !sinTrabajo;
+  $("[data-sin-trabajo-texto]").textContent = avisado
+    ? "Tu entrenador ya tiene el aviso. Hoy no hace falta registrar nada."
+    : "Hoy no hay ejercicios que puedas hacer con seguridad. Avisale a tu entrenador para que ajuste tu programa.";
+  $("[data-avisar-entrenador]").hidden = avisado;
   $("[data-contenido]").dataset.versionReglas = propuesta.version_reglas;
   $("[data-fecha]").textContent = formatearFecha(propuesta.fecha_local);
   $("[data-explicacion]").replaceChildren();
@@ -155,7 +158,7 @@ function dibujar(propuesta) {
     nombre.textContent = ejercicio.nombre + (ejercicio.no_disponible ? " · No disponible" : "");
     const objetivos = document.createElement("p");
     objetivos.className = "ejercicio-objetivos";
-    objetivos.textContent = describirObjetivos(ejercicio.objetivos);
+    objetivos.textContent = seQuito(ejercicio) ? "Quitado por hoy" : describirObjetivos(ejercicio.objetivos);
     const pendiente = document.createElement("p");
     pendiente.className = "ejercicio-dato";
     pendiente.textContent = `Series realizadas: ${ejercicio.realizado} · Pendientes: ${ejercicio.pendiente}`;
@@ -164,11 +167,12 @@ function dibujar(propuesta) {
     anterior.textContent = ejercicio.carga_anterior
       ? `Carga anterior: ${ejercicio.carga_anterior.carga == null ? "sin carga" : formatearCarga(ejercicio.carga_anterior.carga)} · ${ejercicio.carga_anterior.repeticiones ?? "sin"} repeticiones · ${formatearFecha(ejercicio.carga_anterior.fecha_local)}`
       : "Sin carga anterior.";
-    tarjeta.append(nombre, objetivos, anterior, pendiente);
+    tarjeta.append(nombre, objetivos);
+    if (!seQuito(ejercicio)) tarjeta.append(anterior, pendiente);
     const explicacion = document.createElement("ul");
     explicacion.className = "ejercicio-porque";
     explicacion.dataset.ajuste = ejercicio.id;
-    for (const razon of ejercicio.explicacion ?? []) {
+    for (const razon of razonesVisibles(ejercicio)) {
       const texto = document.createElement("li");
       // Tras un borrado de datos de salud, la razón guardada conserva la regla y no el texto.
       texto.textContent = razon.datos.explicacion ?? "Se aplicó un freno de seguridad.";
@@ -184,6 +188,7 @@ function dibujar(propuesta) {
   }
   $("[data-contenido]").hidden = false;
   dibujarRegistro();
+  if (avisado) $("[data-registro]").hidden = true;
   actualizarBotones();
 }
 
@@ -201,7 +206,7 @@ async function actualizar(mensaje) {
     ]);
     propuestaActual = propuesta;
     sesionActual = realizada;
-    const efectiva = realizada?.ejercicios.some((e) => e.pendiente > 0)
+    const efectiva = realizada?.ejercicios.some((e) => e.pendiente > 0) || abiertaSinTrabajo(realizada)
       ? realizada.prescripcion_efectiva : null;
     dibujar(efectiva ? {
       ...propuesta,
@@ -263,7 +268,8 @@ async function enviar() {
       }
     }
     control.finalizar();
-    await actualizar(datos.dolor_reportado ? "Dolor reportado guardado. Se avisó al entrenador." : (datos.sesion_realizada ? "Sesión realizada iniciada." : (datos.sustitucion ? "Sustitución guardada." : "Serie guardada.")));
+    await actualizar(mensajeDeOperacion(datos, { avisando }));
+    avisando = false;
     const foco = document.querySelector("[data-serie] input") ?? $("[data-actualizar]");
     foco.focus();
   } catch (error) {
@@ -306,6 +312,13 @@ $("[data-terminar]").addEventListener("click", () => {
 });
 $("[data-iniciar]").addEventListener("click", () => {
   if (cargando || control.actual || !propuestaActual?.sesion_planificada) return;
+  control.preparar("/api/entrenamiento/sesiones", { sesion_planificada_id: propuestaActual.sesion_planificada.id });
+  enviar();
+});
+// El aviso al entrenador nace con la sesión realizada: abrirla es lo que lo deja en su bandeja.
+$("[data-avisar-entrenador]").addEventListener("click", () => {
+  if (cargando || control.actual || !propuestaActual?.sesion_planificada) return;
+  avisando = true;
   control.preparar("/api/entrenamiento/sesiones", { sesion_planificada_id: propuestaActual.sesion_planificada.id });
   enviar();
 });

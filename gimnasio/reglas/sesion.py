@@ -63,9 +63,8 @@ def proponer_sesion(entrada: DatosPropuesta) -> PropuestaSesion:
                             ("series_pendientes", str(sum(len(p.series) for p in pendientes))),
                             (
                                 "explicacion",
-                                "Se propone la primera sesión planificada de la secuencia con trabajo pendiente. "
-                                "Solo las series realizadas vigentes acreditan trabajo; "
-                                "una ausencia no agrega volumen.",
+                                "Es la próxima sesión de tu programa con trabajo pendiente. "
+                                "Lo que no hiciste no se acumula: faltar no te agrega volumen.",
                             ),
                         ),
                     ),
