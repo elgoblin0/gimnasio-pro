@@ -8,6 +8,8 @@ Cada fila es (nombre, zona del cuerpo o None, lado, puntos, fibra). `lado` es "f
 Los músculos sin zona dan relieve, pero no se pueden marcar. En un cruce gana el que viene después.
 """
 
+# Tablas de coordenadas: una fila por músculo se compara y se corrige mejor que partida en varias líneas.
+# ruff: noqa: E501
 # fmt: off
 ZONAS = (
     "pecho", "espalda_alta", "dorsales", "hombros", "biceps", "triceps", "abdomen", "gluteos",
