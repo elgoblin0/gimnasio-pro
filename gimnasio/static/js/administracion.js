@@ -14,7 +14,7 @@ function intervalo(dia, apertura = "06:00", cierre = "22:00") {
   const fila = crear("div", { "data-intervalo": "" },
     crear("label", {}, "Desde ", crear("input", { type: "time", value: apertura, required: true, "aria-label": `Apertura del ${dia}` })),
     " ", crear("label", {}, "Hasta ", crear("input", { type: "time", value: cierre, required: true, "aria-label": `Cierre del ${dia}` })),
-    " ", crear("button", { type: "button", className: "boton-borde", onclick: () => fila.remove() }, "Quitar intervalo"));
+    " ", crear("button", { type: "button", className: "boton-enlace", onclick: () => fila.remove() }, "Quitar intervalo"));
   return fila;
 }
 
@@ -23,22 +23,22 @@ function mostrar(datos) {
   $("#aforo").value = datos.aforo_maximo;
   $("[data-horario]").replaceChildren(...dias.map((dia, indice) => {
     const numero = String(indice + 1);
-    const intervalos = crear("div", {}, ...(datos.horario[numero] ?? []).map(([desde, hasta]) => intervalo(dia, desde, hasta)));
+    const intervalos = crear("div", { className: "dia-intervalos" }, ...(datos.horario[numero] ?? []).map(([desde, hasta]) => intervalo(dia, desde, hasta)));
     const abierto = crear("input", { type: "checkbox", checked: Boolean(datos.horario[numero]?.length), onchange: () => {
       intervalos.hidden = !abierto.checked;
       agregar.hidden = !abierto.checked;
       if (abierto.checked && !intervalos.children.length) intervalos.append(intervalo(dia));
       for (const entrada of intervalos.querySelectorAll("input")) entrada.disabled = !abierto.checked;
     } });
-    const agregar = crear("button", { type: "button", className: "boton-borde", onclick: () => intervalos.append(intervalo(dia)) }, "Agregar intervalo");
+    const agregar = crear("button", { type: "button", className: "boton-enlace", onclick: () => intervalos.append(intervalo(dia)) }, "Agregar intervalo");
     intervalos.hidden = agregar.hidden = !abierto.checked;
-    return crear("fieldset", { "data-dia": numero }, crear("legend", {}, dia), crear("label", {}, abierto, " Abierto"), intervalos, agregar);
+    return crear("fieldset", { "data-dia": numero, className: "dia-horario" }, crear("legend", {}, dia), crear("label", { className: "dia-abierto" }, abierto, " Abierto"), intervalos, agregar);
   }));
   $("[data-sin-cambios]").hidden = datos.historial.length > 0;
   $("[data-historial]").replaceChildren(...datos.historial.map((cambio) => crear("li", {},
-    crear("p", {}, `${formatearFechaHora(cambio.registrado_en)} · ${cambio.autor} · Aforo máximo: ${cambio.aforo_maximo}`),
-    crear("p", {}, cambio.motivo),
-    crear("ul", {}, ...dias.map((dia, indice) => crear("li", {}, `${dia}: ${(cambio.horario[String(indice + 1)] ?? []).map((par) => par.join("–")).join(", ") || "Cerrado"}`))))));
+    crear("p", { className: "historial-dato" }, `${formatearFechaHora(cambio.registrado_en)} · ${cambio.autor} · Aforo máximo: ${cambio.aforo_maximo}`),
+    crear("p", { className: "historial-motivo" }, cambio.motivo),
+    crear("ul", { className: "historial-horario" }, ...dias.map((dia, indice) => crear("li", {}, `${dia}: ${(cambio.horario[String(indice + 1)] ?? []).map((par) => par.join("–")).join(", ") || "Cerrado"}`))))));
   $("[data-contenido]").hidden = false;
 }
 

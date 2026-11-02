@@ -12,7 +12,6 @@
   <script src="/js/comun/presentacion.js"></script>
   <link rel="stylesheet" href="/estilos/entrenador.css">
   <link rel="stylesheet" href="/estilos/administracion.css">
-  <link rel="stylesheet" href="/estilos/pagos.css">
   <script type="importmap">{"imports":{"@comun/":"/js/comun/"}}</script>
   <script type="module" src="/js/administracion.js"></script>
 </head>
@@ -24,47 +23,64 @@
   <span class="cabecera-efectos" data-lugar-efectos></span>
   <button type="button" data-cerrar>Cerrar sesión</button>
 </header>
-<main class="equipos administracion">
-  <h1>Administración</h1>
-  <nav aria-label="Panel de administración"><a href="#sede">Sede</a> · <a href="#tipos-membresia">Tipos de membresía</a> · <a href="/pagos.html">Pagos</a> · <a href="/equipos.html">Equipos</a> · <a href="/plantillas.html">Plantillas</a></nav>
-  <p data-estado role="status" aria-live="polite">Cargando sede…</p>
-  <p data-error role="alert"></p>
-  <button type="button" data-reintentar hidden>Volver a cargar</button>
+<main class="equipos administracion libro">
+  <div class="administracion-titulo">
+    <p class="rotulo">Panel de administración</p>
+    <h1>Administración</h1>
+    <p class="bajada">La sede, lo que se cobra y quién trabaja en el gimnasio. Cada cambio queda registrado con su motivo.</p>
+    <nav class="indice" aria-label="Panel de administración"><a href="#sede">Sede</a><a href="#tipos-membresia">Tipos de membresía</a><a href="#usuarios">Usuarios</a><a href="/pagos.html">Pagos</a><a href="/equipos.html">Equipos</a><a href="/plantillas.html">Plantillas</a></nav>
+    <p data-estado role="status" aria-live="polite">Cargando sede…</p>
+    <p data-error role="alert"></p>
+    <button type="button" class="boton-borde" data-reintentar hidden>Volver a cargar</button>
+  </div>
   <section id="sede" data-contenido hidden aria-labelledby="titulo-sede">
     <h2 id="titulo-sede">Sede</h2>
-    <p data-ocupacion></p>
-    <p>Bajar el aforo máximo conserva las visitas abiertas. Se rechazan las entradas nuevas mientras no haya lugar.</p>
     <form data-formulario>
-      <p><label for="aforo">Aforo máximo</label><br><input id="aforo" name="aforo" type="number" min="1" max="65535" step="1" required></p>
-      <fieldset><legend>Horario de la sede</legend>
-        <p>Desmarcá los días cerrados. Podés agregar intervalos para un mismo día.</p>
+      <div class="sede-aforo">
+        <p class="sede-ocupacion" data-ocupacion></p>
+        <label for="aforo">Aforo máximo</label>
+        <input id="aforo" name="aforo" type="number" min="1" max="65535" step="1" required aria-describedby="nota-aforo">
+        <p class="nota-al-pie" id="nota-aforo">Bajar el aforo máximo conserva las visitas abiertas. Se rechazan las entradas nuevas mientras no haya lugar.</p>
+      </div>
+      <fieldset class="sede-horario"><legend>Horario de la sede</legend>
+        <p class="nota-al-pie">Desmarcá los días cerrados. Podés agregar intervalos para un mismo día.</p>
         <div data-horario></div>
       </fieldset>
-      <p><label for="motivo">Motivo del cambio</label><br><textarea id="motivo" name="motivo" maxlength="500" required rows="3"></textarea></p>
-      <button type="submit" class="boton-tinta">Guardar cambios</button>
+      <div class="sede-guardar">
+        <label for="motivo">Motivo del cambio</label>
+        <textarea id="motivo" name="motivo" maxlength="500" required rows="3"></textarea>
+        <button type="submit" class="boton-tinta">Guardar cambios</button>
+      </div>
     </form>
-    <h2>Historial de cambios</h2>
-    <p data-sin-cambios>No hay cambios registrados.</p>
-    <ol data-historial></ol>
+    <h3>Historial de cambios</h3>
+    <p class="vacio" data-sin-cambios>No hay cambios registrados.</p>
+    <ol class="historial" data-historial></ol>
   </section>
   <section id="tipos-membresia" aria-labelledby="titulo-tipos">
     <h2 id="titulo-tipos">Tipos de membresía</h2>
-    <p data-tipos-estado role="status" aria-live="polite">Cargando tipos de membresía…</p>
+    <div class="hoja-estado">
+      <p data-tipos-estado role="status" aria-live="polite">Cargando tipos de membresía…</p>
+      <button type="button" class="boton-enlace" data-tipos-recargar>Volver a cargar tipos</button>
+    </div>
     <p data-tipos-error role="alert"></p>
-    <button type="button" data-tipos-recargar>Volver a cargar tipos</button>
-    <ul data-tipos-lista></ul>
+    <ul class="tipos-lista" data-tipos-lista></ul>
     <form>
       <fieldset>
         <legend>Tipo de membresía</legend>
         <label>Nombre <input name="nombre" maxlength="120" required></label>
         <label>Duración en días <input name="duracion_dias" type="number" min="1" max="4294967295" step="1" required></label>
         <label>Precio en guaraníes <input name="precio" type="number" min="0" max="9007199254740991" step="1" required></label>
-        <button type="submit" class="boton-tinta">Crear tipo de membresía</button>
-        <button type="button" data-tipo-nuevo>Nuevo tipo de membresía</button>
+        <div class="tipos-acciones">
+          <button type="submit" class="boton-tinta">Crear tipo de membresía</button>
+          <button type="button" class="boton-enlace" data-tipo-nuevo>Nuevo tipo de membresía</button>
+        </div>
       </fieldset>
     </form>
   </section>
-<section id="usuarios" aria-labelledby="titulo-usuarios"><h2 id="titulo-usuarios">Usuarios</h2><p><a href="/pagos.html?alta=1">Dar de alta socio</a></p></section>
+  <section id="usuarios" aria-labelledby="titulo-usuarios">
+    <h2 id="titulo-usuarios">Usuarios</h2>
+    <p><a class="boton-borde" href="/pagos.html?alta=1">Dar de alta socio</a></p>
+  </section>
 </main>
 </body>
 </html>

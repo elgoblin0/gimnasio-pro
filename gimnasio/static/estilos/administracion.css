@@ -1,12 +1,102 @@
+/* Administración: un libro de la sede con un índice arriba y un capítulo por tema. */
 .administracion { max-width: 75rem; margin-inline: auto; }
-#usuarios form { display: flex; flex-wrap: wrap; gap: var(--espacio-2); align-items: end; margin-block: var(--espacio-3); }
-#usuarios label { display: grid; gap: var(--espacio-1); max-width: 100%; }
-#usuarios input, #usuarios select { box-sizing: border-box; max-width: 100%; min-height: 44px; font: inherit; color: var(--texto); background: var(--superficie); border: 1px solid var(--texto-suave); border-radius: var(--radio-1); padding: var(--espacio-2); }
-#usuarios li { padding-block: var(--espacio-2); border-bottom: 1px solid var(--borde); overflow-wrap: anywhere; }
-.administracion form { max-width: 48rem; }
-.administracion fieldset { min-width: 0; margin-block: var(--espacio-3); border: 1px solid var(--borde); }
-.administracion [data-intervalo] { display: flex; flex-wrap: wrap; align-items: end; gap: var(--espacio-2); margin-block: var(--espacio-2); }
-.administracion input[type="number"], .administracion input[type="time"] { font: inherit; color: var(--texto); background: var(--superficie); border: 1px solid var(--texto-suave); border-radius: var(--radio-1); min-height: 44px; padding: var(--espacio-2); }
-.administracion input[type="checkbox"] { min-width: 24px; min-height: 24px; vertical-align: middle; }
-.administracion [data-historial] { padding-inline-start: var(--espacio-4); overflow-wrap: anywhere; }
-.administracion [data-historial] > li { padding-block: var(--espacio-3); border-bottom: 1px solid var(--borde); }
+.administracion-titulo { padding-block-end: var(--espacio-5); border-block-end: 1px solid var(--texto-suave); }
+.administracion-titulo .bajada { margin-block: var(--espacio-3) var(--espacio-4); }
+.administracion-titulo [data-estado], .administracion-titulo [data-error] { margin: var(--espacio-3) 0 0; }
+.indice { display: flex; flex-wrap: wrap; gap: var(--espacio-2); }
+.indice a { display: inline-flex; align-items: center; min-height: 40px; padding: 0 var(--espacio-4); border: 1px solid var(--borde); border-radius: var(--radio-3); color: var(--texto); font-size: var(--tamano-chico); font-weight: 600; text-decoration: none; }
+.indice a:hover { border-color: var(--texto-suave); background: var(--superficie-elevada); }
+.indice a[href^="#"]::before { content: "§"; margin-inline-end: var(--espacio-2); color: var(--acento); font-weight: 400; }
+
+.libro > section { padding-block: var(--espacio-6); border-block-end: 1px solid var(--borde); box-shadow: none; }
+.libro .hoja-estado { display: flex; flex-wrap: wrap; align-items: center; gap: 0 var(--espacio-4); }
+.libro .hoja-estado > p { margin: 0; }
+.libro .hoja-estado:has(> [role="status"]:empty) { gap: 0; }
+.libro > section > h2 { margin: 0 0 var(--espacio-5); font-size: clamp(2rem, 3.5vw, 2.6rem); }
+.libro h3 { margin: var(--espacio-6) 0 var(--espacio-3); }
+.libro .nota-al-pie { margin: 0; color: var(--texto-suave); font-size: var(--tamano-chico); }
+.libro [role="alert"]:empty, .libro [role="status"]:empty { margin: 0; }
+
+/* Sede: el aforo y el motivo a la izquierda, la semana a la derecha. */
+#sede form { grid-template-columns: minmax(0, 20rem) minmax(0, 1fr); gap: var(--espacio-5) var(--espacio-6); align-items: start; }
+.sede-aforo, .sede-guardar { display: grid; gap: var(--espacio-2); grid-column: 1; }
+.sede-guardar { align-self: start; }
+.sede-guardar .boton-tinta { justify-self: start; margin-block-start: var(--espacio-2); }
+.sede-ocupacion { margin: 0 0 var(--espacio-3); font: 400 1.25rem/1.3 var(--fuente-display); text-wrap: balance; }
+.sede-aforo input { max-width: 10rem; font: 400 1.6rem/1 var(--fuente-numeros); font-variant-numeric: tabular-nums lining-nums; }
+.sede-horario { grid-column: 2; grid-row: 1 / span 2; }
+.sede-horario > legend { margin-block-end: var(--espacio-1); font: 600 .78rem/1.3 var(--fuente-texto); letter-spacing: .08em; text-transform: uppercase; color: var(--texto-suave); }
+.sede-horario > .nota-al-pie { margin-block-end: var(--espacio-3); }
+
+/* Un día por renglón: nombre, si abre y sus intervalos. La leyenda flota para entrar en la grilla. */
+.dia-horario { display: grid; grid-template-columns: 7.5rem 6.5rem minmax(0, 1fr) auto; align-items: center; gap: var(--espacio-1) var(--espacio-3); padding-block: var(--espacio-2); border-block-start: 1px solid var(--borde); }
+.dia-horario:last-child { border-block-end: 1px solid var(--borde); }
+.dia-horario > legend { float: left; grid-column: 1; font: 400 1.1rem/1.2 var(--fuente-display); }
+.dia-abierto { grid-column: 2; display: flex; align-items: center; gap: var(--espacio-2); min-height: 44px; font-weight: 400; cursor: pointer; }
+.dia-intervalos { grid-column: 3; display: grid; gap: var(--espacio-1); }
+.dia-horario:has(.dia-abierto input:not(:checked)) > legend { color: var(--texto-suave); }
+.dia-horario:has(.dia-abierto input:not(:checked))::after { content: "Cerrado"; grid-column: 3; grid-row: 1; color: var(--texto-suave); font-size: var(--tamano-chico); font-style: italic; }
+.dia-horario > .boton-enlace { grid-column: 4; grid-row: 1; align-self: start; min-height: 40px; font-size: var(--tamano-chico); }
+[data-intervalo] { display: flex; flex-wrap: wrap; align-items: center; gap: var(--espacio-2) var(--espacio-3); }
+[data-intervalo] label { display: flex; align-items: center; gap: var(--espacio-2); font-weight: 400; color: var(--texto-suave); }
+[data-intervalo] input { width: auto; padding: var(--espacio-1) var(--espacio-2); min-height: 40px; color: var(--texto); font-variant-numeric: tabular-nums; }
+[data-intervalo] .boton-enlace { min-height: 40px; font-size: var(--tamano-chico); }
+
+.historial { display: grid; gap: 0; margin: 0; padding: 0; list-style: none; }
+.historial > li { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr); gap: var(--espacio-1) var(--espacio-5); padding-block: var(--espacio-4); border-block-start: 1px solid var(--borde); overflow-wrap: anywhere; }
+.historial-dato { grid-column: 1; margin: 0; color: var(--texto-suave); font-size: var(--tamano-chico); font-variant-numeric: tabular-nums; }
+.historial-motivo { grid-column: 1; margin: 0; font: italic 400 1.1rem/1.4 var(--fuente-display); }
+.historial-horario { grid-column: 2; grid-row: 1 / span 2; display: grid; grid-template-columns: repeat(auto-fill, minmax(9.5rem, 1fr)); gap: 2px var(--espacio-4); margin: 0; padding: 0; list-style: none; font-size: var(--tamano-chico); color: var(--texto-suave); font-variant-numeric: tabular-nums; }
+
+/* Tipos de membresía: una lista de precios y su formulario al lado. */
+#tipos-membresia { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 22rem); grid-template-rows: auto auto auto auto 1fr; gap: 0 var(--espacio-6); align-items: start; }
+#tipos-membresia > :not(form) { grid-column: 1; }
+#tipos-membresia > form { grid-column: 2; grid-row: 2 / -1; padding: var(--espacio-5); background: var(--superficie-elevada); border: 1px solid var(--borde); border-radius: var(--radio-2); }
+#tipos-membresia > h2 { grid-column: 1 / -1; }
+#tipos-membresia fieldset { display: grid; gap: var(--espacio-3); }
+#tipos-membresia legend { margin-block-end: var(--espacio-1); font: 400 var(--tamano-destacado)/1.2 var(--fuente-display); }
+.tipos-acciones { display: flex; flex-wrap: wrap; align-items: center; gap: var(--espacio-2) var(--espacio-4); margin-block-start: var(--espacio-2); }
+.tipos-lista { margin: var(--espacio-3) 0 0; padding: 0; list-style: none; }
+.tipos-lista > li { display: flex; flex-wrap: wrap; align-items: center; gap: var(--espacio-2) var(--espacio-4); padding-block: var(--espacio-3); border-block-end: 1px solid var(--borde); overflow-wrap: anywhere; }
+.tipos-lista > li:first-child { border-block-start: 1px solid var(--borde); }
+.tipos-lista p { flex: 1 1 16rem; margin: 0; font: 400 1.15rem/1.3 var(--fuente-display); font-variant-numeric: tabular-nums; }
+.tipos-lista button { min-height: 40px; font-size: var(--tamano-chico); }
+
+/* Usuarios: renglones con las acciones a la derecha. */
+#usuarios > p { margin: 0 0 var(--espacio-3); }
+#usuarios .boton-borde { display: inline-flex; align-items: center; text-decoration: none; }
+#usuarios form { max-width: none; }
+.alta-personal { grid-template-columns: repeat(auto-fill, minmax(13rem, 1fr)); align-items: end; padding: var(--espacio-5); background: var(--superficie-elevada); border: 1px solid var(--borde); border-radius: var(--radio-2); }
+.alta-personal .boton-tinta { justify-self: start; }
+.usuarios-filtros { grid-template-columns: minmax(0, 2fr) repeat(2, minmax(0, 1fr)) auto; align-items: end; }
+[data-usuarios-lista], [data-sin-entrenador] { margin: var(--espacio-3) 0 0; padding: 0; list-style: none; }
+:is([data-usuarios-lista], [data-sin-entrenador]) > li { display: flex; flex-wrap: wrap; align-items: center; gap: var(--espacio-2); padding-block: var(--espacio-3); border-block-end: 1px solid var(--borde); overflow-wrap: anywhere; }
+:is([data-usuarios-lista], [data-sin-entrenador]) > li > p { flex: 1 1 18rem; margin: 0; color: var(--texto-suave); font-size: var(--tamano-chico); }
+:is([data-usuarios-lista], [data-sin-entrenador]) b { font: 400 1.1rem/1.3 var(--fuente-display); color: var(--texto); }
+[data-usuarios-lista] > li.inactivo b { color: var(--texto-suave); text-decoration: line-through; }
+:is([data-usuarios-lista], [data-sin-entrenador]) button { min-height: 40px; font-size: var(--tamano-chico); }
+.asignar-entrenador { display: flex; flex-wrap: wrap; gap: var(--espacio-2); }
+.asignar-entrenador select { width: auto; min-height: 40px; padding-block: var(--espacio-1); }
+.paginas { display: flex; gap: var(--espacio-2); margin-block-start: var(--espacio-4); }
+#usuarios dialog { max-width: min(32rem, calc(100vw - 2rem)); padding: var(--espacio-5); border: 1px solid var(--borde); border-radius: var(--radio-2); background: var(--superficie-elevada); color: var(--texto); }
+#usuarios dialog form { display: grid; gap: var(--espacio-3); }
+#usuarios dialog label { display: flex; align-items: center; gap: var(--espacio-2); font-weight: 400; }
+
+@media (max-width: 52rem) {
+  #sede form, #tipos-membresia { grid-template-columns: minmax(0, 1fr); grid-template-rows: none; }
+  .indice { flex-wrap: nowrap; overflow-x: auto; margin-inline: calc(-1 * var(--espacio-4)); padding: 2px var(--espacio-4); scrollbar-width: none; }
+  .indice a { flex: none; }
+  .sede-horario, #tipos-membresia > form { grid-column: 1; grid-row: auto; }
+  .historial > li { grid-template-columns: minmax(0, 1fr); }
+  .historial-horario { grid-column: 1; grid-row: auto; }
+  .usuarios-filtros { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .usuarios-filtros > label:first-child { grid-column: 1 / -1; }
+}
+@media (max-width: 34rem) {
+  .dia-horario { grid-template-columns: minmax(0, 1fr) auto; }
+  .dia-horario > .boton-enlace { grid-column: 1 / -1; grid-row: auto; justify-self: start; }
+  .dia-abierto { justify-self: end; }
+  .dia-intervalos { grid-column: 1 / -1; }
+  .dia-horario:has(.dia-abierto input:not(:checked))::after { display: none; }
+  [data-intervalo] input { flex: 1; }
+}

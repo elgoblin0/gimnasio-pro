@@ -25,14 +25,14 @@ export function prepararTiposMembresia() {
       const { tipos } = await llamarApi("/api/tipos-membresia");
       lista.replaceChildren(...tipos.map((tipo) => crear("li", {},
         crear("p", {}, `${tipo.nombre} · ${tipo.duracion_dias} días · ${formatearGuaranies(tipo.precio)}${tipo.archivado ? " · Archivado" : ""}`),
-        crear("button", { type: "button", onclick: () => {
+        crear("button", { type: "button", className: "boton-borde", onclick: () => {
           if (ocupado) return;
           editando = tipo.id;
           for (const campo of ["nombre", "duracion_dias", "precio"]) formulario.elements[campo].value = tipo[campo];
           formulario.querySelector("[type=submit]").textContent = "Guardar tipo de membresía";
           formulario.elements.nombre.focus();
         } }, "Editar"), " ",
-        !tipo.archivado && crear("button", { type: "button", onclick: () => guardar(`/api/tipos-membresia/${tipo.id}/archivar`, "POST", undefined) }, "Archivar"))));
+        !tipo.archivado && crear("button", { type: "button", className: "boton-enlace", onclick: () => guardar(`/api/tipos-membresia/${tipo.id}/archivar`, "POST", undefined) }, "Archivar"))));
       estado.textContent = tipos.length ? "" : "No hay tipos de membresía. Creá el primero para registrar pagos.";
     } catch (fallo) {
       estado.textContent = "";
