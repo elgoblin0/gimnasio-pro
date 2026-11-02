@@ -51,12 +51,34 @@ def esperar_paso(pagina, numero):
     texto = tarjeta.locator("[data-recorrido-texto]").inner_text()
     expect(tarjeta.locator("[data-recorrido-anuncio]")).to_have_text(f"Paso {numero} de {PASOS}. {texto}")
     expect(pagina.locator("[data-recorrido-ancla]")).to_have_count(1)
+    # La tarjeta y la parte que explica quedan a la vista, también dentro de una columna que se desplaza sola.
+    pagina.wait_for_function(
+        """() => {
+          const tarjeta = document.querySelector('[data-recorrido-tarjeta]');
+          const ancla = document.querySelector('[data-recorrido-ancla]');
+          const caja = tarjeta.getBoundingClientRect();
+          if (caja.top < 0 || caja.bottom > innerHeight + 1) return false;
+          // Se ve el comienzo de lo que explica, debajo de la cabecera.
+          let { top, bottom } = ancla.getBoundingClientRect();
+          const cabecera = document.querySelector('body > .cabecera')?.getBoundingClientRect().bottom ?? 0;
+          if (top < cabecera - 1) return false;
+          // El ancla recortada por cada columna que se desplaza sola y por la vista: tiene que quedar algo.
+          for (let padre = ancla.parentElement; padre && padre !== document.body; padre = padre.parentElement) {
+            if (getComputedStyle(padre).overflowY === 'visible') continue;
+            const marco = padre.getBoundingClientRect();
+            [top, bottom] = [Math.max(top, marco.top), Math.min(bottom, marco.bottom)];
+          }
+          return Math.min(bottom, innerHeight) - Math.max(top, 0) >= 40;
+        }""",
+        timeout=5_000,
+    )
     return texto
 
 
 def test_recorrido_completo_dos_veces_sobre_la_misma_semilla(pagina_demo, demo_aislada):
     pagina = pagina_demo
-    errores = preparar(pagina, 1440, 900)
+    # El tamaño de una notebook común: la hoja de la bandeja se desplaza dentro de su columna.
+    errores = preparar(pagina, 1280, 800)
     for vuelta in (1, 2):
         tarjeta = empezar(pagina, demo_aislada.url)
         textos = {}

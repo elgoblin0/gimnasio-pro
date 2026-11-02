@@ -90,6 +90,14 @@ test("la tarjeta muestra el aviso como texto y lo retira al revocar", async () =
   assert.ok(!contenido.hijos.some(hijo => hijo.textContent?.startsWith("Aviso para el personal:")));
 });
 
+test("con la visita abierta la tarjeta no ofrece registrar la entrada", async () => {
+  const pantalla = preparar();
+  await pantalla.ejecutar('abrirTarjeta("socio")');
+  const textos = pantalla.obtener("[data-tarjeta-datos]").hijos.map(hijo => hijo.textContent);
+  assert.ok(textos.some(texto => texto?.startsWith("Visita abierta desde")));
+  assert.ok(!textos.includes("Registrar entrada"));
+});
+
 test("al confirmar el pago refresca la tarjeta y mantiene el socio para la entrada", async () => {
   const pantalla = preparar();
   await pantalla.ejecutar('abrirTarjeta("socio")');

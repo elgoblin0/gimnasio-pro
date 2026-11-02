@@ -102,6 +102,9 @@ main { max-width: none; }
 /* La tarjeta flota sobre la escena: abrirla no cambia su tamaño ni mueve los puntos. */
 [data-tarjeta-contextual] { position: fixed; z-index: 4; top: 4.4rem; right: calc(20rem + var(--espacio-4)); left: auto; width: min(24rem, calc(100vw - 22rem)); max-height: calc(100dvh - 11rem); margin: 0; padding: var(--espacio-5); overflow: auto; background: var(--superficie-elevada); color: var(--texto); border: 1px solid var(--linea); border-radius: var(--radio-2); box-shadow: 0 18px 48px #0000003d; }
 
+/* Cerrar va al costado, con aire: el título en la fuente de exhibición no lo pisa. */
+[data-cerrar-tarjeta] { display: flex; margin: 0 0 var(--espacio-3) auto; }
+
 /* Sin WebGL queda la lista: las cifras y el registro vuelven al flujo de la página. */
 .sede-maqueta:has([data-escena-ocupacion][hidden]) { min-height: 0; padding: var(--espacio-5); background: none; }
 .sede-maqueta:has([data-escena-ocupacion][hidden]) :is(.sede-cifras, .sede-pie) { position: static; margin-block-end: var(--espacio-5); }
