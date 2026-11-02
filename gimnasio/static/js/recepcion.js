@@ -319,15 +319,18 @@ async function abrirTarjeta(socioId, enfocar = true) {
       });
       contenido.append(pagar);
     }
-    const entrada = document.createElement("button");
-    entrada.type = "button";
-    entrada.textContent = "Registrar entrada";
-    entrada.addEventListener("click", () => {
-      if (control.actual || cargando || !sedeId) return;
-      control.preparar("/api/entradas", { socio_id: socioId, sede_id: sedeId });
-      enviar();
-    });
-    contenido.append(entrada);
+    // Con la visita abierta la entrada no se duplica: la tarjeta no la ofrece.
+    if (!datos.visita_abierta) {
+      const entrada = document.createElement("button");
+      entrada.type = "button";
+      entrada.textContent = "Registrar entrada";
+      entrada.addEventListener("click", () => {
+        if (control.actual || cargando || !sedeId) return;
+        control.preparar("/api/entradas", { socio_id: socioId, sede_id: sedeId });
+        enviar();
+      });
+      contenido.append(entrada);
+    }
     if (datos.visita_abierta) agregar(`Visita abierta desde ${formatearFechaHora(datos.visita_abierta.desde)} · ${datos.visita_abierta.minutos} min`);
     else if (datos.ultima_visita) agregar(`Última visita: ${formatearFechaHora(datos.ultima_visita.desde)} a ${formatearFechaHora(datos.ultima_visita.hasta)}`);
     else agregar("Sin visitas registradas.");

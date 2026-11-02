@@ -198,8 +198,15 @@ function ancla() {
 
 let anclaMostrada = null;
 
+function columnaDesplazable(elemento) {
+  for (let padre = elemento.parentElement; padre && padre !== document.body; padre = padre.parentElement) {
+    if (/auto|scroll/.test(getComputedStyle(padre).overflowY) && padre.scrollHeight > padre.clientHeight) return padre;
+  }
+  return null;
+}
+
 // En pantallas angostas la tarjeta va al pie; en las anchas, junto a la parte que explica: debajo si entran
-// las dos en la vista, si no al costado, y si no hay costado, adentro en su esquina inferior.
+// las dos en la vista, si no al costado, y si no hay costado, sobre ella al pie de la vista.
 function ubicar({ desplazar = false } = {}) {
   if (!tarjeta) return;
   const { selector, elemento } = ancla();
@@ -221,7 +228,19 @@ function ubicar({ desplazar = false } = {}) {
     if (desplazar && elemento) scrollTo({ top: Math.max(0, elemento.getBoundingClientRect().top + scrollY - cabecera - margen), behavior: comportamiento });
     return;
   }
-  const rect = elemento.getBoundingClientRect();
+  // Una columna que se desplaza por su cuenta (la hoja de la bandeja en escritorio) trae primero la parte explicada
+  // a su vista; la tarjeta vive en la página y se ubica contra lo que la columna deja ver.
+  const columna = columnaDesplazable(elemento);
+  if (columna && desplazar) {
+    columna.scrollTop += elemento.getBoundingClientRect().top - columna.getBoundingClientRect().top - margen;
+  }
+  let rect = elemento.getBoundingClientRect();
+  if (columna) {
+    const marco = columna.getBoundingClientRect();
+    const top = Math.min(Math.max(rect.top, marco.top), marco.bottom);
+    const bottom = Math.max(Math.min(rect.bottom, marco.bottom), top);
+    rect = { top, bottom, left: rect.left, right: rect.right, height: bottom - top };
+  }
   const caja = { top: rect.top + scrollY, bottom: rect.bottom + scrollY, left: rect.left + scrollX, right: rect.right + scrollX };
   const ancho = tarjeta.offsetWidth;
   const alto = tarjeta.offsetHeight;
@@ -237,7 +256,9 @@ function ubicar({ desplazar = false } = {}) {
   } else if (caja.left - separacion - ancho >= margen) {
     [arriba, izquierda] = [caja.top, caja.left - separacion - ancho];
   } else {
-    [arriba, izquierda] = [caja.bottom - alto - margen, caja.left + margen];
+    // Más alta que la vista y sin costado: se ve su comienzo, que es lo que explica, y la tarjeta va al pie de la vista.
+    const comienzo = caja.top - cabecera - margen;
+    [arriba, izquierda] = [Math.min(comienzo + innerHeight - alto - margen, caja.bottom - alto - margen), caja.left + margen];
   }
   izquierda = Math.min(Math.max(margen, izquierda), anchoVista - ancho - margen);
   tarjeta.style.top = `${Math.round(arriba)}px`;
@@ -246,7 +267,7 @@ function ubicar({ desplazar = false } = {}) {
     const desde = Math.min(caja.top, arriba);
     const hasta = Math.max(caja.bottom, arriba + alto);
     const libre = altoUtil - (hasta - desde);
-    const objetivo = libre >= 2 * margen ? desde - cabecera - libre / 2 : arriba - cabecera - margen;
+    const objetivo = libre >= 2 * margen ? desde - cabecera - libre / 2 : desde - cabecera - margen;
     scrollTo({ top: Math.max(0, objetivo), behavior: comportamiento });
   }
 }
@@ -369,6 +390,7 @@ function terminar({ enfocar }) {
   estado = null;
   removeEventListener("keydown", alTeclado);
   removeEventListener("resize", ubicarLuego);
+  removeEventListener("scroll", ubicarLuego, { capture: true });
   observador?.disconnect();
   for (const marcado of document.querySelectorAll("[data-recorrido-ancla]")) delete marcado.dataset.recorridoAncla;
   document.documentElement.style.removeProperty("--alto-recorrido");
@@ -385,6 +407,8 @@ let observador = null;
 function escuchar() {
   addEventListener("keydown", alTeclado);
   addEventListener("resize", ubicarLuego);
+  // También las columnas que se desplazan solas: la tarjeta acompaña a la parte que explica.
+  addEventListener("scroll", ubicarLuego, { capture: true, passive: true });
   // Las pantallas redibujan su contenido: la marca de la parte explicada y la tarjeta la siguen.
   observador = new MutationObserver((cambios) => {
     if (cambios.some((cambio) => !tarjeta?.contains(cambio.target))) ubicarLuego();
