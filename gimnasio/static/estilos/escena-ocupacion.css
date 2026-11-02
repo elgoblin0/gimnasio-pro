@@ -9,14 +9,15 @@ main { max-width: none; }
 [data-error]:empty { display: none; }
 [data-error], [data-reintento] { padding-inline: var(--espacio-5); }
 
-.barra-recepcion { display: flex; flex-wrap: wrap; align-items: center; gap: var(--espacio-1) var(--espacio-4); padding: var(--espacio-2) var(--espacio-5); border-block-end: 1px solid var(--linea); font-size: .85rem; color: var(--texto-suave); }
-.barra-recepcion p { margin: 0; }
-.barra-recepcion .etiqueta { margin: 0; font-size: .72rem; }
-.barra-recepcion h1 { margin: 0; font-size: 1rem; line-height: 1.2; color: var(--texto); }
-.barra-recepcion [data-estado] { margin-inline-start: auto; min-height: 0; }
-.barra-recepcion button { min-height: 34px; margin: 0; padding: 2px var(--espacio-3); color: var(--texto); border-color: var(--linea); border-radius: var(--radio-2); background: transparent; }
+/* Bajo la cabecera, el titular de la hoja de recepción con sus acciones a mano. */
+.recepcion-titulo { display: flex; flex-wrap: wrap; align-items: end; gap: var(--espacio-3) var(--espacio-4); padding: var(--espacio-4) var(--espacio-5) var(--espacio-3); border-block-end: 1px solid var(--linea); }
+.recepcion-titulo .rotulo { margin: 0 0 var(--espacio-1); }
+.recepcion-titulo .rotulo::after { display: none; }
+.recepcion-titulo h1 { margin: 0; font-size: var(--tamano-titulo); line-height: 1.05; }
+.recepcion-titulo [data-estado] { margin: 0 0 0 auto; min-height: 0; font-size: var(--tamano-chico); }
+.recepcion-titulo :is(a, button) { display: inline-flex; align-items: center; min-height: 40px; margin: 0; padding: 0 var(--espacio-4); font-size: var(--tamano-chico); text-decoration: none; }
 
-.sede { display: grid; grid-template-columns: minmax(0, 1fr) 20rem; min-height: calc(100svh - 3.4rem); }
+.sede { display: grid; grid-template-columns: minmax(0, 1fr) 20rem; min-height: calc(100svh - 9rem); }
 .sede-maqueta { position: relative; min-width: 0; min-height: 40rem; overflow: hidden; background: radial-gradient(70% 60% at 50% 52%, var(--luz-maqueta), transparent 75%); }
 .sede section { background: transparent; border: 0; border-radius: 0; padding: 0; }
 .sede-maqueta > .escena-ocupacion { position: absolute; inset: 0; overflow: hidden; }
@@ -59,7 +60,7 @@ main { max-width: none; }
 [data-rotulo-visita] { position: absolute; z-index: 2; max-width: min(22rem, 90%); transform: translate(-50%, calc(-100% - 22px)); padding: var(--espacio-2) var(--espacio-3); background: var(--velo); border: 1px solid var(--linea); border-radius: var(--radio-2); font-size: .9rem; white-space: nowrap; pointer-events: none; }
 [data-rotulo-visita] b { display: block; font: 400 1.05rem/1.2 var(--fuente-display); }
 
-.sede .por-zona { display: flex; flex-direction: column; gap: var(--espacio-1); padding: 28px var(--espacio-5); border-inline-start: 1px solid var(--linea); max-height: calc(100svh - 3.4rem); overflow-y: auto; position: sticky; top: 0; }
+.sede .por-zona { display: flex; flex-direction: column; gap: var(--espacio-1); padding: 28px var(--espacio-5); border-inline-start: 1px solid var(--linea); max-height: calc(100svh - 9rem); overflow-y: auto; position: sticky; top: 0; }
 .por-zona h2 { margin: 0 0 var(--espacio-3); font-size: 1.5rem; line-height: 1.1; font-weight: 400; }
 [data-zona-sede] { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: baseline; border-block-end: 1px solid var(--linea); }
 [data-zona-sede] > button { min-height: 44px; margin: 0; padding: 0; text-align: start; color: var(--texto); background: transparent; border: 0; }
@@ -95,8 +96,8 @@ main { max-width: none; }
   [data-tarjeta-contextual] { right: var(--espacio-4); width: min(24rem, calc(100vw - 2 * var(--espacio-4))); }
 }
 @media (max-width: 600px) {
-  .barra-recepcion { padding-inline: var(--espacio-4); }
-  .barra-recepcion [data-estado] { margin-inline-start: 0; width: 100%; }
+  .recepcion-titulo { padding-inline: var(--espacio-4); }
+  .recepcion-titulo [data-estado] { order: 3; width: 100%; margin: 0; }
   .sede-maqueta { display: flex; flex-direction: column; min-height: 0; }
   .sede-maqueta > .escena-ocupacion { position: relative; inset: auto; height: 23rem; order: 1; }
   .sede-cifras { top: var(--espacio-4); left: var(--espacio-4); }

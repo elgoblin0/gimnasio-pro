@@ -8,7 +8,7 @@
 .pagos article { padding-block: var(--espacio-4); border-bottom: 1px solid var(--borde); overflow-wrap: anywhere; }
 .pagos [data-filtro-pagos] { display: grid; gap: .75rem; }
 .pagos [role="alert"] { color: var(--peligro); }
-.personal-barra[hidden], .personal-barra a[hidden] { display: none; }
+.cabecera a[hidden] { display: none; }
 #tipos-membresia { margin-top: 3rem; }
 #tipos-membresia fieldset { display: grid; gap: .75rem; min-width: 0; }
 #tipos-membresia input { max-width: 100%; box-sizing: border-box; }

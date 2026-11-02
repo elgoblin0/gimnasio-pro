@@ -232,7 +232,7 @@ def test_entrada_salida_recarga_y_teclado(pagina_demo, demo_aislada, ancho, alto
     pagina.on("pageerror", lambda error: errores.append(str(error)))
     pagina.on("console", lambda mensaje: errores.append(mensaje.text) if mensaje.type == "error" else None)
     ingresar(pagina, demo_aislada)
-    expect(pagina.get_by_text("Datos ficticios que se reinician cada día. Requiere conexión.")).to_be_visible()
+    expect(pagina.get_by_text("Datos ficticios · se reinician cada día")).to_be_visible()
     expect(pagina.locator("[data-ocupacion]")).to_have_text("0 de 60")
     boton = pagina.locator("[data-entrada]").get_by_role("button", name="Registrar entrada", exact=True)
     boton.focus()
