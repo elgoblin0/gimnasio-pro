@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Gimnasio Pro · Abriendo la demo</title>
+  <meta name="description" content="Demo de Gimnasio Pro: entrenamiento personalizado y operación diaria de un gimnasio, con datos ficticios.">
+  <meta name="theme-color" content="#b2452a">
+  <style>
+    /* Publicada aparte de la app (docs/demo-publica.md): no puede depender de un servidor dormido. */
+    @font-face { font-family: "Newsreader"; src: url("newsreader.woff2") format("woff2"); font-weight: 300 600; font-style: normal; font-display: swap; }
+    @font-face { font-family: "Newsreader"; src: url("newsreader-italica.woff2") format("woff2"); font-weight: 300 600; font-style: italic; font-display: swap; }
+    :root {
+      color-scheme: light dark;
+      --papel: #fbf7f0; --superficie: #f3ecdf; --borde: #e6dccb; --texto: #1e1b16; --suave: #5c554a; --acento: #b2452a; --sello: #8a5a00;
+      --display: "Newsreader", "Iowan Old Style", "Palatino Linotype", Charter, Georgia, serif;
+      --cuerpo: "Segoe UI Variable Text", "Segoe UI", system-ui, -apple-system, Roboto, sans-serif;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root { --papel: #16130f; --superficie: #2b2620; --borde: #3d362d; --texto: #f3ecdf; --suave: #c9bfae; --acento: #e27a5c; --sello: #e0b04a; }
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; min-height: 100%; }
+    body { background: var(--papel); color: var(--texto); font: 400 1rem/1.5 var(--cuerpo); }
+    main { max-width: 70rem; min-height: 100dvh; margin: 0 auto; padding: clamp(1.25rem, 4vw, 2.5rem) clamp(1rem, 6vw, 5rem); display: flex; flex-direction: column; gap: clamp(2rem, 7vh, 4.5rem); animation: aparecer .4s ease-out .5s both; }
+    header { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .75rem; padding-block-end: 1.25rem; border-block-end: 1px solid var(--borde); }
+    .marca { margin: 0; font: italic 400 1.35rem/1.2 var(--display); color: var(--acento); }
+    .sello { margin: 0; padding: .25rem .75rem; border: 1px solid currentcolor; border-radius: 99px; font-size: .8rem; font-weight: 600; color: var(--sello); }
+    h1 { margin: 0; font: 400 clamp(3rem, 2rem + 6vw, 6rem)/.98 var(--display); letter-spacing: -.02em; max-width: 11ch; }
+    h1 em { color: var(--acento); }
+    .estado { max-width: 34rem; }
+    #mensaje { margin: 0; font: italic 400 clamp(1.2rem, 1rem + .7vw, 1.5rem)/1.4 var(--display); color: var(--suave); }
+    .barra { height: 4px; margin-block: 1.25rem .75rem; background: var(--borde); overflow: hidden; }
+    #avance { display: block; width: 100%; height: 100%; background: var(--acento); transform-origin: left; transform: scaleX(.02); transition: transform 1s linear; }
+    .nota { margin: 0; font-size: .875rem; color: var(--suave); }
+    #abrir { display: inline-block; margin-block-start: 1rem; color: var(--acento); font-weight: 600; }
+    ol { list-style: none; margin: 0; padding: 0; max-width: 34rem; }
+    li { display: grid; grid-template-columns: 2.5rem 1fr; padding-block: .75rem; border-block-start: 1px solid var(--borde); }
+    li:last-child { border-block-end: 1px solid var(--borde); }
+    li span { font: italic 400 1.05rem/1.4 var(--display); color: var(--acento); }
+    [hidden] { display: none !important; }
+    @keyframes aparecer { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+    @media (prefers-reduced-motion: reduce) { main { animation: none; } #avance { transition: none; } }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <p class="marca">Gimnasio Pro</p>
+      <p class="sello">Modo demo: datos ficticios que se reinician cada día.</p>
+    </header>
+    <h1>Cada sesión, <em>pensada</em> para hoy.</h1>
+    <section class="estado">
+      <p id="mensaje" role="status">Abriendo la demo…</p>
+      <div class="barra" aria-hidden="true"><span id="avance"></span></div>
+      <p class="nota">Corre en un servicio gratuito que se duerme sin visitas y puede tardar cerca de un minuto. Cuando esté lista, se abre sola.</p>
+      <a id="abrir" href="https://gimnasio-pro-demo.onrender.com/" hidden>Abrir la demo ahora</a>
+      <noscript><a href="https://gimnasio-pro-demo.onrender.com/">Abrir la demo</a></noscript>
+    </section>
+    <ol>
+      <li><span>01</span>La sesión propuesta, con el porqué de cada carga.</li>
+      <li><span>02</span>Frenos de seguridad que avisan al entrenador.</li>
+      <li><span>03</span>Recepción y aforo al minuto.</li>
+    </ol>
+  </main>
+  <script>
+    const DEMO = "https://gimnasio-pro-demo.onrender.com";
+    const REINTENTO_MS = 3_000;
+    const TOPE_INTENTO_MS = 20_000;
+    const ESPERA_HABITUAL_MS = 60_000;
+    const ESPERA_LARGA_MS = 90_000;
+    const inicio = Date.now();
+
+    // Mientras duerme, Render responde con su página de carga y la imagen falla: solo carga con la app despierta.
+    // Una imagen no necesita CORS, y el mismo pedido es el que despierta el servicio.
+    function probar() {
+      const imagen = new Image();
+      let terminado = false;
+      const reintentar = () => {
+        if (terminado) return;
+        terminado = true;
+        clearTimeout(tope);
+        imagen.src = "";
+        setTimeout(probar, REINTENTO_MS);
+      };
+      const tope = setTimeout(reintentar, TOPE_INTENTO_MS);
+      imagen.onerror = reintentar;
+      imagen.onload = () => {
+        terminado = true;
+        clearTimeout(tope);
+        location.replace(`${DEMO}/`);
+      };
+      imagen.src = `${DEMO}/iconos/gimnasio-192.png?espera=${Date.now()}`;
+    }
+
+    function dibujarEspera() {
+      const transcurrido = Date.now() - inicio;
+      document.querySelector("#avance").style.transform = `scaleX(${Math.min(.95, .02 + transcurrido / ESPERA_HABITUAL_MS)})`;
+      const mensaje = transcurrido >= ESPERA_LARGA_MS
+        ? "Está tardando más de lo habitual. Seguimos intentando."
+        : transcurrido >= 2_500 ? "Despertando la demo…" : "Abriendo la demo…";
+      const estado = document.querySelector("#mensaje");
+      if (estado.textContent !== mensaje) estado.textContent = mensaje;
+      document.querySelector("#abrir").hidden = transcurrido < ESPERA_LARGA_MS;
+    }
+
+    setInterval(dibujarEspera, 1_000);
+    probar();
+  </script>
+</body>
+</html>

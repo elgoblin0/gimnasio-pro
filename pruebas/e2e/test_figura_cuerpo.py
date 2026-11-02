@@ -12,8 +12,8 @@ pytestmark = pytest.mark.e2e
 def abrir_dolor(pagina):
     if pagina.locator("[data-chequeo]").is_visible():
         pagina.get_by_role("button", name="Saltear", exact=True).click()
-    if pagina.get_by_role("button", name="Iniciar sesión realizada", exact=True).is_visible():
-        pagina.get_by_role("button", name="Iniciar sesión realizada", exact=True).click()
+    if pagina.get_by_role("button", name="Empezar sesión", exact=True).is_visible():
+        pagina.get_by_role("button", name="Empezar sesión", exact=True).click()
     expect(pagina.locator("[data-sesion-actual]")).to_be_visible()
     pagina.get_by_role("button", name="Me duele durante Sentadilla ficticia", exact=True).click()
     formulario = pagina.locator(

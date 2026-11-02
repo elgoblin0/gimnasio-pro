@@ -139,7 +139,7 @@ def entrada(sesiones=None, subas=(), fecha=LUNES):
 )
 def test_vectores_progresion(repeticiones, rir, carga, piso, regla):
     propuesta = proponer_sesion(entrada((historial(repeticiones, rir),)))
-    assert propuesta.version == "3.4.0"
+    assert propuesta.version == "3.5.0"
     assert propuesta.prescripcion[0].carga == Decimal(carga)
     assert propuesta.prescripcion[0].repeticiones_minimas == piso
     assert propuesta.prescripcion[0].repeticiones_maximas == 12
@@ -150,7 +150,45 @@ def test_vectores_progresion(repeticiones, rir, carga, piso, regla):
         assert razones[regla]["rir_minimo"] == "1"
         assert razones[regla]["rir_objetivo"] == "2"
     assert propuesta.frenos == ()
-    assert all(r.version == "3.4.0" and dict(r.datos)["explicacion"] for r in propuesta.explicacion)
+    assert all(r.version == "3.5.0" and dict(r.datos)["explicacion"] for r in propuesta.explicacion)
+
+
+def test_la_suba_que_se_aplica_se_explica_como_decision():
+    propuesta = proponer_sesion(entrada())
+    assert propuesta.prescripcion[0].carga == Decimal("42.5")
+    razon = next(dict(r.datos) for r in propuesta.explicacion if r.regla == "subir_carga")
+    assert razon["explicacion"].startswith("Subís 2,5 kg en")
+    assert "suba_anulada" not in razon
+
+
+@pytest.mark.parametrize(
+    "cambios",
+    [
+        {"chequeo": Chequeo(1, 5)},
+        {"dolores_anteriores": ("cuadriceps",)},
+        {"subas": (SubaCarga("sentadilla", LUNES),)},
+    ],
+    ids=["chequeo", "dolor", "tope"],
+)
+def test_la_suba_anulada_no_se_lee_como_decision(cambios):
+    catalogo = (EjercicioCatalogo("sentadilla", "Sentadilla", Decimal("2.5"), zonas=("cuadriceps",)),)
+    propuesta = proponer_sesion(replace(entrada(), catalogo=catalogo, **cambios))
+    assert propuesta.prescripcion[0].carga == Decimal("40")
+    razon = next(dict(r.datos) for r in propuesta.explicacion if r.regla == "subir_carga")
+    assert razon["explicacion"].startswith("Te tocaba subir 2,5 kg en Sentadilla")
+    assert razon["explicacion"].endswith("Hoy no se aplica.")
+    assert razon["suba_anulada"] == "True"
+    # Los datos siguen contando lo que el motor calculó antes del freno.
+    assert razon["carga"] == "42.5"
+
+
+def test_el_chequeo_malo_solo_anula_subas_si_las_hubo():
+    sin_suba = proponer_sesion(replace(entrada((historial((10, 10, 10)),)), chequeo=Chequeo(1, 5)))
+    razon = next(dict(r.datos) for r in sin_suba.explicacion if r.regla == "chequeo_desfavorable")
+    assert "se anulan las subas" not in razon["explicacion"]
+    con_suba = proponer_sesion(replace(entrada(), chequeo=Chequeo(1, 5)))
+    razon = next(dict(r.datos) for r in con_suba.explicacion if r.regla == "chequeo_desfavorable")
+    assert "se anulan las subas" in razon["explicacion"]
 
 
 def test_bajar_carga_tras_dos_fallos_y_nunca_menor_que_cero():
@@ -232,7 +270,7 @@ def test_carga_base_minima_no_depende_del_orden(cargas):
     razon = next(r for r in propuesta.explicacion if r.regla == "subir_carga")
     assert dict(razon.datos)["carga_base"] == "35"
     assert "35 kg" in dict(razon.datos)["explicacion"]
-    assert propuesta.version == "3.4.0"
+    assert propuesta.version == "3.5.0"
 
 
 @pytest.mark.parametrize(
@@ -435,7 +473,7 @@ def test_sin_consentimiento_de_salud_no_sube_carga_ni_repeticiones(repeticiones,
     assert not reglas & {"subir_carga", "mantener_carga", "mantener_por_rir", "tope_semanal"}
     assert propuesta.frenos == ()
     razon = next(r for r in propuesta.explicacion if r.regla == "sin_consentimiento_salud")
-    assert razon.version == propuesta.version == "3.4.0"
+    assert razon.version == propuesta.version == "3.5.0"
     assert "consentimiento de salud" in dict(razon.datos)["explicacion"]
 
 

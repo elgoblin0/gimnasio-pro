@@ -137,7 +137,8 @@ def test_revocar_sin_dolor_en_la_sesion_conserva_la_prescripcion_efectiva(dolor_
 def test_la_siguiente_propuesta_acredita_lo_mismo_que_antes_de_revocar(dolor_api):
     datos = dolor_api
     cliente, ruta = datos.cliente_dolor, datos.ruta_dolor
-    assert escribir(cliente, ruta + "/dolores", datos.cuerpo_dolor | {"zonas": ["cuadriceps"]}).status_code == 201
+    zonas = ["cuadriceps", "pecho"]
+    assert escribir(cliente, ruta + "/dolores", datos.cuerpo_dolor | {"zonas": zonas}).status_code == 201
     antes = cliente.get("/api/entrenamiento/propuesta").json
     assert antes["sesion_planificada"]["id"] != lectura(datos)["sesion_planificada"]["id"]
     revocar_demo(datos)
@@ -186,7 +187,7 @@ def test_sin_consentimiento_la_propuesta_congela_y_lo_explica(dolor_api):
     propuesta = cliente.get("/api/entrenamiento/propuesta").json
     reglas = {r["regla"] for r in propuesta["explicacion"]}
     assert "subir_carga" not in reglas and "tope_semanal" not in reglas
-    assert propuesta["version_reglas"] == "3.4.0"
+    assert propuesta["version_reglas"] == "3.5.0"
 
 
 def test_ejercicio_excluido_por_restriccion_vuelve_a_proponerse_y_se_excluye_otra_vez(entrenamiento_api):

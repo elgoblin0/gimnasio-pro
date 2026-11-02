@@ -45,7 +45,7 @@ def test_recorrido_lucia_marcos_lucia(navegador, demo_aislada):
         lucia.get_by_label("Energía", exact=True).select_option("4")
         lucia.get_by_role("button", name="Guardar chequeo del día", exact=True).click()
         expect(lucia.locator("[data-chequeo]")).to_be_hidden()
-        lucia.get_by_role("button", name="Iniciar sesión realizada", exact=True).click()
+        lucia.get_by_role("button", name="Empezar sesión", exact=True).click()
         expect(lucia.locator("[data-sesion-actual]")).to_be_visible()
         sentadilla = tarjeta(lucia, "Sentadilla ficticia")
         lucia.get_by_role("button", name="Me duele durante Sentadilla ficticia", exact=True).click()

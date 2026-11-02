@@ -140,8 +140,8 @@ def test_recorrido_parcial_salida_reingreso_y_cierre(pagina_demo, demo_aislada, 
     assert pagina.locator("[data-salida], [data-entrada]").count() == 0
     if pagina.locator("[data-chequeo]").is_visible():
         pagina.get_by_role("button", name="Saltear", exact=True).click()
-    pagina.get_by_role("button", name="Iniciar sesión realizada", exact=True).click()
-    expect(pagina.get_by_text("Sesión realizada iniciada.", exact=True)).to_be_visible()
+    pagina.get_by_role("button", name="Empezar sesión", exact=True).click()
+    expect(pagina.get_by_text("Sesión iniciada.", exact=True)).to_be_visible()
     enlace = pagina.url
     boton = pagina.get_by_role("button", name="Registrar serie de Sentadilla ficticia", exact=True)
     boton.focus()
@@ -234,8 +234,8 @@ def test_secuencia_terminada_se_conserva_tras_recarga_y_otra_semana(pagina_demo,
         assert propuesta["sesion_planificada"] is not None
         if pagina.locator("[data-chequeo]").is_visible():
             pagina.get_by_role("button", name="Saltear", exact=True).click()
-        pagina.get_by_role("button", name="Iniciar sesión realizada", exact=True).click()
-        expect(pagina.get_by_text("Sesión realizada iniciada.", exact=True)).to_be_visible()
+        pagina.get_by_role("button", name="Empezar sesión", exact=True).click()
+        expect(pagina.get_by_text("Sesión iniciada.", exact=True)).to_be_visible()
         sesiones.append(pagina.url)
         for ejercicio in propuesta["ejercicios"]:
             for _ in range(ejercicio["pendiente"]):
@@ -246,7 +246,7 @@ def test_secuencia_terminada_se_conserva_tras_recarga_y_otra_semana(pagina_demo,
         tiempo_de_recorrido(demo_aislada, dias=1)
     assert sesiones[0] != sesiones[1]
     expect(pagina.get_by_role("heading", name="Secuencia realizada", exact=True)).to_be_visible()
-    expect(pagina.get_by_role("button", name="Iniciar sesión realizada", exact=True)).to_be_hidden()
+    expect(pagina.get_by_role("button", name="Empezar sesión", exact=True)).to_be_hidden()
     tiempo_de_recorrido(demo_aislada, dias=7)
     pagina.reload()
     expect(pagina.get_by_role("heading", name="Secuencia realizada", exact=True)).to_be_visible()

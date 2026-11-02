@@ -16,11 +16,11 @@ def iniciar(pagina, instancia):
     pagina.get_by_role("button", name="Entrar como socio", exact=True).click()
     pagina.get_by_role("link", name="Ver mi entrenamiento", exact=True).click()
     pagina.get_by_role("button", name="Saltear", exact=True).click()
-    boton = pagina.get_by_role("button", name="Iniciar sesión realizada", exact=True)
+    boton = pagina.get_by_role("button", name="Empezar sesión", exact=True)
     expect(boton).to_be_visible()
     boton.focus()
     pagina.keyboard.press("Enter")
-    expect(pagina.get_by_text("Sesión realizada iniciada.", exact=True)).to_be_visible()
+    expect(pagina.get_by_text("Sesión iniciada.", exact=True)).to_be_visible()
 
 
 def contar(instancia):

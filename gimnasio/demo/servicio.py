@@ -143,7 +143,7 @@ def _cargar_programas(cursor, socios, siguiente_id, ahora):
     )
     repositorio.insertar_alternativa(cursor, fuerza, cajon, 2)
     repositorio.insertar_alternativa(cursor, cajon, fuerza, 1)
-    _cargar_plantillas(cursor, siguiente_id, ahora, fuerza)
+    empuje = _cargar_plantillas(cursor, siguiente_id, ahora, fuerza)
     for socio_id in socios[:2]:
         programa, primera, segunda = siguiente_id(), siguiente_id(), siguiente_id()
         # El de Lucía es anterior a su historial: el resumen semanal lo encuentra vigente en esas semanas.
@@ -174,8 +174,8 @@ def _cargar_programas(cursor, socios, siguiente_id, ahora):
             1,
             rir_objetivo=2,
             descanso=60,
-            duracion=120,
-            distancia="1500.25",
+            duracion=1200,
+            distancia="1500",
         )
         repositorio.insertar_ejercicio_planificado(
             cursor,
@@ -203,6 +203,20 @@ def _cargar_programas(cursor, socios, siguiente_id, ahora):
                 rir_objetivo=2,
                 descanso=90,
                 carga="20.50",
+            )
+            # Tren superior: con dolor en las piernas a Lucía le queda trabajo para hacer ese día.
+            repositorio.insertar_ejercicio_planificado(
+                cursor,
+                siguiente_id(),
+                primera,
+                empuje,
+                4,
+                2,
+                repeticiones_minimas=8,
+                repeticiones_maximas=12,
+                rir_objetivo=2,
+                descanso=90,
+                carga="12.50",
             )
             # Tres semanas anteriores completas: no acreditan pendientes de las sesiones nuevas.
             for semana, repeticiones in enumerate((10, 11, 12), start=1):
@@ -303,6 +317,7 @@ def _cargar_plantillas(cursor, siguiente_id, ahora, fuerza):
             repositorio.insertar_sesion_plantilla(cursor, sesion, plantilla, posicion, f"Fuerza {posicion}")
             for orden, ejercicio in enumerate((fuerza, empuje, traccion), start=1):
                 repositorio.insertar_ejercicio_plantilla(cursor, siguiente_id(), sesion, ejercicio, orden)
+    return empuje
 
 
 class LimitePorIp:

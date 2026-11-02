@@ -55,12 +55,23 @@ def test_la_ventana_es_movil_y_los_rechazos_no_extienden_la_espera(reloj_fijo):
     assert cliente.get("/api/estado").status_code == 429
 
 
-def test_los_archivos_y_las_rutas_inexistentes_comparten_el_limite(reloj_fijo):
+def test_las_rutas_inexistentes_comparten_el_limite_con_la_api(reloj_fijo):
     cliente = crear_demo(reloj_fijo).test_client()
     for _ in range(120):
-        assert cliente.get("/").status_code == 200
+        assert cliente.get("/api/estado").status_code == 200
         assert cliente.get("/no-existe").status_code == 404
     assert cliente.get("/api/estado").status_code == 429
+
+
+def test_los_archivos_no_gastan_el_cupo_de_la_ip(reloj_fijo):
+    cliente = crear_demo(reloj_fijo).test_client()
+    for ruta in ("/", "/recepcion.html", "/js/inicio.js", "/sw.js", "/manifest.webmanifest") * 60:
+        assert cliente.get(ruta).status_code == 200
+    for _ in range(240):
+        assert cliente.get("/api/estado").status_code == 200
+    assert cliente.get("/api/estado").status_code == 429
+    # Con el cupo agotado, un archivo se sigue sirviendo.
+    assert cliente.get("/recepcion.html").status_code == 200
 
 
 def test_las_solicitudes_simultaneas_no_esquivan_el_limite(reloj_fijo):

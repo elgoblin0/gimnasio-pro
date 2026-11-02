@@ -22,6 +22,7 @@ def aplicar_dolor(
             repeticiones_minimas=prescripcion.repeticiones_maximas,
         )
     explicacion = "Dolor reportado en la sesión anterior: no sube la carga de esta zona en esta sesión."
+    cierre = " No se sube la carga. Se avisa al entrenador."
     hecho_id = None
     if set(ejercicio.zonas) & set(actuales):
         alternativas, razon = elegir_alternativas(
@@ -36,7 +37,8 @@ def aplicar_dolor(
             explicacion = dict(razon.datos)["explicacion"]
         else:
             prescripcion = replace(prescripcion, series=0)
-            explicacion = "Se quita el ejercicio: no hay una alternativa que evite las zonas con dolor."
+            explicacion = "Se quita el ejercicio por hoy: no hay una alternativa que evite las zonas con dolor."
+            cierre = " Se avisa al entrenador."
     prescripcion = replace(prescripcion, ejercicio_hecho_id=hecho_id)
     return (
         prescripcion,
@@ -48,7 +50,7 @@ def aplicar_dolor(
                     ("ejercicio_id", prescripcion.ejercicio_id),
                     ("ejercicio_hecho_id", hecho_id or ""),
                     ("zonas", ", ".join(sorted(zonas))),
-                    ("explicacion", explicacion + " No se sube la carga. Se avisa al entrenador."),
+                    ("explicacion", explicacion + cierre),
                 ),
             ),
         ),

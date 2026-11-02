@@ -178,7 +178,8 @@
   .cabecera nav a:hover { color: var(--texto); }
   .cabecera nav a[aria-current] { color: var(--texto); border-block-end-color: var(--acento); font-weight: 600; }
   .cabecera-demo { margin: 0; color: var(--texto-suave); font-size: var(--tamano-chico); }
-  :root[data-sesion-demo="si"] .cabecera-demo { display: block; }
+  /* !important: gana al [hidden] estricto de pantallas.css, que dejaría el aviso oculto hasta que responda la sesión. */
+  :root[data-sesion-demo="si"] .cabecera-demo { display: block !important; }
   :root[data-sesion-demo="no"] .cabecera-demo { display: none; }
   .cabecera-efectos { display: contents; }
   .cabecera [data-cerrar] { min-height: 44px; padding: 0 var(--espacio-4); color: var(--texto); background: transparent; border-color: var(--borde); font-size: var(--tamano-chico); }

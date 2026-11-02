@@ -182,6 +182,10 @@ form:has(.cuerpo-escena) > button[type="submit"] { position: sticky; bottom: 12p
 [data-iniciar] { color: var(--superficie); background: var(--texto); border: 0; }
 [data-iniciar]:hover { background: color-mix(in srgb, var(--texto) 86%, var(--acento)); }
 [data-sesion-actual] { color: var(--exito); font-weight: 600; }
+.sin-trabajo { margin: 0 0 var(--espacio-4); padding: var(--espacio-3) var(--espacio-4); border-left: 3px solid var(--acento); background: var(--superficie); }
+.sin-trabajo p { margin: 0 0 var(--espacio-2); }
+[data-avisar-entrenador] { color: var(--superficie); background: var(--texto); border: 0; }
+[data-avisar-entrenador]:hover { background: color-mix(in srgb, var(--texto) 86%, var(--acento)); }
 
 /* Registro de una serie: los campos en fila, el botón al final. */
 form[data-serie] { display: flex; flex-wrap: wrap; align-items: end; gap: var(--espacio-3); max-width: none; margin-block-start: var(--espacio-4); padding: var(--espacio-4); border: 1px dashed var(--borde); border-radius: var(--radio-2); }

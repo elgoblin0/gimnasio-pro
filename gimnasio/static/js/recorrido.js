@@ -68,8 +68,6 @@ async function narrar(id, datos) {
   narrando = false;
 }
 
-const ESTADOS_DE_SESION_INICIADA = ["Sesión realizada iniciada.", "Sesión iniciada."];
-
 // Una repetición más que la vez anterior, si hay con qué comparar: es lo que hace récord y el resumen lo muestra.
 function superarLaVezAnterior(formulario, tarjetaEjercicio) {
   const repeticiones = formulario.querySelector("[name=repeticiones]");
@@ -131,7 +129,7 @@ const ACCIONES = {
     if (!visible($("[data-sesion-actual]"))) {
       await esperar(() => visible($("[data-iniciar]")) && !$("[data-iniciar]").disabled);
       $("[data-iniciar]").click();
-      await esperar(() => ESTADOS_DE_SESION_INICIADA.includes(textoDe("[data-estado]")) || Boolean(textoDe("[data-error]")));
+      await esperar(() => textoDe("[data-estado]") === "Sesión iniciada." || Boolean(textoDe("[data-error]")));
       if (!visible($("[data-sesion-actual]"))) return { resultado: "rechazada", motivo: textoDe("[data-error]") };
     }
     estado.datos.sesion = new URLSearchParams(location.search).get("sesion") ?? estado.datos.sesion;

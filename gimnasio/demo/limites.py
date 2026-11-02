@@ -1,9 +1,11 @@
 """Límites de solicitudes para la instancia pública, sin dependencias adicionales."""
 
 from ipaddress import ip_address
+from os.path import isfile
 
 from flask import request
 from werkzeug.exceptions import RequestEntityTooLarge
+from werkzeug.security import safe_join
 
 from gimnasio.comun.errores import respuesta_de_error
 from gimnasio.demo.servicio import SOLICITUDES_POR_MINUTO, LimitePorIp
@@ -22,6 +24,13 @@ def _ip_de_la_solicitud(app):
     return ip
 
 
+def _pide_un_archivo(app):
+    # Los archivos no tocan la base y un navegador nuevo pide decenas de una vez.
+    # La ruta de archivos atrapa cualquier dirección: las inexistentes no quedan exentas.
+    ruta = safe_join(app.static_folder, request.path.lstrip("/") or "index.html")
+    return ruta is not None and isfile(ruta)
+
+
 def registrar_limites(app):
     limite = LimitePorIp()
     app.extensions["limite_demo"] = limite
@@ -30,7 +39,7 @@ def registrar_limites(app):
     def limitar_demo():
         if not app.config["MODO_DEMO"]:
             return None
-        espera = limite.espera(_ip_de_la_solicitud(app))
+        espera = 0 if _pide_un_archivo(app) else limite.espera(_ip_de_la_solicitud(app))
         if espera:
             respuesta = app.make_response(
                 respuesta_de_error(

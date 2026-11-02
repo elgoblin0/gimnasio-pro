@@ -103,7 +103,7 @@ function dibujarOcurrencia(fila, cambio) {
   crear("p", { className: "ocurrencia-cifras nota-suave", "data-cambia": cambio?.cifras ? "true" : undefined },
     crear("span", {}, `Cupo: ${fila.cupo}`), " ", crear("span", {}, `Libres: ${fila.libres}`), " ", fila.espera > 0 && crear("span", {}, `En espera: ${fila.espera}`)));
   if (fila.cancelada) {
-    elemento.append(crear("strong", { className: "sello-agenda", "data-sello": "cancelada" }, "Ocurrencia cancelada"));
+    elemento.append(crear("strong", { className: "sello-agenda", "data-sello": "cancelada" }, "Clase cancelada"));
     return elemento;
   }
   if (reserva) elemento.append(crear("span", { className: "sello-agenda", "data-sello": reserva.estado }, textoReserva(reserva)));
@@ -171,7 +171,7 @@ function pintarAgenda(datos, animar) {
   formaAgenda = forma;
   firmas.clear();
   for (const fila of datos.ocurrencias) firmas.set(claveOcurrencia(fila), firmaDe(fila));
-  $("[data-rango]").textContent = `${fecha(datos.desde)} al ${fecha(datos.hasta)} · ${datos.zona_horaria}`;
+  $("[data-rango]").textContent = `${fecha(datos.desde)} al ${fecha(datos.hasta)}`;
   $("[data-vacio]").hidden = datos.ocurrencias.length > 0;
   $("[data-leyenda]").hidden = !datos.ocurrencias.length;
   if (foco) restaurarFoco(lista, foco);

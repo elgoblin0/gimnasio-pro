@@ -71,7 +71,9 @@ def resumir_semana(sesiones: tuple[SesionDeLaSemana, ...], visitas: int, planifi
             "visitas": visitas,
         },
         "cambios": {
-            "ajustes": [razon for razon in razones if razon["regla"] in AJUSTES],
+            "ajustes": [
+                razon for razon in razones if razon["regla"] in AJUSTES and not razon["datos"].get("suba_anulada")
+            ],
             "frenos": [razon for razon in razones if razon["regla"] in FRENOS],
         },
         "pendientes": {

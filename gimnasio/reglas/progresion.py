@@ -28,12 +28,7 @@ def numero(valor):
 
 def subir_carga(prescripcion, ejercicio, ultima, piso):
     carga = prescripcion.carga + ejercicio.incremento_carga
-    esfuerzo = (
-        f" con RIR registrado igual o mayor que el objetivo {prescripcion.rir_objetivo}"
-        " o evaluado solo por repeticiones cuando falta RIR"
-        if prescripcion.rir_objetivo is not None
-        else ""
-    )
+    esfuerzo = f" con RIR {prescripcion.rir_objetivo} o más" if prescripcion.rir_objetivo is not None else ""
     return replace(prescripcion, carga=carga, repeticiones_minimas=piso), razon(
         "subir_carga",
         prescripcion,
@@ -298,7 +293,8 @@ def _aplicar_chequeo(planificado, entrada, sesion_planificada_id):
     explicacion = razon(
         "chequeo_desfavorable",
         ajustada,
-        "Chequeo del día desfavorable: una serie menos (mínimo una) y se anulan las subas de hoy. "
+        "Chequeo del día desfavorable: una serie menos (mínimo una)"
+        f"{' y se anulan las subas de hoy' if suba is not None else ''}. "
         "Se deja un aviso al entrenador al iniciar la sesión.",
         sueno=chequeo.sueno,
         energia=chequeo.energia,
@@ -306,6 +302,26 @@ def _aplicar_chequeo(planificado, entrada, sesion_planificada_id):
         suba_anulada=suba is not None,
     )
     return ajustada, razones + (explicacion,), frenos + ("chequeo_desfavorable",)
+
+
+def _marcar_suba_anulada(razones, ajustada):
+    """Una suba que otra regla anuló queda como motivo y no como decisión: manda la carga final."""
+
+    def marcar(explicacion):
+        if explicacion.regla != "subir_carga" or ajustada.carga >= Decimal(dict(explicacion.datos)["carga"]):
+            return explicacion
+        return replace(
+            explicacion,
+            datos=tuple(
+                (clave, f"{valor.replace('Subís', 'Te tocaba subir', 1)} Hoy no se aplica.")
+                if clave == "explicacion"
+                else (clave, valor)
+                for clave, valor in explicacion.datos
+            )
+            + (("suba_anulada", "True"),),
+        )
+
+    return tuple(marcar(explicacion) for explicacion in razones)
 
 
 def ajustar_ejercicio(planificado, entrada, sesion_planificada_id):
@@ -422,4 +438,4 @@ def ajustar_ejercicio(planificado, entrada, sesion_planificada_id):
                     "El equipo está fuera de servicio y no hay alternativa disponible. Sigue pendiente.",
                 ),
             )
-    return ajustada, razones, frenos + frenos_dolor + frenos_salud
+    return ajustada, _marcar_suba_anulada(razones, ajustada), frenos + frenos_dolor + frenos_salud

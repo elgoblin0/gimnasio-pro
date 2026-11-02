@@ -44,7 +44,7 @@ def test_recorrido_lucia_etapa_2(pagina_demo, demo_aislada, ancho, alto, sin_web
     expect(sentadilla).to_contain_text("una serie menos")
     expect(sentadilla).to_contain_text("se anulan las subas de hoy")
     expect(sentadilla).to_contain_text("1 serie")
-    pagina.get_by_role("button", name="Iniciar sesión realizada", exact=True).click()
+    pagina.get_by_role("button", name="Empezar sesión", exact=True).click()
     expect(pagina.locator("[data-sesion-actual]")).to_be_visible()
     sesion = parse_qs(urlparse(pagina.url).query)["sesion"][0]
     expect(sentadilla).to_contain_text("Carga anterior: 20,50 kg · 12 repeticiones")

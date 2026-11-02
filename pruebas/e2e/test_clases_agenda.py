@@ -122,7 +122,7 @@ def test_cancelacion_se_sondea_y_aviso_se_marca_visto(pagina_demo, demo_aislada)
         headers={"X-Gimnasio": "1", "Idempotency-Key": str(uuid4())},
     )
     assert respuesta.status_code == 200
-    expect(primera).to_contain_text("Ocurrencia cancelada", timeout=12000)
+    expect(primera).to_contain_text("Clase cancelada", timeout=12000)
     expect(primera.get_by_role("button", name="Reservar", exact=True)).to_have_count(0)
     pagina.goto(demo_aislada.url)
     aviso = pagina.locator("[data-avisos-lista] li")
@@ -255,5 +255,5 @@ def test_agenda_en_celular_sin_desborde_y_con_dialogos(pagina_demo, demo_aislada
     dialogo = pagina.locator("[data-dialogo-cancelar]")
     dialogo.get_by_label("Motivo de la cancelación").fill("Mantenimiento ficticio")
     dialogo.get_by_role("button", name="Cancelar ocurrencia", exact=True).click()
-    expect(tarjeta).to_contain_text("Ocurrencia cancelada")
+    expect(tarjeta).to_contain_text("Clase cancelada")
     expect(tarjeta).to_be_focused()

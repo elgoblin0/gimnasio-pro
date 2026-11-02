@@ -123,7 +123,7 @@ def test_propuesta_conserva_plan_y_distingue_posiciones_del_mismo_ejercicio(entr
     assert [e["realizado"] for e in despues["ejercicios"]] == [1, 0]
     assert [e["pendiente"] for e in despues["ejercicios"]] == [1, 2]
     assert despues["ejercicios"][0]["objetivos"]["carga"] == "20.50"
-    assert despues["version_reglas"] == "3.4.0"
+    assert despues["version_reglas"] == "3.5.0"
     assert any("sin ajustes" in r["datos"]["explicacion"] for r in despues["explicacion"])
     assert despues == datos.cliente().get("/api/entrenamiento/propuesta").json
     with datos.app.app_context(), transaccion() as cursor:
@@ -635,7 +635,7 @@ def test_propuesta_devuelve_rango_y_catalogo_de_la_demo(entrenamiento_api):
         sesion["usuario_id"] = str(desde_bytes(socio))
     respuesta = cliente.get("/api/entrenamiento/propuesta")
     assert respuesta.status_code == 200
-    fuerza, cardio, mantener = respuesta.json["ejercicios"]
+    fuerza, cardio, _mantener, _empuje = respuesta.json["ejercicios"]
     assert fuerza["objetivos"] == {
         "series": 2,
         "repeticiones_minimas": 8,
@@ -779,16 +779,16 @@ def test_demo_propuesta_ajustada_e_historial_reproducible(entrenamiento_api):
         return respuesta.json
 
     primera = reiniciar_y_consultar()
-    assert primera["version_reglas"] == "3.4.0"
+    assert primera["version_reglas"] == "3.5.0"
     assert primera["frenos"] == []
-    fuerza, cardio, mantener = primera["ejercicios"]
+    fuerza, cardio, mantener, _empuje = primera["ejercicios"]
     assert fuerza["objetivos"]["carga"] == "23.00"
     assert fuerza["objetivos"]["repeticiones_minimas"] == 8
     assert mantener["objetivos"]["carga"] == "20.50"
     assert mantener["objetivos"]["repeticiones_minimas"] == 11
     assert [r["regla"] for r in fuerza["explicacion"]] == ["subir_carga", "sin_chequeo"]
     assert [r["regla"] for r in mantener["explicacion"]] == ["mantener_carga", "sin_chequeo"]
-    assert cardio["objetivos"]["duracion"] == 120
+    assert cardio["objetivos"]["duracion"] == 1200
     assert primera == reiniciar_y_consultar()
     datos.reloj.avanzar(timedelta(days=9))
     desplazada = reiniciar_y_consultar()
@@ -1233,7 +1233,7 @@ def test_prescripcion_efectiva_guardada_idempotente_y_estable(entrenamiento_api,
     respuesta = escribir(cliente, "/api/entrenamiento/sesiones", cuerpo, clave)
     assert respuesta.status_code == 201
     inicial = cliente.get(f"/api/entrenamiento/sesiones/{sesion}").json
-    assert inicial["prescripcion_efectiva"]["version_reglas"] == "3.4.0"
+    assert inicial["prescripcion_efectiva"]["version_reglas"] == "3.5.0"
     assert escribir(cliente, "/api/entrenamiento/sesiones", cuerpo, clave).data == respuesta.data
     assert escribir(cliente, "/api/entrenamiento/sesiones", cuerpo).json == respuesta.json
     assert cantidad(datos, "prescripciones_efectivas") == 1
@@ -1964,7 +1964,8 @@ def test_dolor_sin_alternativa_quita_e_impide_registrar_serie(dolor_api):
 def test_quitadas_en_vivo_no_impiden_avanzar_la_propuesta(dolor_api):
     datos = dolor_api
     cliente, ruta = datos.cliente_dolor, datos.ruta_dolor
-    assert escribir(cliente, ruta + "/dolores", datos.cuerpo_dolor | {"zonas": ["cuadriceps"]}).status_code == 201
+    zonas = ["cuadriceps", "pecho"]
+    assert escribir(cliente, ruta + "/dolores", datos.cuerpo_dolor | {"zonas": zonas}).status_code == 201
     lectura = cliente.get(ruta).json
     assert all(e["pendiente"] == 0 for e in lectura["ejercicios"])
     siguiente = cliente.get("/api/entrenamiento/propuesta").json
