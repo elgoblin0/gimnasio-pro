@@ -2,22 +2,21 @@
 // sesión ocurre, a qué parte se ancla la tarjeta y qué frase muestra según el estado que encontró.
 
 export const CLAVE_RECORRIDO = "gimnasio-recorrido";
-// Unos dos minutos en total, sin contar lo que tarda cada pantalla en cargar.
+// Unos dos minutos en total: seis esperas de lectura, tres narraciones y lo que tarda cada pantalla en cargar.
 export const DURACION_PASO_MS = 12_000;
+// Lo que se lee antes de una acción, para que se vea qué va a pasar antes de que pase.
+export const DURACION_NARRACION_MS = 4_500;
 
-// `sesion`: "cualquiera" no cambia de sesión; "ninguna" la cierra; un rol entra como ese rol de la demo
-// (el socio es Lucía). `ancla`: selectores en orden de preferencia; vale el primero visible.
+// `sesion`: "cualquiera" no cambia de sesión; un rol entra como ese rol de la demo (el socio es Lucía).
+// `ancla`: selectores en orden de preferencia; vale el primero visible. Sin ancla, la pantalla queda como está.
 export const PASOS = [
-  { id: "inicio", pagina: "/", sesion: "cualquiera", ancla: ["[data-recorrido-portada]", ".portada-presentacion"] },
-  { id: "aforo", pagina: "/recepcion.html", sesion: "recepcion", ancla: [".sede-cifras"] },
-  { id: "entrada", pagina: "/recepcion.html", sesion: "recepcion", ancla: [".sede-cifras"] },
+  { id: "inicio", pagina: "/", sesion: "cualquiera", ancla: [] },
+  { id: "entrada", pagina: "/recepcion.html", sesion: "recepcion", ancla: ["[data-tarjeta-contextual]", ".sede-cifras"] },
   { id: "escena", pagina: "/recepcion.html", sesion: "recepcion", ancla: ["[data-escena-ocupacion]", ".por-zona"] },
-  { id: "propuesta", pagina: "/entrenamiento.html", sesion: "socio", ancla: ["[data-ejercicio]", "[data-contenido]"] },
+  { id: "chequeo", pagina: "/entrenamiento.html", sesion: "socio", ancla: ["[data-chequeo]", "[data-ejercicio]:has([data-ajuste]:not(:empty))", "[data-ejercicio]", "[data-contenido]"] },
   { id: "series", pagina: "/entrenamiento.html", sesion: "socio", ancla: ["[data-registro]", "[data-contenido]"] },
   { id: "freno", pagina: "/bandeja.html", sesion: "entrenador", ancla: ["[data-revision]", "[data-historial]", "[data-socio]", "[data-grupos]"] },
-  { id: "revision", pagina: "/bandeja.html", sesion: "entrenador", ancla: ["[data-avisos-revisados] > li", "[data-historial]", "[data-revision]", "[data-socio]", "[data-grupos]"] },
-  { id: "administracion", pagina: "/administracion.html", sesion: "administracion", ancla: ["#sede", "main"] },
-  { id: "explorar", pagina: "/", sesion: "ninguna", ancla: ["[data-demo]", ".portada-ingreso"] },
+  { id: "resumen", pagina: "/resumen-sesion.html", sesion: "socio", ancla: ["[data-resumen]", "main"] },
 ];
 
 export function iniciarRecorrido() {
@@ -50,11 +49,10 @@ export function cambioDeSesion(anterior, nuevo) {
   return nuevo.sesion;
 }
 
-// La bandeja abre la hoja de Lucía si el recorrido ya conoce su id.
+// La bandeja abre la hoja de Lucía y el resumen, la sesión que ella registró, si el recorrido ya los conoce.
 export function destino(paso, datos = {}) {
-  if (paso.id === "freno" || paso.id === "revision") {
-    return datos.lucia ? `${paso.pagina}?socio=${encodeURIComponent(datos.lucia)}` : paso.pagina;
-  }
+  if (paso.id === "freno" && datos.lucia) return `${paso.pagina}?socio=${encodeURIComponent(datos.lucia)}`;
+  if (paso.id === "resumen" && datos.sesion) return `${paso.pagina}?sesion=${encodeURIComponent(datos.sesion)}`;
   return paso.pagina;
 }
 
@@ -62,47 +60,56 @@ const lugares = (ocupacion, aforo) => `${ocupacion} de ${aforo}`;
 // Los mensajes de la API ya traen su punto final.
 const conMotivo = (motivo) => (motivo ? `: ${motivo.replace(/\.$/, "")}.` : ".");
 
+// Lo que se lee mientras la pantalla está por hacer la acción del paso.
+export function textoDeNarracion(id, hechos = {}) {
+  switch (id) {
+    case "entrada":
+      return hechos.aforo
+        ? `Esto ve recepción: la ocupación de la sede al minuto, ${lugares(hechos.ocupacion, hechos.aforo)} lugares. Llega Lucía.`
+        : "Esto ve recepción: la ocupación de la sede al minuto, contra su aforo máximo. Llega Lucía.";
+    case "chequeo":
+      return "Ahora sos Lucía. Antes de entrenar cuenta cómo llegó: durmió mal, sueño 1 de 5 y energía 2 de 5.";
+    case "freno":
+      return "Ahora sos su entrenador. Un freno de seguridad recortó la sesión de Lucía y le avisa por qué.";
+    default:
+      return "";
+  }
+}
+
 // `hechos` es lo que el paso encontró o hizo en la pantalla real; ningún estado previo es un error (ADR 0032).
 export function textoDelPaso(id, hechos = {}) {
   switch (id) {
     case "inicio":
-      return "En unos dos minutos vas a ver la app real con datos ficticios: Lucía entra a la sede, entrena y su entrenador revisa un freno. Podés salir en cualquier paso.";
-    case "aforo":
-      return hechos.aforo
-        ? `Esto ve recepción: la ocupación de la sede al minuto, ${lugares(hechos.ocupacion, hechos.aforo)} lugares.`
-        : "Esto ve recepción: la ocupación de la sede al minuto, contra su aforo máximo.";
+      return "En unos dos minutos vas a ver la app real con datos ficticios: Lucía llega a la sede, cuenta que durmió mal, entrena y ve su resumen. Podés salir en cualquier paso.";
     case "entrada":
       if (hechos.resultado === "registrada") {
-        return `Lucía llega y recepción registra su entrada: la ocupación pasa a ${lugares(hechos.ocupacion, hechos.aforo)}.`;
+        return `Recepción registra su entrada: la ocupación pasa a ${lugares(hechos.ocupacion, hechos.aforo)}. La tarjeta contextual le muestra de un vistazo su membresía, sus pagos y sus visitas.`;
       }
       if (hechos.resultado === "ya-adentro") {
-        return "Lucía ya está adentro: otra visita a la demo registró su entrada. La entrada no se duplica.";
+        return "Lucía ya está adentro: otra visita a la demo registró su entrada, que no se duplica. La tarjeta contextual muestra de un vistazo su membresía, sus pagos y sus visitas.";
       }
       return `Hoy no se pudo registrar la entrada de Lucía${conMotivo(hechos.motivo)} El recorrido sigue igual.`;
     case "escena":
       return hechos.conEscena
-        ? "La escena de ocupación ubica cada visita en su zona de la sede. Tocá un punto para ver de quién es."
+        ? "La escena de ocupación ubica cada visita en su zona de la sede: cada figura es una persona. Al costado, cuántas hay en cada zona."
         : "Por zona muestra dónde está cada visita. En el modo sin efectos es la misma información, sin la escena 3D.";
-    case "propuesta":
+    case "chequeo":
       return hechos.chequeo === "guardado"
-        ? "Ahora sos Lucía. Contó que durmió mal: la propuesta le baja una serie, anula las subas de hoy y explica por qué."
-        : "Ahora sos Lucía. La app le propone la sesión de hoy y explica cada carga.";
+        ? "Como durmió mal, la propuesta le baja una serie y anula las subas de hoy. Cada ajuste explica por qué."
+        : "La app le propone a Lucía la sesión de hoy y explica cada carga.";
     case "series":
       return hechos.resultado === "registrada"
-        ? `Lucía empieza la sesión y registra una serie de ${hechos.ejercicio}: queda guardada al momento y arranca su descanso.`
+        ? `Lucía empieza la sesión y registra ${hechos.series === 1 ? "una serie" : `${hechos.series} series`}, la primera de ${hechos.ejercicio}: cada una queda guardada al momento y arranca su descanso.`
         : `Lucía empieza la sesión, pero esta serie no se pudo guardar${conMotivo(hechos.motivo)} La sesión sigue abierta.`;
     case "freno":
-      return hechos.avisos > 0
-        ? "Ahora sos su entrenador. Un freno de seguridad recortó la sesión de Lucía y le avisa por qué."
-        : "Ahora sos su entrenador. Lucía no tiene avisos sin revisar: otra visita a la demo ya los revisó.";
-    case "revision":
       return hechos.resultado === "revisado"
         ? "El entrenador marca el aviso como revisado. Queda constancia de que lo vio; lo que hizo el freno no se deshace."
-        : "No quedaba nada por revisar: cada revisión queda en el historial de avisos de Lucía.";
-    case "administracion":
-      return "Ahora sos administración: la sede con su aforo y su horario. Cada cambio queda registrado con su motivo.";
-    case "explorar":
-      return "Eso es Gimnasio Pro. Entrá como cualquier rol y explorá por tu cuenta: lo que hizo el recorrido sigue ahí.";
+        : "Lucía no tiene avisos sin revisar: otra visita a la demo ya los revisó. Cada revisión queda en su historial.";
+    case "resumen":
+      if (!hechos.zonas) return "Este es el resumen de la sesión de Lucía. Terminá el recorrido para entrar con cualquier rol y explorar por tu cuenta.";
+      return hechos.records
+        ? `Lucía termina: su cuerpo se ilumina en lo que trabajó y ${hechos.records === 1 ? "bate un récord personal" : `bate ${hechos.records} récords personales`}. Terminá el recorrido para explorar con cualquier rol.`
+        : "Lucía termina: su cuerpo se ilumina en lo que trabajó. Hoy no batió récords; cuando pasa, quedan acá. Terminá el recorrido para explorar con cualquier rol.";
     default:
       return "";
   }

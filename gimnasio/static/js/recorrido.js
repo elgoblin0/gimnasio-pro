@@ -4,8 +4,8 @@
 
 import { llamarApi } from "./comun/api.js";
 import {
-  CLAVE_RECORRIDO, DURACION_PASO_MS, PASOS, cambioDeSesion, destino, esUltimo, iniciarRecorrido, leerRecorrido,
-  pasoActual, progreso, siguiente, textoDelPaso,
+  CLAVE_RECORRIDO, DURACION_NARRACION_MS, DURACION_PASO_MS, PASOS, cambioDeSesion, destino, esUltimo, iniciarRecorrido,
+  leerRecorrido, pasoActual, progreso, siguiente, textoDeNarracion, textoDelPaso,
 } from "./recorrido-pasos.js";
 
 const $ = (selector) => document.querySelector(selector);
@@ -17,6 +17,7 @@ let hechos = {};
 let temporizador = null;
 let tarjeta = null;
 let ejecucion = 0;
+let narrando = false;
 
 function guardar() {
   try { sessionStorage.setItem(CLAVE_RECORRIDO, JSON.stringify(estado)); } catch { /* Sin almacenamiento el recorrido dura esta página. */ }
@@ -47,33 +48,61 @@ function esperar(condicion, tope = 15_000) {
 const pausa = (ms) => new Promise((resolver) => setTimeout(resolver, ms));
 const textoDe = (selector) => $(selector)?.textContent.trim() ?? "";
 
-async function ocupacion() {
-  const datos = await llamarApi("/api/ocupacion");
-  return { ocupacion: datos.ocupacion_registrada, aforo: datos.aforo_maximo };
+// Lo que la pantalla ya dibujó: leerlo no agrega consultas a la demo.
+function ocupacionVisible() {
+  const ocupacion = textoDe("[data-ocupacion-cifra]");
+  const aforo = textoDe("[data-ocupacion-aforo]").replace(/^de /, "");
+  return /^\d+$/.test(ocupacion) && aforo ? { ocupacion, aforo } : {};
+}
+
+// Muestra qué va a pasar y da tiempo a leerlo. Si quien mira salió mientras tanto, la acción no sigue.
+async function narrar(id, datos) {
+  const propia = ejecucion;
+  narrando = true;
+  mostrar({ texto: textoDeNarracion(id, datos) });
+  ubicar();
+  // Lo que llega después (la previsión, las fuentes) corre la parte explicada: se vuelve a encuadrar.
+  setTimeout(() => { if (propia === ejecucion && narrando) ubicar({ desplazar: true }); }, 700);
+  await pausa(DURACION_NARRACION_MS);
+  if (propia !== ejecucion) throw new Error("El recorrido ya no está en este paso.");
+  narrando = false;
+}
+
+const ESTADOS_DE_SESION_INICIADA = ["Sesión realizada iniciada.", "Sesión iniciada."];
+
+// Una repetición más que la vez anterior, si hay con qué comparar: es lo que hace récord y el resumen lo muestra.
+function superarLaVezAnterior(formulario, tarjetaEjercicio) {
+  const repeticiones = formulario.querySelector("[name=repeticiones]");
+  const anteriores = tarjetaEjercicio.textContent.match(/Carga anterior:[^·]*· (\d+) repeticiones/);
+  if (repeticiones && anteriores) repeticiones.value = String(Number(anteriores[1]) + 1);
+}
+
+async function registrarSerie(formulario) {
+  const rir = formulario.querySelector("[name=rir]");
+  if (rir && !rir.value) rir.value = "2";
+  formulario.requestSubmit();
+  await esperar(() => textoDe("[data-estado]") === "Serie guardada." || textoDe("[data-estado]").startsWith("No se"));
+  return textoDe("[data-estado]") === "Serie guardada.";
 }
 
 // Cada acción espera su pantalla, hace lo que el paso muestra y devuelve lo que encontró para el texto.
 const ACCIONES = {
-  async aforo() {
-    await esperar(() => textoDe("[data-estado]") === "Recepción lista.");
-    try { return await ocupacion(); } catch { return {}; }
-  },
-
   async entrada() {
     await esperar(() => textoDe("[data-estado]") === "Recepción lista." || textoDe("[data-estado]").endsWith("registrada."));
     const opcion = [...document.querySelectorAll("#socio option")].find((o) => o.textContent.startsWith("Lucía Benítez"));
     if (!opcion) return { resultado: "rechazada" };
+    await narrar("entrada", ocupacionVisible());
     const selector = $("#socio");
-    let tarjetaSocio;
-    try { tarjetaSocio = await llamarApi(`/api/socios/${opcion.value}/tarjeta`); } catch { tarjetaSocio = null; }
     selector.value = opcion.value;
+    // Elegir el socio abre su tarjeta contextual, como cuando recepción lo busca.
     selector.dispatchEvent(new Event("change"));
-    if (tarjetaSocio?.visita_abierta) return { resultado: "ya-adentro" };
-    await pausa(sinEfectos() ? 0 : 900);
+    if ([...document.querySelectorAll("[data-visitas] h3")].some((titulo) => titulo.textContent.startsWith("Lucía Benítez"))) {
+      return { resultado: "ya-adentro" };
+    }
     $("[data-entrada]").requestSubmit();
     await esperar(() => ["Entrada registrada.", "La operación fue rechazada.", "No se confirmó la operación. Podés reintentar o descartar el reintento."].includes(textoDe("[data-estado]")));
     if (textoDe("[data-estado]") !== "Entrada registrada.") return { resultado: "rechazada", motivo: textoDe("[data-error]") };
-    try { return { resultado: "registrada", ...await ocupacion() }; } catch { return { resultado: "registrada" }; }
+    return { resultado: "registrada", ...ocupacionVisible() };
   },
 
   async escena() {
@@ -83,15 +112,16 @@ const ACCIONES = {
     return { conEscena: visible($("[data-escena-ocupacion]")) && !visible($("[data-alternativa-escena]")) };
   },
 
-  async propuesta() {
+  async chequeo() {
     await esperar(() => textoDe("[data-estado]") === "Propuesta actualizada.");
     try { estado.datos.lucia = (await llamarApi("/api/sesion")).usuario?.id ?? estado.datos.lucia; guardar(); } catch { /* La bandeja se abre sin la hoja. */ }
     const formulario = $("[data-formulario-chequeo]");
     if (!visible(formulario)) return {};
-    // Durmió mal: el chequeo desfavorable recorta la propuesta y activa el freno que verá el entrenador.
+    // Durmió mal, y se ve: el formulario queda completo mientras se lee. El chequeo desfavorable recorta la
+    // propuesta y activa el freno que verá el entrenador.
     $("#chequeo-sueno").value = "1";
-    $("#chequeo-energia").value = "5";
-    await pausa(sinEfectos() ? 0 : 900);
+    $("#chequeo-energia").value = "2";
+    await narrar("chequeo");
     formulario.requestSubmit();
     const guardado = await esperar(() => !visible($("[data-chequeo]")) && !["Registrando…", "Cargando tu propuesta…"].includes(textoDe("[data-estado]")));
     return { chequeo: guardado && !textoDe("[data-error]") ? "guardado" : "sin-chequeo" };
@@ -101,49 +131,50 @@ const ACCIONES = {
     if (!visible($("[data-sesion-actual]"))) {
       await esperar(() => visible($("[data-iniciar]")) && !$("[data-iniciar]").disabled);
       $("[data-iniciar]").click();
-      await esperar(() => textoDe("[data-estado]") === "Sesión realizada iniciada." || Boolean(textoDe("[data-error]")));
+      await esperar(() => ESTADOS_DE_SESION_INICIADA.includes(textoDe("[data-estado]")) || Boolean(textoDe("[data-error]")));
       if (!visible($("[data-sesion-actual]"))) return { resultado: "rechazada", motivo: textoDe("[data-error]") };
     }
-    const formulario = [...document.querySelectorAll("[data-serie]")].find((f) => visible(f) && f.checkValidity());
-    if (!formulario) return { resultado: "rechazada" };
-    const rir = formulario.querySelector("[name=rir]");
-    if (rir && !rir.value) rir.value = "2";
-    const ejercicio = formulario.querySelector("button[type=submit]").getAttribute("aria-label").replace(/^Registrar serie de /, "");
-    await pausa(sinEfectos() ? 0 : 900);
-    formulario.requestSubmit();
-    await esperar(() => textoDe("[data-estado]") === "Serie guardada." || textoDe("[data-estado]").startsWith("No se"));
-    return textoDe("[data-estado]") === "Serie guardada."
-      ? { resultado: "registrada", ejercicio }
+    estado.datos.sesion = new URLSearchParams(location.search).get("sesion") ?? estado.datos.sesion;
+    guardar();
+    // Una serie de cada uno de los dos primeros ejercicios: el resumen ilumina más de una zona del cuerpo.
+    let ejercicio;
+    let series = 0;
+    const ejercicios = [...document.querySelectorAll("[data-ejercicio]")].slice(0, 2).map((elemento) => elemento.dataset.ejercicio);
+    for (const id of ejercicios) {
+      // Cada serie guardada redibuja la lista: la tarjeta y su formulario se buscan de nuevo.
+      const formulario = document.querySelector(`[data-serie="${CSS.escape(id)}"]`);
+      if (!visible(formulario) || !formulario.checkValidity()) continue;
+      const nombre = formulario.querySelector("button[type=submit]").getAttribute("aria-label").replace(/^Registrar serie de /, "");
+      superarLaVezAnterior(formulario, formulario.closest("[data-ejercicio]"));
+      await pausa(sinEfectos() ? 0 : 900);
+      if (!await registrarSerie(formulario)) break;
+      ejercicio ??= nombre;
+      series += 1;
+    }
+    return series
+      ? { resultado: "registrada", ejercicio, series }
       : { resultado: "rechazada", motivo: textoDe("[data-error]") };
   },
 
   async freno() {
     if (!new URLSearchParams(location.search).get("socio")) {
       await esperar(() => !textoDe("[data-estado]").startsWith("Cargando"));
-      return { avisos: 0 };
+      return { resultado: "ya-revisado" };
     }
     await esperar(() => visible($("[data-socio]")) || Boolean(textoDe("[data-socio-error]")));
-    return { avisos: visible($("[data-revision]")) ? document.querySelectorAll("[data-avisos-sin-revisar] > li").length : 0 };
-  },
-
-  async revision() {
-    await esperar(() => visible($("[data-socio]")) || Boolean(textoDe("[data-socio-error]")), 5_000);
     if (!visible($("[data-revision]"))) return { resultado: "ya-revisado" };
-    await pausa(sinEfectos() ? 0 : 600);
+    await narrar("freno");
     $("[data-formulario-revision]").requestSubmit();
     // El sondeo de la bandeja reescribe su estado: lo que dice si se revisó es la hoja redibujada.
     const revisado = await esperar(() => !visible($("[data-revision]")) && visible($("[data-historial]")) || Boolean(textoDe("[data-error-revision]")));
     return { resultado: revisado && !textoDe("[data-error-revision]") ? "revisado" : "ya-revisado" };
   },
 
-  async administracion() {
-    await esperar(() => visible($("[data-contenido]")));
-    return {};
-  },
-
-  async explorar() {
-    await esperar(() => visible($("[data-demo]")));
-    return {};
+  async resumen() {
+    await esperar(() => textoDe("[data-estado]") === "Resumen actualizado." || Boolean(textoDe("[data-error]")));
+    if (!visible($("[data-resumen]"))) return {};
+    const records = textoDe("[data-records]").startsWith("Sin récords") ? 0 : document.querySelectorAll("[data-records] li").length;
+    return { zonas: document.querySelectorAll("[data-zonas-texto] li").length, records };
   },
 };
 
@@ -205,8 +236,25 @@ function columnaDesplazable(elemento) {
   return null;
 }
 
-// En pantallas angostas la tarjeta va al pie; en las anchas, junto a la parte que explica: debajo si entran
-// las dos en la vista, si no al costado, y si no hay costado, sobre ella al pie de la vista.
+// Lleva la parte explicada al espacio libre entre la cabecera y la tarjeta: centrada si entra, si no, su comienzo.
+function encuadrar(elemento, altoTarjeta) {
+  if (getComputedStyle(elemento).position === "fixed") return;
+  const margen = 16;
+  // Una columna que se desplaza por su cuenta (la hoja de la bandeja en escritorio) la lleva a su propia vista.
+  const columna = columnaDesplazable(elemento);
+  if (columna) {
+    columna.scrollTop += elemento.getBoundingClientRect().top - columna.getBoundingClientRect().top - margen;
+    return;
+  }
+  const cabecera = $("body > .cabecera")?.offsetHeight ?? 0;
+  const rect = elemento.getBoundingClientRect();
+  const libre = innerHeight - cabecera - altoTarjeta - rect.height;
+  const arriba = rect.top + scrollY - cabecera - (libre >= 2 * margen ? libre / 2 : margen);
+  scrollTo({ top: Math.max(0, arriba), behavior: sinEfectos() ? "auto" : "smooth" });
+}
+
+// La tarjeta va siempre al pie de la vista: nunca se corta ni tapa el comienzo de lo que explica. La página reserva
+// su alto solo si hay algo que llevar sobre ella; sin ancla, la pantalla queda como está.
 function ubicar({ desplazar = false } = {}) {
   if (!tarjeta) return;
   const { selector, elemento } = ancla();
@@ -217,59 +265,9 @@ function ubicar({ desplazar = false } = {}) {
     anclaMostrada = selector;
     desplazar = true;
   }
-  const angosta = innerWidth < 720 || !elemento;
-  tarjeta.dataset.lugar = angosta ? "pie" : "ancla";
-  document.documentElement.style.setProperty("--alto-recorrido", angosta ? `${tarjeta.offsetHeight + 16}px` : "0px");
-  const comportamiento = sinEfectos() ? "auto" : "smooth";
-  const cabecera = $("body > .cabecera")?.offsetHeight ?? 0;
-  const margen = 16;
-  if (angosta) {
-    tarjeta.style.top = tarjeta.style.left = "";
-    if (desplazar && elemento) scrollTo({ top: Math.max(0, elemento.getBoundingClientRect().top + scrollY - cabecera - margen), behavior: comportamiento });
-    return;
-  }
-  // Una columna que se desplaza por su cuenta (la hoja de la bandeja en escritorio) trae primero la parte explicada
-  // a su vista; la tarjeta vive en la página y se ubica contra lo que la columna deja ver.
-  const columna = columnaDesplazable(elemento);
-  if (columna && desplazar) {
-    columna.scrollTop += elemento.getBoundingClientRect().top - columna.getBoundingClientRect().top - margen;
-  }
-  let rect = elemento.getBoundingClientRect();
-  if (columna) {
-    const marco = columna.getBoundingClientRect();
-    const top = Math.min(Math.max(rect.top, marco.top), marco.bottom);
-    const bottom = Math.max(Math.min(rect.bottom, marco.bottom), top);
-    rect = { top, bottom, left: rect.left, right: rect.right, height: bottom - top };
-  }
-  const caja = { top: rect.top + scrollY, bottom: rect.bottom + scrollY, left: rect.left + scrollX, right: rect.right + scrollX };
-  const ancho = tarjeta.offsetWidth;
-  const alto = tarjeta.offsetHeight;
-  const anchoVista = document.documentElement.clientWidth;
-  const altoUtil = innerHeight - cabecera;
-  const separacion = 12;
-  let arriba;
-  let izquierda;
-  if (rect.height + separacion + alto <= altoUtil * 0.9) {
-    [arriba, izquierda] = [caja.bottom + separacion, caja.left];
-  } else if (caja.right + separacion + ancho + margen <= anchoVista) {
-    [arriba, izquierda] = [caja.top, caja.right + separacion];
-  } else if (caja.left - separacion - ancho >= margen) {
-    [arriba, izquierda] = [caja.top, caja.left - separacion - ancho];
-  } else {
-    // Más alta que la vista y sin costado: se ve su comienzo, que es lo que explica, y la tarjeta va al pie de la vista.
-    const comienzo = caja.top - cabecera - margen;
-    [arriba, izquierda] = [Math.min(comienzo + innerHeight - alto - margen, caja.bottom - alto - margen), caja.left + margen];
-  }
-  izquierda = Math.min(Math.max(margen, izquierda), anchoVista - ancho - margen);
-  tarjeta.style.top = `${Math.round(arriba)}px`;
-  tarjeta.style.left = `${Math.round(izquierda)}px`;
-  if (desplazar) {
-    const desde = Math.min(caja.top, arriba);
-    const hasta = Math.max(caja.bottom, arriba + alto);
-    const libre = altoUtil - (hasta - desde);
-    const objetivo = libre >= 2 * margen ? desde - cabecera - libre / 2 : desde - cabecera - margen;
-    scrollTo({ top: Math.max(0, objetivo), behavior: comportamiento });
-  }
+  const altoTarjeta = tarjeta.offsetHeight + 32;
+  document.documentElement.style.setProperty("--alto-recorrido", elemento ? `${altoTarjeta}px` : "0px");
+  if (desplazar && elemento) encuadrar(elemento, altoTarjeta);
 }
 
 let ubicacionPendiente = false;
@@ -287,7 +285,7 @@ function mostrar({ texto, cargando = false }) {
   tarjeta.querySelector("[data-recorrido-texto]").textContent = texto;
   tarjeta.dataset.cargando = String(cargando);
   const botonSiguiente = tarjeta.querySelector("[data-recorrido-siguiente]");
-  botonSiguiente.disabled = cargando;
+  botonSiguiente.disabled = cargando || narrando;
   botonSiguiente.textContent = esUltimo(estado) ? "Terminar recorrido" : "Siguiente";
   const botonPausa = tarjeta.querySelector("[data-recorrido-pausa]");
   botonPausa.hidden = esUltimo(estado);
@@ -301,7 +299,7 @@ function programarAvance() {
   temporizador = null;
   const barra = tarjeta.querySelector("[data-recorrido-tiempo]");
   barra.getAnimations?.().forEach((animacion) => animacion.cancel());
-  const avanzaSolo = !estado.pausado && !esUltimo(estado) && tarjeta.dataset.cargando === "false"
+  const avanzaSolo = !estado.pausado && !esUltimo(estado) && !narrando && tarjeta.dataset.cargando === "false"
     && location.pathname === pasoActual(estado).pagina;
   barra.parentElement.hidden = !avanzaSolo;
   if (!avanzaSolo) return;
@@ -354,7 +352,7 @@ async function avanzar() {
   }
   const nuevo = siguiente(estado);
   if (!nuevo) {
-    terminar({ enfocar: false });
+    await volverALaPortada();
     return;
   }
   const anterior = pasoActual(estado);
@@ -370,8 +368,7 @@ async function avanzar() {
   clearTimeout(temporizador);
   mostrar({ texto: "Cambiando de pantalla…", cargando: true });
   try {
-    if (sesion === "ninguna") await llamarApi("/api/sesion", { metodo: "DELETE" });
-    else if (sesion) await llamarApi(`/api/sesion/demo/${sesion}`, { metodo: "POST" });
+    if (sesion) await llamarApi(`/api/sesion/demo/${sesion}`, { metodo: "POST" });
     location.assign(destino(paso, estado.datos));
   } catch (error) {
     // Sin el cambio de sesión no se puede seguir: se vuelve al paso anterior para reintentar.
@@ -382,15 +379,29 @@ async function avanzar() {
   }
 }
 
+// Terminar invita a explorar: la portada, sin sesión, ofrece entrar como cualquier rol.
+async function volverALaPortada() {
+  cambiando = true;
+  mostrar({ texto: "Volviendo al inicio…", cargando: true });
+  try {
+    await llamarApi("/api/sesion", { metodo: "DELETE" });
+    terminar({ enfocar: false });
+    location.assign("/");
+  } catch (error) {
+    cambiando = false;
+    mostrar({ texto: `${error.message} Podés reintentar o salir del recorrido.` });
+  }
+}
+
 // Al salir se queda en la pantalla real del paso, con la sesión de ese paso.
 function terminar({ enfocar }) {
   ejecucion++;
+  narrando = false;
   clearTimeout(temporizador);
   olvidar();
   estado = null;
   removeEventListener("keydown", alTeclado);
   removeEventListener("resize", ubicarLuego);
-  removeEventListener("scroll", ubicarLuego, { capture: true });
   observador?.disconnect();
   for (const marcado of document.querySelectorAll("[data-recorrido-ancla]")) delete marcado.dataset.recorridoAncla;
   document.documentElement.style.removeProperty("--alto-recorrido");
@@ -407,9 +418,7 @@ let observador = null;
 function escuchar() {
   addEventListener("keydown", alTeclado);
   addEventListener("resize", ubicarLuego);
-  // También las columnas que se desplazan solas: la tarjeta acompaña a la parte que explica.
-  addEventListener("scroll", ubicarLuego, { capture: true, passive: true });
-  // Las pantallas redibujan su contenido: la marca de la parte explicada y la tarjeta la siguen.
+  // Las pantallas redibujan su contenido: la marca de la parte explicada la sigue.
   observador = new MutationObserver((cambios) => {
     if (cambios.some((cambio) => !tarjeta?.contains(cambio.target))) ubicarLuego();
   });

@@ -5,12 +5,14 @@ import secrets
 
 from flask import Flask
 
-from gimnasio.comun.bd import registrar_cierre
+from gimnasio.comun.bd import parametros_reutilizables, registrar_cierre
 from gimnasio.comun.errores import registrar_manejadores
 from gimnasio.comun.idempotencia import registrar_idempotencia
 from gimnasio.comun.reloj import RelojSistema
 
 ENTORNOS = ("desarrollo", "prueba", "produccion")
+# Los --threads de gunicorn en render.yaml: una conexión reutilizable por hilo (ADR 0033).
+HILOS_EN_PRODUCCION = 4
 
 
 def _config_desde_entorno():
@@ -32,6 +34,8 @@ def crear_app(config=None, reloj=None):
         if entorno == "produccion":
             raise RuntimeError("En producción hay que definir GIMNASIO_CLAVE_SECRETA")
         ajustes["SECRET_KEY"] = secrets.token_hex(32)
+    if entorno == "produccion":
+        ajustes.setdefault("BD", parametros_reutilizables(HILOS_EN_PRODUCCION))
 
     app = Flask(__name__, static_folder="static", static_url_path="")
     app.config.update(

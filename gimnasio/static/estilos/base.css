@@ -216,26 +216,24 @@
     background: radial-gradient(circle at 70% 50%, var(--superficie) .32em, transparent .36em) var(--acento);
   }
 
-  /* Recorrido guiado (js/recorrido.js): una nota de margen pegada a la parte que explica. */
+  /* Recorrido guiado (js/recorrido.js): la parte que explica queda marcada y la nota, siempre al pie de la vista. */
   [data-recorrido-ancla] {
     outline: 2px solid var(--acento); outline-offset: 6px; border-radius: var(--radio-2);
     animation: marcar-ancla var(--duracion-3) var(--curva-salida) both;
   }
   @keyframes marcar-ancla { from { outline-offset: 18px; outline-color: transparent; } }
-  body:has(> .recorrido[data-lugar="pie"]) { padding-block-end: var(--alto-recorrido, 0px); }
+  body:has(> .recorrido) { padding-block-end: var(--alto-recorrido, 0px); }
   .recorrido {
-    position: absolute; z-index: 20; inline-size: min(24rem, calc(100vw - 2 * var(--espacio-4)));
-    display: grid; gap: var(--espacio-3);
-    padding: var(--espacio-4) var(--espacio-4) var(--espacio-3) var(--espacio-5);
+    position: fixed; z-index: 20; inset: auto var(--espacio-4) var(--espacio-4); max-inline-size: 58rem; margin-inline: auto;
+    display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: var(--espacio-5); row-gap: var(--espacio-1); align-items: center;
+    padding: var(--espacio-3) var(--espacio-4) var(--espacio-3) var(--espacio-5);
     color: var(--texto); background: var(--superficie-elevada);
     border: 1px solid var(--borde); border-inline-start: 3px solid var(--acento); border-radius: var(--radio-2);
     box-shadow: var(--sombra-2);
     animation: entrar-recorrido var(--duracion-2) var(--curva-salida) both;
-    transition: top var(--duracion-2) var(--curva-salida), left var(--duracion-2) var(--curva-salida);
   }
-  .recorrido[data-lugar="pie"] {
-    position: fixed; inset: auto var(--espacio-4) var(--espacio-4); inline-size: auto; max-inline-size: 40rem; margin-inline: auto;
-  }
+  .recorrido > * { grid-column: 1; }
+  .recorrido > .recorrido-acciones { grid-column: 2; grid-row: 1 / span 3; }
   @keyframes entrar-recorrido { from { opacity: 0; transform: translateY(8px); } }
   .recorrido p { margin: 0; }
   .recorrido-paso {
@@ -249,7 +247,10 @@
   .recorrido-acciones .boton-borde { border-color: var(--borde); }
   .recorrido .solo-lector { position: absolute; inline-size: 1px; block-size: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
   @media (max-width: 719px) {
-    .recorrido { padding: var(--espacio-3) var(--espacio-3) var(--espacio-2) var(--espacio-4); gap: var(--espacio-2); }
+    .recorrido { grid-template-columns: minmax(0, 1fr); padding: var(--espacio-3) var(--espacio-3) var(--espacio-2) var(--espacio-4); row-gap: var(--espacio-2); }
+    .recorrido > .recorrido-acciones { grid-column: 1; grid-row: auto; column-gap: var(--espacio-2); }
+    .recorrido-acciones :is(.boton-tinta, .boton-borde) { padding-inline: var(--espacio-3); }
+    .recorrido-acciones .boton-enlace { margin-inline-start: auto; font-size: var(--tamano-chico); }
     .recorrido-texto { font-size: 1rem; }
   }
 }
