@@ -145,31 +145,35 @@ function dibujarVisitas(visitas) {
       control.preparar("/api/salidas", { entrada_id: visita.id });
       enviar();
     });
-    tarjeta.append(titulo, detalle);
+    detalle.className = "visita-detalle";
+    const acciones = document.createElement("div");
+    acciones.className = "visita-acciones";
+    tarjeta.append(titulo, detalle, acciones);
     if (visita.simulada) {
       const marca = document.createElement("strong");
+      marca.className = "visita-marca";
       marca.textContent = "simulada";
-      tarjeta.append(marca);
+      acciones.append(marca);
     }
     const verTarjeta = document.createElement("button");
     verTarjeta.type = "button";
     verTarjeta.textContent = "Ver tarjeta contextual";
     verTarjeta.setAttribute("aria-label", `Ver tarjeta contextual de ${visita.nombre}`);
     verTarjeta.addEventListener("click", () => seleccionarVisita(visita));
-    tarjeta.append(verTarjeta);
+    acciones.append(verTarjeta);
     if (visita.por_conciliar) {
       const marca = document.createElement("strong");
-      marca.className = "por-conciliar";
+      marca.className = "visita-marca por-conciliar";
       marca.textContent = "por conciliar";
-      tarjeta.append(marca);
+      acciones.append(marca);
       const conciliar = document.createElement("button");
       conciliar.type = "button";
       conciliar.dataset.salida = visita.id;
       conciliar.textContent = "Conciliar salida";
       conciliar.addEventListener("click", () => abrirConciliacion(visita));
-      tarjeta.append(conciliar);
+      acciones.append(conciliar);
     }
-    tarjeta.append(boton);
+    acciones.append(boton);
     $("[data-visitas]").append(tarjeta);
   }
 }

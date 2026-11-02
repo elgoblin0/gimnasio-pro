@@ -70,7 +70,7 @@ export function modoSinEfectos(documento = globalThis.document) {
 // Las escenas leen el estado al cargar: cambiarlo recarga la página para que todas lo tomen igual.
 export function montarInterruptorEfectos(documento = globalThis.document) {
   // Una página puede reservarle su lugar; si no, va al final de la cabecera.
-  const lugar = documento.querySelector("[data-lugar-efectos], body > header") ?? documento.querySelector("main");
+  const lugar = documento.querySelector("[data-lugar-efectos]") ?? documento.querySelector("body > header") ?? documento.querySelector("main");
   if (!lugar) return;
   const estado = modoSinEfectos(documento);
   documento.documentElement.dataset.sinEfectos = estado.activo ? "si" : "no";

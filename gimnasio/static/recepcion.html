@@ -14,24 +14,25 @@
   <link rel="stylesheet" href="/estilos/escena-ocupacion.css">
   <script type="importmap">{"imports":{"@comun/":"/js/comun/","@escena":"/js/escena-ocupacion.js","three":"/vendor/three@0.186.0/three.module.js"}}</script>
   <script type="module" src="/js/recepcion.js"></script>
-  <style>
-    .membresia-por-vencer { color: var(--alerta); font-weight: bold; }
-    .membresia-vencida { color: var(--peligro); font-weight: bold; }
-  </style>
 </head>
 <body>
+<header class="cabecera">
+  <a class="cabecera-marca" href="/">Gimnasio Pro</a>
+  <nav aria-label="Secciones"><a href="/recepcion.html" aria-current="page">Recepción</a><a href="/pagos.html">Pagos</a><a href="/clases.html">Clases</a></nav>
+  <p class="cabecera-demo" data-demo>Datos ficticios · se reinician cada día</p>
+  <span class="cabecera-efectos" data-lugar-efectos></span>
+  <button type="button" data-cerrar>Cerrar sesión</button>
+</header>
 <main>
-  <header class="barra-recepcion">
-    <a href="/">Gimnasio Pro</a><nav aria-label="Clases"><a href="/clases.html">Clases</a></nav>
-    <p class="etiqueta">Cuaderno de recepción</p>
-    <h1>Entrada y salida</h1>
-<p><a href="/pagos.html?alta=1">Dar de alta socio</a></p>
-    <nav aria-label="Secciones"><a href="/pagos.html">Pagos</a></nav>
-    <p data-demo>Datos ficticios que se reinician cada día. Requiere conexión.</p>
+  <div class="recepcion-titulo">
+    <div>
+      <p class="rotulo">Cuaderno de recepción</p>
+      <h1>Entrada y salida</h1>
+    </div>
     <p data-estado role="status" aria-live="polite">Cargando recepción…</p>
-    <button type="button" data-actualizar>Actualizar visitas</button>
-    <button type="button" data-cerrar>Cerrar sesión</button>
-  </header>
+    <a class="boton-borde" href="/pagos.html?alta=1">Dar de alta socio</a>
+    <button type="button" class="boton-borde" data-actualizar>Actualizar visitas</button>
+  </div>
   <p data-error role="alert"></p>
   <div class="barra" data-reintento hidden>
     <button type="button" data-reintentar>Reintentar operación</button>
@@ -90,7 +91,7 @@
     <section class="tarjeta" data-mejores-horarios hidden aria-labelledby="titulo-horarios">
       <h2 id="titulo-horarios">Mejores horarios · previsión</h2>
       <p data-horarios-estado role="status">Cargando previsión…</p>
-      <div class="grilla">
+      <div class="horarios">
         <div data-horarios-hoy></div>
         <div data-horarios-manana></div>
       </div>

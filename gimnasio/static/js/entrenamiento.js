@@ -154,15 +154,19 @@ function dibujar(propuesta) {
     const nombre = document.createElement("h3");
     nombre.textContent = ejercicio.nombre + (ejercicio.no_disponible ? " · No disponible" : "");
     const objetivos = document.createElement("p");
+    objetivos.className = "ejercicio-objetivos";
     objetivos.textContent = describirObjetivos(ejercicio.objetivos);
     const pendiente = document.createElement("p");
+    pendiente.className = "ejercicio-dato";
     pendiente.textContent = `Series realizadas: ${ejercicio.realizado} · Pendientes: ${ejercicio.pendiente}`;
     const anterior = document.createElement("p");
+    anterior.className = "ejercicio-dato";
     anterior.textContent = ejercicio.carga_anterior
       ? `Carga anterior: ${ejercicio.carga_anterior.carga == null ? "sin carga" : formatearCarga(ejercicio.carga_anterior.carga)} · ${ejercicio.carga_anterior.repeticiones ?? "sin"} repeticiones · ${formatearFecha(ejercicio.carga_anterior.fecha_local)}`
       : "Sin carga anterior.";
     tarjeta.append(nombre, objetivos, anterior, pendiente);
     const explicacion = document.createElement("ul");
+    explicacion.className = "ejercicio-porque";
     explicacion.dataset.ajuste = ejercicio.id;
     for (const razon of ejercicio.explicacion ?? []) {
       const texto = document.createElement("li");

@@ -14,10 +14,16 @@
   <script type="module" src="/js/ficha.js"></script>
 </head>
 <body>
-<main>
-  <header class="barra"><a href="/">Gimnasio Pro</a><a data-volver href="/">Volver</a><button type="button" data-cerrar>Cerrar sesión</button></header>
+<header class="cabecera">
+  <a class="cabecera-marca" href="/">Gimnasio Pro</a>
+  <nav aria-label="Secciones"><a data-volver href="/">Volver</a></nav>
+  <p class="cabecera-demo" data-demo hidden>Datos ficticios · se reinician cada día</p>
+  <span class="cabecera-efectos" data-lugar-efectos></span>
+  <button type="button" data-cerrar>Cerrar sesión</button>
+</header>
+<main class="hoja">
+  <p class="rotulo">Ficha</p>
   <h1 data-titulo>Ficha del socio</h1>
-  <p data-demo hidden>Datos ficticios que se reinician cada día. Requiere conexión.</p>
   <p data-estado role="status">Cargando ficha del socio…</p>
   <p data-error role="alert"></p>
   <button type="button" data-reintentar hidden>Reintentar</button>

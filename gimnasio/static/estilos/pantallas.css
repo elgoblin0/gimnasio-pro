@@ -3,7 +3,6 @@
   main { max-width: 72rem; }
   h1 { font-size: clamp(2rem, 5vw, 3.5rem); line-height: 1.1; margin-block: var(--espacio-3) var(--espacio-5); }
   h2 { margin-block-start: 0; }
-  a { color: var(--acento); }
   button { min-height: 44px; }
   button:disabled, select:disabled { opacity: .65; cursor: wait; }
   select { font: inherit; color: var(--texto); background: var(--superficie); border: 1px solid var(--texto-suave); border-radius: var(--radio-1); padding: var(--espacio-3); width: 100%; min-width: 0; min-height: 44px; }
@@ -22,6 +21,7 @@
   [data-estado] { min-height: 1.5em; }
   [data-actualizar] { margin-block: var(--espacio-3); }
   @media (max-width: 48rem) { .grilla { grid-template-columns: minmax(0, 1fr); gap: var(--espacio-4); } }
+
 }
 
 [data-progreso] { margin-block-start: var(--espacio-5); }
@@ -98,4 +98,97 @@ form:has(.cuerpo-escena) > button[type="submit"] { position: sticky; bottom: 12p
 @media (max-width: 40rem) {
   .cuerpo-maqueta { width: 100vw; margin-inline: calc(50% - 50vw); border-radius: 0; box-shadow: none; }
   section:has(.cuerpo-escena) { padding-inline: 0; background: transparent; border-inline: 0; border-radius: 0; }
+}
+
+/* Hoja del socio (fuera de la capa, para ordenarse con el cuerpo 3D): el estado y la sede arriba, después el chequeo y la sesión. */
+.hoja > h1 { margin-block: 0 var(--espacio-3); }
+.hoja-estado { display: flex; flex-wrap: wrap; align-items: center; gap: var(--espacio-1) var(--espacio-4); margin-block-end: var(--espacio-4); }
+.hoja-estado [data-estado] { margin: 0; min-height: 0; font-size: var(--tamano-chico); }
+.hoja-estado [data-actualizar] { min-height: 32px; margin: 0; font-size: var(--tamano-chico); }
+.hoja-estado:has(> [data-estado]:empty) { column-gap: 0; }
+/* Vacíos siguen en el árbol de accesibilidad: solo dejan de ocupar lugar. */
+[data-error]:empty, [data-record]:empty { margin: 0; }
+[data-record]:not(:empty) {
+  padding: var(--espacio-3) var(--espacio-4); border-inline-start: 3px solid var(--acento); background: color-mix(in srgb, var(--acento) 8%, transparent);
+  font: italic 400 1.15rem/1.4 var(--fuente-display);
+}
+/* Listas de cuaderno: un renglón por dato, sin viñetas. */
+.renglones { margin: 0; padding: 0; list-style: none; }
+.renglones li { padding-block: var(--espacio-3); border-block-end: 1px solid var(--borde); }
+.renglones li:last-child { border-block-end: 0; }
+/* Resumen: el cuerpo a la izquierda y, a la derecha, récords, sustituciones y pendientes. */
+[data-resumen] { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-template-rows: auto 1fr; gap: var(--espacio-4); align-items: start; }
+[data-resumen] > section:first-child { grid-row: span 2; }
+[data-resumen] .grilla { margin: 0; gap: var(--espacio-4); grid-template-columns: minmax(0, 1fr); }
+@media (max-width: 52rem) {
+  [data-resumen] { grid-template-columns: minmax(0, 1fr); grid-template-rows: none; }
+  [data-resumen] > section:first-child { grid-row: auto; }
+}
+[data-resumen] h2 { margin-block-end: var(--espacio-3); }
+[data-records] li { font: 400 1.15rem/1.35 var(--fuente-numeros); font-variant-numeric: lining-nums; }
+.nota-al-pie { margin: var(--espacio-4) 0 0; font-size: var(--tamano-chico); color: var(--texto-suave); }
+
+/* La sede hoy: una franja de dos hojas; la ocupación se lee como cifra. */
+.sede-hoy { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 2fr); gap: var(--espacio-4); margin-block: var(--espacio-4) var(--espacio-5); }
+.sede-hoy:not(:has(> section:not([hidden]))) { display: none; }
+.sede-hoy > section[hidden] + section { grid-column: 1 / -1; }
+.sede-hoy > section { padding: var(--espacio-4) var(--espacio-5); box-shadow: none; }
+.sede-hoy-cifra { margin: 0; font-size: var(--tamano-chico); color: var(--texto-suave); }
+.sede-hoy-cifra [data-ocupacion] { display: block; font: 400 var(--tamano-cifra)/1 var(--fuente-numeros); color: var(--texto); font-variant-numeric: lining-nums; margin-block-start: var(--espacio-1); }
+.sede-hoy progress, .tarjeta progress { appearance: none; width: 100%; height: 6px; margin-block-start: var(--espacio-3); border: 0; border-radius: var(--radio-3); background: var(--borde); overflow: hidden; }
+.sede-hoy progress::-webkit-progress-bar { background: var(--borde); }
+.sede-hoy progress::-webkit-progress-value { background: var(--acento); border-radius: var(--radio-3); }
+.sede-hoy progress::-moz-progress-bar { background: var(--acento); }
+.horarios { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--espacio-4); }
+.horarios h3 { margin: 0 0 var(--espacio-2); font-size: 1.05rem; color: var(--texto-suave); }
+.horarios ul { display: flex; flex-wrap: wrap; gap: var(--espacio-2); margin: 0; padding: 0; list-style: none; }
+.horarios li { padding: var(--espacio-1) var(--espacio-3); border: 1px solid var(--borde); border-radius: var(--radio-3); font-size: var(--tamano-chico); font-variant-numeric: tabular-nums; }
+.horarios p { margin: 0; color: var(--texto-suave); font-size: var(--tamano-chico); }
+[data-horarios-estado]:empty { margin: 0; }
+
+/* Chequeo del día: las preguntas a la izquierda y el cuerpo a la derecha; en el celular, una columna. */
+.chequeo { margin-block-end: var(--espacio-5); }
+.chequeo h2 { margin-block-end: var(--espacio-4); }
+.chequeo form { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 30rem); column-gap: var(--espacio-6); row-gap: var(--espacio-2); max-width: none; align-items: start; }
+.chequeo form > :not([data-zonas-chequeo]) { grid-column: 1; }
+.chequeo form > [data-zonas-chequeo] { grid-column: 2; grid-row: 1 / span 9; }
+.chequeo-intro, .chequeo-zonas { margin: 0 0 var(--espacio-2); color: var(--texto-suave); max-width: 40ch; }
+.chequeo-zonas { margin-block-start: var(--espacio-3); }
+.chequeo form > label { margin-block-start: var(--espacio-2); }
+.chequeo form > button[type="submit"] { position: static; justify-self: start; width: auto; min-height: 48px; margin-block-start: var(--espacio-4); padding-inline: var(--espacio-6); color: var(--superficie); background: var(--texto); border: 0; border-radius: var(--radio-3); box-shadow: none; }
+.chequeo form > [data-saltear-chequeo] { justify-self: start; }
+@media (max-width: 52rem) {
+  .chequeo form { grid-template-columns: minmax(0, 1fr); }
+  .chequeo form > [data-zonas-chequeo] { grid-column: 1; grid-row: auto; }
+  .chequeo form > button[type="submit"] { position: sticky; bottom: 12px; z-index: 2; width: 100%; justify-self: stretch; box-shadow: 0 8px 24px rgb(0 0 0 / .22); }
+}
+
+/* La sesión: cada ejercicio es una hoja; el porqué va como nota al margen en terracota. */
+[data-contenido] > .rotulo { margin-block: var(--espacio-5) var(--espacio-3); }
+[data-contenido] > .grilla { grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); margin-block-start: 0; align-items: start; }
+[data-ejercicios] { gap: 0; margin-block-start: var(--espacio-4); }
+[data-ejercicios] > .tarjeta { padding-block: var(--espacio-5); }
+[data-ejercicios] > .tarjeta:first-child { border-block-start: 0; padding-block-start: var(--espacio-2); }
+[data-ejercicios] h3 { font-size: 1.5rem; }
+.ejercicio-objetivos { margin: 0 0 var(--espacio-2); font: 400 1.2rem/1.3 var(--fuente-numeros); font-variant-numeric: lining-nums; color: var(--texto); }
+.tarjeta .ejercicio-dato { margin: 0; font-size: var(--tamano-chico); color: var(--texto-suave); }
+.ejercicio-porque { margin: var(--espacio-3) 0 0; padding: 0 0 0 var(--espacio-4); list-style: none; border-inline-start: 2px solid color-mix(in srgb, var(--acento) 55%, transparent); }
+.ejercicio-porque:empty { margin: 0; border: 0; }
+.ejercicio-porque li { font: italic 400 1.02rem/1.45 var(--fuente-display); color: var(--texto-suave); }
+.ejercicio-porque li + li { margin-block-start: var(--espacio-1); }
+[data-explicacion] { margin: 0; padding: 0; list-style: none; }
+[data-explicacion] li { font: italic 400 1.1rem/1.5 var(--fuente-display); color: var(--texto-suave); }
+[data-explicacion] li + li { margin-block-start: var(--espacio-3); }
+[data-iniciar] { color: var(--superficie); background: var(--texto); border: 0; }
+[data-iniciar]:hover { background: color-mix(in srgb, var(--texto) 86%, var(--acento)); }
+[data-sesion-actual] { color: var(--exito); font-weight: 600; }
+
+/* Registro de una serie: los campos en fila, el botón al final. */
+form[data-serie] { display: flex; flex-wrap: wrap; align-items: end; gap: var(--espacio-3); max-width: none; margin-block-start: var(--espacio-4); padding: var(--espacio-4); border: 1px dashed var(--borde); border-radius: var(--radio-2); }
+form[data-serie] label { flex: 1 1 9rem; font-weight: 400; color: var(--texto-suave); font-size: .8rem; }
+form[data-serie] button { margin: 0; color: var(--superficie); background: var(--texto); border: 0; }
+[data-series] li { font-variant-numeric: tabular-nums; }
+
+@media (max-width: 48rem) {
+  .sede-hoy, .horarios, [data-contenido] > .grilla { grid-template-columns: minmax(0, 1fr); }
 }

@@ -9,21 +9,6 @@ body.personal { padding: 0; }
 .personal button { color: var(--texto); }
 .nota-suave { color: var(--texto-suave); font-size: .9rem; }
 
-.personal-barra {
-  position: sticky; top: 0; z-index: 3;
-  display: flex; align-items: center; gap: var(--espacio-5); flex-wrap: wrap;
-  padding: var(--espacio-2) clamp(var(--espacio-4), 3vw, var(--espacio-6));
-  background: var(--superficie); border-block-end: 1px solid var(--borde);
-}
-.personal-marca { font-family: var(--fuente-display); font-size: 1.15rem; color: var(--acento); text-decoration: none; }
-.personal-barra nav { display: flex; gap: var(--espacio-1); }
-.personal-barra nav a { display: inline-flex; align-items: center; min-height: 44px; padding-inline: var(--espacio-3); color: var(--texto-suave); text-decoration: none; border-block-end: 2px solid transparent; }
-.personal-barra nav a[hidden] { display: none; }
-.personal-barra nav a[aria-current="page"] { color: var(--texto); border-block-end-color: var(--acento); font-weight: 600; }
-.personal-demo { margin: 0 0 0 auto; color: var(--texto-suave); font-size: .85rem; }
-.personal-barra [data-cerrar] { min-height: 40px; padding: 0 var(--espacio-3); background: transparent; border-color: var(--borde); font-size: .9rem; }
-.personal-demo[hidden] + [data-cerrar] { margin-inline-start: auto; }
-
 .boton-tinta { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; padding: 0 var(--espacio-5); color: var(--superficie); background: var(--texto); border: 0; border-radius: var(--radio-3); font-weight: 600; text-decoration: none; white-space: nowrap; cursor: pointer; }
 .personal button.boton-tinta { color: var(--superficie); }
 .boton-enlace { min-height: 44px; padding: 0; background: transparent; border: 0; text-decoration: underline; text-underline-offset: 4px; cursor: pointer; }
@@ -101,9 +86,6 @@ body.personal { padding: 0; }
   .bandeja[data-abierto="false"] .hoja, .bandeja:not([data-abierto]) .hoja { display: none; }
 }
 @media (max-width: 40rem) {
-  .personal-demo, .personal-marca { display: none; }
-  .personal-barra { gap: var(--espacio-2); }
-  .personal-barra [data-cerrar] { margin-inline-start: auto; }
 }
 
 /* Equipos y alternativas: dos pliegos del mismo cuaderno. */

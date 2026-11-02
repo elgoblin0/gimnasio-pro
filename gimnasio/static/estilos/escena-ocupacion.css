@@ -9,16 +9,17 @@ main { max-width: none; }
 [data-error]:empty { display: none; }
 [data-error], [data-reintento] { padding-inline: var(--espacio-5); }
 
-.barra-recepcion { display: flex; flex-wrap: wrap; align-items: center; gap: var(--espacio-1) var(--espacio-4); padding: var(--espacio-2) var(--espacio-5); border-block-end: 1px solid var(--linea); font-size: .85rem; color: var(--texto-suave); }
-.barra-recepcion p { margin: 0; }
-.barra-recepcion .etiqueta { margin: 0; font-size: .72rem; }
-.barra-recepcion h1 { margin: 0; font-size: 1rem; line-height: 1.2; color: var(--texto); }
-.barra-recepcion [data-estado] { margin-inline-start: auto; min-height: 0; }
-.barra-recepcion button { min-height: 34px; margin: 0; padding: 2px var(--espacio-3); color: var(--texto); border-color: var(--linea); border-radius: var(--radio-2); background: transparent; }
+/* Bajo la cabecera, el titular de la hoja de recepción con sus acciones a mano. */
+.recepcion-titulo { display: flex; flex-wrap: wrap; align-items: end; gap: var(--espacio-3) var(--espacio-4); padding: var(--espacio-4) var(--espacio-5) var(--espacio-3); border-block-end: 1px solid var(--linea); }
+.recepcion-titulo .rotulo { margin: 0 0 var(--espacio-1); }
+.recepcion-titulo .rotulo::after { display: none; }
+.recepcion-titulo h1 { margin: 0; font-size: var(--tamano-titulo); line-height: 1.05; }
+.recepcion-titulo [data-estado] { margin: 0 0 0 auto; min-height: 0; font-size: var(--tamano-chico); }
+.recepcion-titulo :is(a, button) { display: inline-flex; align-items: center; min-height: 40px; margin: 0; padding: 0 var(--espacio-4); font-size: var(--tamano-chico); text-decoration: none; }
 
-.sede { display: grid; grid-template-columns: minmax(0, 1fr) 20rem; min-height: calc(100svh - 3.4rem); }
+.sede { display: grid; grid-template-columns: minmax(0, 1fr) 20rem; min-height: calc(100svh - 9rem); }
 .sede-maqueta { position: relative; min-width: 0; min-height: 40rem; overflow: hidden; background: radial-gradient(70% 60% at 50% 52%, var(--luz-maqueta), transparent 75%); }
-.sede section { background: transparent; border: 0; border-radius: 0; padding: 0; }
+.sede section { background: transparent; border: 0; border-radius: 0; padding: 0; box-shadow: none; }
 .sede-maqueta > .escena-ocupacion { position: absolute; inset: 0; overflow: hidden; }
 .escena-ocupacion canvas { display: block; width: 100%; height: 100%; }
 [data-puntos] { position: absolute; inset: 0; pointer-events: none; }
@@ -59,7 +60,7 @@ main { max-width: none; }
 [data-rotulo-visita] { position: absolute; z-index: 2; max-width: min(22rem, 90%); transform: translate(-50%, calc(-100% - 22px)); padding: var(--espacio-2) var(--espacio-3); background: var(--velo); border: 1px solid var(--linea); border-radius: var(--radio-2); font-size: .9rem; white-space: nowrap; pointer-events: none; }
 [data-rotulo-visita] b { display: block; font: 400 1.05rem/1.2 var(--fuente-display); }
 
-.sede .por-zona { display: flex; flex-direction: column; gap: var(--espacio-1); padding: 28px var(--espacio-5); border-inline-start: 1px solid var(--linea); max-height: calc(100svh - 3.4rem); overflow-y: auto; position: sticky; top: 0; }
+.sede .por-zona { display: flex; flex-direction: column; gap: var(--espacio-1); padding: 28px var(--espacio-5); border-inline-start: 1px solid var(--linea); max-height: calc(100svh - 3.8rem); overflow-y: auto; position: sticky; top: 3.8rem; }
 .por-zona h2 { margin: 0 0 var(--espacio-3); font-size: 1.5rem; line-height: 1.1; font-weight: 400; }
 [data-zona-sede] { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: baseline; border-block-end: 1px solid var(--linea); }
 [data-zona-sede] > button { min-height: 44px; margin: 0; padding: 0; text-align: start; color: var(--texto); background: transparent; border: 0; }
@@ -78,8 +79,25 @@ main { max-width: none; }
 .nota-aforo { margin: var(--espacio-3) 0 0; font-size: .75rem; color: var(--texto-suave); }
 
 .recepcion-detalle { display: grid; gap: var(--espacio-6); max-width: 72rem; margin-inline: auto; padding: var(--espacio-6) var(--espacio-5); }
-.recepcion-detalle > section { padding: 0; background: transparent; border: 0; border-radius: 0; }
+.recepcion-detalle > section { padding: 0; background: transparent; border: 0; border-radius: 0; box-shadow: none; }
 .recepcion-detalle h2 { font-weight: 400; }
+.recepcion-detalle > section > p:not([data-horarios-estado]) { margin-block-start: 0; color: var(--texto-suave); font-size: var(--tamano-chico); }
+
+/* Una visita por renglón: quién y desde cuándo a la izquierda; qué hacer, a la derecha. */
+[data-visitas] { gap: 0; }
+[data-visitas] > .tarjeta { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: var(--espacio-1) var(--espacio-5); padding-block: var(--espacio-4); }
+[data-visitas] h3 { grid-column: 1; margin: 0; font-size: 1.3rem; }
+.visita-detalle { grid-column: 1; margin: 0; font-size: var(--tamano-chico); color: var(--texto-suave); font-variant-numeric: tabular-nums; }
+.visita-acciones { grid-column: 2; grid-row: 1 / span 2; display: flex; flex-wrap: wrap; align-items: center; justify-content: end; gap: var(--espacio-2); }
+.tarjeta .visita-acciones button { margin: 0; min-height: 40px; padding-inline: var(--espacio-4); font-size: var(--tamano-chico); }
+.visita-acciones [data-salida] { color: var(--superficie); background: var(--texto); border-color: transparent; }
+.visita-marca { padding: 2px var(--espacio-2); border: 1px solid currentColor; border-radius: var(--radio-3); font-size: .72rem; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--acento); }
+.visita-marca.por-conciliar { display: inline-block; margin: 0; color: var(--alerta); }
+[data-vacio] { padding: var(--espacio-5); border: 1px dashed var(--borde); border-radius: var(--radio-2); text-align: center; }
+
+/* Estado de la membresía en la tarjeta contextual. */
+.membresia-por-vencer { color: var(--alerta); font-weight: 600; }
+.membresia-vencida { color: var(--peligro); font-weight: 600; }
 
 /* La tarjeta flota sobre la escena: abrirla no cambia su tamaño ni mueve los puntos. */
 [data-tarjeta-contextual] { position: fixed; z-index: 4; top: 4.4rem; right: calc(20rem + var(--espacio-4)); left: auto; width: min(24rem, calc(100vw - 22rem)); max-height: calc(100dvh - 11rem); margin: 0; padding: var(--espacio-5); overflow: auto; background: var(--superficie-elevada); color: var(--texto); border: 1px solid var(--linea); border-radius: var(--radio-2); box-shadow: 0 18px 48px #0000003d; }
@@ -87,6 +105,7 @@ main { max-width: none; }
 /* Sin WebGL queda la lista: las cifras y el registro vuelven al flujo de la página. */
 .sede-maqueta:has([data-escena-ocupacion][hidden]) { min-height: 0; padding: var(--espacio-5); background: none; }
 .sede-maqueta:has([data-escena-ocupacion][hidden]) :is(.sede-cifras, .sede-pie) { position: static; margin-block-end: var(--espacio-5); }
+[data-recepcion]:has([data-escena-ocupacion][hidden]) [data-tarjeta-contextual] { position: static; width: auto; max-width: 40rem; max-height: none; margin: var(--espacio-4) var(--espacio-5); box-shadow: none; }
 
 @media (max-width: 60rem) {
   .sede { grid-template-columns: minmax(0, 1fr); min-height: 0; }
@@ -95,8 +114,11 @@ main { max-width: none; }
   [data-tarjeta-contextual] { right: var(--espacio-4); width: min(24rem, calc(100vw - 2 * var(--espacio-4))); }
 }
 @media (max-width: 600px) {
-  .barra-recepcion { padding-inline: var(--espacio-4); }
-  .barra-recepcion [data-estado] { margin-inline-start: 0; width: 100%; }
+  .recepcion-titulo { padding-inline: var(--espacio-4); }
+  [data-visitas] > .tarjeta { grid-template-columns: minmax(0, 1fr); }
+  .visita-acciones { grid-column: 1; grid-row: auto; justify-content: start; margin-block-start: var(--espacio-2); }
+  .recepcion-titulo [data-estado] { order: 3; width: 100%; margin: 0; }
+  .recepcion-titulo > div { flex-basis: 100%; }
   .sede-maqueta { display: flex; flex-direction: column; min-height: 0; }
   .sede-maqueta > .escena-ocupacion { position: relative; inset: auto; height: 23rem; order: 1; }
   .sede-cifras { top: var(--espacio-4); left: var(--espacio-4); }

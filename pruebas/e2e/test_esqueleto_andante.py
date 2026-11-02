@@ -45,9 +45,7 @@ def ingresar(pagina, instancia, rol):
     expect(
         pagina.get_by_text("Recepción lista." if rol == "recepcion" else "Propuesta actualizada.", exact=True)
     ).to_be_visible()
-    expect(
-        pagina.get_by_text("Datos ficticios que se reinician cada día. Requiere conexión.", exact=True)
-    ).to_be_visible()
+    expect(pagina.get_by_text("Datos ficticios · se reinician cada día", exact=True)).to_be_visible()
 
 
 def salir(pagina, instancia):

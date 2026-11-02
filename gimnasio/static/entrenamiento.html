@@ -15,48 +15,56 @@
   <script type="module" src="/js/entrenamiento.js"></script>
 </head>
 <body>
-<main>
-  <header class="barra"><a href="/">Gimnasio Pro</a><nav aria-label="Clases"><a href="/clases.html">Clases</a></nav><a href="/ficha.html">Mi ficha</a><button type="button" data-cerrar>Cerrar sesión</button></header>
-  <p class="etiqueta">Tu cuaderno de entrenamiento</p>
+<header class="cabecera">
+  <a class="cabecera-marca" href="/">Gimnasio Pro</a>
+  <nav aria-label="Secciones"><a href="/entrenamiento.html" aria-current="page">Mi entrenamiento</a><a href="/clases.html">Clases</a><a href="/ficha.html">Mi ficha</a></nav>
+  <p class="cabecera-demo" data-demo>Datos ficticios · se reinician cada día</p>
+  <span class="cabecera-efectos" data-lugar-efectos></span>
+  <button type="button" data-cerrar>Cerrar sesión</button>
+</header>
+<main class="hoja">
+  <p class="rotulo">Tu cuaderno de entrenamiento</p>
   <h1>Tu entrenamiento</h1>
-  <p data-demo>Datos ficticios que se reinician cada día. Requiere conexión.</p>
   <p data-record role="status" aria-live="polite" aria-atomic="true"></p>
-  <p data-estado role="status" aria-live="polite">Cargando tu propuesta…</p>
+  <div class="hoja-estado">
+    <p data-estado role="status" aria-live="polite">Cargando tu propuesta…</p>
+    <button type="button" class="boton-enlace" data-actualizar>Actualizar propuesta</button>
+  </div>
   <p data-error role="alert"></p>
-    <section class="tarjeta" data-ocupacion-ahora hidden aria-labelledby="ocupacion-titulo">
-      <h2 id="ocupacion-titulo">Ocupación ahora</h2>
-      <p>Ocupación registrada: <span data-ocupacion></span></p>
-      <progress data-aforo max="1" value="0" aria-label="Ocupación registrada respecto del aforo máximo"></progress>
-    </section>
-
-    <section class="tarjeta" data-mejores-horarios hidden aria-labelledby="titulo-horarios">
-      <h2 id="titulo-horarios">Mejores horarios · previsión</h2>
-      <p data-horarios-estado role="status">Cargando previsión…</p>
-      <div class="grilla">
-        <div data-horarios-hoy></div>
-        <div data-horarios-manana></div>
-      </div>
-    </section>
   <div class="barra" data-reintento hidden>
     <button type="button" data-reintentar>Reintentar operación</button>
     <button type="button" data-descartar>Descartar reintento</button>
   </div>
-  <button type="button" data-actualizar>Actualizar propuesta</button>
-  <section data-chequeo hidden aria-labelledby="titulo-chequeo">
+  <div class="sede-hoy">
+    <section data-ocupacion-ahora hidden aria-labelledby="ocupacion-titulo">
+      <h2 id="ocupacion-titulo" class="rotulo">Ocupación ahora</h2>
+      <p class="sede-hoy-cifra">Ocupación registrada: <span data-ocupacion></span></p>
+      <progress data-aforo max="1" value="0" aria-label="Ocupación registrada respecto del aforo máximo"></progress>
+    </section>
+    <section data-mejores-horarios hidden aria-labelledby="titulo-horarios">
+      <h2 id="titulo-horarios" class="rotulo">Mejores horarios · previsión</h2>
+      <p data-horarios-estado role="status">Cargando previsión…</p>
+      <div class="horarios">
+        <div data-horarios-hoy></div>
+        <div data-horarios-manana></div>
+      </div>
+    </section>
+  </div>
+  <section class="chequeo" data-chequeo hidden aria-labelledby="titulo-chequeo">
     <h2 id="titulo-chequeo">Chequeo del día</h2>
     <form data-formulario-chequeo>
-      <p>Antes de entrenar, contanos cómo estás: 1 es muy bajo y 5 es muy bueno.</p>
+      <p class="chequeo-intro">Antes de entrenar, contanos cómo estás: 1 es muy bajo y 5 es muy bueno.</p>
       <label for="chequeo-sueno">Sueño</label><select id="chequeo-sueno" name="sueno" required><option value="">Elegí de 1 a 5</option><option>1</option><option>2</option><option>3</option><option>4</option><option>5</option></select>
       <label for="chequeo-energia">Energía</label><select id="chequeo-energia" name="energia" required><option value="">Elegí de 1 a 5</option><option>1</option><option>2</option><option>3</option><option>4</option><option>5</option></select>
-      <p>Marcá las zonas con dolor, si las hay. Podés usar Tab y Espacio para elegirlas.</p>
+      <p class="chequeo-zonas">Marcá las zonas con dolor, si las hay. Podés usar Tab y Espacio para elegirlas.</p>
       <div data-zonas-chequeo></div>
       <button type="submit">Guardar chequeo del día</button>
-      <button type="button" data-saltear-chequeo>Saltear</button>
+      <button type="button" class="boton-enlace" data-saltear-chequeo>Saltear</button>
     </form>
-    <p>Un chequeo desfavorable reduce las series y anula las subas del día.</p>
+    <p class="nota-al-pie">Un chequeo desfavorable reduce las series y anula las subas del día.</p>
   </section>
   <div data-contenido hidden>
-    <p data-fecha></p>
+    <p class="rotulo" data-fecha></p>
     <div class="grilla">
       <section aria-labelledby="titulo-sesion">
         <h2 id="titulo-sesion" data-titulo-sesion>Sesión propuesta</h2>

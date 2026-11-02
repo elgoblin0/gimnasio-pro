@@ -55,7 +55,9 @@ test("lista filtra fechas y muestra total, socio y motivo sin interpretar HTML",
 test("anulación incierta conserva motivo y clave hasta confirmar el reintento", async () => {
   const pantalla = preparar([pago]);
   await pantalla.cargar();
-  const formulario = pantalla.obtener("[data-lista-pagos]").hijos[0].hijos.at(-1);
+  const plegado = pantalla.obtener("[data-lista-pagos]").hijos[0].hijos.at(-1);
+  assert.equal(plegado.etiqueta, "details");
+  const formulario = plegado.hijos[1];
   const motivo = formulario.hijos[0].hijos[1];
   motivo.value = "Error ficticio";
   pantalla.fallar({ estadoHttp: 0, message: "Sin conexión" });

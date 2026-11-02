@@ -1,13 +1,25 @@
-.barra { display: flex; align-items: center; justify-content: space-between; gap: var(--espacio-3); flex-wrap: wrap; }
-[data-personales], [data-perfil], [data-consentimientos], [data-membresia-pagos] { margin-block: var(--espacio-5); }
+/* Ficha: las hojas de la ficha en dos columnas en el escritorio, una en el celular. */
+.hoja { max-width: 72rem; display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 24rem), 1fr)); gap: var(--espacio-4); align-items: start; }
+.hoja > :is(.rotulo, h1, [data-estado], [data-error], [data-reintentar]) { grid-column: 1 / -1; }
+.hoja > h1 { margin: 0 0 var(--espacio-3); font-size: var(--tamano-portada); line-height: 1; }
+.hoja > section { margin: 0; min-width: 0; }
+.hoja > section h2 { margin-block: 0 var(--espacio-4); }
+.hoja :is([data-estado], [data-error]):empty { margin: 0; }
+.hoja form { max-width: none; gap: var(--espacio-3); }
+.hoja form > button[type="submit"] { justify-self: start; }
+.nota-al-pie { margin: 0; font-size: var(--tamano-chico); color: var(--texto-suave); }
+.dato-fijo { margin: 0; padding-block: var(--espacio-2); border-block-end: 1px solid var(--borde); }
+[data-membresia-pagos] > p:first-of-type { font: 400 1.2rem/1.35 var(--fuente-display); color: var(--texto); }
+[data-membresia-pagos] > p + p { margin: 0; padding-block: var(--espacio-2); border-block-start: 1px solid var(--borde); font-size: var(--tamano-chico); font-variant-numeric: tabular-nums; }
+
 [data-membresia-pagos] { overflow-wrap: anywhere; }
 [data-borrado-salud] { margin-block: var(--espacio-4); padding-block-start: var(--espacio-3); border-block-start: 1px solid var(--borde); }
 [data-borrado-salud] label { display: block; margin-block-end: var(--espacio-3); }
 [data-borrado-salud] input { display: block; font: inherit; color: var(--texto); background: var(--superficie); border: 1px solid var(--texto-suave); border-radius: var(--radio-1); padding: var(--espacio-3); width: 100%; min-width: 0; max-width: 100%; }
-[data-consultas-ficha] { margin-block: var(--espacio-5); min-width: 0; overflow-wrap: anywhere; }
+[data-consultas-ficha] { min-width: 0; overflow-wrap: anywhere; }
 [data-consultas-ficha] button { margin: var(--espacio-2); }
 [data-perfil] select { font: inherit; color: var(--texto); background: var(--superficie); padding: var(--espacio-3); max-width: 100%; }
-[data-salud] { margin-block: var(--espacio-5); min-width: 0; overflow-wrap: anywhere; }
+[data-salud] { min-width: 0; overflow-wrap: anywhere; }
 [data-salud] article { margin-block: var(--espacio-4); padding-block: var(--espacio-3); border-block-end: 1px solid var(--borde); }
 [data-salud] form { margin-block: var(--espacio-3); width: 100%; }
 [data-salud] select, [data-salud] textarea { font: inherit; color: var(--texto); background: var(--superficie); border: 1px solid var(--texto-suave); border-radius: var(--radio-1); padding: var(--espacio-3); width: 100%; min-width: 0; max-width: 100%; }
