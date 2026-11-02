@@ -3,15 +3,13 @@
 body.personal { padding: 0; }
 .personal main { max-width: none; }
 .personal h1 { font-size: clamp(2.25rem, 4vw, 3.25rem); line-height: 1; margin: 0; color: var(--texto); }
-:where(.personal) section { background: transparent; border: 0; border-radius: 0; padding: 0; }
+:where(.personal) section { background: transparent; border: 0; border-radius: 0; padding: 0; box-shadow: none; }
 .personal textarea { font: inherit; color: var(--texto); background: var(--superficie); border: 1px solid var(--texto-suave); border-radius: var(--radio-1); padding: var(--espacio-3); width: 100%; min-width: 0; }
 .personal form { max-width: none; }
 .personal button { color: var(--texto); }
 .nota-suave { color: var(--texto-suave); font-size: .9rem; }
 
-.boton-tinta { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; padding: 0 var(--espacio-5); color: var(--superficie); background: var(--texto); border: 0; border-radius: var(--radio-3); font-weight: 600; text-decoration: none; white-space: nowrap; cursor: pointer; }
 .personal button.boton-tinta { color: var(--superficie); }
-.boton-enlace { min-height: 44px; padding: 0; background: transparent; border: 0; text-decoration: underline; text-underline-offset: 4px; cursor: pointer; }
 
 /* Bandeja: la lista es el margen del cuaderno; la hoja del socio, la página abierta. */
 .bandeja { display: grid; grid-template-columns: minmax(20rem, 27rem) minmax(0, 1fr); min-height: calc(100svh - 61px); }
@@ -109,7 +107,6 @@ body.personal { padding: 0; }
 .equipo-accion label { flex: 1 1 14rem; }
 .equipo-accion label { font-size: .88rem; color: var(--texto-suave); }
 .equipo-accion input { padding: var(--espacio-2) var(--espacio-3); color: var(--texto); }
-.boton-borde { min-height: 44px; padding: 0 var(--espacio-4); background: transparent; border: 1px solid var(--texto-suave); border-radius: var(--radio-3); font-weight: 600; cursor: pointer; }
 .boton-icono { min-width: 44px; min-height: 44px; padding: 0; background: transparent; border: 1px solid var(--borde); border-radius: var(--radio-1); cursor: pointer; }
 .boton-icono:disabled { opacity: .35; cursor: default; }
 .fila-ejercicio { padding-block: var(--espacio-4); border-block-end: 1px solid var(--borde); }

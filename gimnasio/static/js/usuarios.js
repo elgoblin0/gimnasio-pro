@@ -16,8 +16,8 @@ export async function prepararUsuarios() {
   const consulta = crear("input", { name: "q", type: "search", maxLength: 160 });
   const rol = crear("select", { name: "rol" }, ...["", "socio", "recepcion", "entrenador", "administracion"].map((valor) => crear("option", { value: valor }, nombresRol[valor] || "Todos")));
   const activo = crear("select", { name: "activo" }, crear("option", { value: "" }, "Todos"), crear("option", { value: "true" }, "Activos"), crear("option", { value: "false" }, "Inactivos"));
-  const anterior = crear("button", { type: "button", onclick: () => { pagina--; cargar(); } }, "Página anterior");
-  const siguiente = crear("button", { type: "button", onclick: () => { pagina++; cargar(); } }, "Página siguiente");
+  const anterior = crear("button", { type: "button", className: "boton-borde", onclick: () => { pagina--; cargar(); } }, "Página anterior");
+  const siguiente = crear("button", { type: "button", className: "boton-borde", onclick: () => { pagina++; cargar(); } }, "Página siguiente");
 
   function mostrarClave(datos) {
     entrega.textContent = datos.clave_provisional
@@ -50,7 +50,7 @@ export async function prepararUsuarios() {
   function asignacion(usuario) {
     const entrenador = crear("select", { required: true, "aria-label": `Entrenador de ${usuario.nombre} ${usuario.apellido}` }, crear("option", { value: "" }, "Elegir entrenador"));
     const boton = crear("button", { type: "submit", className: "boton-borde" }, "Asignar entrenador");
-    const formulario = crear("form", { onsubmit: async (evento) => {
+    const formulario = crear("form", { className: "asignar-entrenador", onsubmit: async (evento) => {
       evento.preventDefault();
       if (await ejecutar(boton, `/api/socios/${usuario.id}/entrenador`, "PUT", { entrenador_id: entrenador.value })) entrega.textContent = "Entrenador asignado.";
     } }, entrenador, boton);
@@ -64,7 +64,7 @@ export async function prepararUsuarios() {
     const boton = crear("button", { type: "button", className: "boton-borde", onclick: () => {
       const revocacion = crear("input", { type: "checkbox" });
       const confirmar = crear("button", { type: "submit", className: "boton-tinta" }, accion);
-      const cancelar = crear("button", { type: "button", onclick: () => dialogo.close() }, "Cancelar");
+      const cancelar = crear("button", { type: "button", className: "boton-enlace", onclick: () => dialogo.close() }, "Cancelar");
       const formulario = crear("form", { onsubmit: async (evento) => {
         evento.preventDefault();
         cancelar.disabled = true;
@@ -107,19 +107,19 @@ export async function prepararUsuarios() {
       } while (respuesta.hay_mas);
       lista.replaceChildren(...datos.usuarios.map((usuario) => {
         const restablecer = crear("button", { type: "button", className: "boton-borde", onclick: () => ejecutar(restablecer, `/api/usuarios/${usuario.id}/clave`, "POST") }, "Restablecer clave");
-        return crear("li", {}, crear("p", {}, `${usuario.nombre} ${usuario.apellido} · ${formatearCedula(usuario.cedula)} · ${nombresRol[usuario.rol]} · ${usuario.activo ? "Activo" : "Inactivo"}`), restablecer, cambioEstado(usuario), ...(usuario.rol === "socio" && usuario.activo ? [asignacion(usuario)] : []));
+        return crear("li", { className: usuario.activo ? "" : "inactivo" }, crear("p", {}, crear("b", {}, `${usuario.nombre} ${usuario.apellido}`), ` · ${formatearCedula(usuario.cedula)} · ${nombresRol[usuario.rol]} · ${usuario.activo ? "Activo" : "Inactivo"}`), restablecer, cambioEstado(usuario), ...(usuario.rol === "socio" && usuario.activo ? [asignacion(usuario)] : []));
       }));
-      sinEntrenador.replaceChildren(...pendientes.socios.map((socio) => crear("li", {}, crear("p", {}, `${socio.nombre} ${socio.apellido} · ${formatearCedula(socio.cedula)}`), asignacion(socio))));
-      if (!pendientes.socios.length) sinEntrenador.append(crear("li", {}, "No hay socios sin entrenador."));
+      sinEntrenador.replaceChildren(...pendientes.socios.map((socio) => crear("li", {}, crear("p", {}, crear("b", {}, `${socio.nombre} ${socio.apellido}`), ` · ${formatearCedula(socio.cedula)}`), asignacion(socio))));
+      if (!pendientes.socios.length) sinEntrenador.append(crear("li", { className: "vacio" }, "No hay socios sin entrenador."));
       estado.textContent = datos.usuarios.length ? `Página ${pagina}` : "No hay usuarios para estos filtros.";
       anterior.disabled = pagina === 1;
       siguiente.disabled = !datos.hay_mas;
     } catch (fallo) { estado.textContent = ""; error.textContent = fallo.message; }
   }
 
-  const filtros = crear("form", { onsubmit: (evento) => { evento.preventDefault(); pagina = 1; cargar(); } },
-    crear("label", {}, "Buscar por nombre, apellido o cédula ", consulta), crear("label", {}, "Rol ", rol), crear("label", {}, "Estado ", activo), crear("button", { type: "submit" }, "Buscar"));
-  const alta = crear("form");
+  const filtros = crear("form", { className: "usuarios-filtros", onsubmit: (evento) => { evento.preventDefault(); pagina = 1; cargar(); } },
+    crear("label", {}, "Buscar por nombre, apellido o cédula ", consulta), crear("label", {}, "Rol ", rol), crear("label", {}, "Estado ", activo), crear("button", { type: "submit", className: "boton-borde" }, "Buscar"));
+  const alta = crear("form", { className: "alta-personal" });
   const campos = ["nombre", "apellido", "cedula", "telefono", "correo", "fecha_nacimiento"];
   for (const campo of campos) alta.append(crear("label", {}, `${nombresCampos[campo]} `,
     crear("input", { name: campo, type: campo === "correo" ? "email" : campo === "fecha_nacimiento" ? "date" : "text", required: ["nombre", "apellido", "cedula"].includes(campo) })));
@@ -130,6 +130,7 @@ export async function prepararUsuarios() {
     evento.preventDefault();
     if (await ejecutar(guardar, "/api/usuarios", "POST", Object.fromEntries(new FormData(alta)))) alta.reset();
   });
-  panel.append(estado, error, entrega, crear("button", { type: "button", onclick: cargar }, "Volver a cargar usuarios"), crear("h3", {}, "Crear personal"), alta, crear("h3", {}, "Usuarios"), filtros, lista, anterior, siguiente, crear("h3", {}, "Socios sin entrenador"), sinEntrenador);
+  panel.append(crear("div", { className: "hoja-estado" }, estado, crear("button", { type: "button", className: "boton-enlace", onclick: cargar }, "Volver a cargar usuarios")), error, entrega,
+    crear("h3", {}, "Crear personal"), alta, crear("h3", {}, "Usuarios"), filtros, lista, crear("div", { className: "paginas" }, anterior, siguiente), crear("h3", {}, "Socios sin entrenador"), sinEntrenador);
   await cargar();
 }
