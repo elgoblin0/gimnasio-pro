@@ -125,6 +125,19 @@ test("al confirmar el pago refresca la tarjeta y mantiene el socio para la entra
     assert.ok(textos.includes("Registrar entrada"));
   });
 
+test("al abrir la pantalla los sondeos no repiten la primera lectura: esperan su intervalo", async (t) => {
+  t.mock.timers.enable({ apis: ["setTimeout"] });
+  const pantalla = preparar(t);
+  const vaciar = async () => { for (let i = 0; i < 12; i++) await Promise.resolve(); };
+  await pantalla.ejecutar("iniciar()");
+  t.after(() => pantalla.ejecutar("sondeos.forEach(sondeo => sondeo.detener())"));
+  await vaciar();
+  assert.deepEqual(pantalla.lecturas, []);
+  t.mock.timers.tick(5000);
+  await vaciar();
+  assert.deepEqual([...pantalla.lecturas].sort(), ["/api/ocupacion", "/api/visitas?abiertas=1"]);
+});
+
 test("el sondeo espera al POST aunque transcurran cinco segundos", async (t) => {
   t.mock.timers.enable({ apis: ["setTimeout"] });
   const pantalla = preparar(t);

@@ -26,6 +26,15 @@ def parametros_desde_entorno(base=None):
     return parametros
 
 
+def parametros_reutilizables(cantidad):
+    """Los de siempre, con un pool del conector: las conexiones pasan de una solicitud a otra (ADR 0033).
+
+    `cantidad` es la de hilos que atienden, porque el pool no espera: si se agota, falla. Al cerrarse, cada
+    conexión vuelve limpia: sin transacción, sin candados y con la zona horaria de nuevo en UTC.
+    """
+    return parametros_desde_entorno() | {"pool_name": "gimnasio", "pool_size": cantidad}
+
+
 def conectar(parametros=None):
     """Abre una conexión con la zona horaria de la sesión fijada en UTC."""
     return mysql.connector.connect(

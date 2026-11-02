@@ -7,6 +7,7 @@ services:
     region: virginia
     buildCommand: pip install -r requirements.txt
     # El plan gratuito no tiene preDeployCommand. El certificado está disponible al arrancar.
+    # --threads es HILOS_EN_PRODUCCION de gimnasio/__init__.py: cambiarlos juntos (ADR 0033).
     startCommand: >-
       python -m gimnasio.comun.migrar &&
       exec gunicorn wsgi:app --bind 0.0.0.0:$PORT --workers 1 --threads 4

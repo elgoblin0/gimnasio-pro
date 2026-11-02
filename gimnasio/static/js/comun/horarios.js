@@ -1,8 +1,15 @@
 import { llamarApi } from "./api.js";
 
+// La previsión cambia despacio y es la lectura más cara: cada registro de una pantalla no la vuelve a pedir.
+const VIGENCIA_MS = 10 * 60_000;
+let consultada = null;
+
 export async function actualizarMejoresHorarios() {
   const bloque = document.querySelector("[data-mejores-horarios]");
   bloque.hidden = false;
+  if (consultada !== null && Date.now() - consultada < VIGENCIA_MS) return;
+  const anterior = consultada;
+  consultada = Date.now();
   try {
     const datos = await llamarApi("/api/mejores-horarios");
     for (const [clave, nombre] of [["hoy", "Hoy"], ["manana", "Mañana"]]) {
@@ -27,6 +34,7 @@ export async function actualizarMejoresHorarios() {
     }
     bloque.querySelector("[data-horarios-estado]").textContent = "";
   } catch (error) {
+    consultada = anterior;
     bloque.querySelector("[data-horarios-estado]").textContent = `No se pudieron cargar los mejores horarios. ${error.message}`;
   }
 }

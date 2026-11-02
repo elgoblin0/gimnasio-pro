@@ -7,3 +7,4 @@ prueba = "pruebas/e2e/test_recorrido_guiado.py"
 validacion = "https://github.com/elgoblin0/gimnasio-pro/issues/297"
 
 # Pantallas y acciones reales con los socios de la semilla (ADR 0032). Validada en el cierre de la etapa 7.
+# Siete pasos que cierran con el resumen, los récords y el cuerpo iluminado; la tarjeta va siempre al pie de la vista.
