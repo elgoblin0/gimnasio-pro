@@ -27,9 +27,18 @@
   --color-mostaza-300: #e0b04a;
   --color-mostaza-100: #f8e7b8;
 
-  --fuente-display: "Iowan Old Style", "Palatino Linotype", Charter, "Book Antiqua", Georgia, serif;
-  --fuente-texto: "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
-  --fuente-numeros: "Iowan Old Style", "Palatino Linotype", Georgia, serif;
+  /* Newsreader vive en vendor/ y se declara en base.css; los respaldos tienen proporciones parecidas. */
+  --fuente-display: "Newsreader", "Iowan Old Style", "Palatino Linotype", Charter, Georgia, serif;
+  --fuente-texto: "Segoe UI Variable Text", "Segoe UI", system-ui, -apple-system, Roboto, sans-serif;
+  --fuente-numeros: "Newsreader", "Iowan Old Style", "Palatino Linotype", Georgia, serif;
+  /* Escala tipográfica de cuaderno: rótulos chicos y espaciados, titulares grandes y apretados. */
+  --tamano-rotulo: .72rem;
+  --tamano-chico: .875rem;
+  --tamano-texto: 1rem;
+  --tamano-destacado: 1.25rem;
+  --tamano-titulo: clamp(1.5rem, 1.1rem + 1.4vw, 2rem);
+  --tamano-portada: clamp(2.6rem, 1.6rem + 4.4vw, 5.25rem);
+  --tamano-cifra: clamp(2.5rem, 1.8rem + 2.6vw, 3.75rem);
   --espacio-1: 4px;
   --espacio-2: 8px;
   --espacio-3: 12px;
@@ -42,6 +51,11 @@
   --duracion-1: 180ms;
   --duracion-2: 520ms;
   --duracion-3: 1100ms;
+  /* Sombras de papel apoyado: se tiñen con la tinta del esquema vigente. */
+  --sombra-1: 0 1px 0 color-mix(in srgb, var(--texto) 6%, transparent), 0 1px 3px color-mix(in srgb, var(--texto) 8%, transparent);
+  --sombra-2: 0 1px 0 color-mix(in srgb, var(--texto) 5%, transparent), 0 12px 32px -12px color-mix(in srgb, var(--texto) 22%, transparent);
+  /* Grano del papel: ruido fractal muy tenue, igual al del prototipo de B. */
+  --grano: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2'/%3E%3CfeColorMatrix values='0 0 0 0 .3 0 0 0 0 .25 0 0 0 0 .2 0 0 0 .07 0'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)'/%3E%3C/svg%3E");
   --curva-salida: cubic-bezier(.22, 1, .36, 1);
   --curva-resorte: cubic-bezier(.5, 1.6, .4, 1);
 

@@ -8,7 +8,8 @@ const SEMANTICOS = [
   "--superficie", "--superficie-elevada", "--borde", "--texto", "--texto-suave", "--acento",
   "--exito", "--alerta", "--peligro", "--freno", "--foco",
 ];
-const PRIMITIVOS = ["--color-", "--espacio-", "--radio-", "--fuente-", "--duracion-", "--curva-"];
+// Además de los primitivos, tamaños, sombras y grano: no son colores semánticos y no cambian con el esquema.
+const PRIMITIVOS = ["--color-", "--espacio-", "--radio-", "--fuente-", "--duracion-", "--curva-", "--tamano-", "--sombra-", "--grano"];
 
 // Devuelve los bloques de reglas como { media, selector, variables }. Alcanza para una hoja de tokens.
 function bloques(css, media = "") {

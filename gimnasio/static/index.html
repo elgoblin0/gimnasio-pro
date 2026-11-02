@@ -7,8 +7,12 @@
   <meta name="theme-color" content="#b2452a">
   <link rel="icon" type="image/png" href="/iconos/gimnasio-192.png">
   <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="preload" href="/vendor/newsreader@v26/newsreader.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="/vendor/newsreader@v26/newsreader-italica.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="/estilos/tokens.css">
   <link rel="stylesheet" href="/estilos/base.css">
+  <script src="/js/comun/transiciones.js"></script>
+  <link rel="stylesheet" href="/estilos/portada.css">
   <script type="importmap">
     {
       "imports": {
@@ -18,52 +22,73 @@
   </script>
   <script type="module" src="/js/inicio.js"></script>
 </head>
-<body>
-  <main id="contenido">
-    <h1>Gimnasio Pro</h1>
-    <p data-estado-pwa>Requiere conexión a Internet, también al instalarla.</p>
-    <p data-actualizacion role="status" hidden>Hay una actualización disponible. Se aplicará cuando cierres todas las ventanas de Gimnasio Pro. Podés terminar el formulario en curso.</p>
-    <p data-estado aria-live="polite">Conectando…</p>
+<body class="portada">
+  <main id="contenido" class="portada-hoja">
+    <div class="portada-cabecera">
+      <p class="portada-marca">Gimnasio Pro</p>
+      <p class="portada-sello" data-estado aria-live="polite">Conectando…</p>
+    </div>
 
-    <section data-ingreso hidden aria-labelledby="t-ingreso">
+    <div class="portada-presentacion">
+      <p class="rotulo">Cuaderno de entrenamiento</p>
+      <h1>Cada sesión, <em>pensada</em> para hoy.</h1>
+      <p class="portada-bajada">Programas que se ajustan solos dentro de frenos seguros, series registradas al momento y la sede con su aforo en vivo.</p>
+      <ol class="portada-indice">
+        <li><span>01</span> La sesión propuesta, con el porqué de cada carga.</li>
+        <li><span>02</span> Frenos de seguridad que avisan al entrenador.</li>
+        <li><span>03</span> Recepción y aforo al minuto.</li>
+      </ol>
+      <p class="portada-pwa" data-estado-pwa>Requiere conexión a Internet, también al instalarla.</p>
+      <p class="portada-pwa" data-actualizacion role="status" hidden>Hay una actualización disponible. Se aplicará cuando cierres todas las ventanas de Gimnasio Pro. Podés terminar el formulario en curso.</p>
+    </div>
+
+    <section class="portada-ingreso" data-ingreso hidden aria-labelledby="t-ingreso">
       <h2 id="t-ingreso">Ingresar</h2>
       <form data-formulario-ingreso novalidate>
         <label>Cédula o correo <input name="identificador" autocomplete="username" required></label>
         <label>Clave <input name="clave" type="password" autocomplete="current-password" required></label>
-        <button type="submit">Entrar</button>
+        <button class="boton-tinta" type="submit">Entrar</button>
         <p data-error-ingreso role="alert"></p>
       </form>
-      <div data-demo hidden>
-        <h2>Entrar como…</h2>
-        <p>Datos ficticios que se reinician cada día.</p>
-        <button type="button" data-rol="socio">Entrar como socio</button>
-        <button type="button" data-rol="recepcion">Entrar como recepción</button>
-        <button type="button" data-rol="entrenador">Entrar como entrenador</button>
-        <button type="button" data-rol="administracion">Entrar como administración</button>
+      <div class="portada-demo" data-demo hidden>
+        <h2 class="rotulo">Entrar como…</h2>
+        <p class="portada-demo-nota">Datos ficticios que se reinician cada día.</p>
+        <div class="portada-roles">
+          <button type="button" class="portada-rol" data-rol="socio" aria-label="Entrar como socio"><strong>Socio</strong><span>La sesión de hoy, propuesta y explicada.</span></button>
+          <button type="button" class="portada-rol" data-rol="recepcion" aria-label="Entrar como recepción"><strong>Recepción</strong><span>Entradas, aforo en vivo y cobros.</span></button>
+          <button type="button" class="portada-rol" data-rol="entrenador" aria-label="Entrar como entrenador"><strong>Entrenador</strong><span>Quién necesita atención y por qué.</span></button>
+          <button type="button" class="portada-rol" data-rol="administracion" aria-label="Entrar como administración"><strong>Administración</strong><span>Clases, plantillas, usuarios y la semana.</span></button>
+        </div>
       </div>
     </section>
 
-    <section data-bienvenida hidden>
-      <h2 data-saludo></h2>
-      <p data-rol-actual></p>
-      <p><a data-recorrido hidden></a></p>
-      <p><a data-mi-ficha href="/ficha.html" hidden>Mi ficha</a></p>
-      <button type="button" data-salir>Salir</button>
-      <section data-incorporacion hidden aria-labelledby="t-incorporacion">
-        <h3 id="t-incorporacion">Tu incorporación</h3>
-        <p data-incorporacion-dia></p>
-        <ul data-incorporacion-hitos></ul>
-      </section>
-      <section data-resumen-semanal hidden aria-labelledby="t-resumen-semanal">
-        <h3 id="t-resumen-semanal">Tu semana</h3>
-        <div class="resumen-semanal" data-resumen-semanal-contenido></div>
-      </section>
-      <section data-avisos hidden aria-labelledby="t-avisos">
-        <h3 id="t-avisos">Avisos al socio</h3>
-        <p data-avisos-estado role="status"></p>
-        <ul data-avisos-lista></ul>
-        <button type="button" data-avisos-reintentar>Actualizar avisos</button>
-      </section>
+    <section class="portada-bienvenida" data-bienvenida hidden>
+      <div class="bienvenida-cabecera">
+        <p class="rotulo" data-rol-actual></p>
+        <h2 class="bienvenida-saludo" data-saludo></h2>
+        <div class="bienvenida-acciones">
+          <a class="boton-tinta bienvenida-seguir" data-recorrido hidden></a>
+          <a class="boton-borde" data-mi-ficha href="/ficha.html" hidden>Mi ficha</a>
+          <button type="button" class="boton-enlace" data-salir>Salir</button>
+        </div>
+      </div>
+      <div class="bienvenida-hojas">
+        <section data-incorporacion hidden aria-labelledby="t-incorporacion">
+          <h3 id="t-incorporacion">Tu incorporación</h3>
+          <p data-incorporacion-dia></p>
+          <ul data-incorporacion-hitos></ul>
+        </section>
+        <section data-resumen-semanal hidden aria-labelledby="t-resumen-semanal">
+          <h3 id="t-resumen-semanal">Tu semana</h3>
+          <div class="resumen-semanal" data-resumen-semanal-contenido></div>
+        </section>
+        <section data-avisos hidden aria-labelledby="t-avisos">
+          <h3 id="t-avisos">Avisos al socio</h3>
+          <p data-avisos-estado role="status"></p>
+          <ul data-avisos-lista></ul>
+          <button type="button" data-avisos-reintentar>Actualizar avisos</button>
+        </section>
+      </div>
     </section>
   </main>
 </body>

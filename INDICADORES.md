@@ -40,10 +40,10 @@ Guía para explicar el recorrido de etapa 1. Las referencias `archivo:línea` se
 
 | Indicador | Evidencia vigente |
 |---|---|
-| Espacios y adaptación | Ancho máximo, espaciado y formulario grid: `gimnasio/static/estilos/base.css:17`. Grilla de recorrido: `gimnasio/static/estilos/recorrido.css:13`. Una columna en celular: `gimnasio/static/estilos/recorrido.css:22`. |
-| Construcción visual | Tokens semánticos de B: `gimnasio/static/estilos/tokens.css:7`. Tema oscuro: `gimnasio/static/estilos/tokens.css:61`. Cifras, tarjetas y jerarquía: `gimnasio/static/estilos/recorrido.css:4`. |
+| Espacios y adaptación | Ancho máximo, espaciado y formulario grid: `gimnasio/static/estilos/base.css:17`. Grilla de pantallas: `gimnasio/static/estilos/pantallas.css:13`. Una columna en celular: `gimnasio/static/estilos/pantallas.css:22`. |
+| Construcción visual | Tokens semánticos de B: `gimnasio/static/estilos/tokens.css:7`. Tema oscuro: `gimnasio/static/estilos/tokens.css:61`. Cifras, tarjetas y jerarquía: `gimnasio/static/estilos/pantallas.css:4`. |
 | Importación y reutilización | Las tres pantallas comparten tokens y base: `gimnasio/static/index.html:10`. Recepción y entrenamiento comparten recorrido: `gimnasio/static/recepcion.html:10`, `gimnasio/static/entrenamiento.html:10`. |
-| Selectores de etiquetas y estados | `body`, `main`, `section`, `form`, `label`, controles y foco visible: `gimnasio/static/estilos/base.css:10`. Estado deshabilitado: `gimnasio/static/estilos/recorrido.css:8`. Movimiento reducido: `gimnasio/static/estilos/base.css:43`. No se acredita un efecto `:hover` específico: el estilo vigente prioriza foco y estados de controles. |
+| Selectores de etiquetas y estados | `body`, `main`, `section`, `form`, `label`, controles y foco visible: `gimnasio/static/estilos/base.css:10`. Estado deshabilitado: `gimnasio/static/estilos/pantallas.css:8`. Movimiento reducido: `gimnasio/static/estilos/base.css:43`. No se acredita un efecto `:hover` específico: el estilo vigente prioriza foco y estados de controles. |
 
 ## Funcionamiento y conocimiento del sistema (1 pt)
 

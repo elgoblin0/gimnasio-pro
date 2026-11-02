@@ -1,0 +1,125 @@
+/* Portada: una doble página de cuaderno. A la izquierda la presentación; a la derecha, la hoja para entrar. */
+
+/* Luz de lámpara cálida desde arriba a la izquierda, sobre el grano del papel. */
+.portada {
+  padding: 0; min-height: 100svh;
+  background-image:
+    radial-gradient(ellipse 70% 60% at 12% -10%, color-mix(in srgb, var(--color-mostaza-300) 16%, transparent), transparent 70%),
+    radial-gradient(ellipse 60% 50% at 100% 100%, color-mix(in srgb, var(--acento) 7%, transparent), transparent 70%),
+    var(--grano);
+
+}
+.portada-hoja {
+  max-width: 76rem; min-height: 100svh;
+  display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); grid-template-rows: auto 1fr;
+  column-gap: clamp(var(--espacio-5), 5vw, 6rem);
+  padding: clamp(var(--espacio-4), 3vw, var(--espacio-6)) clamp(var(--espacio-4), 4vw, var(--espacio-6)) var(--espacio-6);
+}
+.portada-cabecera {
+  grid-column: 1 / -1;
+  display: flex; align-items: center; justify-content: space-between; gap: var(--espacio-3); flex-wrap: wrap;
+  padding-block-end: var(--espacio-4); margin-block-end: clamp(var(--espacio-5), 6vh, 4.5rem);
+  border-block-end: 1px solid var(--borde);
+}
+.portada-marca { margin: 0; font: italic 400 1.35rem/1 var(--fuente-display); color: var(--acento); letter-spacing: -.01em; }
+.portada-sello { margin: 0; font-size: var(--tamano-chico); }
+.portada-sello:not(:empty) {
+  padding: var(--espacio-1) var(--espacio-3); border: 1px solid var(--alerta); border-radius: var(--radio-3);
+  color: var(--alerta); font-weight: 600; font-size: .78rem; letter-spacing: .04em;
+}
+
+/* Presentación: el titular manda; el índice numerado cuenta qué hay adentro. */
+/* La página izquierda lleva renglones y el margen en terracota de un cuaderno. */
+.portada-presentacion {
+  position: relative; align-self: start; padding-block-end: var(--espacio-6);
+}
+.portada-presentacion::before {
+  content: ""; position: absolute; z-index: -1; inset: -2rem -1.5rem 0 -1.5rem;
+  background: repeating-linear-gradient(to bottom, transparent 0 calc(2rem - 1px), color-mix(in srgb, var(--color-bosque-300) 22%, transparent) calc(2rem - 1px) 2rem);
+  -webkit-mask-image: linear-gradient(to bottom, #000 40%, transparent);
+  mask-image: linear-gradient(to bottom, #000 40%, transparent);
+  border-inline-start: 1px solid color-mix(in srgb, var(--acento) 45%, transparent);
+  opacity: .55;
+}
+.portada-presentacion h1 { margin: 0; font-size: var(--tamano-portada); max-width: 11ch; animation: aparecer var(--duracion-3) var(--curva-salida) both; }
+.portada-bajada {
+  margin: var(--espacio-5) 0 0; max-width: 34ch;
+  font: italic 400 clamp(1.15rem, 1rem + .6vw, 1.45rem)/1.45 var(--fuente-display); color: var(--texto-suave);
+  animation: aparecer var(--duracion-3) var(--curva-salida) 120ms both;
+}
+.portada-indice {
+  list-style: none; margin: var(--espacio-6) 0 0; padding: 0; max-width: 30rem;
+  animation: aparecer var(--duracion-3) var(--curva-salida) 240ms both;
+}
+.portada-indice li { display: grid; grid-template-columns: 2.5rem 1fr; padding-block: var(--espacio-3); border-block-start: 1px solid var(--borde); }
+.portada-indice li:last-child { border-block-end: 1px solid var(--borde); }
+.portada-indice span { font: italic 400 1.05rem/1.4 var(--fuente-numeros); color: var(--acento); font-variant-numeric: oldstyle-nums; }
+.portada-pwa { margin: var(--espacio-5) 0 0; font-size: var(--tamano-chico); color: var(--texto-suave); }
+@keyframes aparecer { from { opacity: 0; transform: translateY(14px); } }
+
+/* La hoja de ingreso: papel apoyado sobre el cuaderno. */
+.portada-ingreso, .portada-bienvenida { align-self: start; padding: clamp(var(--espacio-5), 3vw, var(--espacio-6)); box-shadow: var(--sombra-2); }
+.portada-ingreso { animation: aparecer var(--duracion-3) var(--curva-salida) 180ms both; }
+.portada-ingreso h2#t-ingreso { margin: 0 0 var(--espacio-4); }
+.portada-ingreso form { max-width: none; }
+.portada-ingreso form .boton-tinta { justify-self: start; min-width: 9rem; }
+.portada-ingreso [data-error-ingreso]:empty { display: none; }
+
+.portada-demo { margin-block-start: var(--espacio-6); }
+.portada-demo h2.rotulo { font-family: var(--fuente-texto); letter-spacing: .16em; }
+.portada-demo-nota { margin: 0 0 var(--espacio-4); font-size: var(--tamano-chico); color: var(--texto-suave); }
+.portada-roles { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--espacio-3); }
+.portada-rol {
+  display: grid; align-content: start; gap: var(--espacio-1);
+  min-height: 6.5rem; padding: var(--espacio-4); text-align: start;
+  color: var(--texto); background: var(--superficie); border: 1px solid var(--borde); border-radius: var(--radio-2);
+  font-weight: 400;
+  transition: border-color var(--duracion-1) var(--curva-salida), transform var(--duracion-2) var(--curva-resorte), box-shadow var(--duracion-2) var(--curva-salida);
+}
+.portada-rol strong { font: 400 1.3rem/1.1 var(--fuente-display); color: var(--texto); }
+.portada-rol strong::after { content: " →" / ""; color: var(--acento); opacity: 0; transition: opacity var(--duracion-1) var(--curva-salida); }
+.portada-rol span { font-size: var(--tamano-chico); color: var(--texto-suave); line-height: 1.4; }
+.portada-rol:hover { background: var(--superficie); border-color: var(--acento); transform: translateY(-2px); box-shadow: var(--sombra-2); }
+.portada-rol:hover strong::after, .portada-rol:focus-visible strong::after { opacity: 1; }
+.portada-rol:active { transform: translateY(0); }
+/* Los socios ficticios con nombre: chips discretos debajo de los roles. */
+.portada-socios { display: flex; flex-wrap: wrap; gap: var(--espacio-2); margin-block-start: var(--espacio-4); }
+.portada-socios button {
+  min-height: 36px; padding: var(--espacio-1) var(--espacio-3);
+  color: var(--texto-suave); border-color: var(--borde); font-weight: 400; font-size: var(--tamano-chico);
+}
+.portada-socios button:hover { color: var(--acento); border-color: var(--acento); }
+
+/* Bienvenida: al entrar, la hoja ocupa la doble página y el saludo pasa a ser el titular. */
+.portada-hoja:has([data-bienvenida]:not([hidden])) .portada-presentacion { display: none; }
+.portada-bienvenida { grid-column: 1 / -1; background: transparent; border: 0; box-shadow: none; padding: 0; }
+.bienvenida-cabecera { padding-block-end: var(--espacio-6); }
+.bienvenida-saludo { margin: 0; font-size: var(--tamano-portada); line-height: 1; letter-spacing: -.025em; animation: aparecer var(--duracion-3) var(--curva-salida) both; }
+.bienvenida-acciones { display: flex; flex-wrap: wrap; align-items: center; gap: var(--espacio-3); margin-block-start: var(--espacio-5); }
+.bienvenida-acciones a[hidden] { display: none; }
+.bienvenida-seguir::after { content: "→" / ""; font-family: var(--fuente-display); }
+.bienvenida-acciones .boton-borde { display: inline-flex; align-items: center; text-decoration: none; }
+.bienvenida-hojas { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 20rem), 1fr)); gap: var(--espacio-4); align-items: start; }
+.bienvenida-hojas section { padding: var(--espacio-5); }
+.bienvenida-hojas h3 { margin: 0 0 var(--espacio-3); }
+[data-incorporacion-hitos] li { padding-block: var(--espacio-1); }
+[data-incorporacion-hitos] li[data-cumplido="true"] { color: var(--exito); }
+[data-avisos-lista] { padding: 0; list-style: none; }
+[data-avisos-lista] li { padding-block: var(--espacio-2); border-block-end: 1px solid var(--borde); }
+[data-avisos-lista] li button { margin-inline-start: var(--espacio-2); min-height: 36px; padding: 0 var(--espacio-3); font-size: var(--tamano-chico); }
+[data-avisos-estado]:empty { display: none; }
+
+@media (max-width: 52rem) {
+  .portada-hoja { grid-template-columns: minmax(0, 1fr); }
+  .portada-cabecera { margin-block-end: var(--espacio-5); }
+  .portada-presentacion { padding-block-end: var(--espacio-5); }
+  .portada-indice { margin-block-start: var(--espacio-5); }
+}
+@media (max-width: 40rem) {
+  .portada-indice { display: none; }
+  .portada-presentacion::before { inset-inline: -.75rem; }
+}
+@media (max-width: 26rem) {
+  .portada-roles { grid-template-columns: minmax(0, 1fr); }
+  .portada-rol { min-height: 0; }
+}
