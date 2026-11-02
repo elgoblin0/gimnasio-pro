@@ -263,3 +263,7 @@ Demostración paso a paso de unos dos minutos que muestra el producto a alguien 
 
 **Movimiento cuidado**:
 Animaciones que explican cambios de estado, fluidas a 60 fps y desactivables con la preferencia de movimiento reducido.
+
+**Modo sin efectos**:
+Presentación del producto sin escenas 3D ni animaciones decorativas, con la misma información y las mismas acciones.
+_Evitar_: Modo liviano, modo básico, modo accesible.

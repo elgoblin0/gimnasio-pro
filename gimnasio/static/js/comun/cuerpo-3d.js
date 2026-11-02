@@ -247,6 +247,7 @@ export async function crearCuerpo(contenedor, svg, seleccionable, nombreFigura, 
   const seriesDe = control => Number(control.dataset.series ?? 0);
   panel.append(crear("p", "cuerpo-pista", seleccionable ? "Tocá el cuerpo o elegí una zona. Arrastrá para girar." : "Arrastrá para girar."));
   const lista = crear("div", "cuerpo-zonas");
+  lista.setAttribute("role", "group");
   lista.setAttribute("aria-label", "Zonas del cuerpo");
   const filas = controles.map((control, indice) => {
     const boton = documento.createElement(seleccionable ? "button" : "p");
