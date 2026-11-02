@@ -84,8 +84,6 @@
 
 @media (max-width: 52rem) {
   #sede form, #tipos-membresia { grid-template-columns: minmax(0, 1fr); grid-template-rows: none; }
-  .indice { flex-wrap: nowrap; overflow-x: auto; margin-inline: calc(-1 * var(--espacio-4)); padding: 2px var(--espacio-4); scrollbar-width: none; }
-  .indice a { flex: none; }
   .sede-horario, #tipos-membresia > form { grid-column: 1; grid-row: auto; }
   .historial > li { grid-template-columns: minmax(0, 1fr); }
   .historial-horario { grid-column: 1; grid-row: auto; }

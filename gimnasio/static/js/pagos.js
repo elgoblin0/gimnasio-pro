@@ -146,7 +146,6 @@ async function iniciar() {
   prepararBarra(usuario);
   prepararAlta();
   if (socioFijado && window.parent !== window) document.querySelector("header").hidden = true;
-  $("[data-solo-recepcion]").hidden = usuario.rol !== "recepcion";
   $("#buscar").addEventListener("input", buscar);
   $("#tipo").addEventListener("change", () => {
     const tipo = tipos.find((tipo) => tipo.id === $("#tipo").value);
