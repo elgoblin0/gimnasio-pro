@@ -215,4 +215,41 @@
   .interruptor-efectos[aria-pressed="true"]::before {
     background: radial-gradient(circle at 70% 50%, var(--superficie) .32em, transparent .36em) var(--acento);
   }
+
+  /* Recorrido guiado (js/recorrido.js): una nota de margen pegada a la parte que explica. */
+  [data-recorrido-ancla] {
+    outline: 2px solid var(--acento); outline-offset: 6px; border-radius: var(--radio-2);
+    animation: marcar-ancla var(--duracion-3) var(--curva-salida) both;
+  }
+  @keyframes marcar-ancla { from { outline-offset: 18px; outline-color: transparent; } }
+  body:has(> .recorrido[data-lugar="pie"]) { padding-block-end: var(--alto-recorrido, 0px); }
+  .recorrido {
+    position: absolute; z-index: 20; inline-size: min(24rem, calc(100vw - 2 * var(--espacio-4)));
+    display: grid; gap: var(--espacio-3);
+    padding: var(--espacio-4) var(--espacio-4) var(--espacio-3) var(--espacio-5);
+    color: var(--texto); background: var(--superficie-elevada);
+    border: 1px solid var(--borde); border-inline-start: 3px solid var(--acento); border-radius: var(--radio-2);
+    box-shadow: var(--sombra-2);
+    animation: entrar-recorrido var(--duracion-2) var(--curva-salida) both;
+    transition: top var(--duracion-2) var(--curva-salida), left var(--duracion-2) var(--curva-salida);
+  }
+  .recorrido[data-lugar="pie"] {
+    position: fixed; inset: auto var(--espacio-4) var(--espacio-4); inline-size: auto; max-inline-size: 40rem; margin-inline: auto;
+  }
+  @keyframes entrar-recorrido { from { opacity: 0; transform: translateY(8px); } }
+  .recorrido p { margin: 0; }
+  .recorrido-paso {
+    font-size: var(--tamano-rotulo); font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--acento);
+  }
+  .recorrido-texto { font: 400 1.12rem/1.45 var(--fuente-display); text-wrap: pretty; }
+  .recorrido[data-cargando="true"] .recorrido-texto { color: var(--texto-suave); font-style: italic; }
+  .recorrido-tiempo { block-size: 2px; background: var(--borde); overflow: hidden; border-radius: 2px; }
+  .recorrido-tiempo span { display: block; block-size: 100%; background: var(--acento); transform: scaleX(0); transform-origin: left; }
+  .recorrido-acciones { display: flex; flex-wrap: wrap; align-items: center; gap: var(--espacio-2) var(--espacio-4); }
+  .recorrido-acciones .boton-borde { border-color: var(--borde); }
+  .recorrido .solo-lector { position: absolute; inline-size: 1px; block-size: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  @media (max-width: 719px) {
+    .recorrido { padding: var(--espacio-3) var(--espacio-3) var(--espacio-2) var(--espacio-4); gap: var(--espacio-2); }
+    .recorrido-texto { font-size: 1rem; }
+  }
 }

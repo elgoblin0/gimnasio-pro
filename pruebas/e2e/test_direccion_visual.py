@@ -78,6 +78,11 @@ def test_ingreso_en_b_claro_y_oscuro_con_teclado_sin_desborde(
 
         identificador = pagina.get_by_label("Cédula o correo")
         clave = pagina.get_by_label("Clave", exact=True)
+        if modo_demo:
+            # En la demo, «Ver recorrido» está en la presentación, antes del ingreso.
+            avanzar_con_foco(pagina, pagina.get_by_role("button", name="Ver recorrido", exact=True))
+        else:
+            expect(pagina.get_by_role("button", name="Ver recorrido", exact=True)).to_be_hidden()
         avanzar_con_foco(pagina, identificador)
         foco = "rgb(124, 196, 160)" if esquema == "dark" else "rgb(31, 90, 67)"
         expect(identificador).to_have_css("outline-color", foco)

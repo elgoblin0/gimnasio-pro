@@ -54,6 +54,12 @@
 .portada-indice li { display: grid; grid-template-columns: 2.5rem 1fr; padding-block: var(--espacio-3); border-block-start: 1px solid var(--borde); }
 .portada-indice li:last-child { border-block-end: 1px solid var(--borde); }
 .portada-indice span { font: italic 400 1.05rem/1.4 var(--fuente-numeros); color: var(--acento); font-variant-numeric: oldstyle-nums; }
+.portada-recorrido {
+  display: flex; flex-wrap: wrap; align-items: center; gap: var(--espacio-2) var(--espacio-4); margin-block-start: var(--espacio-5);
+  animation: aparecer var(--duracion-3) var(--curva-salida) 360ms both;
+}
+.portada-recorrido[hidden] { display: none; }
+.portada-recorrido p { margin: 0; font-size: var(--tamano-chico); color: var(--texto-suave); }
 .portada-pwa { margin: var(--espacio-5) 0 0; font-size: var(--tamano-chico); color: var(--texto-suave); }
 @keyframes aparecer { from { opacity: 0; transform: translateY(14px); } }
 

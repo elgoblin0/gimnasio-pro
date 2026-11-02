@@ -134,6 +134,12 @@ async function iniciar() {
     }
   });
   if (estado.modo_demo) {
+    $("[data-recorrido-portada]").hidden = false;
+    $("[data-ver-recorrido]").addEventListener("click", async () => {
+      try {
+        (await import("./recorrido.js")).empezarRecorrido();
+      } catch (error) { $("[data-estado]").textContent = error.message; }
+    });
     const { socios } = await llamarApi("/api/sesion/demo/socios");
     const lista = crear("div", { className: "portada-socios", "aria-label": "Socios ficticios", role: "group" });
     for (const socio of socios) {

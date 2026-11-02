@@ -2,5 +2,7 @@ id = "recorrido-guiado"
 nombre = "Recorrido guiado de dos minutos"
 grupo = "Experiencia"
 etapa = 7
-nivel = "pendiente"
-prueba = ""
+nivel = "pulida"
+prueba = "pruebas/e2e/test_recorrido_guiado.py"
+
+# Pantallas y acciones reales con los socios de la semilla (ADR 0032). Se valida en el cierre de la etapa 7.

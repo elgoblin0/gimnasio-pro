@@ -20,6 +20,12 @@ function prepararTransicion(evento) {
 addEventListener("pageswap", prepararTransicion);
 addEventListener("pagereveal", prepararTransicion);
 
+// Un recorrido guiado en curso sigue en cada página que abre (ADR 0032), salvo dentro de un marco como el
+// pago de la tarjeta contextual.
+let recorridoEnCurso = false;
+try { recorridoEnCurso = window.top === window && Boolean(sessionStorage.getItem("gimnasio-recorrido")); } catch { /* Sin almacenamiento no hay recorrido. */ }
+
 addEventListener("DOMContentLoaded", () => {
   import("/js/comun/efectos.js").then((efectos) => efectos.montarInterruptorEfectos()).catch(() => {});
+  if (recorridoEnCurso) import("/js/recorrido.js").catch(() => {});
 });
