@@ -8,7 +8,7 @@
 - **Ley N.º 7593/2025**, "De Protección de Datos Personales en la República del Paraguay", promulgada el 27 de noviembre de 2025.
 - Entra en vigor 24 meses después de su publicación, hacia noviembre de 2027.
 - Crea la Agencia Nacional de Protección de Datos Personales dentro del MITIC.
-- Al 2026-10-26 la reglamentación sigue pendiente.
+- Al 2026-10-26 la reglamentación sigue pendiente. Se volvió a verificar en el cierre del programa (2026-11-02): sigue sin reglamentar y la ley rige desde el 27 de noviembre de 2027.
 
 Fuentes: el texto de la ley en bacn.gov.py (Leyes paraguayas, Ley 7593/2025) y análisis de estudios jurídicos locales. Este ADR no es asesoramiento legal.
 

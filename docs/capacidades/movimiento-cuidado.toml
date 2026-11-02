@@ -2,5 +2,6 @@ id = "movimiento-cuidado"
 nombre = "Movimiento cuidado y alternativa sin efectos"
 grupo = "Experiencia"
 etapa = 7
-nivel = "pulida"
+nivel = "validada"
 prueba = "pruebas/e2e/test_modo_sin_efectos.py"
+validacion = "https://github.com/elgoblin0/gimnasio-pro/issues/297"

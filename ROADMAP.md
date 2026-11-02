@@ -1,5 +1,7 @@
 # Versión Pro
 
+**Estado:** Pro está terminado. Las ocho etapas (0 a 7) se cerraron con la aprobación del dueño; la última, en #297. Lo que no entró está en [ideas no hechas](docs/IDEAS-NO-HECHAS.md) y no hay etapa 8.
+
 ## Objetivo
 Explorar el techo del producto mediante una experiencia completa para socios, recepción, entrenadores y administradores. La meta final y sus límites están en [VISION.md](VISION.md). Stack: Flask, MySQL y JavaScript moderno sin framework ni build (ver `docs/adr/`).
 
@@ -20,11 +22,11 @@ La ambición visual es **cutting edge**: ser una demo de lo más avanzado que se
 
 La aceptación visual requiere revisar el resultado en navegador, escritorio y celular: impacto de los primeros segundos, coherencia del sistema visual y una demostración completa de aproximadamente dos minutos. El efecto «wow» se valida mostrando el prototipo a personas con distintos perfiles y recogiendo sus impresiones.
 
-## Próxima entrega: prototipo visual
+## Prototipo visual
 - [x] Prototipar las direcciones visuales de la etapa 0; se conserva Cuaderno de entrenamiento (B).
 - [x] Fijar B en los tokens de diseño y retirar A, por decisión del usuario en #33.
-- [ ] Construir la primera escena interactiva con la dirección elegida (etapa 2).
-- [ ] Verificar apariencia, fluidez, accesibilidad y adaptación antes de extender el diseño.
+- [x] Construir la primera escena interactiva con la dirección elegida: cuerpo 3D (etapa 2) y escena de ocupación (etapa 3).
+- [x] Verificar apariencia, fluidez, accesibilidad y adaptación: axe y presupuesto de carga en el CI, recorridos de cierre en la demo y medición de fps en los dispositivos del dueño (#297).
 
 ## Preparación completada
 - [x] Conservar el historial original y la etiqueta `base-original`.
@@ -32,16 +34,16 @@ La aceptación visual requiere revisar el resultado en navegador, escritorio y c
 - [x] Separar la base de datos (`gimnasio_pro`) y el puerto local (5002).
 
 ## Etapas
-Cada etapa es un milestone de GitHub y termina con un issue "Cierre de etapa N", la demo pública actualizada y el mapa de capacidades al día. El usuario interviene solo en ese cierre.
+Cada etapa es un milestone de GitHub y termina con un issue "Cierre de etapa N", la demo pública actualizada y el mapa de capacidades al día. El usuario interviene solo en ese cierre. Todas están cumplidas.
 
-0. **Fundaciones:** visión, ADR de base, protocolo de agentes, CI, despachador, estructura de módulos, reloj, autenticación mínima, semilla con formatos de Paraguay, tokens de diseño, primer e2e y dirección visual B elegida.
-1. **Esqueleto andante:** un recorrido de punta a punta en la demo pública: entrar, sesión propuesta, registrar series, salir. PWA instalable en escritorio y pantallas adaptadas a celular.
-2. **Socio + cuerpo 3D:** sesión en vivo completa, chequeo del día, "me duele" / "máquina ocupada", doble progresión con RPE/RIR y frenos, récords y progreso, cuerpo 3D muscular.
-3. **Recepción + escena de ocupación:** tarjeta contextual, aforo en vivo, mejores horarios, escena de ocupación.
-4. **Entrenador:** programas desde plantillas, bandeja priorizada, revisión de ajustes frenados, equipos y alternativas.
-5. **Operación:** clases y reservas con lista de espera, registro de pagos en guaraníes, ficha completa con salud y consentimientos, gestión de plantillas y configuración de aforo y usuarios por administración.
-6. **Acompañamiento:** incorporación de 90 días, riesgo de abandono, resumen semanal.
-7. **Pulido y recorrido guiado:** recorrido guiado de dos minutos, movimiento cuidado en todo el producto, rendimiento, accesibilidad y alternativa sin efectos.
+0. ✓ **Fundaciones:** visión, ADR de base, protocolo de agentes, CI, despachador, estructura de módulos, reloj, autenticación mínima, semilla con formatos de Paraguay, tokens de diseño, primer e2e y dirección visual B elegida.
+1. ✓ **Esqueleto andante:** un recorrido de punta a punta en la demo pública: entrar, sesión propuesta, registrar series, salir. PWA instalable en escritorio y pantallas adaptadas a celular.
+2. ✓ **Socio + cuerpo 3D:** sesión en vivo completa, chequeo del día, "me duele" / "máquina ocupada", doble progresión con RPE/RIR y frenos, récords y progreso, cuerpo 3D muscular.
+3. ✓ **Recepción + escena de ocupación:** tarjeta contextual, aforo en vivo, mejores horarios, escena de ocupación.
+4. ✓ **Entrenador:** programas desde plantillas, bandeja priorizada, revisión de ajustes frenados, equipos y alternativas.
+5. ✓ **Operación:** clases y reservas con lista de espera, registro de pagos en guaraníes, ficha completa con salud y consentimientos, gestión de plantillas y configuración de aforo y usuarios por administración.
+6. ✓ **Acompañamiento:** incorporación de 90 días, riesgo de abandono, resumen semanal.
+7. ✓ **Pulido y recorrido guiado:** recorrido guiado de dos minutos, movimiento cuidado en todo el producto, rendimiento, accesibilidad y alternativa sin efectos.
 
 Quedan fuera: IA en el producto, QR rotativo, múltiples sedes y app nativa.
 

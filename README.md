@@ -1,16 +1,28 @@
 # Gimnasio Pro
 
-Aplicación Flask modular con MySQL 8 y PWA sin build, en español y con dirección visual B. El recorrido de etapa 1 permite a recepción registrar entradas y salidas, consultar visitas abiertas y ocupación; el socio recibe la primera sesión planificada pendiente y registra sus series. Se respeta el programa del entrenador sin ajustes automáticos ni reinicio semanal.
+Demo y portfolio de un gimnasio de una sola sede en Paraguay, hecho con Flask, MySQL 8 y JavaScript moderno sin framework ni paso de build. Gestiona el entrenamiento personalizado y la operación diaria con una experiencia visual cuidada: cuaderno de entrenamiento (dirección B), cuerpo 3D muscular y escena de ocupación.
 
-La membresía se verifica por vigencia, sin cupo de entradas. El aforo cuenta socios con visita abierta; una entrada que lo excede responde 409. Cerrar la sesión de usuario no registra una salida.
+**Pro está terminado.** Las ocho etapas del [ROADMAP](ROADMAP.md) se cerraron con la aprobación del dueño, la última en #297. Lo que quedó afuera está en [ideas no hechas](docs/IDEAS-NO-HECHAS.md).
 
-## Estado y referencias
+## Qué hace
 
-Los recorridos integrados se prueban con MySQL y Chromium aislados en escritorio y celular. Los niveles de cada capacidad están en [el mapa](docs/MAPA-CAPACIDADES.md); los ajustes automáticos y la sesión en vivo completa pertenecen a etapa 2. La validación y el cierre del dueño corresponden a #52.
+- **Socio:** chequeo del día, sesión propuesta con su explicación, registro de series con descansos y carga anterior, «me duele» y «máquina ocupada» con alternativa, récords, progreso y cuerpo 3D, reservas de clases, pagos, ficha, consentimientos y resumen semanal.
+- **Recepción:** entrada y salida con tarjeta contextual, aforo en vivo, mejores horarios, escena de ocupación, clases y reservas con lista de espera, y registro de pagos en guaraníes.
+- **Entrenador:** bandeja priorizada (ajustes frenados, socios nuevos, riesgo de abandono), programas desde plantillas, equipos y alternativas, y revisión de la ficha de salud con consentimiento.
+- **Administración:** sede y aforo, usuarios, tipos de membresía, clases y plantillas.
 
-- [VISION.md](VISION.md), [GLOSSARY.md](GLOSSARY.md) y [ADR](docs/adr/): alcance, términos y decisiones.
+Las propuestas salen de un motor de reglas determinista y versionado (`gimnasio/reglas/`), con frenos de seguridad que no se pueden desactivar. El historial solo agrega registros. La app se instala como PWA, se adapta a celular y tiene un **modo sin efectos** con la misma información, sin escenas 3D ni animaciones decorativas.
+
+## Demo pública
+
+[gimnasio-pro-demo.onrender.com](https://gimnasio-pro-demo.onrender.com): Render + Aiven, con datos ficticios que se reinician cada día. El botón **Ver recorrido** de la portada abre el **recorrido guiado**: unos dos minutos sobre la app real, pasando por los cuatro roles (ADR 0032). También se puede entrar directamente con «Entrar como…». El primer acceso después de un rato sin uso tarda cerca de un minuto, porque el servicio gratuito se duerme. [Configuración y verificación](docs/demo-publica.md).
+
+## Referencias
+
+- [VISION.md](VISION.md), [GLOSSARY.md](GLOSSARY.md) y [ADR](docs/adr/): meta, términos y decisiones.
+- [Mapa de capacidades](docs/MAPA-CAPACIDADES.md): el nivel de cada capacidad y la prueba que lo acredita.
 - [INDICADORES.md](INDICADORES.md): evidencias académicas del código vigente.
-- [Demo pública](https://gimnasio-pro-demo.onrender.com): Render + Aiven, datos ficticios y reinicio diario. [Configuración y verificación](docs/demo-publica.md).
+- [Protocolo de agentes](docs/protocolo-agentes.md): cómo se construyó, con Opus planificando y Codex implementando.
 - [Versión estándar](https://github.com/elgoblin0/gimnasio): proyecto independiente. No comparte base con Pro.
 
 ## Preparar un entorno local
@@ -46,7 +58,7 @@ $env:MODO_DEMO = "1"
 .venv/Scripts/python -m gimnasio.demo.semilla --reiniciar
 ```
 
-La semilla ofrece accesos por rol en la pantalla inicial. El socio principal tiene un programa, membresía vigente y ninguna visita ni serie realizada. Otro socio tiene entrenamiento parcial y hay una membresía vencida para verificar el rechazo de entrada.
+La semilla ofrece accesos por rol en la pantalla inicial y el recorrido guiado. Trae socios en distintas situaciones (recorrido sin empezar, entrenamiento parcial, membresía vencida, primeros 90 días, riesgo de abandono), un catálogo con equipos y alternativas, una semana de clases, pagos, fichas de salud y visitas simuladas.
 
 ## Arrancar
 
@@ -63,34 +75,34 @@ Render conserva su comando actual: primero `python -m gimnasio.comun.migrar` y l
 ```text
 gimnasio/
   __init__.py            crear_app y registro de blueprints
-  comun/                 base de datos, reloj, UUIDv7, errores e idempotencia
-  permisos/              sesión de usuario y autorización
-  visitas/               rutas → servicio → repositorio
-  entrenamiento/         propuesta y registro de sesiones y series
-  programas/             programas versionados del entrenador
-  reglas/                motor puro, sin SQL ni reloj
-  demo/                  semilla ficticia y límites
-  static/                HTML, JS, estilos, vendor y service worker
+  comun/                 base de datos, reloj, UUIDv7, errores, idempotencia y migraciones
+  reglas/                motor puro: propuesta, progresión, frenos, aforo, acompañamiento
+  permisos/              sesión, roles, usuarios y matriz de permisos
+  visitas/               entradas, salidas, aforo, tarjeta contextual y mejores horarios
+  entrenamiento/         propuesta, sesiones, series, chequeo, dolores y progreso
+  programas/             plantillas, programas, equipos y alternativas
+  entrenador/            bandeja, socios asignados y revisión de avisos
+  clases/                agenda, reservas, lista de espera y avisos al socio
+  pagos/                 pagos en guaraníes y tipos de membresía
+  socios/                alta, ficha y perfil de entrenamiento
+  salud/                 ficha de salud, restricciones y consentimientos
+  acompanamiento/        incorporación de 90 días y resumen semanal
+  administracion/        sede y aforo
+  sistema/               estado del servicio
+  demo/                  semilla ficticia y límites de la demo
+  static/                páginas HTML, JS, estilos, vendor y service worker
 migraciones/             NNNN_descripcion.sql, hacia adelante
 pruebas/                 pytest y e2e Playwright
+scripts/                 mapa de capacidades, verificaciones del CI y de la demo
 wsgi.py                  entrada de producción y Flask CLI
 app.py                   entrada local mínima
 ```
 
-## API del recorrido
+Cada módulo sigue `rutas.py → servicio.py → repositorio.py`. Las reglas de dependencia del ADR 0001 las hace cumplir `pruebas/test_dependencias.py`.
 
-| Método | Ruta | Uso |
-|---|---|---|
-| GET | `/api/estado` | Estado del servicio |
-| GET, POST, DELETE | `/api/sesion` | Consultar, iniciar o cerrar sesión de usuario |
-| PUT | `/api/sesion/figura-cuerpo` | Cada usuario elige la figura de su cuerpo 3D |
-| POST | `/api/entradas`, `/api/salidas` | Recepción registra hechos |
-| GET | `/api/visitas?abiertas=1`, `/api/ocupacion`, `/api/visitas/socios` | Recepción consulta visitas, aforo y socios |
-| GET | `/api/entrenamiento/propuesta` | Propuesta del propio socio |
-| GET | `/api/entrenamiento/socios/<id>/propuesta` | Propuesta de socio asignado al entrenador |
-| POST | `/api/entrenamiento/sesiones` | Iniciar sesión realizada |
-| POST | `/api/entrenamiento/sesiones/<id>/series` | Registrar serie realizada |
-| GET | `/api/entrenamiento/sesiones/<id>` | Recuperar registro propio |
+## API
+
+Toda la API vive bajo `/api`, agrupada por módulo: `/api/sesion`, `/api/yo/…` (lo del propio socio), `/api/entradas`, `/api/salidas`, `/api/ocupacion`, `/api/entrenamiento/…`, `/api/entrenador/…`, `/api/clases/…`, `/api/pagos`, `/api/socios/…`, `/api/programas/…`, `/api/administracion/…` y `/api/estado`. Cada ruta declara su permiso en `gimnasio/permisos/matriz.py`.
 
 Las escrituras de dominio exigen sesión autorizada, `X-Gimnasio: 1`, identificadores UUIDv7 y `Idempotency-Key`. Los hechos se conservan: las correcciones agregan registros. La API no se guarda en la caché del service worker; se requiere conexión.
 

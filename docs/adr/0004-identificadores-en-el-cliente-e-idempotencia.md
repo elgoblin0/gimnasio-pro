@@ -16,7 +16,7 @@ Los reintentos de red, un doble clic o dos pestañas abiertas no deben duplicar 
   - la misma clave con otro cuerpo devuelve 422;
   - las claves se purgan a los 7 días.
 - Insertar un hecho con un `id` ya existente es un éxito idempotente, no un error.
-- **Excepción (provisional, etapa 0):** las rutas de sesión (`/api/sesion`, `/api/sesion/demo/<rol>`) no usan `Idempotency-Key`. No crean hechos de dominio, una respuesta guardada no puede volver a emitir la cookie de sesión, y los reintentos de un ingreso fallido ya quedan acotados por el límite de intentos. El resto de las escrituras la exigen desde la primera tabla de hechos (etapa 1).
+- **Excepción (aceptada en el cierre del programa, #297):** las rutas de sesión (`/api/sesion`, `/api/sesion/demo/<rol>`) no usan `Idempotency-Key`. No crean hechos de dominio, una respuesta guardada no puede volver a emitir la cookie de sesión, y los reintentos de un ingreso fallido ya quedan acotados por el límite de intentos. El resto de las escrituras la exigen desde la primera tabla de hechos (etapa 1).
 
 ## Consecuencias
 Los reintentos son seguros por diseño y el cliente conoce el `id` sin esperar al servidor. Cada `id` ocupa 16 bytes en vez de 4.

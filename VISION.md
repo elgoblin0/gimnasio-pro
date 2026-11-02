@@ -6,7 +6,7 @@ Fuente de verdad de la meta final. Si otro documento la contradice, manda este. 
 
 Gimnasio Pro es una demo y portfolio que muestra hasta dónde se llega con **Flask + JavaScript moderno + MySQL**, sin framework de frontend y sin paso de build. Gestiona el entrenamiento personalizado y la operación diaria de un gimnasio de una sola sede en Paraguay, con una experiencia visual de primer nivel (ver la dirección visual en `ROADMAP.md`).
 
-Se considera terminada cuando una persona sin conocimientos técnicos recorre la demo pública en unos dos minutos, entiende qué hace el sistema y por qué, y cada capacidad del `docs/MAPA-CAPACIDADES.md` está al menos en nivel **pulida** con su prueba.
+Se considera terminada cuando una persona sin conocimientos técnicos recorre la demo pública en unos dos minutos, entiende qué hace el sistema y por qué, y cada capacidad con pantalla en la demo del `docs/MAPA-CAPACIDADES.md` está al menos en nivel **pulida** con su prueba. Las capacidades sin pantalla propia (fundaciones, persistencia, semilla y límites de la demo) se acreditan en **funcional**: el nivel pulida mide estados de pantalla, móvil y accesibilidad, que no les corresponden.
 
 ## Principios
 
@@ -79,3 +79,7 @@ Los frenos 1 y 2 usan datos de salud, así que actúan con consentimiento vigent
 ## Trazabilidad académica
 
 `INDICADORES.md` debe seguir apuntando a archivos y líneas reales. Cada etapa que mueva código actualiza esas referencias.
+
+## Estado final
+
+Cumplida. Las ocho etapas se cerraron con la aprobación del dueño, la última en #297. El recorrido guiado de la demo pública dura unos dos minutos y usa la app real (ADR 0032). En el mapa de capacidades, todas las que tienen pantalla quedaron validadas en un dispositivo real, salvo el login real por rol: la demo entra con «Entrar como…» y no tiene claves, así que queda en funcional con su prueba, igual que las capacidades sin pantalla. Lo que quedó afuera está en [docs/IDEAS-NO-HECHAS.md](docs/IDEAS-NO-HECHAS.md).
