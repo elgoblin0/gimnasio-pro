@@ -1,6 +1,6 @@
 # 0006. Controlar el acceso por rol y el tratamiento de salud por consentimiento
 
-- Estado: provisional (el punto marcado se revisa en el cierre de la etapa 0)
+- Estado: aceptado en el cierre del programa (#297); el ADR 0025 confirmó el punto que era provisional
 - Fecha: 2026-10-26
 - Decide: Opus
 

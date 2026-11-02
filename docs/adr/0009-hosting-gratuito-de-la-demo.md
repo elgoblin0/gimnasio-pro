@@ -1,6 +1,6 @@
 # 0009. Publicar la demo en Render con MySQL en Aiven, ambos gratuitos
 
-- Estado: provisional (requiere que el usuario cree las cuentas)
+- Estado: aceptado en el cierre del programa (#297); el usuario creó las cuentas y la demo corre en Render y Aiven
 - Fecha: 2026-10-26
 - Decide: Opus
 
