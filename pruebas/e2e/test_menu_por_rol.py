@@ -164,6 +164,21 @@ def test_la_cabecera_no_se_mueve_mientras_responde_la_sesion(navegador, demo_ais
         assert pagina.evaluate(MEDIDAS) == antes
 
 
+def test_el_aviso_de_la_demo_no_espera_a_la_sesion_en_una_pantalla_con_hidden_estricto(navegador, demo_aislada):
+    with navegador.new_context(
+        locale="es-PY", viewport={"width": 390, "height": 844}, service_workers="block", reduced_motion="reduce"
+    ) as contexto:
+        pagina, _ = entrar(contexto, demo_aislada, "entrenador")
+        retenidas = []
+        pagina.route("**/api/sesion", lambda ruta: retenidas.append(ruta))
+        # bandeja.html carga pantallas.css, donde [hidden] es !important.
+        pagina.goto(demo_aislada.url + "/bandeja.html", wait_until="domcontentloaded")
+        expect(pagina.get_by_text("Datos ficticios · se reinician cada día", exact=True)).to_be_visible()
+        for retenida in retenidas:
+            retenida.continue_()
+        pagina.unroute("**/api/sesion")
+
+
 def test_el_menu_cambia_con_la_persona_y_se_olvida_al_cerrar_sesion(navegador, demo_aislada):
     with navegador.new_context(locale="es-PY", service_workers="block") as contexto:
         pagina, errores = entrar(contexto, demo_aislada, "socio")
