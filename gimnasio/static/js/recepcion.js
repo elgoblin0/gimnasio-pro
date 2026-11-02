@@ -421,11 +421,13 @@ async function iniciar() {
       return;
     }
     autorizada = true;
+    // Primero la lectura completa: con `cargando` puesto, los sondeos no repiten sus consultas al nacer.
+    const primeraLectura = actualizar();
     if (!sondeos.length) sondeos = [
       crearSondeo({ url: "/api/ocupacion", puedeConsultar: () => !cargando && !control.enCurso, alCambiar: dibujarOcupacion }),
       crearSondeo({ url: "/api/visitas?abiertas=1", puedeConsultar: () => !cargando && !control.enCurso, alCambiar: ({ visitas }) => { dibujarVisitas(visitas); actualizarBotones(); } }),
     ];
-    if (await actualizar()) {
+    if (await primeraLectura) {
       $("[data-estado]").textContent = "Recepción lista.";
     }
   } catch (error) { $("[data-error]").textContent = error.message; }

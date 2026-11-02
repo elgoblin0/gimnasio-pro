@@ -1,5 +1,6 @@
 import { llamarApi } from "@comun/api.js";
 import { formatearCarga } from "@comun/formatos.js";
+import { exigirRol, prepararBarra } from "@comun/personal.js";
 import { textoMotivoSustitucion } from "@comun/sustituciones.js";
 import { crearResumenZonas, ZONAS_CUERPO } from "@comun/zonas.js";
 
@@ -19,10 +20,7 @@ async function actualizar() {
   try {
     const sesion = new URL(location.href).searchParams.get("sesion");
     if (!sesion) throw new Error("Elegí una sesión realizada desde tu entrenamiento.");
-    const [datos, estado] = await Promise.all([
-      llamarApi(`/api/entrenamiento/sesiones/${encodeURIComponent(sesion)}/resumen`), llamarApi("/api/estado"),
-    ]);
-    $("[data-demo]").hidden = !estado.modo_demo;
+    const datos = await llamarApi(`/api/entrenamiento/sesiones/${encodeURIComponent(sesion)}/resumen`);
     const zonas = $("[data-zonas-resumen]");
     zonas.replaceChildren();
     crearResumenZonas(zonas, datos.zonas_trabajadas, datos.zonas_con_dolor);
@@ -39,4 +37,6 @@ async function actualizar() {
   } finally { $("[data-actualizar]").disabled = false; }
 }
 $("[data-actualizar]").addEventListener("click", actualizar);
+// La cabecera no espera al resumen: sin red, el error lo muestra `actualizar`.
+exigirRol(["socio"]).then((usuario) => { if (usuario) prepararBarra(usuario); }).catch(() => {});
 actualizar();

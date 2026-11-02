@@ -167,17 +167,22 @@
     border-block-end: 1px solid var(--borde);
   }
   .cabecera-marca { font: italic 400 1.2rem/1 var(--fuente-display); color: var(--acento); text-decoration: none; letter-spacing: -.01em; }
-  .cabecera nav { display: flex; flex-wrap: wrap; gap: var(--espacio-1); margin-inline-end: auto; }
+  /* El alto mínimo reserva el lugar del menú mientras comun/menu.js espera la primera respuesta de la sesión. */
+  .cabecera nav { display: flex; flex-wrap: wrap; gap: var(--espacio-1); margin-inline-end: auto; min-block-size: 44px; }
   .cabecera nav a {
-    display: inline-flex; align-items: center; min-height: 44px; padding-inline: var(--espacio-3);
+    display: inline-flex; flex-direction: column; justify-content: center; align-items: center; min-height: 44px; padding-inline: var(--espacio-3);
     color: var(--texto-suave); text-decoration: none; border-block-end: 2px solid transparent;
   }
+  /* Reserva el ancho de la negrita de la sección activa: los enlaces no se corren al cambiar de pantalla. */
+  .cabecera nav a::after { content: attr(data-texto); block-size: 0; overflow: hidden; visibility: hidden; font-weight: 600; }
   .cabecera nav a:hover { color: var(--texto); }
-  .cabecera nav a[hidden] { display: none; }
-  .cabecera nav a[aria-current="page"] { color: var(--texto); border-block-end-color: var(--acento); font-weight: 600; }
+  .cabecera nav a[aria-current] { color: var(--texto); border-block-end-color: var(--acento); font-weight: 600; }
   .cabecera-demo { margin: 0; color: var(--texto-suave); font-size: var(--tamano-chico); }
+  :root[data-sesion-demo="si"] .cabecera-demo { display: block; }
+  :root[data-sesion-demo="no"] .cabecera-demo { display: none; }
   .cabecera-efectos { display: contents; }
-  .cabecera [data-cerrar] { min-height: 40px; padding: 0 var(--espacio-4); color: var(--texto); background: transparent; border-color: var(--borde); font-size: var(--tamano-chico); }
+  .cabecera [data-cerrar] { min-height: 44px; padding: 0 var(--espacio-4); color: var(--texto); background: transparent; border-color: var(--borde); font-size: var(--tamano-chico); }
+  .cabecera .interruptor-efectos { min-height: 44px; }
   .cabecera [data-cerrar]:hover { border-color: var(--texto-suave); }
 
   body:has(> .cabecera) { padding: 0; }
@@ -193,7 +198,7 @@
     .cabecera { position: relative; }
     .cabecera-demo { grid-row: 3; grid-column: 1 / -1; padding-block: var(--espacio-1) var(--espacio-2); }
     .cabecera-marca { font-size: 1.05rem; white-space: nowrap; }
-    .cabecera [data-cerrar], .cabecera .interruptor-efectos { min-height: 40px; padding-inline: var(--espacio-3); font-size: .8rem; }
+    .cabecera [data-cerrar], .cabecera .interruptor-efectos { padding-inline: var(--espacio-3); font-size: .8rem; }
   }
 
   /* Hoja de una pantalla: rótulo, titular y, debajo, el contenido en el ancho de lectura. */
@@ -216,26 +221,24 @@
     background: radial-gradient(circle at 70% 50%, var(--superficie) .32em, transparent .36em) var(--acento);
   }
 
-  /* Recorrido guiado (js/recorrido.js): una nota de margen pegada a la parte que explica. */
+  /* Recorrido guiado (js/recorrido.js): la parte que explica queda marcada y la nota, siempre al pie de la vista. */
   [data-recorrido-ancla] {
     outline: 2px solid var(--acento); outline-offset: 6px; border-radius: var(--radio-2);
     animation: marcar-ancla var(--duracion-3) var(--curva-salida) both;
   }
   @keyframes marcar-ancla { from { outline-offset: 18px; outline-color: transparent; } }
-  body:has(> .recorrido[data-lugar="pie"]) { padding-block-end: var(--alto-recorrido, 0px); }
+  body:has(> .recorrido) { padding-block-end: var(--alto-recorrido, 0px); }
   .recorrido {
-    position: absolute; z-index: 20; inline-size: min(24rem, calc(100vw - 2 * var(--espacio-4)));
-    display: grid; gap: var(--espacio-3);
-    padding: var(--espacio-4) var(--espacio-4) var(--espacio-3) var(--espacio-5);
+    position: fixed; z-index: 20; inset: auto var(--espacio-4) var(--espacio-4); max-inline-size: 58rem; margin-inline: auto;
+    display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: var(--espacio-5); row-gap: var(--espacio-1); align-items: center;
+    padding: var(--espacio-3) var(--espacio-4) var(--espacio-3) var(--espacio-5);
     color: var(--texto); background: var(--superficie-elevada);
     border: 1px solid var(--borde); border-inline-start: 3px solid var(--acento); border-radius: var(--radio-2);
     box-shadow: var(--sombra-2);
     animation: entrar-recorrido var(--duracion-2) var(--curva-salida) both;
-    transition: top var(--duracion-2) var(--curva-salida), left var(--duracion-2) var(--curva-salida);
   }
-  .recorrido[data-lugar="pie"] {
-    position: fixed; inset: auto var(--espacio-4) var(--espacio-4); inline-size: auto; max-inline-size: 40rem; margin-inline: auto;
-  }
+  .recorrido > * { grid-column: 1; }
+  .recorrido > .recorrido-acciones { grid-column: 2; grid-row: 1 / span 3; }
   @keyframes entrar-recorrido { from { opacity: 0; transform: translateY(8px); } }
   .recorrido p { margin: 0; }
   .recorrido-paso {
@@ -249,7 +252,10 @@
   .recorrido-acciones .boton-borde { border-color: var(--borde); }
   .recorrido .solo-lector { position: absolute; inline-size: 1px; block-size: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
   @media (max-width: 719px) {
-    .recorrido { padding: var(--espacio-3) var(--espacio-3) var(--espacio-2) var(--espacio-4); gap: var(--espacio-2); }
+    .recorrido { grid-template-columns: minmax(0, 1fr); padding: var(--espacio-3) var(--espacio-3) var(--espacio-2) var(--espacio-4); row-gap: var(--espacio-2); }
+    .recorrido > .recorrido-acciones { grid-column: 1; grid-row: auto; column-gap: var(--espacio-2); }
+    .recorrido-acciones :is(.boton-tinta, .boton-borde) { padding-inline: var(--espacio-3); }
+    .recorrido-acciones .boton-enlace { margin-inline-start: auto; font-size: var(--tamano-chico); }
     .recorrido-texto { font-size: 1rem; }
   }
 }
