@@ -91,7 +91,7 @@ Generado por `scripts/mapa_capacidades.py` desde `docs/capacidades/`. No editar 
 | Cuerpo 3D muscular | 2 | validada | `pruebas/e2e/test_recorrido_lucia.py::test_recorrido_lucia_etapa_2` · https://github.com/elgoblin0/gimnasio-pro/issues/136 |
 | Escena de ocupación | 3 | validada | `pruebas/e2e/test_recepcion.py::test_escena_entrada_sin_recarga_y_seleccion_por_teclado` · https://github.com/elgoblin0/gimnasio-pro/issues/154 |
 | Movimiento cuidado y alternativa sin efectos | 7 | pulida | `pruebas/e2e/test_modo_sin_efectos.py` |
-| Recorrido guiado de dos minutos | 7 | pendiente | — |
+| Recorrido guiado de dos minutos | 7 | pulida | `pruebas/e2e/test_recorrido_guiado.py` |
 
 ## Acompañamiento
 
