@@ -187,6 +187,8 @@ def test_sondeo_entre_recepciones_y_ocupacion_del_socio(pagina_demo, demo_aislad
     primera = pagina_demo
     segunda = primera.context.new_page()
     socio = primera.context.browser.new_context()
+    # Los puntos de visita son de la escena: el CI dibuja sin GPU y sin esto activaría el modo sin efectos.
+    primera.context.add_init_script(CON_EFECTOS)
     try:
         ingresar(primera, demo_aislada)
         # Las pestañas comparten la sesión de recepción del mismo contexto.

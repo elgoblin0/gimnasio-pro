@@ -15,6 +15,7 @@ def test_interruptor_apaga_el_3d_conserva_las_acciones_y_se_recuerda(pagina_demo
     # Se parte de los efectos elegidos: el CI dibuja sin GPU y la detección ya activaría el modo.
     pagina.goto(demo_aislada.url)
     pagina.evaluate("localStorage.setItem('gimnasio-sin-efectos', 'no')")
+    pagina.reload()
     interruptor = pagina.get_by_role("button", name="Modo sin efectos", exact=True)
     expect(interruptor).to_have_attribute("aria-pressed", "false")
 
