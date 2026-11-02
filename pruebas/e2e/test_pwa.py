@@ -104,7 +104,7 @@ def test_controla_raiz_y_cachea_solo_la_lista_publica(contexto_pwa, servidor_pwa
         "/" + archivo.relative_to(ESTATICOS).as_posix()
         for archivo in ESTATICOS.rglob("*")
         if archivo.is_file()
-        and archivo.suffix in {".js", ".css", ".png", ".webmanifest"}
+        and archivo.suffix in {".js", ".css", ".png", ".webmanifest", ".woff2"}
         and not archivo.name.endswith(".test.js")
         and archivo.name != "sw.js"
         and not ("/" + archivo.relative_to(ESTATICOS).as_posix()).startswith(rutas_diferidas)

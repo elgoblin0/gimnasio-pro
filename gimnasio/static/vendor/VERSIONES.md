@@ -12,3 +12,6 @@ Cada librería vive en `vendor/<nombre>@<version>/` con su licencia. Sin CDN en 
 
 | Human Base Meshes `masculina.glb` | v1.4.1, derivado 30/10/2026 | https://www.blender.org/download/demo-files/ (conversión y procedencia en `cuerpo@2/FUENTE.md`) | `f311ed089be8aad9ec7bc9e4ed5fd97685f16ba9f9ea4ab4f24c3d3be2ba3b6f` | CC0 1.0 (`cuerpo@2/LICENCIA.txt`) | 0020 |
 | Human Base Meshes `femenina.glb` | v1.4.1, derivado 30/10/2026 | https://www.blender.org/download/demo-files/ (conversión y procedencia en `cuerpo@2/FUENTE.md`) | `7e17fd89571eebf8d109663b678f9ce3c60cae8a7274b122d343c5c426f82bbd` | CC0 1.0 (`cuerpo@2/LICENCIA.txt`) | 0020 |
+
+| Newsreader `newsreader.woff2` | v26 (Google Fonts), recortada 02/11/2026 | https://github.com/productiontype/Newsreader (instancia wght 300–600 y opsz 16–72, subconjunto latín + ₲) | `ca011e085dff77eb22082578a0b6acdd536339ff960791288d0e0b3e6163941a` | OFL 1.1 (`newsreader@v26/OFL.txt`) | 0007; #292 |
+| Newsreader `newsreader-italica.woff2` | v26 (Google Fonts), recortada 02/11/2026 | https://github.com/productiontype/Newsreader (mismo recorte, cursiva) | `5576d5a2d5c802e9f019c2856d6fc0292dbb165182f30b338cf637d039d1e051` | OFL 1.1 (`newsreader@v26/OFL.txt`) | 0007; #292 |

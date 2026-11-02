@@ -74,7 +74,7 @@ test("instala solo estáticos públicos y la activación purga solo versiones pr
   assert.ok(inicial.controlado());
   assert.ok(inicial.almacen.get("gimnasio-estaticos-1").size > 0);
   assert.ok([...inicial.almacen.get("gimnasio-estaticos-1").keys()].every((ruta) =>
-    /\.(css|js|png|webmanifest)$/.test(ruta) && !ruta.endsWith("sw.js")));
+    /\.(css|js|png|webmanifest|woff2)$/.test(ruta) && !ruta.endsWith("sw.js")));
   inicial.almacen.set("otra-aplicacion", new Map());
   const siguiente = entorno({ version: "2", almacen: inicial.almacen });
   await siguiente.ciclo("install");

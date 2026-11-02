@@ -1,4 +1,26 @@
-/* Base mínima. Usa solo tokens semánticos de estilos/tokens.css (ADR 0007). */
+/* Base del sistema visual. Usa solo tokens de estilos/tokens.css (ADR 0007). */
+
+/* Newsreader (OFL), recortada a latín y pesos 300–600; ver vendor/VERSIONES.md. */
+@font-face {
+  font-family: "Newsreader";
+  src: url("/vendor/newsreader@v26/newsreader.woff2") format("woff2");
+  font-weight: 300 600;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Newsreader";
+  src: url("/vendor/newsreader@v26/newsreader-italica.woff2") format("woff2");
+  font-weight: 300 600;
+  font-style: italic;
+  font-display: swap;
+}
+
+/* Transición entre páginas del mismo origen; donde no se soporta, o con movimiento reducido, se navega como siempre. */
+@media (prefers-reduced-motion: no-preference) {
+  @view-transition { navigation: auto; }
+}
+
 @layer reinicio, base;
 
 @layer reinicio {
@@ -7,46 +29,123 @@
 }
 
 @layer base {
+  html { -webkit-text-size-adjust: 100%; }
   body {
-    background: var(--superficie);
+    background-color: var(--superficie);
+    background-image: var(--grano);
     color: var(--texto);
     font-family: var(--fuente-texto, system-ui, sans-serif);
-    line-height: 1.5;
+    font-size: var(--tamano-texto);
+    line-height: 1.55;
     padding: var(--espacio-4, 1rem);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
   }
   main { max-width: 60rem; margin-inline: auto; overflow-wrap: anywhere; }
-  h1, h2 { font-family: var(--fuente-display); }
-  h1 { color: var(--acento); }
+  ::selection { background: color-mix(in srgb, var(--acento) 22%, transparent); }
+
+  /* Titulares de cuaderno: serif grande y apretada; la cursiva subraya en terracota. */
+  h1, h2, h3 { font-family: var(--fuente-display); font-weight: 400; letter-spacing: -.015em; text-wrap: balance; }
+  h1 { color: var(--texto); line-height: 1.02; letter-spacing: -.025em; }
+  h2 { font-size: var(--tamano-titulo); line-height: 1.1; }
+  h3 { font-size: var(--tamano-destacado); line-height: 1.2; }
+  :is(h1, h2, h3) em { font-style: italic; color: var(--acento); }
+  p, li { text-wrap: pretty; }
+  a { color: var(--acento); text-underline-offset: .2em; text-decoration-thickness: 1px; }
+  a:hover { text-decoration-thickness: 2px; }
+
+  /* Rótulo de sección: versalitas espaciadas con un filete que llega al margen. */
+  .rotulo {
+    display: flex; align-items: center; gap: var(--espacio-3);
+    margin: 0 0 var(--espacio-3);
+    font: 600 var(--tamano-rotulo)/1 var(--fuente-texto); letter-spacing: .16em; text-transform: uppercase;
+    color: var(--texto-suave);
+  }
+  .rotulo::after { content: ""; flex: 1; height: 1px; background: var(--borde); }
+
   section {
     background: var(--superficie-elevada);
     border: 1px solid var(--borde);
     border-radius: var(--radio-2);
     padding: var(--espacio-5);
+    box-shadow: var(--sombra-1);
   }
   form { display: grid; gap: var(--espacio-4); max-width: 28rem; }
-  label { display: grid; gap: var(--espacio-1); min-width: 0; }
-  input, button {
-    font: inherit;
+  label { display: grid; gap: var(--espacio-1); min-width: 0; font-size: var(--tamano-chico); font-weight: 600; color: var(--texto); }
+  input, button, select, textarea { font: inherit; }
+  input {
     color: var(--texto);
     background: var(--superficie);
-    border: 1px solid var(--texto-suave);
+    border: 1px solid color-mix(in srgb, var(--texto-suave) 70%, var(--borde));
     border-radius: var(--radio-1);
     padding: var(--espacio-3) var(--espacio-4);
-    max-width: 100%;
+    min-width: 0; width: 100%; max-width: 100%;
+    font-weight: 400;
+    transition: border-color var(--duracion-1) var(--curva-salida), background-color var(--duracion-1) var(--curva-salida);
   }
-  input { min-width: 0; width: 100%; }
-  button { color: var(--acento); border-color: currentColor; cursor: pointer; }
-  [data-demo] button { margin-block-end: var(--espacio-2); }
+  input:hover { border-color: var(--texto-suave); }
+  input:focus-visible { background: var(--superficie-elevada); }
+
+  /* Botón por omisión: trazo en terracota. Variantes: tinta (la acción principal) y borde (secundaria). */
+  button {
+    color: var(--acento);
+    background: transparent;
+    border: 1px solid currentColor;
+    border-radius: var(--radio-3);
+    padding: var(--espacio-2) var(--espacio-5);
+    min-height: 44px; max-width: 100%;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color var(--duracion-1) var(--curva-salida), color var(--duracion-1) var(--curva-salida), transform var(--duracion-1) var(--curva-salida);
+  }
+  button:hover { background: color-mix(in srgb, currentColor 8%, transparent); }
+  button:active { transform: translateY(1px); }
+  .boton-tinta {
+    display: inline-flex; align-items: center; justify-content: center; gap: var(--espacio-2);
+    min-height: 44px; padding: 0 var(--espacio-5);
+    color: var(--superficie); background: var(--texto); border: 0; border-radius: var(--radio-3);
+    font-weight: 600; text-decoration: none; white-space: nowrap; cursor: pointer;
+  }
+  .boton-tinta:hover { background: color-mix(in srgb, var(--texto) 86%, var(--acento)); color: var(--superficie); }
+  .boton-borde {
+    min-height: 44px; padding: 0 var(--espacio-4);
+    color: var(--texto); background: transparent; border: 1px solid var(--texto-suave); border-radius: var(--radio-3);
+    font-weight: 600; cursor: pointer;
+  }
+
+  .boton-enlace { min-height: 44px; padding: 0; color: var(--texto-suave); background: transparent; border: 0; border-radius: 0; text-decoration: underline; text-underline-offset: 4px; cursor: pointer; }
+  .boton-enlace:hover { background: transparent; color: var(--texto); }
+
+  /* Estados de una vista: vacío (qué hacer), cargando (la forma de lo que viene) y error (qué pasó). */
   [data-estado] { color: var(--texto-suave); }
   [role="alert"] { color: var(--peligro); }
+  [role="alert"]:not(:empty) { font-weight: 600; }
+  .vacio { padding: var(--espacio-5); border: 1px dashed var(--borde); border-radius: var(--radio-2); color: var(--texto-suave); text-align: center; }
+  .vacio strong { display: block; font: 400 var(--tamano-destacado)/1.3 var(--fuente-display); color: var(--texto); margin-block-end: var(--espacio-1); }
+  .cargando {
+    border-radius: var(--radio-1); min-height: 1em; color: transparent;
+    background: linear-gradient(90deg, var(--borde) 0 40%, color-mix(in srgb, var(--borde) 40%, var(--superficie-elevada)) 50%, var(--borde) 60% 100%) 0 0 / 300% 100%;
+    animation: cargando var(--duracion-3) linear infinite;
+  }
+  @keyframes cargando { to { background-position: -150% 0; } }
+
   :focus-visible { outline: 3px solid var(--foco); outline-offset: 3px; }
+
   .resumen-semanal-navegacion { display: flex; align-items: center; justify-content: space-between; gap: var(--espacio-2); }
-  .resumen-semanal-navegacion button { min-width: 2.75rem; }
+  .resumen-semanal-navegacion button { min-width: 2.75rem; padding-inline: var(--espacio-3); }
   .resumen-semanal h4 { margin: var(--espacio-4) 0 var(--espacio-1); }
   .resumen-semanal ul { margin: 0; padding-inline-start: var(--espacio-5); }
   .resumen-semanal li + li { margin-block-start: var(--espacio-1); }
   /* El hito lleva su propia marca (✓ u ○): sin viñeta. */
   [data-incorporacion-hitos] { margin: 0; padding: 0; list-style: none; }
+
+  /* Entre páginas la barra queda quieta y el contenido sube apenas mientras aparece. */
+  body > header { view-transition-name: barra; }
+  ::view-transition-old(root) { animation: var(--duracion-1) var(--curva-salida) both salir-pagina; }
+  ::view-transition-new(root) { animation: var(--duracion-2) var(--curva-salida) both entrar-pagina; }
+  @keyframes salir-pagina { to { opacity: 0; } }
+  @keyframes entrar-pagina { from { opacity: 0; transform: translateY(10px); } }
+
   @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after { animation-duration: 0ms !important; transition-duration: 0ms !important; }
   }

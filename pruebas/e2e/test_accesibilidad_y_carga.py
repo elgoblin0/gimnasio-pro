@@ -53,7 +53,10 @@ MEDIR = """() => {
 
 def abrir(navegador, url_base, vista, esquema="light"):
     boton, ruta = VISTAS[vista]
-    contexto = navegador.new_context(locale="es-PY", color_scheme=esquema, service_workers="block")
+    # Movimiento reducido: se revisa el estado quieto, no un cuadro a mitad de una aparición.
+    contexto = navegador.new_context(
+        locale="es-PY", color_scheme=esquema, service_workers="block", reduced_motion="reduce"
+    )
     pagina = contexto.new_page()
     pagina.goto(url_base)
     if boton:

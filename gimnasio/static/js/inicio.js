@@ -29,7 +29,7 @@ function mostrarBienvenida(usuario) {
   }
   $("[data-ingreso]").hidden = true;
   $("[data-bienvenida]").hidden = false;
-  $("[data-saludo]").textContent = `Hola, ${usuario.nombre}`;
+  $("[data-saludo]").replaceChildren("Hola, ", crear("em", {}, usuario.nombre));
   $("[data-rol-actual]").textContent = NOMBRES_DE_ROL[usuario.rol] + (usuario.es_demo ? " · demo" : "");
   const recorrido = $("[data-recorrido]");
   recorrido.hidden = !["recepcion", "socio"].includes(usuario.rol);
@@ -135,7 +135,7 @@ async function iniciar() {
   });
   if (estado.modo_demo) {
     const { socios } = await llamarApi("/api/sesion/demo/socios");
-    const lista = crear("div");
+    const lista = crear("div", { className: "portada-socios", "aria-label": "Socios ficticios", role: "group" });
     for (const socio of socios) {
       lista.append(crear("button", { type: "button", onclick: async () => {
         try {
