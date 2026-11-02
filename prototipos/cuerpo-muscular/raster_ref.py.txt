@@ -1,0 +1,30 @@
+import numpy as np, zlib, struct, sys
+d=sys.argv[1]
+ESC=1000; W=620; H=1860   # x de -0.02 a 0.60; y de 0 a 1.86
+def png(path,a):
+    h,w=a.shape[:2]; raw=b"".join(b"\0"+a[i].tobytes() for i in range(h))
+    def c(t,dd): return struct.pack(">I",len(dd))+t+dd+struct.pack(">I",zlib.crc32(t+dd))
+    open(path,"wb").write(b"\x89PNG\r\n\x1a\n"+c(b"IHDR",struct.pack(">IIBBBBB",w,h,8,0,0,0,0))+c(b"IDAT",zlib.compress(raw,6))+c(b"IEND",b""))
+for et in "mf":
+    r=np.load(f"{d}/{et}_rep.npy"); t=np.load(f"{d}/{et}_tri.npy"); nv=np.load(f"{d}/{et}_nor.npy")
+    t=t[(r[t,0].max(1)>-.03)]
+    for lado,s in (("frente",1),("espalda",-1)):
+        z=np.full((H,W),-9.); N=np.zeros((H,W,3))
+        sx=(r[:,0]+.02)*ESC; sy=H-r[:,1]*ESC; pz=s*r[:,2]
+        for p,q,u in t:
+            xs=sx[[p,q,u]]; ys=sy[[p,q,u]]
+            x0,x1=int(xs.min()),int(xs.max())+1; y0,y1=int(ys.min()),int(ys.max())+1
+            X,Y=np.meshgrid(np.arange(max(x0,0),min(x1+1,W)),np.arange(max(y0,0),min(y1+1,H)))
+            if X.size==0: continue
+            den=(ys[1]-ys[2])*(xs[0]-xs[2])+(xs[2]-xs[1])*(ys[0]-ys[2])
+            if abs(den)<1e-9: continue
+            w0=((ys[1]-ys[2])*(X-xs[2])+(xs[2]-xs[1])*(Y-ys[2]))/den; w1=((ys[2]-ys[0])*(X-xs[2])+(xs[0]-xs[2])*(Y-ys[2]))/den; w2=1-w0-w1
+            zz=w0*pz[p]+w1*pz[q]+w2*pz[u]
+            m=(w0>=-.02)&(w1>=-.02)&(w2>=-.02)&(zz>z[Y,X])
+            z[Y[m],X[m]]=zz[m]
+            N[Y[m],X[m]]=w0[m,None]*nv[p]+w1[m,None]*nv[q]+w2[m,None]*nv[u]
+        L=np.array([.3,.55,.8*s]); L/=np.linalg.norm(L)
+        n=N/(np.linalg.norm(N,axis=2,keepdims=True)+1e-9); sh=np.clip(n@L,0,1)
+        im=np.where(z>-9,50+200*sh**1.2,240).astype(np.uint8)
+        png(f"{d}/{et}_{lado}.png",im)
+    print(et)
