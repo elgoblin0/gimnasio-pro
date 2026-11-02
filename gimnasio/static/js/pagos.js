@@ -177,7 +177,7 @@ async function cargarLista() {
     $("[data-lista-estado]").textContent = pagos.length ? `${pagos.length} pagos.` : "No hay pagos en estas fechas.";
     for (const pago of pagos) {
       const fecha = new Intl.DateTimeFormat("es-PY", { timeZone: "America/Asuncion", day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" }).format(new Date(pago.registrado_en));
-      const fila = crear("article", {}, crear("h3", {}, pago.socio), crear("p", {}, `${pago.tipo} · ${pago.medio} · ${formatearGuaranies(pago.monto)}`), crear("p", {}, `${fecha} · ${pago.autor}`));
+      const fila = crear("article", { "data-anulado": pago.anulacion ? "" : null }, crear("h3", {}, pago.socio), crear("p", {}, `${pago.tipo} · ${pago.medio} · ${formatearGuaranies(pago.monto)}`), crear("p", {}, `${fecha} · ${pago.autor}`));
       if (pago.anulacion) fila.append(crear("p", {}, `Anulado: ${pago.anulacion.motivo}`));
       else {
         const motivo = crear("textarea", { name: "motivo", required: true, maxLength: 500 });
@@ -201,7 +201,8 @@ async function cargarLista() {
             motivo.disabled = Boolean(pendiente);
           } finally { boton.disabled = false; }
         });
-        fila.append(formulario);
+        // La anulación es excepcional: queda plegada para que la lista se lea de un vistazo.
+        fila.append(crear("details", {}, crear("summary", {}, "Anular este pago"), formulario));
       }
       $("[data-lista-pagos]").append(fila);
     }

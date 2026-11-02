@@ -177,13 +177,17 @@
   .cabecera [data-cerrar]:hover { border-color: var(--texto-suave); }
 
   body:has(> .cabecera) { padding: 0; }
-  @media (max-width: 64rem) { .cabecera-demo { display: none; } }
+  /* Lo que se enfoca o se salta con un ancla no queda tapado por la cabecera fija. */
+  html:has(body > .cabecera) { scroll-padding-block-start: 5rem; }
+  /* El aviso de la demo siempre se ve: en pantallas medianas pasa a su propio renglón. */
+  @media (max-width: 64rem) { .cabecera-demo { order: 9; flex-basis: 100%; padding-block-end: var(--espacio-1); font-size: .78rem; } }
   /* En el celular: marca, interruptor y salida arriba; las secciones debajo, deslizables si no entran. */
   @media (max-width: 40rem) {
     .cabecera { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 0 var(--espacio-2); padding-block: var(--espacio-2) 0; }
     .cabecera nav { grid-row: 2; grid-column: 1 / -1; flex-wrap: nowrap; overflow-x: auto; margin-inline: calc(-1 * var(--espacio-3)); scrollbar-width: none; }
     .cabecera nav a { flex: none; }
-    .cabecera-demo { display: none; }
+    .cabecera { position: relative; }
+    .cabecera-demo { grid-row: 3; grid-column: 1 / -1; padding-block: var(--espacio-1) var(--espacio-2); }
     .cabecera-marca { font-size: 1.05rem; white-space: nowrap; }
     .cabecera [data-cerrar], .cabecera .interruptor-efectos { min-height: 40px; padding-inline: var(--espacio-3); font-size: .8rem; }
   }

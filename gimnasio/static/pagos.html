@@ -24,12 +24,16 @@
   <button type="button" data-cerrar>Cerrar sesión</button>
 </header>
 <main class="pagos">
-  <h1>Pagos</h1>
-<p><a href="/pagos.html?alta=1">Dar de alta socio</a></p>
-  <p data-introduccion>Registrá un pago hecho fuera del sistema para renovar la membresía del socio.</p>
-  <p data-estado role="status" aria-live="polite">Cargando socios y tipos de membresía…</p>
-  <p data-error role="alert"></p>
-  <button type="button" data-recargar>Volver a cargar</button>
+  <div class="pagos-titulo">
+    <h1>Pagos</h1>
+    <a class="boton-borde" href="/pagos.html?alta=1">Dar de alta socio</a>
+    <p class="bajada" data-introduccion>Registrá un pago hecho fuera del sistema para renovar la membresía del socio.</p>
+    <div class="hoja-estado">
+      <p data-estado role="status" aria-live="polite">Cargando socios y tipos de membresía…</p>
+      <button type="button" class="boton-enlace" data-recargar>Volver a cargar</button>
+    </div>
+    <p data-error role="alert"></p>
+  </div>
   <form data-pago hidden>
     <fieldset>
       <legend>Registrar pago</legend>
@@ -45,7 +49,7 @@
       <select id="medio" name="medio"><option value="efectivo">Efectivo</option><option value="transferencia">Transferencia</option><option value="tarjeta">Tarjeta</option><option value="otro">Otro</option></select>
       <label for="monto">Monto en guaraníes (opcional)</label>
       <input id="monto" name="monto" type="number" min="0" step="1" max="9007199254740991" aria-describedby="ayuda-monto">
-      <p id="ayuda-monto">Dejá vacío para usar el precio del tipo de membresía.</p>
+      <p id="ayuda-monto" class="ayuda">Dejá vacío para usar el precio del tipo de membresía.</p>
       <button type="submit" class="boton-tinta">Registrar pago y renovar</button>
     </fieldset>
   </form>

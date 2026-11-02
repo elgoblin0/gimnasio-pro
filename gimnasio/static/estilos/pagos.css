@@ -1,15 +1,69 @@
-.pagos { max-width: 48rem; margin: 0 auto; padding: var(--espacio-4, 1.5rem); }
-.pagos fieldset { display: grid; gap: .75rem; min-width: 0; }
-.alta-personales { display: grid; gap: .75rem; }
-.pagos input[type="checkbox"] { width: auto; }
-.pagos [data-resultado] { overflow-wrap: anywhere; }
+/* Pagos: el formulario a la izquierda y lo registrado a la derecha; en el celular, uno debajo del otro. */
+.pagos {
+  max-width: 72rem; margin: 0 auto;
+  padding: clamp(var(--espacio-5), 4vw, var(--espacio-6)) clamp(var(--espacio-4), 3vw, var(--espacio-6)) var(--espacio-6);
+  display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--espacio-4) var(--espacio-6); align-items: start;
+}
+.pagos > * { grid-column: 1; min-width: 0; }
+.pagos > .pagos-titulo { grid-column: 1 / -1; }
+.pagos > section { grid-column: 2; grid-row: 2 / span 3; }
+.pagos > section[hidden] + *, .pagos:has(> section[hidden]) > form { grid-column: 1 / -1; }
+.pagos:has(> section[hidden]) > form { max-width: 40rem; }
+
+.pagos-titulo { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: end; gap: var(--espacio-3) var(--espacio-4); }
+.pagos-titulo h1 { margin: 0; }
+.pagos-titulo > a.boton-borde { display: inline-flex; align-items: center; text-decoration: none; }
+.pagos-titulo > :is(.bajada, .hoja-estado, [data-error]) { grid-column: 1 / -1; margin: 0; }
+.hoja-estado { display: flex; flex-wrap: wrap; align-items: center; gap: var(--espacio-1) var(--espacio-4); }
+.hoja-estado [data-estado] { margin: 0; font-size: var(--tamano-chico); color: var(--texto-suave); }
+.hoja-estado .boton-enlace { min-height: 32px; font-size: var(--tamano-chico); }
+.hoja-estado:has(> [data-estado]:empty) { column-gap: 0; }
+/* Vacíos siguen en el árbol de accesibilidad: solo dejan de ocupar lugar. */
+.pagos :is([data-error], [data-resultado], [data-socios-estado], [data-precio]):empty { margin: 0; padding: 0; border: 0; }
+
+/* El formulario es una hoja apoyada; la lista, renglones. */
+.pagos > form { padding: var(--espacio-5); background: var(--superficie-elevada); border: 1px solid var(--borde); border-radius: var(--radio-2); box-shadow: var(--sombra-1); }
+.pagos fieldset { display: grid; gap: var(--espacio-2); min-width: 0; margin: 0; padding: 0; border: 0; }
+.pagos legend { padding: 0; margin-block-end: var(--espacio-3); font: 400 var(--tamano-titulo)/1.1 var(--fuente-display); }
+.pagos fieldset > label { margin-block-start: var(--espacio-2); }
+.pagos fieldset > button[type="submit"] { justify-self: start; margin-block-start: var(--espacio-4); }
+.pagos .ayuda, .pagos [data-socios-estado] { margin: 0; font-size: var(--tamano-chico); color: var(--texto-suave); }
+.pagos [data-precio] { margin: 0; font: 400 1.15rem/1.3 var(--fuente-numeros); font-variant-numeric: lining-nums; }
+.alta-personales { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--espacio-3); margin-block-end: var(--espacio-3); }
+.alta-personales > label:has(input[type="checkbox"]) { grid-column: 1 / -1; display: flex; align-items: start; gap: var(--espacio-2); font-weight: 400; }
+.pagos input[type="checkbox"] { width: auto; margin-block-start: .3em; accent-color: var(--acento); }
 .pagos input, .pagos select, .pagos textarea { width: 100%; min-width: 0; box-sizing: border-box; }
+.pagos select { font: inherit; color: var(--texto); background: var(--superficie); border: 1px solid color-mix(in srgb, var(--texto-suave) 70%, var(--borde)); border-radius: var(--radio-1); padding: var(--espacio-3) var(--espacio-4); min-height: 44px; }
+.pagos select:disabled, .pagos input:disabled { opacity: .55; }
 .pagos textarea { min-height: 5rem; font: inherit; resize: vertical; }
-.pagos article { padding-block: var(--espacio-4); border-bottom: 1px solid var(--borde); overflow-wrap: anywhere; }
-.pagos [data-filtro-pagos] { display: grid; gap: .75rem; }
+.pagos [data-resultado] { margin: 0; padding: var(--espacio-3) var(--espacio-4); border-inline-start: 3px solid var(--exito); background: color-mix(in srgb, var(--exito) 10%, transparent); overflow-wrap: anywhere; }
+
+.pagos > section h2 { margin: 0 0 var(--espacio-4); }
+.pagos [data-filtro-pagos] { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto; align-items: end; gap: var(--espacio-3); max-width: none; }
+.pagos [data-filtro-pagos] button { min-height: 44px; }
+.pagos :is([data-lista-estado], [data-lista-error], [data-total-pagos]):empty { margin: 0; }
+.pagos [data-total-pagos] { margin: var(--espacio-4) 0 0; font: 400 1.4rem/1.2 var(--fuente-numeros); font-variant-numeric: lining-nums; }
+.pagos article { padding-block: var(--espacio-3); border-bottom: 1px solid var(--borde); overflow-wrap: anywhere; font-size: var(--tamano-chico); }
+.pagos article h3 { margin: 0; font-size: 1.15rem; }
+.pagos article p { margin: 0; color: var(--texto-suave); }
+.pagos article p:first-of-type { color: var(--texto); font-variant-numeric: tabular-nums; }
+.pagos article[data-anulado] :is(h3, p:first-of-type) { text-decoration: line-through; text-decoration-color: var(--peligro); }
+.pagos article[data-anulado] p:last-child { color: var(--peligro); }
+.pagos details { margin-block-start: var(--espacio-2); }
+.pagos summary { display: inline-flex; align-items: center; min-height: 32px; color: var(--texto-suave); cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
+.pagos details form { max-width: none; gap: var(--espacio-2); margin-block-start: var(--espacio-2); }
+.pagos details textarea { min-height: 3.5rem; }
+.pagos details button { justify-self: start; }
 .pagos [role="alert"] { color: var(--peligro); }
 .cabecera a[hidden] { display: none; }
+
 #tipos-membresia { margin-top: 3rem; }
 #tipos-membresia fieldset { display: grid; gap: .75rem; min-width: 0; }
 #tipos-membresia input { max-width: 100%; box-sizing: border-box; }
 #tipos-membresia li { margin-block: 1rem; overflow-wrap: anywhere; }
+
+@media (max-width: 52rem) {
+  .pagos { grid-template-columns: minmax(0, 1fr); }
+  .pagos > section { grid-column: 1; grid-row: auto; }
+  .alta-personales, .pagos [data-filtro-pagos] { grid-template-columns: minmax(0, 1fr); }
+}
