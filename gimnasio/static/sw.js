@@ -62,6 +62,7 @@ const RECURSOS_ESTATICOS = [
   "/js/comun/api.js",
   "/js/comun/pwa.js",
   "/js/comun/presentacion.js",
+  "/js/comun/menu.js",
   "/js/comun/efectos.js",
   "/vendor/newsreader@v26/newsreader.woff2",
   "/vendor/newsreader@v26/newsreader-italica.woff2",
