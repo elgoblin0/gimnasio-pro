@@ -39,6 +39,8 @@ function crearDocumento() {
     defaultView: {
       devicePixelRatio: 1,
       matchMedia: () => ({ matches: false, addEventListener() {} }),
+      // Efectos elegidos a mano: el WebGL de la prueba es simulado y la detección lo daría por ausente.
+      localStorage: { getItem: () => "no" },
       MouseEvent: class { constructor(type) { this.type = type; } },
       MutationObserver: class { observe() {} },
       ResizeObserver: class { observe() {} },

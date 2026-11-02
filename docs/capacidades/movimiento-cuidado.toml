@@ -2,5 +2,5 @@ id = "movimiento-cuidado"
 nombre = "Movimiento cuidado y alternativa sin efectos"
 grupo = "Experiencia"
 etapa = 7
-nivel = "pendiente"
-prueba = ""
+nivel = "pulida"
+prueba = "pruebas/e2e/test_modo_sin_efectos.py"

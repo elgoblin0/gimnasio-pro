@@ -40,6 +40,7 @@ function preparar(t) {
         remove() { elementos.delete("[data-pago-tarjeta]"); },
       }), addEventListener() {}, removeEventListener() {} },
     window: { addEventListener: (nombre, accion) => eventos.set(nombre, accion) }, registrarPwa() {},
+    modoSinEfectos: () => ({ activo: false }),
     location: { origin: "https://gimnasio.test" },
     setTimeout, clearTimeout, AbortController,
     actualizarMejoresHorarios() {}, crearSondeo: () => ({}),

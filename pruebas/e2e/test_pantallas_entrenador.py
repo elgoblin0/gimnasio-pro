@@ -5,6 +5,8 @@ import re
 
 import pytest
 
+from pruebas.e2e.efectos import CON_EFECTOS
+
 expect = pytest.importorskip("playwright.sync_api").expect
 pytestmark = pytest.mark.e2e
 
@@ -322,6 +324,7 @@ def test_editor_cambia_las_series_por_zona_sin_llamar_a_la_api(pagina_demo, demo
 
 def test_cuerpo_3d_del_editor_usa_la_figura_del_socio_y_sigue_cada_edicion(pagina_demo, demo_aislada):
     pagina = pagina_demo
+    pagina.add_init_script(CON_EFECTOS)
     errores = entrar(pagina, demo_aislada, "entrenador")
     pagina.wait_for_url("**/bandeja.html")
     socio = socios_de_marcos(pagina)["Lucía Benítez"]

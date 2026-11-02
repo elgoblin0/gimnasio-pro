@@ -149,4 +149,23 @@
   @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after { animation-duration: 0ms !important; transition-duration: 0ms !important; }
   }
+  /* Modo sin efectos (comun/efectos.js): lo que cambia aparece en su lugar final, sin recorrido. */
+  :root[data-sin-efectos="si"] *, :root[data-sin-efectos="si"] *::before, :root[data-sin-efectos="si"] *::after {
+    animation-duration: 0ms !important; animation-delay: 0ms !important; transition-duration: 0ms !important;
+  }
+
+  /* Interruptor del modo sin efectos: discreto, siempre en la cabecera. */
+  .interruptor-efectos {
+    display: inline-flex; align-items: center; gap: var(--espacio-2);
+    min-height: 36px; padding: 0 var(--espacio-3);
+    color: var(--texto-suave); border-color: var(--borde); font-weight: 400; font-size: var(--tamano-chico);
+  }
+  .interruptor-efectos::before {
+    content: ""; inline-size: 1.75em; block-size: 1em; border-radius: 1em; flex: none;
+    background: radial-gradient(circle at 30% 50%, var(--superficie) .32em, transparent .36em) var(--borde);
+  }
+  .interruptor-efectos[aria-pressed="true"] { color: var(--texto); border-color: var(--texto-suave); }
+  .interruptor-efectos[aria-pressed="true"]::before {
+    background: radial-gradient(circle at 70% 50%, var(--superficie) .32em, transparent .36em) var(--acento);
+  }
 }

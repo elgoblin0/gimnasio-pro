@@ -3,6 +3,7 @@ import { llamarApi } from "@comun/api.js";
 import { formatearCedula, formatearFechaHora } from "@comun/formatos.js";
 import { crearControlDeOperacion, cerrarSesion } from "@comun/operaciones.js";
 import { registrarPwa } from "@comun/pwa.js";
+import { modoSinEfectos } from "@comun/efectos.js";
 import { textoDia, textosDeRiesgo } from "./acompanamiento-textos.js";
 
 import { crearSondeo } from "@comun/sondeo.js";
@@ -65,6 +66,8 @@ async function iniciarEscena() {
   if (escenaIniciada) return;
   escenaIniciada = true;
   try {
+    // En el modo sin efectos la lista por zona es la escena: misma información, mismas acciones.
+    if (modoSinEfectos().activo) throw new Error('modo sin efectos');
     // La escena no compite con la primera lectura: recepción ya es usable sin ella.
     await new Promise(resolver => setTimeout(resolver, ESPERA_ESCENA_MS));
     const {crearEscena} = await import('@escena');

@@ -7,6 +7,7 @@ import pytest
 
 from gimnasio.comun.bd import transaccion
 from gimnasio.demo.servicio import poner_al_dia
+from pruebas.e2e.efectos import CON_EFECTOS
 
 expect = pytest.importorskip("playwright.sync_api").expect
 pytestmark = pytest.mark.e2e
@@ -15,6 +16,7 @@ pytestmark = pytest.mark.e2e
 @pytest.mark.parametrize("ancho,alto", [(1440, 900), (390, 844)])
 def test_escena_entrada_sin_recarga_y_seleccion_por_teclado(pagina_demo, demo_aislada, ancho, alto):
     pagina = pagina_demo
+    pagina.add_init_script(CON_EFECTOS)
     pagina.set_viewport_size({"width": ancho, "height": alto})
     ingresar(pagina, demo_aislada)
     escena = pagina.locator('[data-escena-ocupacion][data-lista="true"]')
@@ -45,7 +47,7 @@ def test_escena_entrada_sin_recarga_y_seleccion_por_teclado(pagina_demo, demo_ai
     assert pagina.evaluate("document.documentElement.scrollWidth <= innerWidth")
 
 
-# Sin GPU un cuadro animado ocupa todos los núcleos: la escena se comporta como con movimiento reducido.
+# Sin GPU un cuadro animado ocupa todos los núcleos.
 SIMULAR_SIN_GPU = """(() => {
   const original = WebGL2RenderingContext.prototype.getParameter;
   WebGL2RenderingContext.prototype.getParameter = function(parametro) {
@@ -54,14 +56,18 @@ SIMULAR_SIN_GPU = """(() => {
   };
 })();"""
 
+SIN_WEBGL = """(() => {
+  const original = HTMLCanvasElement.prototype.getContext;
+  HTMLCanvasElement.prototype.getContext = function(tipo, ...opciones) {
+    return tipo.startsWith('webgl') ? null : original.call(this, tipo, ...opciones);
+  };
+})();"""
 
-@pytest.mark.parametrize("sin_gpu", [False, True], ids=["movimiento_reducido", "sin_gpu"])
-def test_escena_sin_movimiento_ubica_entrada_inmediatamente(pagina_demo, demo_aislada, sin_gpu):
+
+def test_escena_con_efectos_elegidos_sin_gpu_ubica_entrada_inmediatamente(pagina_demo, demo_aislada):
     pagina = pagina_demo
-    if sin_gpu:
-        pagina.add_init_script(SIMULAR_SIN_GPU)
-    else:
-        pagina.emulate_media(reduced_motion="reduce")
+    pagina.add_init_script(CON_EFECTOS)
+    pagina.add_init_script(SIMULAR_SIN_GPU)
     ingresar(pagina, demo_aislada)
     expect(pagina.locator('[data-escena-ocupacion][data-lista="true"]')).to_be_visible()
     pagina.locator("[data-entrada]").get_by_role("button", name="Registrar entrada", exact=True).click()
@@ -83,17 +89,20 @@ def test_escena_sin_movimiento_ubica_entrada_inmediatamente(pagina_demo, demo_ai
     expect(pagina.locator("[data-tarjeta-contextual]")).to_contain_text("Lucía Benítez")
 
 
-def test_escena_sin_webgl_conserva_seleccion_por_zona(pagina_demo, demo_aislada):
+@pytest.mark.parametrize("motivo", ["sin_webgl", "sin_gpu", "movimiento_reducido"])
+def test_modo_sin_efectos_detectado_conserva_seleccion_por_zona(pagina_demo, demo_aislada, motivo):
     pagina = pagina_demo
-    pagina.add_init_script("""(() => {
-      const original = HTMLCanvasElement.prototype.getContext;
-      HTMLCanvasElement.prototype.getContext = function(tipo, ...opciones) {
-        return tipo.startsWith('webgl') ? null : original.call(this, tipo, ...opciones);
-      };
-    })();""")
+    if motivo == "sin_webgl":
+        pagina.add_init_script(SIN_WEBGL)
+    elif motivo == "sin_gpu":
+        pagina.add_init_script(SIMULAR_SIN_GPU)
+    else:
+        pagina.emulate_media(reduced_motion="reduce")
     ingresar(pagina, demo_aislada)
+    expect(pagina.get_by_role("button", name="Modo sin efectos", exact=True)).to_have_attribute("aria-pressed", "true")
     expect(pagina.locator("[data-alternativa-escena]")).to_be_visible()
     expect(pagina.locator("[data-escena-ocupacion]")).to_be_hidden()
+    expect(pagina.locator("canvas:visible")).to_have_count(0)
     expect(pagina.get_by_role("heading", name="Por zona", exact=True)).to_be_visible()
     pagina.locator("[data-entrada]").get_by_role("button", name="Registrar entrada", exact=True).click()
     pagina.keyboard.press("Escape")

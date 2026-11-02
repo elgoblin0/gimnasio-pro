@@ -1,6 +1,7 @@
 import { llamarApi } from "@comun/api.js";
 import { crear, exigirRol, prepararBarra } from "@comun/personal.js";
 import { registrarPwa } from "@comun/pwa.js";
+import { modoSinEfectos } from "@comun/efectos.js";
 import { crearSondeo } from "@comun/sondeo.js";
 import { anuncioDeCambio, cambiosDeAgenda, claveOcurrencia, fechaLegible as fecha, marcasDeCupo, semanasDeAgenda, textoReserva } from "./clases-agenda.js";
 
@@ -143,14 +144,14 @@ function dibujarSemanas(datos, cambios) {
 }
 
 const firmaDe = (fila) => JSON.stringify([fila, usuario.rol === "recepcion" && !$("[data-socio]").value]);
-const movimientoReducido = () => !globalThis.matchMedia || globalThis.matchMedia("(prefers-reduced-motion: reduce)").matches;
+const sinMovimiento = () => modoSinEfectos().activo;
 
 // Con la misma forma se cambian solo las tarjetas distintas: el resto conserva foco y lectura.
 function pintarAgenda(datos, animar) {
   const lista = $("[data-agenda]");
   const forma = datos.ocurrencias.map((fila) => `${claveOcurrencia(fila)}|${fila.hora_inicio}`).sort().join();
   const cambios = cambiosDeAgenda(filasAgenda, datos.ocurrencias);
-  const conAnimacion = animar && !movimientoReducido() ? cambios : [];
+  const conAnimacion = animar && !sinMovimiento() ? cambios : [];
   const foco = lista.contains(document.activeElement) ? document.activeElement.dataset.focoAgenda : focoOperacion;
   focoOperacion = null;
   const origenes = medirEspera(conAnimacion);

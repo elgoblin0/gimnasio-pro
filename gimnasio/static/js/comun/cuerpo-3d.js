@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import { ZONAS_CUERPO } from "./zonas.js";
+import { modoSinEfectos } from "./efectos.js";
 import { separarRotulos } from "./volumen-zonas.js";
 
 // Cada zona es una o más elipses sobre el cuerpo en reposo (brazos en cruz), espejadas en x.
@@ -221,7 +222,7 @@ export async function crearCuerpo(contenedor, svg, seleccionable, nombreFigura, 
     dibujante.dispose();
   }
   try { await cargarModelo(); } catch (error) { liberar(); throw error; }
-  if (!svg.isConnected || ventana.matchMedia("(prefers-reduced-motion: reduce)").matches) { liberar(); return; }
+  if (!svg.isConnected || modoSinEfectos(documento).activo) { liberar(); return; }
   const controles = [...svg.querySelectorAll("[data-zona]")];
   const indiceEnFoco = controles.indexOf(documento.activeElement);
 
@@ -513,13 +514,15 @@ export async function crearCuerpo(contenedor, svg, seleccionable, nombreFigura, 
     ventana.cancelAnimationFrame(animacion);
     ventana.cancelAnimationFrame(cuadroVolumen);
     observador.disconnect(); ajuste.disconnect(); presencia.disconnect();
-    preferencia.removeEventListener("change", restaurar);
+    preferencia.removeEventListener("change", alCambiarPreferencia);
     oscuro.removeEventListener("change", dibujar);
     marco.remove(); svg.removeAttribute("hidden"); svg.style.display = "";
     delete contenedor.dataset.cuerpo3d; liberar();
   }
   lienzo.addEventListener("webglcontextlost", e => { e.preventDefault(); restaurar(); }, {once: true});
-  preferencia.addEventListener("change", restaurar, {once: true});
+  // Si el sistema pasa a pedir movimiento reducido, se vuelve a la silueta salvo que se haya elegido a mano.
+  function alCambiarPreferencia() { if (modoSinEfectos(documento).activo) restaurar(); }
+  preferencia.addEventListener("change", alCambiarPreferencia);
   oscuro.addEventListener("change", dibujar);
   svg.before(marco);
   svg.setAttribute("hidden", "");

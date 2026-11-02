@@ -45,7 +45,7 @@ function preparar(error, { reducido = true } = {}) {
   let siguienteClave = 0;
   const contexto = vm.createContext({
     document: documento, crear, registrarPwa() {}, ...agenda,
-    fecha: agenda.fechaLegible, matchMedia: () => ({ matches: reducido }),
+    fecha: agenda.fechaLegible, modoSinEfectos: () => ({ activo: reducido }),
     crearSondeo: (opciones) => {
       const sondeo = { ...opciones, detenido: false, detener() { this.detenido = true; } };
       sondeos.push(sondeo);

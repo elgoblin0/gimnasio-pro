@@ -3,6 +3,8 @@
 import pytest
 from playwright.sync_api import expect
 
+from pruebas.e2e.efectos import CON_EFECTOS
+
 pytestmark = pytest.mark.e2e
 
 
@@ -12,6 +14,8 @@ def test_cuerpo_3d_y_silueta(page, url_base, alternativa):
     page.on("pageerror", lambda error: errores.append(str(error)))
     page.on("console", lambda mensaje: errores.append(mensaje.text) if mensaje.type == "error" else None)
     page.emulate_media(reduced_motion="reduce" if alternativa == "movimiento_reducido" else "no-preference")
+    if alternativa == "ninguna":
+        page.add_init_script(CON_EFECTOS)
     if alternativa == "sin_webgl":
         page.add_init_script(
             "const original = HTMLCanvasElement.prototype.getContext;"

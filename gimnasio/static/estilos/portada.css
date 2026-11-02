@@ -109,6 +109,15 @@
 [data-avisos-lista] li button { margin-inline-start: var(--espacio-2); min-height: 36px; padding: 0 var(--espacio-3); font-size: var(--tamano-chico); }
 [data-avisos-estado]:empty { display: none; }
 
+/* Pie: después del ingreso, para que el teclado llegue primero a los campos. */
+.portada-pie {
+  grid-column: 1 / -1; align-self: end;
+  display: flex; align-items: center; justify-content: space-between; gap: var(--espacio-3); flex-wrap: wrap;
+  margin-block-start: var(--espacio-6); padding-block-start: var(--espacio-4); border-block-start: 1px solid var(--borde);
+  font-size: var(--tamano-chico); color: var(--texto-suave);
+}
+.portada-pie p { margin: 0; }
+
 @media (max-width: 52rem) {
   .portada-hoja { grid-template-columns: minmax(0, 1fr); }
   .portada-cabecera { margin-block-end: var(--espacio-5); }
