@@ -5,6 +5,7 @@ import { formatearCarga, formatearFecha } from "@comun/formatos.js";
 import { cerrarSesion, crearControlDeOperacion } from "@comun/operaciones.js";
 import { prepararMedidas } from "@comun/series.js";
 import { registrarPwa } from "@comun/pwa.js";
+import { modoSinEfectos } from "@comun/efectos.js";
 import { crearSelectorZonas } from "@comun/zonas.js";
 
 import { crearDescanso } from "@comun/descanso.js";
@@ -253,7 +254,7 @@ async function enviar() {
           : `${numero.format(record.marca)} repeticiones a ${formatearCarga(record.carga)}`;
         return `Récord: ${marca} en ${record.ejercicio_hecho_nombre}`;
       }).join(". ");
-      if (!matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      if (!modoSinEfectos().activo) {
         anuncio.animate([{ opacity: 0, transform: "translateY(4px)" }, { opacity: 1, transform: "translateY(0)" }], { duration: 300 });
       }
     }

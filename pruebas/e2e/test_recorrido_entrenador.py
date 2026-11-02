@@ -5,6 +5,7 @@ import re
 import pytest
 from playwright.sync_api import expect
 
+from pruebas.e2e.efectos import CON_EFECTOS
 from pruebas.e2e.test_esqueleto_andante import ingresar, preparar, tiempo_de_recorrido
 
 pytestmark = pytest.mark.e2e
@@ -12,7 +13,9 @@ pytestmark = pytest.mark.e2e
 
 def abrir_contexto(navegador):
     """Cada persona con su sesión; sin service worker, como las demás pantallas del entrenador."""
-    return navegador.new_context(locale="es-PY", service_workers="block")
+    contexto = navegador.new_context(locale="es-PY", service_workers="block")
+    contexto.add_init_script(CON_EFECTOS)
+    return contexto
 
 
 def tarjeta(pagina, nombre):

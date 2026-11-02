@@ -2,6 +2,8 @@
 
 import pytest
 
+from pruebas.e2e.efectos import CON_EFECTOS
+
 expect = pytest.importorskip("playwright.sync_api", reason="sin Playwright").expect
 pytestmark = [pytest.mark.e2e, pytest.mark.sin_pagos_ni_clases]
 
@@ -211,6 +213,8 @@ def test_agenda_con_movimiento_reducido_muestra_la_subida_sin_animar(pagina_demo
 
 def test_agenda_anima_la_subida_desde_la_lista_de_espera(pagina_demo, demo_aislada):
     pagina = pagina_demo
+    # El CI dibuja sin GPU: sin elegir los efectos, el modo sin efectos apagaría la animación.
+    pagina.add_init_script(CON_EFECTOS)
     reserva, recepcion = _clase_llena(demo_aislada)
     tarjeta = _entrar_a_la_lista_de_espera_con_teclado(pagina, demo_aislada)
     pagina.evaluate(

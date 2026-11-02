@@ -3,6 +3,7 @@
 import pytest
 from playwright.sync_api import expect
 
+from pruebas.e2e.efectos import CON_EFECTOS
 from pruebas.e2e.test_esqueleto_andante import ingresar
 
 pytestmark = pytest.mark.e2e
@@ -27,6 +28,7 @@ def test_si_falla_el_guardado_vuelve_a_la_figura_anterior_y_se_puede_reintentar(
     with navegador.new_context(
         locale="es-PY", viewport={"width": 390, "height": 844}, service_workers="block"
     ) as contexto:
+        contexto.add_init_script(CON_EFECTOS)
         pagina = contexto.new_page()
         ingresar(pagina, demo_aislada, "socio")
         formulario = abrir_dolor(pagina)
@@ -51,6 +53,7 @@ def test_si_falla_el_guardado_vuelve_a_la_figura_anterior_y_se_puede_reintentar(
 
 def test_lucia_ve_su_figura_y_puede_cambiarla_sin_perder_lo_marcado(demo_aislada, navegador):
     with navegador.new_context(locale="es-PY", viewport={"width": 390, "height": 844}) as contexto:
+        contexto.add_init_script(CON_EFECTOS)
         pagina = contexto.new_page()
         modelos = []
         pagina.on("response", lambda r: modelos.append(r.url) if "/vendor/cuerpo@2/" in r.url else None)

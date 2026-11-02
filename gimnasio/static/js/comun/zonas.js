@@ -1,4 +1,5 @@
 import { llamarApi } from "./api.js";
+import { graficaDisponible, modoSinEfectos } from "./efectos.js";
 
 // Las mismas zonas del cuerpo que el motor; coordenadas de frente y espalda.
 export const ZONAS_CUERPO = Object.freeze([
@@ -95,7 +96,7 @@ export function crearResumenZonas(contenedor, trabajadas, dolores) {
 }
 
 // Series semanales por zona, para quien arma un programa. La figura es la del socio, no la de la sesión,
-// y no se elige desde acá. Sin WebGL o con movimiento reducido queda la silueta con las series escritas.
+// y no se elige desde acá. En el modo sin efectos queda la silueta con las series escritas.
 export function crearVolumenZonas(contenedor, figura) {
   crearSelectorZonas(contenedor);
   const original = contenedor.querySelector("svg");
@@ -131,13 +132,9 @@ export function crearVolumenZonas(contenedor, figura) {
 }
 
 function mejorarCuerpo(contenedor, svg, seleccionable, opciones = {}) {
-  const ventana = contenedor.ownerDocument.defaultView;
-  if (!ventana?.matchMedia || ventana.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-  const prueba = contenedor.ownerDocument.createElement("canvas");
-  let contexto;
-  try { contexto = prueba.getContext("webgl2"); } catch { return; }
-  if (!contexto) return;
-  contexto.getExtension("WEBGL_lose_context")?.loseContext();
+  // En el modo sin efectos la silueta es el cuerpo. Elegido a mano sin WebGL2, también.
+  const documento = contenedor.ownerDocument;
+  if (modoSinEfectos(documento).activo || !graficaDisponible(documento).webgl2) return;
   import("./cuerpo-3d.js").then(async ({ crearCuerpo }) => {
     if ("figura" in opciones) {
       if (svg.isConnected) return crearCuerpo(contenedor, svg, seleccionable, opciones.figura);

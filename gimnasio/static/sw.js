@@ -1,5 +1,5 @@
 // ADR 0007: solo recursos públicos. Cada pantalla nueva actualiza la lista y VERSION.
-const VERSION = "65";
+const VERSION = "66";
 const PREFIJO_CACHE = "gimnasio-estaticos-";
 const CACHE = PREFIJO_CACHE + VERSION;
 const RECURSOS_ESTATICOS = [
@@ -59,7 +59,8 @@ const RECURSOS_ESTATICOS = [
   "/js/inicio.js",
   "/js/comun/api.js",
   "/js/comun/pwa.js",
-  "/js/comun/transiciones.js",
+  "/js/comun/presentacion.js",
+  "/js/comun/efectos.js",
   "/vendor/newsreader@v26/newsreader.woff2",
   "/vendor/newsreader@v26/newsreader-italica.woff2",
   "/js/comun/formatos.js",

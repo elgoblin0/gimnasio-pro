@@ -2,22 +2,15 @@
 import * as T from 'three';
 import {construirMaqueta} from './escena-ocupacion-maqueta.js';
 import {CARRIL, PUERTA, SALAS, NOMBRES} from './escena-ocupacion-plano.js';
-import {diferenciarVisitas, esDibujoPorSoftware} from './escena-ocupacion-estado.js';
-
-function nombreDelRenderizador() {
-  const contexto = document.createElement('canvas').getContext('webgl2');
-  const extension = contexto?.getExtension('WEBGL_debug_renderer_info');
-  const nombre = extension ? contexto.getParameter(extension.UNMASKED_RENDERER_WEBGL) : '';
-  contexto?.getExtension('WEBGL_lose_context')?.loseContext();
-  return nombre;
-}
+import {diferenciarVisitas} from './escena-ocupacion-estado.js';
+import {esDibujoPorSoftware, graficaDisponible, modoSinEfectos} from './comun/efectos.js';
 
 export function crearEscena(contenedorEscena, alElegir, alAvisar = () => {}) {
   const token = nombre => getComputedStyle(document.documentElement).getPropertyValue(nombre).trim();
   const lienzo = contenedorEscena.querySelector('canvas');
   const capaPersonas = contenedorEscena.querySelector('[data-puntos]');
   const tarjeta = contenedorEscena.querySelector('[data-rotulo-visita]');
-  const porSoftware = esDibujoPorSoftware(nombreDelRenderizador());
+  const porSoftware = esDibujoPorSoftware(graficaDisponible().renderizador);
   const dibujante = new T.WebGLRenderer({canvas: lienzo, antialias: !porSoftware, alpha: true});
   const escena = new T.Scene();
   const camara = new T.OrthographicCamera(-1, 1, 1, -1, .1, 400);
@@ -25,7 +18,7 @@ export function crearEscena(contenedorEscena, alElegir, alAvisar = () => {}) {
   const vista = {x: .6, z: 1.2, zoom: 1, destino: null};
   const reducido = matchMedia('(prefers-reduced-motion: reduce)');
   // Sin GPU cada cuadro animado ocupa todos los núcleos: los cambios se muestran sin recorrido.
-  const sinMovimiento = () => porSoftware || reducido.matches;
+  const sinMovimiento = () => porSoftware || modoSinEfectos().activo;
   const oscuro = matchMedia('(prefers-color-scheme: dark)');
   const {lugares, materialVentana} = construirMaqueta(escena);
   const auxiliar = new T.Object3D();

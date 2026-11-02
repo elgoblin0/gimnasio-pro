@@ -9,6 +9,7 @@ from playwright.sync_api import expect
 
 from gimnasio.comun.bd import transaccion
 from gimnasio.comun.ids import desde_texto
+from pruebas.e2e.efectos import CON_EFECTOS
 from pruebas.e2e.test_esqueleto_andante import ingresar, preparar
 
 pytestmark = pytest.mark.e2e
@@ -22,6 +23,8 @@ def test_recorrido_lucia_etapa_2(pagina_demo, demo_aislada, ancho, alto, sin_web
     demo_aislada.app.add_url_rule("/favicon.ico", view_func=lambda: ("", 204))
     errores = preparar(pagina, ancho, alto)
     pagina.emulate_media(reduced_motion="no-preference")
+    if not sin_webgl:
+        pagina.add_init_script(CON_EFECTOS)
     if sin_webgl:
         pagina.add_init_script(
             "const original = HTMLCanvasElement.prototype.getContext;"
