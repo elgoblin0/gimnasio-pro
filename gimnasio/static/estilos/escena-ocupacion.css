@@ -105,6 +105,7 @@ main { max-width: none; }
 /* Sin WebGL queda la lista: las cifras y el registro vuelven al flujo de la página. */
 .sede-maqueta:has([data-escena-ocupacion][hidden]) { min-height: 0; padding: var(--espacio-5); background: none; }
 .sede-maqueta:has([data-escena-ocupacion][hidden]) :is(.sede-cifras, .sede-pie) { position: static; margin-block-end: var(--espacio-5); }
+[data-recepcion]:has([data-escena-ocupacion][hidden]) [data-tarjeta-contextual] { position: static; width: auto; max-width: 40rem; max-height: none; margin: var(--espacio-4) var(--espacio-5); box-shadow: none; }
 
 @media (max-width: 60rem) {
   .sede { grid-template-columns: minmax(0, 1fr); min-height: 0; }
