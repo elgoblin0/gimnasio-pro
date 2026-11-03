@@ -124,8 +124,8 @@ const ACCIONES = {
     if (!visible(formulario)) return {};
     // Durmió mal, y se ve: el formulario queda completo mientras se lee. El chequeo desfavorable recorta la
     // propuesta y activa el freno que verá el entrenador.
-    $("#chequeo-sueno").value = "1";
-    $("#chequeo-energia").value = "2";
+    $('input[name="sueno"][value="1"]').checked = true;
+    $('input[name="energia"][value="2"]').checked = true;
     await narrar("chequeo");
     formulario.requestSubmit();
     const guardado = await esperar(() => !visible($("[data-chequeo]")) && !["Registrando…", "Cargando tu propuesta…"].includes(textoDe("[data-estado]")));

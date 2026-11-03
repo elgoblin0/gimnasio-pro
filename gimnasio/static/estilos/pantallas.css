@@ -24,7 +24,13 @@
 
 }
 
-[data-progreso] { margin-block-start: var(--espacio-5); }
+[data-progreso] { margin-block-start: var(--espacio-4); }
+.progreso-cabecera { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: var(--espacio-4); }
+.progreso-cabecera .rotulo { margin-block-end: var(--espacio-3); }
+.progreso-cifras { display: grid; justify-items: end; gap: var(--espacio-1); margin: 0; }
+.progreso-cifras[hidden] { display: none; }
+.progreso-cifra { font: 400 var(--tamano-cifra)/1 var(--fuente-numeros); font-variant-numeric: lining-nums; }
+.progreso-cambio { font-size: var(--tamano-chico); color: var(--texto-suave); }
 [data-progreso] select { font: inherit; color: var(--texto); background: var(--superficie); padding: var(--espacio-3); border: 1px solid var(--texto-suave); border-radius: var(--radio-1); width: 100%; }
 [data-progreso] svg { width: 100%; height: auto; }
 [data-progreso] svg[hidden] { display: none; }
@@ -158,7 +164,17 @@ form:has(.cuerpo-escena) > button[type="submit"] { position: sticky; bottom: 12p
 .chequeo form > [data-zonas-chequeo] { grid-column: 2; grid-row: 1 / span 9; }
 .chequeo-intro, .chequeo-zonas { margin: 0 0 var(--espacio-2); color: var(--texto-suave); max-width: 40ch; }
 .chequeo-zonas { margin-block-start: var(--espacio-3); }
-.chequeo form > label { margin-block-start: var(--espacio-2); }
+/* Escala del chequeo: se toca del 1 al 5, sin abrir una lista. */
+.escala { margin: var(--espacio-2) 0 0; padding: 0; border: 0; min-width: 0; }
+.escala legend { padding: 0; margin-block-end: var(--espacio-2); font-weight: 600; }
+.escala-opciones { display: grid; grid-template-columns: repeat(5, minmax(0, 3.5rem)); gap: var(--espacio-2); }
+.escala-opciones label { position: relative; display: block; margin: 0; }
+.escala-opciones input { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; cursor: pointer; }
+.escala-opciones span { display: grid; place-items: center; min-height: 48px; border: 1px solid var(--texto-suave); border-radius: var(--radio-2); font: 400 1.25rem/1 var(--fuente-numeros); font-variant-numeric: lining-nums; }
+.escala-opciones input:hover + span { border-color: var(--texto); }
+.escala-opciones input:checked + span { color: var(--superficie); background: var(--texto); border-color: var(--texto); }
+.escala-opciones input:focus-visible + span { outline: 2px solid var(--exito); outline-offset: 2px; }
+.escala-opciones input:disabled + span { opacity: .5; }
 .chequeo form > button[type="submit"] { position: static; justify-self: start; width: auto; min-height: 48px; margin-block-start: var(--espacio-4); padding-inline: var(--espacio-6); color: var(--superficie); background: var(--texto); border: 0; border-radius: var(--radio-3); box-shadow: none; }
 .chequeo form > [data-saltear-chequeo] { justify-self: start; }
 @media (max-width: 52rem) {
@@ -275,4 +291,10 @@ form[data-serie] button { margin: 0; color: var(--superficie); background: var(-
 
 @media (max-width: 48rem) {
   .sede-hoy, .horarios, [data-contenido] > .grilla { grid-template-columns: minmax(0, 1fr); }
+}
+/* En el celular lo primero es lo que hay que hacer: título chico y sin el rótulo de arriba. */
+@media (max-width: 40rem) {
+  .hoja > .rotulo { display: none; }
+  .hoja > h1 { font-size: 2rem; margin-block-end: var(--espacio-2); }
+  .escala-opciones { grid-template-columns: repeat(5, minmax(0, 1fr)); }
 }

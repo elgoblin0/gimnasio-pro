@@ -5,3 +5,4 @@ etapa = 1
 nivel = "validada"
 prueba = "pruebas/e2e/test_entrenamiento.py"
 validacion = "https://github.com/elgoblin0/gimnasio-pro/issues/52"
+notas = "#311: el chequeo va primero y se toca del 1 al 5 (pruebas/e2e/test_entrenamiento.py::test_en_el_celular_el_chequeo_se_ve_primero_y_se_toca)."

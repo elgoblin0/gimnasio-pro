@@ -51,6 +51,7 @@ const RECURSOS_ESTATICOS = [
   "/js/recepcion.js",
   "/js/entrenamiento.js",
   "/js/resumen-sesion.js",
+  "/js/progreso.js",
   "/js/comun/progreso.js",
   "/js/comun/zonas.js",
   "/js/comun/silueta-cuerpo.js",

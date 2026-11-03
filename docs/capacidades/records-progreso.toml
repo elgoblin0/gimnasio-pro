@@ -5,3 +5,4 @@ etapa = 2
 nivel = "validada"
 prueba = "pruebas/e2e/test_recorrido_lucia.py::test_recorrido_lucia_etapa_2"
 validacion = "https://github.com/elgoblin0/gimnasio-pro/issues/136"
+notas = "#311: el progreso tiene pantalla propia en el menú (progreso.html), con la carga actual, el cambio y un eje que no arranca en cero."

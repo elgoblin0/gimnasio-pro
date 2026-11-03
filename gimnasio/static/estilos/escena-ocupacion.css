@@ -124,7 +124,8 @@ main { max-width: none; }
   .recepcion-titulo > div { flex-basis: 100%; }
   .sede-maqueta { display: flex; flex-direction: column; min-height: 0; }
   .sede-maqueta > .escena-ocupacion { position: relative; inset: auto; height: 23rem; order: 1; }
-  .sede-cifras { top: var(--espacio-4); left: var(--espacio-4); }
+  /* Las cifras van arriba de la escena, no encima: en este ancho se pisarían con ella. */
+  .sede-maqueta > .sede-cifras { position: static; order: 0; margin: 0; padding: var(--espacio-4) var(--espacio-4) 0; }
   .cifra-ocupacion strong { font-size: 3rem; }
   .barra-aforo { width: 10rem; }
   .sede-cifras h2 { display: none; }

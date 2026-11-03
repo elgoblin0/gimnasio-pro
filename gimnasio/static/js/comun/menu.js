@@ -10,6 +10,7 @@
   const MENUS = {
     socio: [
       { texto: "Mi entrenamiento", href: "/entrenamiento.html", incluye: ["/resumen-sesion.html"] },
+      { texto: "Mi progreso", href: "/progreso.html" },
       CLASES,
       { texto: "Mi ficha", href: "/ficha.html" },
     ],

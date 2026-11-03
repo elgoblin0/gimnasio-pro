@@ -2,7 +2,12 @@
 .hoja { max-width: 72rem; display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 24rem), 1fr)); gap: var(--espacio-4); align-items: start; }
 .hoja > :is(.rotulo, h1, [data-estado], [data-error], [data-reintentar]) { grid-column: 1 / -1; }
 .hoja > h1 { margin: 0 0 var(--espacio-3); font-size: var(--tamano-portada); line-height: 1; }
-.hoja > section { margin: 0; min-width: 0; }
+.hoja > section { margin: 0; min-width: 0; scroll-margin-block-start: 8rem; }
+/* Índice fijo: la ficha es larga y cada parte se alcanza de un toque. */
+.ficha-indice { grid-column: 1 / -1; position: sticky; top: 3.8rem; z-index: 2; display: flex; gap: var(--espacio-1) var(--espacio-4); overflow-x: auto; scrollbar-width: none; padding-block: var(--espacio-2); background: var(--fondo, var(--superficie)); border-block-end: 1px solid var(--borde); }
+.ficha-indice a { flex: none; min-height: 32px; display: inline-flex; align-items: center; font-size: var(--tamano-chico); color: var(--texto-suave); }
+.ficha-indice a:hover { color: var(--texto); }
+@media (max-width: 40rem) { .ficha-indice { top: 0; } }
 .hoja > section h2 { margin-block: 0 var(--espacio-4); }
 .hoja :is([data-estado], [data-error]):empty { margin: 0; }
 .hoja form { max-width: none; gap: var(--espacio-3); }

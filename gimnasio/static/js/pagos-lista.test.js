@@ -27,7 +27,7 @@ function preparar(pagos = []) {
     location: { search: "" }, document: { querySelector: obtener },
     crypto: { randomUUID: () => `clave-${llamadas.length}` },
     FormData: class { constructor() { return [["desde", "2026-10-27"], ["hasta", "2026-10-28"]]; } },
-    formatearGuaranies: (monto) => `₲ ${monto}`, formatearFecha: String,
+    formatearGuaranies: (monto) => `₲ ${monto}`, formatearFecha: String, formatearFechaHora: String,
     llamarApi: async (ruta, opciones) => {
       llamadas.push({ ruta, opciones });
       if (fallo) throw fallo;
