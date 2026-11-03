@@ -1,23 +1,24 @@
 import { llamarApi } from "./api.js";
 import { graficaDisponible, modoSinEfectos } from "./efectos.js";
+import { FIGURA, RELIEVE, TRAZOS } from "./silueta-cuerpo.js";
 
-// Las mismas zonas del cuerpo que el motor; coordenadas de frente y espalda.
+// Las mismas zonas del cuerpo que el motor. Los trazos salen de los músculos del 3D (scripts/silueta_cuerpo.py).
 export const ZONAS_CUERPO = Object.freeze([
-  ["pecho", "Pecho", "M65 85 H135 V125 H65 Z"],
-  ["espalda_alta", "Espalda alta", "M225 85 H295 V115 H225 Z"],
-  ["dorsales", "Dorsales", "M225 118 H243 V166 H225 Z M277 118 H295 V166 H277 Z"],
-  ["hombros", "Hombros", "M45 83 L62 80 V116 H43 Z M138 80 L155 83 L157 116 H138 Z"],
-  ["biceps", "Bíceps", "M43 120 H60 V160 H39 Z M140 120 H157 L161 160 H140 Z"],
-  ["triceps", "Tríceps", "M203 117 H220 V164 H199 Z M300 117 H317 L321 164 H300 Z"],
-  ["abdomen", "Abdomen", "M72 130 H128 V187 H72 Z"],
-  ["gluteos", "Glúteos", "M226 192 H294 V229 H226 Z"],
-  ["cuadriceps", "Cuádriceps", "M64 225 H96 V280 H66 Z M104 225 H136 L134 280 H104 Z"],
-  ["isquiotibiales", "Isquiotibiales", "M225 234 H256 V282 H226 Z M264 234 H295 L294 282 H264 Z"],
-  ["pantorrillas", "Pantorrillas", "M227 302 H255 V353 H231 Z M265 302 H293 L289 353 H265 Z"],
-  ["zona_lumbar", "Zona lumbar", "M229 169 H291 V188 H229 Z"],
-  ["rodillas", "Rodillas", "M66 284 H96 V302 H66 Z M104 284 H134 V302 H104 Z"],
-  ["cuello", "Cuello", "M88 61 H112 V81 H88 Z"],
-].map(([id, nombre, trazo]) => Object.freeze({ id, nombre, trazo })));
+  ["pecho", "Pecho"],
+  ["espalda_alta", "Espalda alta"],
+  ["dorsales", "Dorsales"],
+  ["hombros", "Hombros"],
+  ["biceps", "Bíceps"],
+  ["triceps", "Tríceps"],
+  ["abdomen", "Abdomen"],
+  ["gluteos", "Glúteos"],
+  ["cuadriceps", "Cuádriceps"],
+  ["isquiotibiales", "Isquiotibiales"],
+  ["pantorrillas", "Pantorrillas"],
+  ["zona_lumbar", "Zona lumbar"],
+  ["rodillas", "Rodillas"],
+  ["cuello", "Cuello"],
+].map(([id, nombre]) => Object.freeze({ id, nombre, trazo: TRAZOS[id] })));
 
 export function crearSelectorZonas(contenedor) {
   const documento = contenedor.ownerDocument;
@@ -32,18 +33,14 @@ export function crearSelectorZonas(contenedor) {
     for (const [clave, valor] of Object.entries(atributos)) nodo.setAttribute(clave, valor);
     return nodo;
   };
-  for (const centro of [100, 260]) {
-    const cabeza = elemento("circle", { cx: centro, cy: 39, r: 22, class: "silueta-base", "aria-hidden": "true" });
-    const cuerpo = elemento("path", {
-      d: `M${centro - 14} 64 L${centro - 55} 82 L${centro - 67} 192 L${centro - 49} 196 L${centro - 34} 132 L${centro - 35} 222 L${centro - 28} 374 H${centro - 5} L${centro} 243 L${centro + 5} 374 H${centro + 28} L${centro + 35} 222 L${centro + 34} 132 L${centro + 49} 196 L${centro + 67} 192 L${centro + 55} 82 L${centro + 14} 64 Z`,
-      class: "silueta-base", "aria-hidden": "true",
-    });
-    svg.append(cabeza, cuerpo);
-  }
+  svg.append(
+    elemento("path", { d: FIGURA, class: "silueta-base", "aria-hidden": "true" }),
+    elemento("path", { d: RELIEVE, class: "silueta-relieve", "aria-hidden": "true" }),
+  );
   const controles = ZONAS_CUERPO.map((zona, indice) => {
     const control = elemento("g", { role: "checkbox", tabindex: "0", "aria-label": zona.nombre, "aria-checked": "false", "data-zona": zona.id });
     const region = elemento("path", { d: zona.trazo, class: "silueta-region" });
-    const nombre = elemento("text", { x: 340, y: 30 + indice * 26 });
+    const nombre = elemento("text", { x: 392, y: 30 + indice * 26 });
     nombre.textContent = zona.nombre;
     control.append(region, nombre);
     const cambiar = () => {
@@ -135,6 +132,14 @@ function mejorarCuerpo(contenedor, svg, seleccionable, opciones = {}) {
   // En el modo sin efectos la silueta es el cuerpo. Elegido a mano sin WebGL2, también.
   const documento = contenedor.ownerDocument;
   if (modoSinEfectos(documento).activo || !graficaDisponible(documento).webgl2) return;
+  // Después del primer pintado: la silueta se ve enseguida y Three.js no lo demora.
+  const ventana = documento.defaultView;
+  if (ventana?.requestAnimationFrame) ventana.requestAnimationFrame(() => ventana.setTimeout(() => cargarCuerpo(contenedor, svg, seleccionable, opciones)));
+  else cargarCuerpo(contenedor, svg, seleccionable, opciones);
+}
+
+function cargarCuerpo(contenedor, svg, seleccionable, opciones) {
+  if (!svg.isConnected) return;
   import("./cuerpo-3d.js").then(async ({ crearCuerpo }) => {
     if ("figura" in opciones) {
       if (svg.isConnected) return crearCuerpo(contenedor, svg, seleccionable, opciones.figura);

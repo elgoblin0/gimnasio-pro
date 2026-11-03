@@ -1,123 +1,121 @@
 import * as THREE from "three";
 import { ZONAS_CUERPO } from "./zonas.js";
-import { modoSinEfectos } from "./efectos.js";
+import { esDibujoPorSoftware, graficaDisponible, modoSinEfectos } from "./efectos.js";
 import { separarRotulos } from "./volumen-zonas.js";
 
-// Cada zona es una o más elipses sobre el cuerpo en reposo (brazos en cruz), espejadas en x.
-// lado: 1 frente, -1 espalda, 0 ambos; corte: plano z que separa frente y espalda.
-const aParches = filas => filas.map(([zona, x, y, rx, ry, lado, corte]) => ({zona: ZONAS_CUERPO.findIndex(z => z.id === zona), x, y, rx, ry, lado, corte}));
+// Mapa de músculos (scripts/exportar_cuerpo.py): frente y espalda lado a lado, espejados en x. Por texel, R guarda la
+// zona (4 bits altos, 15 sin zona) y la zona más cercana (4 bajos), G la distancia al borde y B la coordenada de fibra.
+const MAPA = {ancho: .48, alto: 1.84, ladoPx: 256, altoPx: 1024};
+const ZONAS_MAPA = 16;
 
-// Cada figura trae los brazos bajos: pivote y caída los llevan a la cruz; axila separa brazo y torso.
+// centros: dónde va el rótulo de cada zona, de frente y de espalda (x, y, z sobre el cuerpo).
 const FIGURAS = {
   masculina: {
-    modelo: "masculina.glb",
-    pivote: {x: .2, y: 1.42}, caida: 1.19, axila: {x: .175, y: 1.27, pendiente: .397},
-    parches: aParches([
-      ["pecho", .085, 1.37, .105, .08, 1, 0],
-      ["espalda_alta", .085, 1.385, .13, .095, -1, 0],
-      ["dorsales", .115, 1.195, .06, .115, -1, 0],
-      ["hombros", .225, 1.445, .07, .07, 0, 0],
-      ["biceps", .36, 1.405, .13, .06, 1, 0],
-      ["triceps", .36, 1.405, .13, .06, -1, 0],
-      ["abdomen", 0, 1.11, .105, .16, 1, 0],
-      ["gluteos", .085, .91, .095, .085, -1, 0],
-      ["cuadriceps", .115, .68, .08, .125, 1, 0],
-      ["isquiotibiales", .12, .67, .075, .115, -1, 0],
-      ["pantorrillas", .165, .325, .055, .105, -1, -.05],
-      ["zona_lumbar", 0, 1.06, .055, .085, -1, 0],
-      ["rodillas", .135, .515, .06, .055, 0, 0],
-      ["cuello", 0, 1.515, .06, .042, 0, 0],
-    ]),
+    modelo: "masculina", centros: {
+      cuello: [[.086, 1.511, .052], [.038, 1.543, -.048]], pecho: [[.109, 1.352, .147]],
+      dorsales: [[.169, 1.237, .093], [.111, 1.171, -.091]], abdomen: [[.125, 1.043, .111]],
+      hombros: [[.23, 1.379, .076], [.227, 1.384, -.094]], biceps: [[.265, 1.24, .056]],
+      triceps: [[.315, 1.236, .045], [.252, 1.242, -.081]], cuadriceps: [[.134, .699, .122]],
+      rodillas: [[.136, .472, .062], [.147, .455, -.101]], pantorrillas: [[.206, .31, .004], [.139, .329, -.121]],
+      espalda_alta: [[.085, 1.392, -.122]], zona_lumbar: [[.031, 1.069, -.076]],
+      gluteos: [[.105, .879, -.117]], isquiotibiales: [[.099, .633, -.077]],
+    },
   },
   femenina: {
-    modelo: "femenina.glb",
-    pivote: {x: .16, y: 1.42}, caida: 1.18, axila: {x: .155, y: 1.27, pendiente: .405},
-    parches: aParches([
-      ["pecho", .075, 1.33, .095, .085, 1, 0],
-      ["espalda_alta", .08, 1.385, .115, .095, -1, 0],
-      ["dorsales", .095, 1.2, .05, .105, -1, 0],
-      ["hombros", .19, 1.44, .065, .07, 0, 0],
-      ["biceps", .31, 1.41, .125, .05, 1, -.03],
-      ["triceps", .31, 1.41, .125, .05, -1, -.03],
-      ["abdomen", 0, 1.08, .095, .15, 1, 0],
-      ["gluteos", .09, .9, .095, .085, -1, 0],
-      ["cuadriceps", .11, .69, .075, .125, 1, 0],
-      ["isquiotibiales", .11, .67, .07, .115, -1, 0],
-      ["pantorrillas", .135, .33, .055, .105, -1, -.04],
-      ["zona_lumbar", 0, 1.05, .05, .085, -1, 0],
-      ["rodillas", .112, .51, .06, .055, 0, 0],
-      ["cuello", 0, 1.515, .055, .042, 0, 0],
-    ]),
+    modelo: "femenina", centros: {
+      cuello: [[.083, 1.509, .05], [.035, 1.543, -.04]], pecho: [[.092, 1.354, .16]],
+      dorsales: [[.132, 1.249, .159], [.092, 1.171, -.045]], abdomen: [[.114, 1.044, .127]],
+      hombros: [[.203, 1.379, .048], [.2, 1.385, -.07]], biceps: [[.222, 1.216, .013]],
+      triceps: [[.259, 1.213, .012], [.21, 1.217, -.072]], cuadriceps: [[.134, .699, .104]],
+      rodillas: [[.116, .47, .06], [.126, .455, -.083]], pantorrillas: [[.174, .306, .012], [.162, .327, -.1]],
+      espalda_alta: [[.078, 1.391, -.089]], zona_lumbar: [[.028, 1.063, -.07]],
+      gluteos: [[.111, .883, -.128]], isquiotibiales: [[.097, .63, -.069]],
+    },
   },
 };
 
 const TEMAS = {
-  claro: {cuerpo: "#e9dfcd", dolor: "#e0401a", trabajada: "#128a5e", volumenBajo: "#dc9273", volumenAlto: "#a12c10", aro: "#b5a993", cielo: 1.7, suelo: "#a89b84", sol: 2.3, solColor: "#fff3e0", contra: 1.2, exposicion: 1, emision: .75, sombra: .22},
-  oscuro: {cuerpo: "#d9cdb8", dolor: "#f0603a", trabajada: "#3fb488", volumenBajo: "#a4583c", volumenAlto: "#f0603a", aro: "#5c554a", cielo: 1.2, suelo: "#5c554a", sol: 2.3, solColor: "#ffd9ad", contra: 3, exposicion: 1.05, emision: .4, sombra: .6},
+  claro: {cuerpo: "#e9dfcd", dolor: "#e0401a", trabajada: "#128a5e", volumenBajo: "#dc9273", volumenAlto: "#a12c10", aro: "#b5a993", cielo: 1.7, suelo: "#a89b84", sol: 2.3, solColor: "#fff3e0", contra: 1.2, exposicion: 1, emision: .55, sombra: .22, relieve: .42, surco: .3},
+  oscuro: {cuerpo: "#d9cdb8", dolor: "#f0603a", trabajada: "#3fb488", volumenBajo: "#a4583c", volumenAlto: "#f0603a", aro: "#5c554a", cielo: 1.2, suelo: "#5c554a", sol: 2.3, solColor: "#ffd9ad", contra: 3, exposicion: 1.05, emision: .4, sombra: .6, relieve: .42, surco: .4},
 };
 
 const suave = t => t * t * (3 - 2 * t);
-const entre01 = t => Math.min(Math.max(t, 0), 1);
+const DURACION_ENCENDIDO = 460;
 
-// Lleva los brazos del modelo a la cruz, donde se definen las zonas.
-function enderezar({pivote, caida, axila}, x, y, z) {
-  const linea = axila.x + Math.max(axila.y - y, 0) * axila.pendiente;
-  const t = entre01((Math.abs(x) - linea) / .04);
-  if (!t) return [x, y, z];
-  const angulo = caida * suave(t);
-  const dx = Math.abs(x) - pivote.x, dy = y - pivote.y;
-  const seno = Math.sin(angulo), coseno = Math.cos(angulo);
-  return [Math.sign(x) * (pivote.x + dx * coseno - dy * seno), pivote.y + dx * seno + dy * coseno, z];
-}
-
-// Lo inverso, para ubicar sobre el modelo un punto definido en la cruz.
-function doblar({pivote, caida}, x, y, z) {
-  const t = y < 1.15 ? 0 : entre01((Math.abs(x) - pivote.x + .05) / .13);
-  if (!t) return [x, y, z];
-  const angulo = caida * suave(t);
-  const dx = Math.abs(x) - pivote.x, dy = y - pivote.y;
-  const seno = Math.sin(angulo), coseno = Math.cos(angulo);
-  return [Math.sign(x) * (pivote.x + dx * coseno + dy * seno), pivote.y - dx * seno + dy * coseno, z];
-}
-
-// Un toque cerca de una zona también la elige: las zonas no cubren todo el cuerpo.
-function zonaDelPunto({parches}, x, y, z) {
-  const lateral = Math.abs(x);
-  let elegida = -1, mejor = 1.9;
-  for (const parche of parches) {
-    const delLado = parche.lado === 0 || (z - parche.corte) * parche.lado >= 0;
-    const distancia = Math.hypot((lateral - parche.x) / parche.rx, (y - parche.y) / parche.ry) + (delLado ? 0 : 1);
-    if (distancia < mejor) { mejor = distancia; elegida = parche.zona; }
-  }
-  return elegida;
+// Un toque cerca de una zona también la elige: el mapa guarda la más cercana a cada texel.
+function zonaDelPunto(datos, x, y, deFrente) {
+  if (!datos) return -1;
+  const columna = Math.min(Math.floor(Math.abs(x) / MAPA.ancho * MAPA.ladoPx), MAPA.ladoPx - 1) + (deFrente ? 0 : MAPA.ladoPx);
+  const fila = Math.min(Math.max(Math.floor((1 - y / MAPA.alto) * MAPA.altoPx), 0), MAPA.altoPx - 1);
+  return (datos[(fila * MAPA.ladoPx * 2 + columna) * 4] & 15) - 1;
 }
 
 const SOMBREADO = `
-  uniform vec4 uParche[${ZONAS_CUERPO.length}];
-  uniform vec2 uLado[${ZONAS_CUERPO.length}];
-  uniform int uZona[${ZONAS_CUERPO.length}];
-  uniform vec3 uRelleno[${ZONAS_CUERPO.length}];
-  uniform vec3 uBorde[${ZONAS_CUERPO.length}];
-  uniform float uFuerza[${ZONAS_CUERPO.length}];
+  uniform sampler2D uMapa;
+  uniform vec3 uRelleno[${ZONAS_MAPA}];
+  uniform vec3 uBorde[${ZONAS_MAPA}];
+  uniform float uFuerza[${ZONAS_MAPA}];
+  uniform float uEncendido[${ZONAS_MAPA}];
   uniform float uEmision;
-  varying vec3 vReposo;
-  // La zona marcada brilla desde su centro y se funde con el cuerpo, sin borde.
-  vec4 brilloZona(vec3 punto) {
-    vec3 q = vec3(abs(punto.x), punto.y, punto.z);
-    vec3 color = vec3(0.0);
-    float alfa = 0.0;
-    for (int i = 0; i < ${ZONAS_CUERPO.length}; i++) {
-      float fuerza = uFuerza[uZona[i]];
-      if (fuerza == 0.0) continue;
-      float lado = uLado[i].x == 0.0 ? 1.0 : smoothstep(-.018, .018, (q.z - uLado[i].y) * uLado[i].x);
-      float d = length((q.xy - uParche[i].xy) / uParche[i].zw);
-      float a = (1.0 - smoothstep(.3, 1.12, d)) * lado * fuerza;
-      if (a <= alfa) continue;
-      alfa = a;
-      color = mix(uBorde[uZona[i]], uRelleno[uZona[i]], smoothstep(.25, .7, d));
+  uniform float uRelieve;
+  uniform float uSurco;
+  varying vec3 vPosicion;
+  varying vec3 vNormalObjeto;
+  // Promedio de 4 texeles a mano: interpolar el código de zona daría otra zona.
+  void leerLado(float lado, out float distancia, out float fibra, out float cubre, out float marca, out float encendido, out vec3 color) {
+    vec2 lugar = vec2((min(abs(vPosicion.x) / ${MAPA.ancho}, .998) + lado) * ${MAPA.ladoPx}.0, (1.0 - clamp(vPosicion.y / ${MAPA.alto}, 0.0, .998)) * ${MAPA.altoPx}.0) - .5;
+    ivec2 base = ivec2(floor(lugar));
+    vec2 f = fract(lugar);
+    distancia = 0.0; fibra = 0.0; cubre = 0.0; marca = 0.0; encendido = 0.0; color = vec3(0.0);
+    for (int j = 0; j < 2; j++) for (int i = 0; i < 2; i++) {
+      vec4 texel = texelFetch(uMapa, clamp(base + ivec2(i, j), ivec2(0), ivec2(${MAPA.ladoPx * 2 - 1}, ${MAPA.altoPx - 1})), 0);
+      float peso = (i == 0 ? 1.0 - f.x : f.x) * (j == 0 ? 1.0 - f.y : f.y);
+      int zona = int(texel.r * 255.0 + .5) >> 4;
+      if (zona == 0) continue;
+      float fuerza = uFuerza[zona];
+      distancia += peso * texel.g;
+      fibra += peso * texel.b;
+      cubre += peso;
+      marca += peso * fuerza;
+      encendido += peso * fuerza * uEncendido[zona];
+      color += peso * fuerza * mix(uRelleno[zona], uBorde[zona], smoothstep(.45, .85, texel.g));
     }
-    return vec4(color, alfa);
   }
+  vec3 normalConRelieve(vec3 punto, vec3 normalBase, vec2 pendiente, float cara) {
+    vec3 sigmaX = normalize(dFdx(punto));
+    vec3 sigmaY = normalize(dFdy(punto));
+    vec3 r1 = cross(sigmaY, normalBase);
+    vec3 r2 = cross(normalBase, sigmaX);
+    float det = dot(sigmaX, r1) * cara;
+    return normalize(abs(det) * normalBase - sign(det) * (pendiente.x * r1 + pendiente.y * r2));
+  }
+`;
+
+// Frente y espalda se funden en el costado, donde cae el borde natural de cada músculo.
+const LEER_MAPA = `
+  float pesoFrente = smoothstep(-.2, .2, normalize(vNormalObjeto).z);
+  float mDistancia, mFibra, mCubre, mMarca, mEncendido; vec3 mColor;
+  float oDistancia = 0.0, oFibra = 0.0, oCubre = 0.0, oMarca = 0.0, oEncendido = 0.0; vec3 oColor = vec3(0.0);
+  leerLado(0.0, mDistancia, mFibra, mCubre, mMarca, mEncendido, mColor);
+  if (pesoFrente < 1.0) {
+    leerLado(1.0, oDistancia, oFibra, oCubre, oMarca, oEncendido, oColor);
+    mDistancia = mix(oDistancia, mDistancia, pesoFrente); mFibra = mix(oFibra, mFibra, pesoFrente);
+    mCubre = mix(oCubre, mCubre, pesoFrente); mMarca = mix(oMarca, mMarca, pesoFrente);
+    mEncendido = mix(oEncendido, mEncendido, pesoFrente); mColor = mix(oColor, mColor, pesoFrente);
+  }
+  // El promedio se corrige por la parte cubierta: sin esto, el borde contra la piel dibujaría un surco.
+  mDistancia = mCubre > .001 ? mDistancia / mCubre : 1.0;
+  float altura = smoothstep(0.0, .34, mDistancia);
+  float faseFibra = mFibra * 170.0;
+  float fibras = sin(faseFibra) * (1.0 - smoothstep(.5, 1.4, fwidth(faseFibra)));
+  // Se enciende del centro del músculo hacia el borde.
+  float encendidoVisto = mMarca > .001 ? mEncendido / mMarca : 0.0;
+  float frenteEncendido = 1.0 - encendidoVisto * 1.35;
+  float alfa = mMarca * smoothstep(frenteEncendido, frenteEncendido + .25, mDistancia);
+  vec3 tono = mMarca > .001 ? mColor / mMarca : vec3(0.0);
+  float surco = 1.0 - smoothstep(0.0, .22, mDistancia);
+  diffuseColor.rgb *= 1.0 - mCubre * (uSurco * surco - .03 * fibras);
+  diffuseColor.rgb = mix(diffuseColor.rgb, tono * (1.0 + .16 * fibras) * (1.0 - .35 * surco), alfa);
 `;
 
 // nombreFigura es la elegida por el usuario; sin elección se muestra la masculina (ADR 0020).
@@ -152,24 +150,26 @@ export async function crearCuerpo(contenedor, svg, seleccionable, nombreFigura, 
   contra.position.set(-1.8, 2.4, -3);
   escena.add(contra);
   const compartidos = {
-    uParche: {value: []},
-    uLado: {value: []},
-    uZona: {value: []},
-    uRelleno: {value: new Float32Array(ZONAS_CUERPO.length * 3)},
-    uBorde: {value: new Float32Array(ZONAS_CUERPO.length * 3)},
-    uFuerza: {value: new Float32Array(ZONAS_CUERPO.length)},
+    uMapa: {value: null},
+    uRelleno: {value: new Float32Array(ZONAS_MAPA * 3)},
+    uBorde: {value: new Float32Array(ZONAS_MAPA * 3)},
+    uFuerza: {value: new Float32Array(ZONAS_MAPA)},
+    uEncendido: {value: new Float32Array(ZONAS_MAPA)},
     uEmision: {value: 0},
+    uRelieve: {value: 0},
+    uSurco: {value: 0},
   };
-  const material = new THREE.MeshStandardMaterial({roughness: .62, side: THREE.DoubleSide});
+  const material = new THREE.MeshStandardMaterial({roughness: .58, side: THREE.DoubleSide});
   material.onBeforeCompile = sombreador => {
     Object.assign(sombreador.uniforms, compartidos);
     sombreador.vertexShader = sombreador.vertexShader
-      .replace("#include <common>", "#include <common>\nattribute vec3 reposo;\nvarying vec3 vReposo;")
-      .replace("#include <begin_vertex>", "#include <begin_vertex>\nvReposo = reposo;");
+      .replace("#include <common>", "#include <common>\nvarying vec3 vPosicion;\nvarying vec3 vNormalObjeto;")
+      .replace("#include <begin_vertex>", "#include <begin_vertex>\nvPosicion = position;\nvNormalObjeto = normal;");
     sombreador.fragmentShader = sombreador.fragmentShader
       .replace("#include <common>", `#include <common>\n${SOMBREADO}`)
-      .replace("#include <color_fragment>", "#include <color_fragment>\nvec4 brillo = brilloZona(vReposo);\ndiffuseColor.rgb = mix(diffuseColor.rgb, brillo.rgb, brillo.a);")
-      .replace("#include <emissivemap_fragment>", "#include <emissivemap_fragment>\ntotalEmissiveRadiance += brillo.rgb * brillo.a * uEmision;");
+      .replace("#include <color_fragment>", `#include <color_fragment>\n${LEER_MAPA}`)
+      .replace("#include <normal_fragment_maps>", "#include <normal_fragment_maps>\nnormal = normalConRelieve(-vViewPosition, normal, vec2(dFdx(altura), dFdy(altura)) * uRelieve * mCubre, faceDirection);")
+      .replace("#include <emissivemap_fragment>", "#include <emissivemap_fragment>\ntotalEmissiveRadiance += tono * alfa * uEmision * (1.0 + .3 * fibras + surco * .5 + (1.0 - encendidoVisto) * 2.0);");
   };
   // Sin plataforma: una sombra difusa bajo los pies, que no depende del giro, y un aro fino.
   const materialBase = new THREE.ShaderMaterial({
@@ -187,27 +187,36 @@ export async function crearCuerpo(contenedor, svg, seleccionable, nombreFigura, 
   aro.position.y = .001;
   escena.add(aro);
   const superficies = [];
+  let datosMapa = null;
+  function leerDatosMapa(imagen) {
+    const contexto = imagen && documento.createElement("canvas").getContext("2d", {willReadFrequently: true});
+    if (!contexto) return null;
+    contexto.canvas.width = imagen.width; contexto.canvas.height = imagen.height;
+    contexto.drawImage(imagen, 0, 0);
+    return contexto.getImageData(0, 0, imagen.width, imagen.height).data;
+  }
   async function cargarModelo() {
     const pedida = figura;
     const {GLTFLoader} = await import('../../vendor/three@0.186.0/loaders/GLTFLoader.js');
-    const gltf = await new GLTFLoader().loadAsync(new URL(`../../vendor/cuerpo@2/${pedida.modelo}`, import.meta.url).href);
+    const recurso = extension => new URL(`../../vendor/cuerpo@3/${pedida.modelo}.${extension}`, import.meta.url).href;
+    const [gltf, mapa] = await Promise.all([new GLTFLoader().loadAsync(recurso("glb")), new THREE.TextureLoader().loadAsync(recurso("png"))]);
     // Si eligieron otra mientras cargaba, gana la última.
-    if (pedida !== figura) return;
+    if (pedida !== figura) { mapa.dispose(); return; }
     for (const malla of superficies.splice(0)) { cuerpo.remove(malla); malla.geometry.dispose(); }
-    compartidos.uParche.value = figura.parches.flatMap(p => [p.x, p.y, p.rx, p.ry]);
-    compartidos.uLado.value = figura.parches.flatMap(p => [p.lado, p.corte]);
-    compartidos.uZona.value = figura.parches.map(p => p.zona);
+    // Son datos, no color: sin filtro, sin corrección y con la fila 0 arriba.
+    mapa.flipY = false;
+    mapa.generateMipmaps = false;
+    mapa.colorSpace = THREE.NoColorSpace;
+    mapa.magFilter = mapa.minFilter = THREE.NearestFilter;
+    mapa.needsUpdate = true;
+    compartidos.uMapa.value?.dispose();
+    compartidos.uMapa.value = mapa;
+    datosMapa = leerDatosMapa(mapa.image);
     gltf.scene.updateMatrixWorld(true);
     gltf.scene.traverse(objeto => {
       if (!objeto.isMesh) return;
       const geometria = objeto.geometry.clone();
       geometria.applyMatrix4(objeto.matrixWorld);
-      const posiciones = geometria.attributes.position.array;
-      const reposo = new Float32Array(posiciones.length);
-      for (let i = 0; i < posiciones.length; i += 3) {
-        reposo.set(enderezar(figura, posiciones[i], posiciones[i + 1], posiciones[i + 2]), i);
-      }
-      geometria.setAttribute("reposo", new THREE.BufferAttribute(reposo, 3));
       geometria.computeVertexNormals();
       geometria.computeBoundingSphere();
       const malla = new THREE.Mesh(geometria, material);
@@ -218,6 +227,7 @@ export async function crearCuerpo(contenedor, svg, seleccionable, nombreFigura, 
   function liberar() {
     for (const malla of superficies) malla.geometry.dispose();
     base.geometry.dispose(); aro.geometry.dispose();
+    compartidos.uMapa.value?.dispose();
     material.dispose(); materialBase.dispose(); materialAro.dispose();
     dibujante.dispose();
   }
@@ -329,10 +339,38 @@ export async function crearCuerpo(contenedor, svg, seleccionable, nombreFigura, 
 
   const oscuro = ventana.matchMedia("(prefers-color-scheme: dark)");
   const color = new THREE.Color();
-  const pintar = (arreglo, indice, valor) => color.set(valor).toArray(arreglo, indice * 3);
+  // El código de zona del mapa empieza en 1.
+  const pintar = (arreglo, indice, valor) => color.set(valor).toArray(arreglo, (indice + 1) * 3);
   const conDolor = control => control.getAttribute("aria-checked") === "true" || control.dataset.dolor === "true";
   const trabajada = control => control.dataset.trabajada === "true";
   // Solo lleva color lo que se marcó o se trabajó. Con ambos estados, el dolor queda en el centro.
+  const encendida = new Float32Array(ZONAS_CUERPO.length);
+  const espera = new Float32Array(ZONAS_CUERPO.length);
+  // Sin GPU cada cuadro ocupa todos los núcleos: la zona aparece encendida de una vez.
+  const sinAnimar = esDibujoPorSoftware(graficaDisponible(documento).renderizador);
+  let ultimoAvance = 0;
+  // Al abrir, los músculos ya marcados se encienden uno tras otro.
+  function escalonarEncendido() {
+    controles.filter(control => conDolor(control) || trabajada(control)).forEach((control, orden) => {
+      espera[controles.indexOf(control)] = 180 + orden * 110;
+    });
+  }
+  function avanzarEncendido() {
+    const ahora = ventana.performance.now();
+    const paso = Math.min(ahora - ultimoAvance, 50);
+    ultimoAvance = ahora;
+    let falta = false;
+    controles.forEach((control, indice) => {
+      const meta = conDolor(control) || trabajada(control) ? 1 : 0;
+      if (sinAnimar) { encendida[indice] = meta; return; }
+      if (meta && espera[indice] > 0) { espera[indice] -= paso; falta = true; return; }
+      if (encendida[indice] === meta) return;
+      const delta = paso / DURACION_ENCENDIDO;
+      encendida[indice] = meta > encendida[indice] ? Math.min(encendida[indice] + delta, 1) : Math.max(encendida[indice] - delta * 2, 0);
+      falta = true;
+    });
+    return falta;
+  }
   const volumenVisto = new Float32Array(ZONAS_CUERPO.length);
   const colorBajo = new THREE.Color(), colorAlto = new THREE.Color();
   // Cada cambio llega al cuerpo en unos cuadros, para que se note qué zona se movió.
@@ -352,9 +390,10 @@ export async function crearCuerpo(contenedor, svg, seleccionable, nombreFigura, 
     controles.forEach((control, indice) => {
       const visto = volumenVisto[indice];
       color.copy(colorBajo).lerp(colorAlto, visto);
-      color.toArray(compartidos.uRelleno.value, indice * 3);
-      color.toArray(compartidos.uBorde.value, indice * 3);
-      compartidos.uFuerza.value[indice] = visto > .005 ? Math.min(.4 + visto * .58, .98) : 0;
+      color.toArray(compartidos.uRelleno.value, (indice + 1) * 3);
+      color.toArray(compartidos.uBorde.value, (indice + 1) * 3);
+      compartidos.uFuerza.value[indice + 1] = visto > .005 ? Math.min(.4 + visto * .58, .98) : 0;
+      compartidos.uEncendido.value[indice + 1] = 1;
       const {boton, estado} = filas[indice];
       const series = seriesDe(control);
       boton.dataset.estado = series ? "volumen" : "libre";
@@ -369,7 +408,8 @@ export async function crearCuerpo(contenedor, svg, seleccionable, nombreFigura, 
       const dolor = conDolor(control), hecha = trabajada(control);
       pintar(compartidos.uRelleno.value, indice, hecha ? tema.trabajada : tema.dolor);
       pintar(compartidos.uBorde.value, indice, dolor ? tema.dolor : tema.trabajada);
-      compartidos.uFuerza.value[indice] = dolor || hecha ? .96 : 0;
+      compartidos.uFuerza.value[indice + 1] = encendida[indice] > 0 ? .96 : 0;
+      compartidos.uEncendido.value[indice + 1] = suave(encendida[indice]);
       const {boton, marca, estado} = filas[indice];
       const clase = hecha && dolor ? "ambas" : dolor ? "dolor" : hecha ? "trabajada" : "";
       marca.className = `marca-zona ${clase}`;
@@ -407,15 +447,11 @@ export async function crearCuerpo(contenedor, svg, seleccionable, nombreFigura, 
     const destacadas = volumen ? [...controles].filter(seriesDe).sort((a, b) => seriesDe(b) - seriesDe(a)).slice(0, 4) : [];
     controles.forEach((control, indice) => {
       if (volumen ? !destacadas.includes(control) : !conDolor(control) && !trabajada(control)) return;
-      const parche = figura.parches.find(p => p.zona === indice);
       // Del lado del cuerpo que mira a la cámara; si ambos se ven, el que queda a la derecha de la pantalla.
-      const profundidad = parche.lado === 0 ? .1 : parche.corte + parche.lado * .13;
-      const [uno, otro] = [1, -1].map(signo => {
-        const [x, y, z] = doblar(figura, signo * (parche.x + parche.rx), parche.y, profundidad);
-        return {x: x * coseno + z * seno, y, z: -x * seno + z * coseno};
-      });
-      const lugar = Math.abs(uno.z - otro.z) < .08 ? (uno.x > otro.x ? uno : otro) : (uno.z > otro.z ? uno : otro);
-      if (parche.lado !== 0 && lugar.z < 0) return;
+      const lugar = figura.centros[ZONAS_CUERPO[indice].id]
+        .flatMap(([x, y, z]) => [1, -1].map(signo => ({x: signo * x * coseno + z * seno, y, z: -signo * x * seno + z * coseno})))
+        .reduce((mejor, otro) => (Math.abs(otro.z - mejor.z) < .08 ? otro.x > mejor.x : otro.z > mejor.z) ? otro : mejor);
+      if (lugar.z < -.02) return;
       punto.set(lugar.x, lugar.y, lugar.z).project(camara);
       const rotulo = crear("span", "rotulo-cuerpo", volumen ? `${ZONAS_CUERPO[indice].nombre} ${seriesDe(control)}` : ZONAS_CUERPO[indice].nombre);
       rotulo.style.left = `${(punto.x + 1) / 2 * ancho}px`;
@@ -429,7 +465,7 @@ export async function crearCuerpo(contenedor, svg, seleccionable, nombreFigura, 
 
   let cuadroVolumen = 0;
   function dibujar() {
-    if (conVolumen() && avanzarVolumen() && !cuadroVolumen) {
+    if ((conVolumen() ? avanzarVolumen() : avanzarEncendido()) && !cuadroVolumen) {
       cuadroVolumen = ventana.requestAnimationFrame(() => { cuadroVolumen = 0; dibujar(); });
     }
     const tema = oscuro.matches ? TEMAS.oscuro : TEMAS.claro;
@@ -437,6 +473,8 @@ export async function crearCuerpo(contenedor, svg, seleccionable, nombreFigura, 
     materialAro.color.set(tema.aro);
     materialBase.uniforms.uOpacidad.value = tema.sombra;
     compartidos.uEmision.value = tema.emision;
+    compartidos.uRelieve.value = tema.relieve;
+    compartidos.uSurco.value = tema.surco;
     contra.intensity = tema.contra;
     const deFrente = Math.cos(cuerpo.rotation.y) >= 0;
     frente.setAttribute("aria-pressed", String(deFrente));
@@ -490,14 +528,8 @@ export async function crearCuerpo(contenedor, svg, seleccionable, nombreFigura, 
       rayo.setFromCamera(new THREE.Vector2((e.clientX-rect.left)/rect.width*2-1, -(e.clientY-rect.top)/rect.height*2+1), camara);
       const impacto = rayo.intersectObjects(superficies)[0];
       if (impacto) {
-        const reposo = impacto.object.geometry.attributes.reposo;
-        const {a, b, c} = impacto.face;
-        const zona = zonaDelPunto(
-          figura,
-          (reposo.getX(a) + reposo.getX(b) + reposo.getX(c)) / 3,
-          (reposo.getY(a) + reposo.getY(b) + reposo.getY(c)) / 3,
-          (reposo.getZ(a) + reposo.getZ(b) + reposo.getZ(c)) / 3,
-        );
+        const {x, y} = cuerpo.worldToLocal(impacto.point);
+        const zona = zonaDelPunto(datosMapa, x, y, impacto.face.normal.z >= 0);
         if (zona >= 0) filas[zona].boton.click();
       }
     }
@@ -528,6 +560,8 @@ export async function crearCuerpo(contenedor, svg, seleccionable, nombreFigura, 
   svg.setAttribute("hidden", "");
   svg.style.display = "none";
   observador.observe(svg, {attributes: true, subtree: true});
+  ultimoAvance = ventana.performance.now();
+  escalonarEncendido();
   ajuste.observe(contenedor); dibujar();
   if (indiceEnFoco >= 0) filas[indiceEnFoco].boton.focus();
   presencia.observe(documento.body, {childList: true, subtree: true});
