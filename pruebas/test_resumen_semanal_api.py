@@ -120,7 +120,7 @@ def test_sin_consentimiento_el_entrenador_no_ve_datos_de_salud(semilla):
     app, lucia = semilla
     freno = {
         "regla": "restriccion_salud",
-        "version": "3.5.0",
+        "version": "3.5.1",
         "datos": {"ejercicio_id": "ep", "zonas": "zona_lumbar", "explicacion": "Sin carga axial en zona lumbar."},
     }
     with app.app_context(), transaccion() as cursor:
@@ -132,7 +132,7 @@ def test_sin_consentimiento_el_entrenador_no_ve_datos_de_salud(semilla):
         registrar_consentimiento(cursor, desde_texto(lucia), "salud", False, "demo-1", desde_texto(lucia))
     ruta = f"/api/entrenador/socios/{lucia}/resumen-semanal"
     frenos = como_marcos(app).get(ruta, headers=CABECERA).get_json()["cambios"]["frenos"]
-    assert frenos == [{"regla": "restriccion_salud", "version": "3.5.0", "datos": {"ejercicio_id": "ep"}}]
+    assert frenos == [{"regla": "restriccion_salud", "version": "3.5.1", "datos": {"ejercicio_id": "ep"}}]
     # El socio sigue viendo sus propios datos completos.
     propios = como_lucia(app, lucia).get("/api/yo/resumen-semanal", headers=CABECERA).get_json()["cambios"]["frenos"]
     assert propios == [freno]

@@ -18,7 +18,7 @@ CAMINATA = EjercicioDeLaSemana("ep-2", "Caminata", 1)
 
 
 def razon(regla):
-    return {"regla": regla, "version": "3.5.0", "datos": {"ejercicio_id": "ep-1"}}
+    return {"regla": regla, "version": "3.5.1", "datos": {"ejercicio_id": "ep-1"}}
 
 
 def serie(ejercicio, repeticiones=None, duracion=None, distancia=None):

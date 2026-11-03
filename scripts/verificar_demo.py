@@ -1,7 +1,7 @@
 """Verifica una demo pública ya desplegada (pasos 2, 4 y 5 de docs/demo-publica.md).
 
 Uso:
-    python scripts/verificar_demo.py https://gimnasio-pro.onrender.com
+    python scripts/verificar_demo.py https://gimnasio-pro-demo.onrender.com
 
 Gasta el cupo de la IP desde la que corre: esperá un minuto antes de repetirlo.
 Quedan manuales el cupo por IP distinta con X-Forwarded-For y el reinicio programado.
