@@ -1078,6 +1078,60 @@ def test_recarga_sustitucion_sin_alternativa_en_catalogo(alternativas_api, con_s
     assert rechazo.status_code == 422
 
 
+def test_alternativas_no_proponen_un_ejercicio_que_ya_esta_en_la_sesion(alternativas_api):
+    datos = alternativas_api
+    with datos.app.app_context(), transaccion() as cursor:
+        cursor.execute(
+            "UPDATE ejercicios_planificados SET ejercicio_id=%s WHERE id=%s",
+            (a_bytes(datos.alternativas[0]), a_bytes(datos.ejercicios[0][1])),
+        )
+    sesion = iniciar(datos)
+    ruta = f"/api/entrenamiento/sesiones/{sesion}"
+    respuesta = datos.cliente().get(f"{ruta}/ejercicios/{datos.ejercicios[0][0]}/alternativas")
+    assert [a["ejercicio_id"] for a in respuesta.json["alternativas"]] == [str(datos.alternativas[1])]
+    cuerpo = {
+        "id": str(nuevo_id(datos.reloj)),
+        "ejercicio_planificado_id": str(datos.ejercicios[0][0]),
+        "ejercicio_hecho_id": str(datos.alternativas[0]),
+    }
+    assert escribir(datos.cliente(), f"{ruta}/sustituciones", cuerpo).status_code == 422
+
+
+def test_hoy_cuenta_el_chequeo_y_la_sesion_con_series(entrenamiento_api):
+    datos = entrenamiento_api
+    cliente = datos.cliente()
+    assert cliente.get("/api/entrenamiento/hoy").json == {"chequeo": False, "sesion_realizada_id": None}
+    sesion = iniciar(datos)
+    assert cliente.get("/api/entrenamiento/hoy").json["sesion_realizada_id"] is None
+    assert escribir(cliente, f"/api/entrenamiento/sesiones/{sesion}/series", cuerpo_serie(datos)).status_code == 201
+    assert cliente.get("/api/entrenamiento/hoy").json["sesion_realizada_id"] == str(sesion)
+    assert (
+        escribir(
+            cliente,
+            "/api/entrenamiento/chequeos",
+            {"id": str(nuevo_id(datos.reloj)), "sueno": 4, "energia": 4, "zonas": []},
+        ).status_code
+        == 201
+    )
+    assert cliente.get("/api/entrenamiento/hoy").json["chequeo"] is True
+    datos.reloj.avanzar(timedelta(days=1))
+    assert cliente.get("/api/entrenamiento/hoy").json == {"chequeo": False, "sesion_realizada_id": None}
+
+
+def test_resumen_da_volumen_y_duracion(entrenamiento_api):
+    datos = entrenamiento_api
+    cliente = datos.cliente()
+    sesion = iniciar(datos)
+    ruta = f"/api/entrenamiento/sesiones/{sesion}"
+    assert cliente.get(ruta + "/resumen").json["duracion"] is None
+    datos.reloj.avanzar(timedelta(minutes=20))
+    assert escribir(cliente, ruta + "/series", cuerpo_serie(datos)).status_code == 201
+    resumen = cliente.get(ruta + "/resumen").json
+    assert resumen["duracion"] == 1200
+    assert resumen["volumen"]["series"] == 1
+    assert resumen["volumen"]["repeticiones"] == cuerpo_serie(datos)["repeticiones"]
+
+
 def test_sustitucion_exige_clave_y_ejercicio_de_sesion(alternativas_api):
     datos = alternativas_api
     sesion = iniciar(datos)
@@ -1852,6 +1906,13 @@ def test_maquina_ocupada_con_dolor_ajeno_conserva_zonas(dolor_api):
     cliente, ruta = datos.cliente_dolor, datos.ruta_dolor
     assert escribir(cliente, ruta + "/dolores", datos.cuerpo_dolor | {"zonas": ["cuello"]}).status_code == 201
     ejercicio = datos.cuerpo_dolor["ejercicio_planificado_id"]
+    # En la semilla esa alternativa ya está en la sesión: se saca para que pueda proponerse.
+    with datos.app.app_context(), transaccion() as cursor:
+        cursor.execute(
+            "UPDATE ejercicios_planificados ep JOIN ejercicios e ON e.id=ep.ejercicio_id "
+            "JOIN ejercicios otro ON otro.nombre='Caminata sin cinta ficticia' SET ep.ejercicio_id=otro.id "
+            "WHERE e.nombre='Sentadilla con mancuernas ficticia'"
+        )
     respuesta = cliente.get(ruta + f"/ejercicios/{ejercicio}/alternativas")
     assert respuesta.status_code == 200
     assert [a["nombre"] for a in respuesta.json["alternativas"]] == ["Sentadilla con mancuernas ficticia"]

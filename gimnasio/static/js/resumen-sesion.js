@@ -3,6 +3,7 @@ import { formatearCarga } from "@comun/formatos.js";
 import { exigirRol, prepararBarra } from "@comun/personal.js";
 import { textoMotivoSustitucion } from "@comun/sustituciones.js";
 import { crearResumenZonas, ZONAS_CUERPO } from "@comun/zonas.js";
+import { describirVolumen, formatearDuracion, proximoPaso } from "./entrenamiento-textos.js";
 
 const $ = (selector) => document.querySelector(selector);
 function lista(selector, textos, vacio) {
@@ -20,7 +21,14 @@ async function actualizar() {
   try {
     const sesion = new URL(location.href).searchParams.get("sesion");
     if (!sesion) throw new Error("Elegí una sesión realizada desde tu entrenamiento.");
-    const datos = await llamarApi(`/api/entrenamiento/sesiones/${encodeURIComponent(sesion)}/resumen`);
+    const [datos, propuesta] = await Promise.all([
+      llamarApi(`/api/entrenamiento/sesiones/${encodeURIComponent(sesion)}/resumen`),
+      // Sin la próxima sesión el resumen sigue sirviendo.
+      llamarApi("/api/entrenamiento/propuesta").catch(() => null),
+    ]);
+    $("[data-volumen]").textContent = describirVolumen(datos.volumen);
+    $("[data-duracion]").textContent = datos.duracion === null ? "" : `Duración: ${formatearDuracion(datos.duracion)}`;
+    $("[data-proximo]").textContent = propuesta ? proximoPaso(propuesta, datos.sesion_realizada.sesion_planificada_id) : "";
     const zonas = $("[data-zonas-resumen]");
     zonas.replaceChildren();
     crearResumenZonas(zonas, datos.zonas_trabajadas, datos.zonas_con_dolor);
@@ -37,6 +45,7 @@ async function actualizar() {
   } finally { $("[data-actualizar]").disabled = false; }
 }
 $("[data-actualizar]").addEventListener("click", actualizar);
+$("[data-listo]").addEventListener("click", () => location.assign("/entrenamiento.html"));
 // La cabecera no espera al resumen: sin red, el error lo muestra `actualizar`.
 exigirRol(["socio"]).then((usuario) => { if (usuario) prepararBarra(usuario); }).catch(() => {});
 actualizar();

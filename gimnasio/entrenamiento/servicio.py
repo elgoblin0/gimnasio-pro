@@ -62,6 +62,34 @@ def identificar(texto):
         raise ErrorDeDominio("id_invalido", "El identificador debe ser un UUIDv7.", 422) from error
 
 
+def volumen_de_series(filas):
+    return {
+        "series": len(filas),
+        "repeticiones": sum(f["repeticiones"] or 0 for f in filas),
+        "duracion": sum(f["duracion"] or 0 for f in filas),
+        "distancia": str(sum((f["distancia"] or Decimal(0) for f in filas), Decimal(0))),
+    }
+
+
+def consultar_hoy(usuario):
+    """Lo que el socio ya hizo hoy: una sesión abierta sin series no cuenta como entrenada."""
+    socio_id = identificar(usuario["id"])
+    with transaccion() as cursor:
+        sede = repositorio.obtener_sede(cursor)
+        if sede is None:
+            raise ErrorDeDominio("sede_inexistente", "La sede no existe.", 404)
+        zona = ZoneInfo(sede["zona_horaria"])
+        hoy = fecha_local(reloj_actual().ahora(), zona)
+        chequeo = repositorio.obtener_chequeo(cursor, socio_id, hoy)
+        ultima = repositorio.ultima_sesion(cursor, socio_id)
+        entreno = (
+            ultima is not None
+            and fecha_local(ultima["creada_en"].replace(tzinfo=UTC), zona) == hoy
+            and bool(repositorio.listar_series_vigentes(cursor, socio_id, desde_bytes(ultima["id"])))
+        )
+    return {"chequeo": chequeo is not None, "sesion_realizada_id": str(desde_bytes(ultima["id"])) if entreno else None}
+
+
 def consultar_resumen(sesion_texto, usuario, *, socio_texto=None):
     """Lectura de hechos vigentes: terminar no cierra ni completa la sesión."""
     sesion_id = identificar(sesion_texto)
@@ -120,6 +148,10 @@ def consultar_resumen(sesion_texto, usuario, *, socio_texto=None):
         ],
         "pendientes": [asdict(p) for p in pendientes],
         "ejercicios": [{"id": e["id"], "nombre": e["nombre"]} for e in planificada["ejercicios_planificados"]],
+        "volumen": volumen_de_series(filas),
+        "duracion": (
+            int((max(f["registrada_en"] for f in filas) - sesion["creada_en"]).total_seconds()) if filas else None
+        ),
     }
 
 
@@ -833,16 +865,29 @@ def catalogo_ejercicio(cursor, ejercicio):
     )
 
 
-def _alternativas(cursor, ejercicio, zonas_excluidas=(), *, socio_id, consentimiento, momento):
+def _alternativas(cursor, sesion_id, ejercicio, zonas_excluidas=(), *, socio_id, consentimiento, momento):
     filas = repositorio.listar_catalogo(cursor, desde_bytes(ejercicio["ejercicio_id"]))
     catalogo = catalogo_ejercicio(cursor, ejercicio)
     restricciones = restricciones_al_iniciar(socio_id, momento, cursor=cursor, consentimiento=consentimiento)
     zonas_excluidas = tuple(zona for zona in zonas_excluidas if zona in catalogo[0].zonas)
+    # Con la máquina ocupada, lo que ya está en la sesión no sirve: se haría dos veces y este quedaría sin hacer.
+    # Con dolor manda evitar la zona, aunque la alternativa se repita.
+    en_la_sesion = (
+        set()
+        if zonas_excluidas
+        else {
+            str(desde_bytes(e["ejercicio_id"]))
+            for e in repositorio.listar_ejercicios_sesion(cursor, sesion_id)
+            if e["ejercicio_id"] != ejercicio["ejercicio_id"]
+        }
+    )
     alternativas, razon = elegir_alternativas(
         str(desde_bytes(ejercicio["ejercicio_id"])),
         catalogo,
         zonas_excluidas=zonas_excluidas,
-        ejercicios_excluidos=tuple(e.ejercicio_id for e in catalogo if excluido(e, restricciones)),
+        ejercicios_excluidos=tuple(
+            e.ejercicio_id for e in catalogo if excluido(e, restricciones) or e.ejercicio_id in en_la_sesion
+        ),
         motivo="dolor_reportado" if zonas_excluidas else "maquina_ocupada",
         equipos_fuera_de_servicio=equipos_fuera_de_servicio(cursor),
     )
@@ -869,6 +914,7 @@ def consultar_alternativas(sesion_texto, ejercicio_texto, usuario):
         )
         alternativas, razon = _alternativas(
             cursor,
+            desde_bytes(sesion["id"]),
             ejercicio,
             zonas,
             socio_id=identificar(usuario["id"]),
@@ -916,6 +962,7 @@ def registrar_sustitucion(sesion_texto, datos, usuario):
         )
         alternativas, razon = _alternativas(
             cursor,
+            desde_bytes(sesion["id"]),
             ejercicio,
             zonas,
             socio_id=identificar(usuario["id"]),

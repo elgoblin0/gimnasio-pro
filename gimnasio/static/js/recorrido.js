@@ -112,8 +112,15 @@ const ACCIONES = {
 
   async chequeo() {
     await esperar(() => textoDe("[data-estado]") === "Propuesta actualizada.");
+    // En otra vuelta del mismo día Lucía ya entrenó: el recorrido sigue con una sesión nueva.
+    if (visible($("[data-otra-sesion]"))) {
+      $("[data-otra-sesion]").click();
+      await esperar(() => textoDe("[data-estado]") === "Propuesta actualizada.");
+    }
     try { estado.datos.lucia = (await llamarApi("/api/sesion")).usuario?.id ?? estado.datos.lucia; guardar(); } catch { /* La bandeja se abre sin la hoja. */ }
     const formulario = $("[data-formulario-chequeo]");
+    // Otra vuelta del mismo día: el chequeo ya está guardado, pero el relato lo vuelve a mostrar.
+    if (!new URLSearchParams(location.search).get("sesion")) $("[data-chequeo]").hidden = false;
     if (!visible(formulario)) return {};
     // Durmió mal, y se ve: el formulario queda completo mientras se lee. El chequeo desfavorable recorta la
     // propuesta y activa el freno que verá el entrenador.
@@ -139,6 +146,8 @@ const ACCIONES = {
     let series = 0;
     const ejercicios = [...document.querySelectorAll("[data-ejercicio]")].slice(0, 2).map((elemento) => elemento.dataset.ejercicio);
     for (const id of ejercicios) {
+      // Se ve un ejercicio a la vez: el siguiente se abre como lo haría el socio.
+      document.querySelector(`[data-foco-ejercicio="${CSS.escape(id)}"]`)?.click();
       // Cada serie guardada redibuja la lista: la tarjeta y su formulario se buscan de nuevo.
       const formulario = document.querySelector(`[data-serie="${CSS.escape(id)}"]`);
       if (!visible(formulario) || !formulario.checkValidity()) continue;
