@@ -34,6 +34,28 @@
     <button type="button" data-reintentar>Reintentar operación</button>
     <button type="button" data-descartar>Descartar reintento</button>
   </div>
+  <section class="dia" data-dia hidden aria-labelledby="titulo-dia">
+    <h2 id="titulo-dia" data-dia-titulo></h2>
+    <p data-dia-texto></p>
+    <div class="barra">
+      <button type="button" data-dia-resumen>Ver resumen</button>
+      <button type="button" data-dia-seguir hidden>Seguir la sesión</button>
+      <button type="button" class="boton-enlace" data-otra-sesion>Entrenar otra sesión</button>
+    </div>
+  </section>
+  <section class="chequeo" data-chequeo hidden aria-labelledby="titulo-chequeo">
+    <h2 id="titulo-chequeo">Chequeo del día</h2>
+    <form data-formulario-chequeo>
+      <p class="chequeo-intro">Antes de entrenar, contanos cómo estás: 1 es muy bajo y 5 es muy bueno.</p>
+      <fieldset class="escala"><legend>Sueño</legend><div class="escala-opciones"><label><input type="radio" name="sueno" value="1" required><span>1</span></label><label><input type="radio" name="sueno" value="2" required><span>2</span></label><label><input type="radio" name="sueno" value="3" required><span>3</span></label><label><input type="radio" name="sueno" value="4" required><span>4</span></label><label><input type="radio" name="sueno" value="5" required><span>5</span></label></div></fieldset>
+      <fieldset class="escala"><legend>Energía</legend><div class="escala-opciones"><label><input type="radio" name="energia" value="1" required><span>1</span></label><label><input type="radio" name="energia" value="2" required><span>2</span></label><label><input type="radio" name="energia" value="3" required><span>3</span></label><label><input type="radio" name="energia" value="4" required><span>4</span></label><label><input type="radio" name="energia" value="5" required><span>5</span></label></div></fieldset>
+      <p class="chequeo-zonas">Marcá las zonas con dolor, si las hay. Podés usar Tab y Espacio para elegirlas.</p>
+      <div data-zonas-chequeo></div>
+      <button type="submit">Guardar chequeo del día</button>
+      <button type="button" class="boton-enlace" data-saltear-chequeo>Saltear</button>
+    </form>
+    <p class="nota-al-pie">Un chequeo desfavorable reduce las series y anula las subas del día.</p>
+  </section>
   <div class="sede-hoy">
     <section data-ocupacion-ahora hidden aria-labelledby="ocupacion-titulo">
       <h2 id="ocupacion-titulo" class="rotulo">Ocupación ahora</h2>
@@ -49,28 +71,6 @@
       </div>
     </section>
   </div>
-  <section class="dia" data-dia hidden aria-labelledby="titulo-dia">
-    <h2 id="titulo-dia" data-dia-titulo></h2>
-    <p data-dia-texto></p>
-    <div class="barra">
-      <button type="button" data-dia-resumen>Ver resumen</button>
-      <button type="button" data-dia-seguir hidden>Seguir la sesión</button>
-      <button type="button" class="boton-enlace" data-otra-sesion>Entrenar otra sesión</button>
-    </div>
-  </section>
-  <section class="chequeo" data-chequeo hidden aria-labelledby="titulo-chequeo">
-    <h2 id="titulo-chequeo">Chequeo del día</h2>
-    <form data-formulario-chequeo>
-      <p class="chequeo-intro">Antes de entrenar, contanos cómo estás: 1 es muy bajo y 5 es muy bueno.</p>
-      <label for="chequeo-sueno">Sueño</label><select id="chequeo-sueno" name="sueno" required><option value="">Elegí de 1 a 5</option><option>1</option><option>2</option><option>3</option><option>4</option><option>5</option></select>
-      <label for="chequeo-energia">Energía</label><select id="chequeo-energia" name="energia" required><option value="">Elegí de 1 a 5</option><option>1</option><option>2</option><option>3</option><option>4</option><option>5</option></select>
-      <p class="chequeo-zonas">Marcá las zonas con dolor, si las hay. Podés usar Tab y Espacio para elegirlas.</p>
-      <div data-zonas-chequeo></div>
-      <button type="submit">Guardar chequeo del día</button>
-      <button type="button" class="boton-enlace" data-saltear-chequeo>Saltear</button>
-    </form>
-    <p class="nota-al-pie">Un chequeo desfavorable reduce las series y anula las subas del día.</p>
-  </section>
   <div class="en-vivo" data-en-vivo hidden>
     <div class="en-vivo-avance">
       <p data-avance></p>
@@ -112,21 +112,6 @@
     <p data-sin-series>Todavía no hay series guardadas en esta sesión.</p>
     <ul class="lista" data-series></ul>
     <button type="button" data-terminar>Terminar sesión</button>
-  </section>
-  <button type="button" data-ver-progreso hidden aria-expanded="false" aria-controls="vista-progreso">Ver progreso</button>
-  <section id="vista-progreso" data-progreso hidden aria-labelledby="titulo-progreso">
-    <p class="etiqueta">Tu cuaderno · Carga en kg</p>
-    <h2 id="titulo-progreso">Progreso</h2>
-    <label>Ejercicio <select aria-label="Ejercicio de progreso"></select></label>
-    <p role="status" aria-live="polite"></p>
-    <svg aria-hidden="true" focusable="false"></svg>
-    <div class="solo-lector">
-    <table>
-      <caption>Progreso de carga del ejercicio seleccionado</caption>
-      <thead><tr><th scope="col">Fecha</th><th scope="col">Carga máxima</th><th scope="col">Repeticiones</th></tr></thead>
-      <tbody></tbody>
-    </table>
-    </div>
   </section>
 </main>
 </body>

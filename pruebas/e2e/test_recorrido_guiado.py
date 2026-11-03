@@ -148,7 +148,7 @@ def test_se_ve_lo_que_lucia_conto_antes_de_guardar_el_chequeo(pagina_demo, demo_
     # Mientras se lee, el chequeo está a la vista con sus valores y no se puede saltear la acción a medias.
     expect(pagina.locator("[data-chequeo]")).to_be_visible()
     expect(pagina.locator("[data-chequeo]")).to_have_attribute("data-recorrido-ancla", "")
-    assert pagina.locator("#chequeo-sueno").input_value() == "1"
+    expect(pagina.locator('input[name="sueno"]:checked')).to_have_value("1")
     expect(tarjeta.get_by_role("button", name="Siguiente", exact=True)).to_be_disabled()
     # Salir mientras se lee cancela la acción: el chequeo no se guarda.
     tarjeta.get_by_role("button", name="Salir del recorrido", exact=True).click()

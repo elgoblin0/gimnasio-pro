@@ -153,12 +153,15 @@ def test_chequeo_del_dia_teclado_y_prescripcion_guardada(pagina_demo, demo_aisla
     expect(pagina.get_by_role("heading", name="Chequeo del día", exact=True)).to_be_visible()
     iniciar = pagina.get_by_role("button", name="Empezar sesión", exact=True)
     expect(iniciar).to_be_disabled()
-    sueno = pagina.get_by_label("Sueño", exact=True)
-    sueno.focus()
-    pagina.keyboard.press("Home")
-    pagina.keyboard.press("ArrowDown")
-    expect(sueno).to_have_value("1")
-    pagina.get_by_label("Energía", exact=True).select_option("5")
+    # La escala se recorre con el teclado, como cualquier grupo de opciones.
+    sueno = pagina.get_by_role("group", name="Sueño", exact=True)
+    sueno.get_by_role("radio", name="1", exact=True).focus()
+    pagina.keyboard.press("Space")
+    pagina.keyboard.press("ArrowRight")
+    expect(sueno.get_by_role("radio", name="2", exact=True)).to_be_checked()
+    pagina.keyboard.press("ArrowLeft")
+    expect(sueno.get_by_role("radio", name="1", exact=True)).to_be_checked()
+    pagina.get_by_role("group", name="Energía", exact=True).get_by_role("radio", name="5", exact=True).check()
     pagina.get_by_role("button", name="Guardar chequeo del día", exact=True).click()
     expect(pagina.locator("[data-chequeo]")).to_be_hidden()
     expect(iniciar).to_be_enabled()
@@ -168,3 +171,15 @@ def test_chequeo_del_dia_teclado_y_prescripcion_guardada(pagina_demo, demo_aisla
     expect(pagina.get_by_text("Sesión iniciada.", exact=True)).to_be_visible()
     pagina.reload()
     expect(pagina.locator("[data-ajuste]").first).to_contain_text("Chequeo del día desfavorable")
+
+
+def test_en_el_celular_el_chequeo_se_ve_primero_y_se_toca(pagina_demo, demo_aislada):
+    pagina = pagina_demo
+    pagina.set_viewport_size({"width": 390, "height": 844})
+    ingresar(pagina, demo_aislada)
+    expect(pagina.get_by_role("heading", name="Chequeo del día", exact=True)).to_be_visible()
+    # Antes quedaba debajo de la ocupación y de los mejores horarios, a unos 750 px.
+    assert pagina.locator("[data-chequeo]").bounding_box()["y"] < 300
+    energia = pagina.get_by_role("group", name="Energía", exact=True)
+    assert energia.bounding_box()["y"] + energia.bounding_box()["height"] < 844
+    assert energia.get_by_text("5", exact=True).bounding_box()["height"] >= 44

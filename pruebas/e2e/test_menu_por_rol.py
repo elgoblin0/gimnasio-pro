@@ -9,7 +9,7 @@ ANCHOS = [1440, 390]
 ROLES = {
     "socio": {
         "boton": "socio",
-        "menu": ["Mi entrenamiento", "Clases", "Mi ficha"],
+        "menu": ["Mi entrenamiento", "Mi progreso", "Clases", "Mi ficha"],
         "incluidas": {"/resumen-sesion.html": "Mi entrenamiento"},
     },
     "recepcion": {

@@ -41,8 +41,8 @@ def test_recorrido_lucia_marcos_lucia(navegador, demo_aislada):
         expect(fila).to_have_count(0)
 
         ingresar(lucia, demo_aislada, "socio")
-        lucia.get_by_label("Sueño", exact=True).select_option("4")
-        lucia.get_by_label("Energía", exact=True).select_option("4")
+        lucia.get_by_role("group", name="Sueño", exact=True).get_by_role("radio", name="4", exact=True).check()
+        lucia.get_by_role("group", name="Energía", exact=True).get_by_role("radio", name="4", exact=True).check()
         lucia.get_by_role("button", name="Guardar chequeo del día", exact=True).click()
         expect(lucia.locator("[data-chequeo]")).to_be_hidden()
         lucia.get_by_role("button", name="Empezar sesión", exact=True).click()
