@@ -101,9 +101,9 @@ def test_recorrido_completo_dos_veces_sobre_la_misma_semilla(pagina_demo, demo_a
             assert "bate un récord personal" in textos[7]
         tarjeta.get_by_role("button", name="Terminar recorrido", exact=True).click()
         expect(tarjeta).to_have_count(0)
-        assert pagina.evaluate("sessionStorage.getItem('gimnasio-recorrido')") is None
-        # Termina invitando a explorar por rol, sin sesión abierta.
+        # Termina invitando a explorar por rol, sin sesión abierta. Se espera a la portada: terminar navega.
         expect(pagina.get_by_role("button", name="Entrar como socio", exact=True)).to_be_visible()
+        assert pagina.evaluate("sessionStorage.getItem('gimnasio-recorrido')") is None
         assert pagina.request.get(demo_aislada.url + "/api/sesion").json() == {"usuario": None}
 
         # La primera vuelta registra la entrada; la segunda encuentra a Lucía adentro y no la duplica.
