@@ -450,8 +450,10 @@ def test_en_el_celular_las_cifras_no_se_montan_sobre_la_escena(pagina_demo, demo
     pagina = pagina_demo
     pagina.set_viewport_size({"width": 390, "height": 844})
     ingresar(pagina, demo_aislada)
-    expect(pagina.locator("[data-escena-ocupacion]")).to_be_visible()
+    # Sin WebGL, como en el CI, se ve la alternativa en lugar de la escena: las cifras tampoco la pisan.
+    escena = pagina.locator("[data-escena-ocupacion]:visible, [data-alternativa-escena]:visible").first
+    expect(escena).to_be_visible()
     cifras = pagina.locator(".sede-cifras").bounding_box()
-    escena = pagina.locator("[data-escena-ocupacion]").bounding_box()
+    escena = escena.bounding_box()
     assert cifras["y"] + cifras["height"] <= escena["y"] + 1
     assert pagina.locator("[data-ocupacion-cifra]").bounding_box()["x"] >= 8
