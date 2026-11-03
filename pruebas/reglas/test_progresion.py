@@ -139,7 +139,7 @@ def entrada(sesiones=None, subas=(), fecha=LUNES):
 )
 def test_vectores_progresion(repeticiones, rir, carga, piso, regla):
     propuesta = proponer_sesion(entrada((historial(repeticiones, rir),)))
-    assert propuesta.version == "3.5.0"
+    assert propuesta.version == "3.5.1"
     assert propuesta.prescripcion[0].carga == Decimal(carga)
     assert propuesta.prescripcion[0].repeticiones_minimas == piso
     assert propuesta.prescripcion[0].repeticiones_maximas == 12
@@ -150,7 +150,7 @@ def test_vectores_progresion(repeticiones, rir, carga, piso, regla):
         assert razones[regla]["rir_minimo"] == "1"
         assert razones[regla]["rir_objetivo"] == "2"
     assert propuesta.frenos == ()
-    assert all(r.version == "3.5.0" and dict(r.datos)["explicacion"] for r in propuesta.explicacion)
+    assert all(r.version == "3.5.1" and dict(r.datos)["explicacion"] for r in propuesta.explicacion)
 
 
 def test_la_suba_que_se_aplica_se_explica_como_decision():
@@ -180,6 +180,17 @@ def test_la_suba_anulada_no_se_lee_como_decision(cambios):
     assert razon["suba_anulada"] == "True"
     # Los datos siguen contando lo que el motor calculó antes del freno.
     assert razon["carga"] == "42.5"
+
+
+def test_la_partida_que_sigue_siendo_suba_no_anula_la_suba():
+    planificado = replace(EJERCICIO, carga_partida=Decimal("41"))
+    propuesta = proponer_sesion(
+        replace(entrada(), programa=ProgramaEntrenamiento((SesionPlanificada("proxima", (planificado,)),)))
+    )
+    assert propuesta.prescripcion[0].carga == Decimal("41")
+    razon = next(dict(r.datos) for r in propuesta.explicacion if r.regla == "subir_carga")
+    assert razon["explicacion"].startswith("Subís")
+    assert "suba_anulada" not in razon
 
 
 def test_el_chequeo_malo_solo_anula_subas_si_las_hubo():
@@ -270,7 +281,7 @@ def test_carga_base_minima_no_depende_del_orden(cargas):
     razon = next(r for r in propuesta.explicacion if r.regla == "subir_carga")
     assert dict(razon.datos)["carga_base"] == "35"
     assert "35 kg" in dict(razon.datos)["explicacion"]
-    assert propuesta.version == "3.5.0"
+    assert propuesta.version == "3.5.1"
 
 
 @pytest.mark.parametrize(
@@ -473,7 +484,7 @@ def test_sin_consentimiento_de_salud_no_sube_carga_ni_repeticiones(repeticiones,
     assert not reglas & {"subir_carga", "mantener_carga", "mantener_por_rir", "tope_semanal"}
     assert propuesta.frenos == ()
     razon = next(r for r in propuesta.explicacion if r.regla == "sin_consentimiento_salud")
-    assert razon.version == propuesta.version == "3.5.0"
+    assert razon.version == propuesta.version == "3.5.1"
     assert "consentimiento de salud" in dict(razon.datos)["explicacion"]
 
 

@@ -308,7 +308,7 @@ def _marcar_suba_anulada(razones, ajustada):
     """Una suba que otra regla anuló queda como motivo y no como decisión: manda la carga final."""
 
     def marcar(explicacion):
-        if explicacion.regla != "subir_carga" or ajustada.carga >= Decimal(dict(explicacion.datos)["carga"]):
+        if explicacion.regla != "subir_carga" or ajustada.carga > Decimal(dict(explicacion.datos)["carga_base"]):
             return explicacion
         return replace(
             explicacion,
