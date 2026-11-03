@@ -27,7 +27,7 @@ function preparar(error, socio = "", esAlta = false) {
     document: { querySelector: obtener }, registrarPwa() {},
     crypto: { randomUUID: () => String(envios.length + 1) },
     FormData: class { constructor() { return Object.entries(formulario.datos); } },
-    crear() {}, formatearGuaranies: String, formatearFecha: String,
+    crear() {}, formatearGuaranies: String, formatearFecha: String, formatearFechaHora: String,
     llamarApi: async (ruta, opciones) => {
       envios.push(JSON.parse(JSON.stringify(opciones)));
       if (typeof fallo === "function") await fallo();

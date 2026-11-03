@@ -1,6 +1,6 @@
 import { llamarApi } from "@comun/api.js";
 import { crear, exigirRol, prepararBarra } from "@comun/personal.js";
-import { formatearCedula, formatearGuaranies, formatearFecha } from "@comun/formatos.js";
+import { formatearCedula, formatearGuaranies, formatearFecha, formatearFechaHora } from "@comun/formatos.js";
 import { registrarPwa } from "@comun/pwa.js";
 
 registrarPwa();
@@ -175,7 +175,7 @@ async function cargarLista() {
     $("[data-total-pagos]").textContent = `Total sin anulados: ${formatearGuaranies(total)}`;
     $("[data-lista-estado]").textContent = pagos.length ? `${pagos.length} pagos.` : "No hay pagos en estas fechas.";
     for (const pago of pagos) {
-      const fecha = new Intl.DateTimeFormat("es-PY", { timeZone: "America/Asuncion", day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" }).format(new Date(pago.registrado_en));
+      const fecha = formatearFechaHora(pago.registrado_en);
       const fila = crear("article", { "data-anulado": pago.anulacion ? "" : null }, crear("h3", {}, pago.socio), crear("p", {}, `${pago.tipo} · ${pago.medio} · ${formatearGuaranies(pago.monto)}`), crear("p", {}, `${fecha} · ${pago.autor}`));
       if (pago.anulacion) fila.append(crear("p", {}, `Anulado: ${pago.anulacion.motivo}`));
       else {

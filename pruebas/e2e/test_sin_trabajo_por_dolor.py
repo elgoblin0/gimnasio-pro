@@ -26,8 +26,8 @@ def entrar_como_socio(pagina, demo):
 
 
 def guardar_chequeo_con_dolor(pagina, *zonas):
-    pagina.get_by_label("Sueño", exact=True).select_option("4")
-    pagina.get_by_label("Energía", exact=True).select_option("4")
+    pagina.get_by_role("group", name="Sueño", exact=True).get_by_role("radio", name="4", exact=True).check()
+    pagina.get_by_role("group", name="Energía", exact=True).get_by_role("radio", name="4", exact=True).check()
     selector = pagina.locator("[data-zonas-chequeo]")
     for zona in zonas:
         selector.get_by_role("checkbox", name=zona, exact=True).locator("text").click()

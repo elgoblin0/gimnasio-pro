@@ -27,12 +27,20 @@
   <p data-estado role="status">Cargando ficha del socio…</p>
   <p data-error role="alert"></p>
   <button type="button" data-reintentar hidden>Reintentar</button>
-  <section data-personales hidden aria-label="Datos personales"></section>
-  <section data-consentimientos hidden aria-label="Consentimiento de salud"></section>
-  <section data-consultas-ficha hidden aria-label="Consultas de ficha y descarga de datos"></section>
-  <section data-salud hidden aria-label="Salud"></section>
-  <section data-perfil hidden aria-label="Perfil de entrenamiento"></section>
-  <section data-membresia-pagos hidden aria-label="Membresía y pagos"></section>
+  <nav class="ficha-indice" aria-label="Partes de la ficha">
+    <a href="#ficha-personales">Datos personales</a>
+    <a href="#ficha-consentimientos">Consentimiento</a>
+    <a href="#ficha-salud">Salud</a>
+    <a href="#ficha-perfil">Perfil</a>
+    <a href="#ficha-membresia">Membresía y pagos</a>
+    <a href="#ficha-consultas">Consultas y descarga</a>
+  </nav>
+  <section id="ficha-personales" data-personales hidden aria-label="Datos personales"></section>
+  <section id="ficha-consentimientos" data-consentimientos hidden aria-label="Consentimiento de salud"></section>
+  <section id="ficha-consultas" data-consultas-ficha hidden aria-label="Consultas de ficha y descarga de datos"></section>
+  <section id="ficha-salud" data-salud hidden aria-label="Salud"></section>
+  <section id="ficha-perfil" data-perfil hidden aria-label="Perfil de entrenamiento"></section>
+  <section id="ficha-membresia" data-membresia-pagos hidden aria-label="Membresía y pagos"></section>
 </main>
 </body>
 </html>

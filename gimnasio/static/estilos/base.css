@@ -197,7 +197,7 @@
     .cabecera nav { grid-row: 2; grid-column: 1 / -1; flex-wrap: nowrap; overflow-x: auto; margin-inline: calc(-1 * var(--espacio-3)); scrollbar-width: none; }
     .cabecera nav a { flex: none; }
     .cabecera { position: relative; }
-    .cabecera-demo { grid-row: 3; grid-column: 1 / -1; padding-block: var(--espacio-1) var(--espacio-2); }
+    .cabecera-demo { grid-row: 3; grid-column: 1 / -1; margin: 0; padding-block: 0 var(--espacio-1); font-size: .7rem; }
     .cabecera-marca { font-size: 1.05rem; white-space: nowrap; }
     .cabecera [data-cerrar], .cabecera .interruptor-efectos { padding-inline: var(--espacio-3); font-size: .8rem; }
   }

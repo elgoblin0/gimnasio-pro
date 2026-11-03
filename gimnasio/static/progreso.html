@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="es" data-direccion="b">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Mi progreso · Gimnasio Pro</title>
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="icon" href="/iconos/gimnasio-192.png">
+  <link rel="stylesheet" href="/estilos/tokens.css">
+  <link rel="stylesheet" href="/estilos/base.css">
+  <script src="/js/comun/presentacion.js"></script>
+  <link rel="stylesheet" href="/estilos/pantallas.css">
+  <script type="importmap">{"imports":{"@comun/":"/js/comun/","three":"/vendor/three@0.186.0/three.module.js"}}</script>
+  <script type="module" src="/js/progreso.js"></script>
+</head>
+<body>
+<header class="cabecera">
+  <a class="cabecera-marca" href="/">Gimnasio Pro</a>
+  <nav aria-label="Secciones"><script src="/js/comun/menu.js"></script></nav>
+  <p class="cabecera-demo" data-demo hidden>Datos ficticios · se reinician cada día</p>
+  <span class="cabecera-efectos" data-lugar-efectos></span>
+  <button type="button" data-cerrar>Cerrar sesión</button>
+</header>
+<main class="hoja">
+  <p class="rotulo">Tu cuaderno de entrenamiento</p>
+  <h1>Mi progreso</h1>
+  <div class="hoja-estado">
+    <button type="button" class="boton-enlace" data-actualizar>Actualizar progreso</button>
+  </div>
+  <section id="vista-progreso" data-progreso aria-labelledby="titulo-progreso">
+    <div class="progreso-cabecera">
+      <div>
+        <h2 id="titulo-progreso" class="rotulo">Carga en kg</h2>
+        <label>Ejercicio <select aria-label="Ejercicio de progreso"></select></label>
+      </div>
+      <p class="progreso-cifras" data-progreso-cifras hidden>
+        <span class="progreso-cifra" data-progreso-ultima></span>
+        <span class="progreso-cambio" data-progreso-cambio></span>
+      </p>
+    </div>
+    <p role="status" aria-live="polite"></p>
+    <svg aria-hidden="true" focusable="false"></svg>
+    <div class="solo-lector">
+    <table>
+      <caption>Progreso de carga del ejercicio seleccionado</caption>
+      <thead><tr><th scope="col">Fecha</th><th scope="col">Carga máxima</th><th scope="col">Repeticiones</th></tr></thead>
+      <tbody></tbody>
+    </table>
+    </div>
+  </section>
+</main>
+</body>
+</html>

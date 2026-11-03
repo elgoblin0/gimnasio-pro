@@ -20,7 +20,7 @@ function almacen(inicial = {}) {
 }
 
 test("cada rol tiene su menú único, en el mismo orden en cualquier pantalla", () => {
-  assert.deepEqual(textos("socio"), ["Mi entrenamiento", "Clases", "Mi ficha"]);
+  assert.deepEqual(textos("socio"), ["Mi entrenamiento", "Mi progreso", "Clases", "Mi ficha"]);
   assert.deepEqual(textos("recepcion"), ["Recepción", "Pagos", "Clases"]);
   assert.deepEqual(textos("entrenador"), ["Bandeja", "Equipos", "Clases"]);
   assert.deepEqual(textos("administracion"), ["Administración", "Clases"]);
@@ -90,7 +90,7 @@ test("toda pantalla con cabecera usa el menú único, sin enlaces escritos a man
   const pantallas = readdirSync(carpeta).filter((archivo) => archivo.endsWith(".html"));
   const conCabecera = pantallas.filter((archivo) => readFileSync(new URL(archivo, carpeta), "utf8").includes('class="cabecera"'));
   assert.ok(conCabecera.includes("resumen-sesion.html"));
-  assert.equal(conCabecera.length, 11);
+  assert.equal(conCabecera.length, 12);
   for (const archivo of conCabecera) {
     const [cabecera] = readFileSync(new URL(archivo, carpeta), "utf8").match(/<header class="cabecera">.*?<\/header>/s);
     assert.ok(cabecera.includes('<nav aria-label="Secciones"><script src="/js/comun/menu.js"></script></nav>'), archivo);
