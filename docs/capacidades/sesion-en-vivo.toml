@@ -5,4 +5,4 @@ etapa = 2
 nivel = "validada"
 prueba = "pruebas/e2e/test_recorrido_lucia.py::test_recorrido_lucia_etapa_2"
 validacion = "https://github.com/elgoblin0/gimnasio-pro/issues/136"
-notas = "Terminar sesión lleva a un resumen de solo lectura con silueta, zonas trabajadas y con dolor, récords, sustituciones y pendientes originales. API cubierta en pruebas/test_entrenamiento_api.py."
+notas = "Terminar sesión lleva a un resumen de solo lectura con silueta, zonas trabajadas y con dolor, récords, sustituciones y pendientes originales. API cubierta en pruebas/test_entrenamiento_api.py. #311: un ejercicio a la vez con el avance, el descanso y el récord siempre a la vista; «Listo por hoy» en vez de proponer otra sesión; el resumen da volumen, duración y próximo paso (pruebas/e2e/test_series.py::test_un_ejercicio_a_la_vez_con_descanso_a_la_vista_y_listo_por_hoy)."

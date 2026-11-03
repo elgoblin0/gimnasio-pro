@@ -10,7 +10,7 @@ import { crearSelectorZonas } from "@comun/zonas.js";
 
 import { crearDescanso } from "@comun/descanso.js";
 import { crearReloj } from "@comun/reloj.js";
-import { describirObjetivos, mensajeDeOperacion, razonesVisibles, seQuito, sinTrabajoHoy } from "./entrenamiento-textos.js";
+import { avanceDeSesion, describirObjetivos, ejercicioEnFoco, estadoDelDia, mensajeDeOperacion, razonesVisibles, seQuito, sinTrabajoHoy } from "./entrenamiento-textos.js";
 
 const $ = (selector) => document.querySelector(selector);
 import { crearSondeo } from "@comun/sondeo.js";
@@ -26,11 +26,15 @@ $("[data-ver-progreso]").addEventListener("click", () => {
 });
 const reloj = crearReloj();
 let descanso = null;
+let descansoTotal = 1;
 function dibujarDescanso() {
   if (!descanso) return;
   const estado = descanso.consultar(reloj.ahora());
+  descansoTotal = Math.max(descansoTotal, estado.restantes);
   $("[data-descanso]").hidden = false;
+  $("[data-descanso]").toggleAttribute("data-terminado", estado.terminado);
   $("[data-restantes]").textContent = `${estado.restantes} s`;
+  $("[data-descanso-barra]").style.transform = `scaleX(${estado.restantes / descansoTotal})`;
   const anuncio = estado.terminado ? "Descanso terminado." : "";
   if ($("[data-descanso-anuncio]").textContent !== anuncio) $("[data-descanso-anuncio]").textContent = anuncio;
 }
@@ -42,6 +46,9 @@ let propuestaActual = null;
 let sesionActual = null;
 let sesionId = new URL(location.href).searchParams.get("sesion");
 let avisando = false;
+let elegido = null;
+let otraSesion = false;
+let ultimaPropuesta = null;
 const control = crearControlDeOperacion();
 const zonasChequeo = crearSelectorZonas($("[data-zonas-chequeo]"));
 const selectoresDolor = new Set();
@@ -67,8 +74,9 @@ function agregarFormulario(tarjeta, ejercicio) {
   const etiquetas = { repeticiones: "Repeticiones", carga: "Carga en kg", duracion: "Duración en segundos", distancia: "Distancia en metros" };
   for (const medida of ejercicio.medidas_aplicables) {
     const etiqueta = document.createElement("label");
-    etiqueta.textContent = `${etiquetas[medida]} de ${ejercicio.nombre}`;
+    etiqueta.textContent = etiquetas[medida];
     const campo = document.createElement("input");
+    campo.setAttribute("aria-label", `${etiquetas[medida]} de ${ejercicio.nombre}`);
     campo.type = "number";
     campo.name = medida;
     campo.required = true;
@@ -79,8 +87,9 @@ function agregarFormulario(tarjeta, ejercicio) {
     formulario.append(etiqueta);
   }
   const etiquetaRir = document.createElement("label");
-  etiquetaRir.textContent = `RIR opcional de ${ejercicio.nombre} (0 a 10)`;
+  etiquetaRir.textContent = "RIR opcional";
   const campoRir = document.createElement("input");
+  campoRir.setAttribute("aria-label", `RIR opcional de ${ejercicio.nombre} (0 a 10)`);
   campoRir.type = "number";
   campoRir.name = "rir";
   campoRir.min = "0";
@@ -126,6 +135,19 @@ function dibujar(propuesta) {
   // Sin freno no nace ningún aviso: un equipo fuera de servicio no llega acá.
   const sinTrabajo = Boolean(propuesta.sesion_planificada) && sinTrabajoHoy(propuesta.ejercicios) && propuesta.frenos.length > 0;
   const avisado = abiertaSinTrabajo(sesionActual);
+  const enVivo = coincide && !avisado;
+  const foco = enVivo ? ejercicioEnFoco(propuesta.ejercicios, elegido) : null;
+  ultimaPropuesta = propuesta;
+  document.body.toggleAttribute("data-sesion-en-vivo", enVivo);
+  $("[data-en-vivo]").hidden = !enVivo;
+  if (enVivo) {
+    const avance = avanceDeSesion(propuesta.ejercicios);
+    $("[data-avance]").textContent = avance.texto;
+    $("[data-avance-barra]").max = Math.max(1, avance.total);
+    $("[data-avance-barra]").value = avance.hechas;
+    const cabecera = $(".cabecera");
+    $("[data-en-vivo]").style.top = getComputedStyle(cabecera).position === "sticky" ? `${cabecera.offsetHeight}px` : "0";
+  }
   $("[data-iniciar]").hidden = !propuesta.sesion_planificada || coincide || sinTrabajo;
   $("[data-sesion-actual]").hidden = !coincide || avisado;
   $("[data-sin-trabajo]").hidden = !sinTrabajo;
@@ -167,8 +189,18 @@ function dibujar(propuesta) {
     anterior.textContent = ejercicio.carga_anterior
       ? `Carga anterior: ${ejercicio.carga_anterior.carga == null ? "sin carga" : formatearCarga(ejercicio.carga_anterior.carga)} · ${ejercicio.carga_anterior.repeticiones ?? "sin"} repeticiones · ${formatearFecha(ejercicio.carga_anterior.fecha_local)}`
       : "Sin carga anterior.";
+    const cuerpo = document.createElement("div");
+    cuerpo.className = "ejercicio-cuerpo";
     tarjeta.append(nombre, objetivos);
-    if (!seQuito(ejercicio)) tarjeta.append(anterior, pendiente);
+    if (enVivo && ejercicio.id === foco) {
+      tarjeta.dataset.foco = "";
+      tarjeta.append(marcasDeSeries(ejercicio));
+    } else if (enVivo) {
+      tarjeta.dataset.plegada = "";
+      cuerpo.hidden = true;
+      tarjeta.append(accionDePlegada(ejercicio));
+    }
+    if (!seQuito(ejercicio)) cuerpo.append(anterior, pendiente);
     const explicacion = document.createElement("ul");
     explicacion.className = "ejercicio-porque";
     explicacion.dataset.ajuste = ejercicio.id;
@@ -178,11 +210,15 @@ function dibujar(propuesta) {
       texto.textContent = razon.datos.explicacion ?? "Se aplicó un freno de seguridad.";
       explicacion.append(texto);
     }
-    tarjeta.append(explicacion);
+    cuerpo.append(explicacion);
+    tarjeta.append(cuerpo);
     if (coincide && ejercicio.pendiente > 0 && !ejercicio.no_disponible) {
-      agregarSustitucion(tarjeta, ejercicio);
-      agregarDolor(tarjeta, ejercicio);
-      agregarFormulario(tarjeta, ejercicio);
+      agregarFormulario(cuerpo, ejercicio);
+      const otras = document.createElement("div");
+      otras.className = "ejercicio-otras";
+      agregarSustitucion(otras, ejercicio);
+      agregarDolor(otras, ejercicio);
+      cuerpo.append(otras);
     }
     $("[data-ejercicios]").append(tarjeta);
   }
@@ -190,6 +226,65 @@ function dibujar(propuesta) {
   dibujarRegistro();
   if (avisado) $("[data-registro]").hidden = true;
   actualizarBotones();
+}
+
+// El foco va al primer campo sin que el panel fijo tape el nombre del ejercicio.
+function enfocarEjercicio() {
+  const tarjeta = $("[data-foco]");
+  const campo = tarjeta?.querySelector("[data-serie] input");
+  if (!campo) return false;
+  campo.focus({ preventScroll: true });
+  tarjeta.style.scrollMarginTop = `${$("[data-en-vivo]").getBoundingClientRect().height + (parseInt($("[data-en-vivo]").style.top, 10) || 0) + 8}px`;
+  tarjeta.scrollIntoView({ block: "start" });
+  return true;
+}
+
+function marcasDeSeries(ejercicio) {
+  const marcas = document.createElement("div");
+  marcas.className = "ejercicio-marcas";
+  marcas.setAttribute("aria-hidden", "true");
+  for (let indice = 0; indice < ejercicio.realizado + ejercicio.pendiente; indice += 1) {
+    const marca = document.createElement("span");
+    if (indice < ejercicio.realizado) marca.dataset.hecha = "";
+    marcas.append(marca);
+  }
+  return marcas;
+}
+
+function accionDePlegada(ejercicio) {
+  if (ejercicio.pendiente <= 0 || ejercicio.no_disponible || seQuito(ejercicio)) {
+    const dato = document.createElement("p");
+    dato.className = "ejercicio-dato";
+    dato.textContent = ejercicio.pendiente <= 0 ? "Hecho" : "Hoy no";
+    return dato;
+  }
+  const boton = document.createElement("button");
+  boton.type = "button";
+  boton.className = "boton-enlace";
+  boton.dataset.focoEjercicio = ejercicio.id;
+  boton.textContent = "Hacer ahora";
+  boton.setAttribute("aria-label", `Hacer ahora ${ejercicio.nombre}`);
+  boton.addEventListener("click", () => {
+    elegido = ejercicio.id;
+    dibujar(ultimaPropuesta);
+    enfocarEjercicio();
+  });
+  return boton;
+}
+
+// El día ya tiene una sesión con series: se muestra eso en vez de proponer otra, salvo que el socio la pida.
+function dibujarDia(realizada) {
+  const estado = estadoDelDia(realizada);
+  $("[data-dia-titulo]").textContent = estado.titulo;
+  $("[data-dia-texto]").textContent = estado.texto;
+  $("[data-dia-seguir]").hidden = !estado.pendientes;
+  $("[data-dia-seguir]").dataset.sesion = realizada.sesion_realizada.id;
+  $("[data-dia-resumen]").dataset.sesion = realizada.sesion_realizada.id;
+  $("[data-dia]").hidden = false;
+  $("[data-contenido]").hidden = true;
+  $("[data-registro]").hidden = true;
+  $("[data-en-vivo]").hidden = true;
+  document.body.removeAttribute("data-sesion-en-vivo");
 }
 
 async function actualizar(mensaje) {
@@ -200,12 +295,20 @@ async function actualizar(mensaje) {
   if (!control.actual) $("[data-error]").textContent = "";
   $("[data-estado]").textContent = "Cargando tu propuesta…";
   try {
-    const [propuesta, realizada] = await Promise.all([
+    const [propuesta, realizada, hoy] = await Promise.all([
       llamarApi("/api/entrenamiento/propuesta"),
       sesionId ? llamarApi(`/api/entrenamiento/sesiones/${encodeURIComponent(sesionId)}`) : Promise.resolve(null),
+      llamarApi("/api/entrenamiento/hoy"),
     ]);
     propuestaActual = propuesta;
     sesionActual = realizada;
+    if (hoy.chequeo) chequeoResuelto = true;
+    const delDia = realizada ?? (hoy.sesion_realizada_id && !otraSesion
+      ? await llamarApi(`/api/entrenamiento/sesiones/${encodeURIComponent(hoy.sesion_realizada_id)}`)
+      : null);
+    const diaVisible = !otraSesion && delDia?.series.length > 0 && (!realizada || !estadoDelDia(delDia).pendientes);
+    $("[data-dia]").hidden = true;
+    $("[data-chequeo]").hidden = chequeoResuelto || diaVisible;
     const efectiva = realizada?.ejercicios.some((e) => e.pendiente > 0) || abiertaSinTrabajo(realizada)
       ? realizada.prescripcion_efectiva : null;
     dibujar(efectiva ? {
@@ -214,6 +317,7 @@ async function actualizar(mensaje) {
       sesion_planificada: realizada.sesion_planificada,
       ejercicios: realizada.ejercicios,
     } : propuesta);
+    if (diaVisible) dibujarDia(delDia);
     if (progresoVisible) actualizarProgreso();
     $("[data-estado]").textContent = mensaje ?? "Propuesta actualizada.";
   } catch (error) {
@@ -243,6 +347,8 @@ async function enviar() {
     }
     if (datos.sesion_realizada) {
       sesionId = datos.sesion_realizada.id;
+      otraSesion = false;
+      elegido = null;
       const enlace = new URL(location.href);
       enlace.search = "";
       enlace.searchParams.set("sesion", sesionId);
@@ -264,14 +370,13 @@ async function enviar() {
         return `Récord: ${marca} en ${record.ejercicio_hecho_nombre}`;
       }).join(". ");
       if (!modoSinEfectos().activo) {
-        anuncio.animate([{ opacity: 0, transform: "translateY(4px)" }, { opacity: 1, transform: "translateY(0)" }], { duration: 300 });
+        anuncio.animate([{ opacity: 0, transform: "scale(.94)" }, { opacity: 1, transform: "scale(1.03)", offset: .6 }, { opacity: 1, transform: "scale(1)" }], { duration: 480, easing: "ease-out" });
       }
     }
     control.finalizar();
     await actualizar(mensajeDeOperacion(datos, { avisando }));
     avisando = false;
-    const foco = document.querySelector("[data-serie] input") ?? $("[data-actualizar]");
-    foco.focus();
+    if (!enfocarEjercicio()) $("[data-actualizar]").focus();
   } catch (error) {
     control.finalizar(error);
     $("[data-error]").textContent = error.message;
@@ -297,7 +402,6 @@ async function iniciar() {
       barra.max = datos.aforo_maximo;
       barra.value = datos.ocupacion_registrada;
     } });
-    $("[data-chequeo]").hidden = chequeoResuelto;
     $("[data-ver-progreso]").hidden = false;
     await actualizar();
   } catch (error) {
@@ -309,6 +413,18 @@ $("[data-actualizar]").addEventListener("click", () => autorizada ? actualizar()
 $("[data-terminar]").addEventListener("click", () => {
   if (cargando || control.actual || !sesionId) return;
   location.assign(`/resumen-sesion.html?sesion=${encodeURIComponent(sesionId)}`);
+});
+$("[data-dia-resumen]").addEventListener("click", (evento) => {
+  location.assign(`/resumen-sesion.html?sesion=${encodeURIComponent(evento.currentTarget.dataset.sesion)}`);
+});
+$("[data-dia-seguir]").addEventListener("click", (evento) => {
+  location.assign(`/entrenamiento.html?sesion=${encodeURIComponent(evento.currentTarget.dataset.sesion)}`);
+});
+$("[data-otra-sesion]").addEventListener("click", () => {
+  otraSesion = true;
+  sesionId = null;
+  history.replaceState(null, "", location.pathname);
+  actualizar();
 });
 $("[data-iniciar]").addEventListener("click", () => {
   if (cargando || control.actual || !propuestaActual?.sesion_planificada) return;

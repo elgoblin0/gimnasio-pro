@@ -25,7 +25,6 @@
 <main class="hoja">
   <p class="rotulo">Tu cuaderno de entrenamiento</p>
   <h1>Tu entrenamiento</h1>
-  <p data-record role="status" aria-live="polite" aria-atomic="true"></p>
   <div class="hoja-estado">
     <p data-estado role="status" aria-live="polite">Cargando tu propuesta…</p>
     <button type="button" class="boton-enlace" data-actualizar>Actualizar propuesta</button>
@@ -50,6 +49,15 @@
       </div>
     </section>
   </div>
+  <section class="dia" data-dia hidden aria-labelledby="titulo-dia">
+    <h2 id="titulo-dia" data-dia-titulo></h2>
+    <p data-dia-texto></p>
+    <div class="barra">
+      <button type="button" data-dia-resumen>Ver resumen</button>
+      <button type="button" data-dia-seguir hidden>Seguir la sesión</button>
+      <button type="button" class="boton-enlace" data-otra-sesion>Entrenar otra sesión</button>
+    </div>
+  </section>
   <section class="chequeo" data-chequeo hidden aria-labelledby="titulo-chequeo">
     <h2 id="titulo-chequeo">Chequeo del día</h2>
     <form data-formulario-chequeo>
@@ -63,6 +71,23 @@
     </form>
     <p class="nota-al-pie">Un chequeo desfavorable reduce las series y anula las subas del día.</p>
   </section>
+  <div class="en-vivo" data-en-vivo hidden>
+    <div class="en-vivo-avance">
+      <p data-avance></p>
+      <progress data-avance-barra max="1" value="0" aria-label="Series guardadas de la sesión"></progress>
+    </div>
+    <section class="descanso" data-descanso hidden aria-labelledby="titulo-descanso">
+      <h2 id="titulo-descanso">Descanso</h2>
+      <p class="descanso-cifra" data-restantes></p>
+      <div class="descanso-barra" aria-hidden="true"><span data-descanso-barra></span></div>
+      <div class="descanso-acciones">
+        <button type="button" data-sumar-descanso>Sumar 30 s</button>
+        <button type="button" data-saltear>Saltear descanso</button>
+      </div>
+    </section>
+    <p data-descanso-anuncio role="status" aria-live="polite"></p>
+    <p data-record role="status" aria-live="polite" aria-atomic="true"></p>
+  </div>
   <div data-contenido hidden>
     <p class="rotulo" data-fecha></p>
     <div class="grilla">
@@ -82,13 +107,6 @@
       </section>
     </div>
   </div>
-  <section data-descanso hidden aria-labelledby="titulo-descanso">
-    <h2 id="titulo-descanso">Descanso</h2>
-    <p data-restantes></p>
-    <button type="button" data-saltear>Saltear descanso</button>
-    <button type="button" data-sumar-descanso>Sumar 30 s</button>
-  </section>
-  <p data-descanso-anuncio role="status" aria-live="polite"></p>
   <section data-registro hidden aria-labelledby="titulo-registro">
     <h2 id="titulo-registro">Series guardadas</h2>
     <p data-sin-series>Todavía no hay series guardadas en esta sesión.</p>

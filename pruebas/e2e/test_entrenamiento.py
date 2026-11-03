@@ -135,6 +135,8 @@ def test_secuencia_terminada_con_historial_real(pagina_demo, demo_aislada, progr
             distancia=1500.25,
         )
     ingresar(pagina_demo, demo_aislada)
+    expect(pagina_demo.get_by_role("heading", name="Listo por hoy", exact=True)).to_be_visible()
+    pagina_demo.get_by_role("button", name="Entrenar otra sesión", exact=True).click()
     expect(
         pagina_demo.get_by_text("Terminaste tu programa; tu entrenador prepara el siguiente", exact=True)
     ).to_be_visible()

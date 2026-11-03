@@ -232,6 +232,8 @@ def test_secuencia_terminada_se_conserva_tras_recarga_y_otra_semana(pagina_demo,
     for _ in range(2):
         propuesta = consulta(pagina, demo_aislada, "/api/entrenamiento/propuesta")
         assert propuesta["sesion_planificada"] is not None
+        if pagina.get_by_role("button", name="Entrenar otra sesión", exact=True).is_visible():
+            pagina.get_by_role("button", name="Entrenar otra sesión", exact=True).click()
         if pagina.locator("[data-chequeo]").is_visible():
             pagina.get_by_role("button", name="Saltear", exact=True).click()
         pagina.get_by_role("button", name="Empezar sesión", exact=True).click()
@@ -245,6 +247,7 @@ def test_secuencia_terminada_se_conserva_tras_recarga_y_otra_semana(pagina_demo,
             tiempo_de_recorrido(demo_aislada)
         tiempo_de_recorrido(demo_aislada, dias=1)
     assert sesiones[0] != sesiones[1]
+    pagina.get_by_role("button", name="Entrenar otra sesión", exact=True).click()
     expect(pagina.get_by_role("heading", name="Secuencia realizada", exact=True)).to_be_visible()
     expect(pagina.get_by_role("button", name="Empezar sesión", exact=True)).to_be_hidden()
     tiempo_de_recorrido(demo_aislada, dias=7)
