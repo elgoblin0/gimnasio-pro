@@ -37,7 +37,7 @@ ZONA_SIN_MARCA = 15
 
 FIGURAS = {
     "GEO-body_male_realistic": {"relieve": 0.007, "pasadas_pecho": 12, "deformar": False},
-    "GEO-body_female_realistic": {"relieve": 0.004, "pasadas_pecho": 260, "deformar": True},
+    "GEO-body_female_realistic": {"relieve": 0.004, "pasadas_pecho": 70, "deformar": True},
 }
 
 
