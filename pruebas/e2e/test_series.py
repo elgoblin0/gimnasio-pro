@@ -15,6 +15,9 @@ def iniciar(pagina, instancia):
     pagina.goto(instancia.url)
     pagina.get_by_role("button", name="Entrar como socio", exact=True).click()
     pagina.get_by_role("link", name="Ver mi entrenamiento", exact=True).click()
+    expect(pagina.get_by_text("Propuesta actualizada.", exact=True)).to_be_visible()
+    if pagina.get_by_role("button", name="Entrenar otra sesión", exact=True).is_visible():
+        pagina.get_by_role("button", name="Entrenar otra sesión", exact=True).click()
     pagina.get_by_role("button", name="Saltear", exact=True).click()
     boton = pagina.get_by_role("button", name="Empezar sesión", exact=True)
     expect(boton).to_be_visible()
@@ -102,6 +105,7 @@ def test_fuerza_cardio_pendientes_y_recarga(pagina_demo, demo_aislada, programa_
     cardio = pagina.locator(f'[data-ejercicio="{programa_demo.ejercicios[1]}"]')
     assert cardio.locator("input").count() == 3
     assert cardio.locator('[name="repeticiones"], [name="carga"]').count() == 0
+    pagina.get_by_role("button", name="Hacer ahora Caminata ficticia", exact=True).click()
     pagina.get_by_label("Duración en segundos de Caminata ficticia", exact=True).fill("121")
     pagina.get_by_label("Distancia en metros de Caminata ficticia", exact=True).fill("1500.27")
     pagina.get_by_role("button", name="Registrar serie de Caminata ficticia", exact=True).click()
@@ -109,6 +113,55 @@ def test_fuerza_cardio_pendientes_y_recarga(pagina_demo, demo_aislada, programa_
     assert contar(demo_aislada) == 2
     assert pagina.evaluate("document.documentElement.scrollWidth <= innerWidth")
     assert errores == []
+
+
+@pytest.mark.parametrize("ancho,alto", [(1440, 900), (390, 844)])
+def test_un_ejercicio_a_la_vez_con_descanso_a_la_vista_y_listo_por_hoy(
+    pagina_demo, demo_aislada, programa_demo, ancho, alto
+):
+    pagina = pagina_demo
+    pagina.set_viewport_size({"width": ancho, "height": alto})
+    iniciar(pagina, demo_aislada)
+    # Solo el ejercicio del momento se puede registrar; el otro queda en un renglón.
+    expect(pagina.get_by_role("button", name="Registrar serie de Sentadilla ficticia", exact=True)).to_be_visible()
+    expect(pagina.get_by_role("button", name="Registrar serie de Caminata ficticia", exact=True)).to_be_hidden()
+    expect(pagina.locator("[data-avance]")).to_have_text("0 de 3 series")
+    expect(pagina.locator(".sede-hoy")).to_be_hidden()
+
+    pagina.get_by_role("button", name="Registrar serie de Sentadilla ficticia", exact=True).click()
+    expect(pagina.get_by_text("Serie guardada.", exact=True)).to_be_visible()
+    expect(pagina.locator("[data-avance]")).to_have_text("1 de 3 series")
+    # El panel de arriba sigue a la vista al desplazar y no tapa el nombre del ejercicio.
+    pagina.evaluate("window.scrollTo(0, document.documentElement.scrollHeight)")
+    assert pagina.locator("[data-descanso]").evaluate(
+        "e => { const c = e.getBoundingClientRect(); return c.top >= 0 && c.bottom <= innerHeight; }"
+    )
+    pagina.get_by_role("button", name="Registrar serie de Sentadilla ficticia", exact=True).click()
+    expect(pagina.locator("[data-avance]")).to_have_text("2 de 3 series")
+    # Al terminar un ejercicio se pasa solo al siguiente.
+    expect(pagina.get_by_role("button", name="Registrar serie de Caminata ficticia", exact=True)).to_be_visible()
+    expect(pagina.locator("[data-foco] h3")).to_have_text("Caminata ficticia")
+    assert pagina.locator("[data-foco] h3").evaluate(
+        "e => e.getBoundingClientRect().top >= document.querySelector('[data-en-vivo]').getBoundingClientRect().bottom"
+    )
+
+    pagina.get_by_role("button", name="Registrar serie de Caminata ficticia", exact=True).click()
+    # Sin series pendientes no se propone otra sesión: el día ya está.
+    expect(pagina.get_by_role("heading", name="Listo por hoy", exact=True)).to_be_visible()
+    expect(pagina.locator("[data-dia-texto]")).to_contain_text("3 series guardadas")
+    expect(pagina.get_by_role("button", name="Empezar sesión", exact=True)).to_be_hidden()
+    pagina.get_by_role("button", name="Ver resumen", exact=True).click()
+    expect(pagina.locator("[data-volumen]")).to_contain_text("3 series")
+    expect(pagina.locator("[data-duracion]")).to_contain_text("Duración:")
+    expect(pagina.locator("[data-proximo]")).not_to_be_empty()
+    # Al volver sin la sesión en la dirección tampoco pide de nuevo el chequeo.
+    pagina.get_by_role("button", name="Listo por hoy", exact=True).click()
+    expect(pagina.get_by_role("heading", name="Listo por hoy", exact=True)).to_be_visible()
+    expect(pagina.locator("[data-chequeo]")).to_be_hidden()
+    pagina.get_by_role("button", name="Entrenar otra sesión", exact=True).click()
+    expect(pagina.get_by_role("heading", name="Listo por hoy", exact=True)).to_be_hidden()
+    expect(pagina.locator("[data-contenido]")).to_be_visible()
+    assert pagina.evaluate("document.documentElement.scrollWidth <= innerWidth")
 
 
 @pytest.mark.parametrize("ancho,alto", [(1440, 900), (390, 844)])
@@ -233,12 +286,23 @@ def test_sesion_parcial_conserva_pendientes_y_carga_anterior(pagina_demo, demo_a
     expect(tarjeta.get_by_role("button", name="Registrar serie de Sentadilla ficticia", exact=True)).to_have_count(0)
 
 
+def test_maquina_ocupada_no_propone_lo_que_ya_esta_en_la_sesion(pagina_demo, demo_aislada):
+    pagina = pagina_demo
+    iniciar(pagina, demo_aislada)
+    # La alternativa de la sentadilla es la de mancuernas, que Lucía ya tiene en esta sesión.
+    pagina.get_by_role("button", name="Máquina ocupada de Sentadilla ficticia", exact=True).click()
+    grupo = pagina.get_by_role("group", name="Alternativas de Sentadilla ficticia", exact=True)
+    expect(grupo).to_be_visible()
+    expect(grupo.get_by_role("button")).to_have_count(0)
+
+
 @pytest.mark.parametrize("ancho,alto", [(1440, 900), (390, 844)])
 def test_maquina_ocupada_con_teclado_y_recarga(pagina_demo, demo_aislada, ancho, alto):
     pagina = pagina_demo
     pagina.set_viewport_size({"width": ancho, "height": alto})
     iniciar(pagina, demo_aislada)
-    boton = pagina.get_by_role("button", name="Máquina ocupada de Sentadilla ficticia", exact=True)
+    pagina.get_by_role("button", name="Hacer ahora Caminata ficticia", exact=True).click()
+    boton = pagina.get_by_role("button", name="Máquina ocupada de Caminata ficticia", exact=True)
     tarjeta_id = boton.locator("xpath=ancestor::li").get_attribute("data-ejercicio")
     boton.focus()
     pagina.keyboard.press("Enter")
@@ -248,6 +312,7 @@ def test_maquina_ocupada_con_teclado_y_recarga(pagina_demo, demo_aislada, ancho,
     pagina.keyboard.press("Enter")
     expect(pagina.get_by_text("Sustitución guardada.", exact=True)).to_be_visible()
     pagina.reload()
+    pagina.get_by_role("button", name=f"Hacer ahora {nombre}", exact=True).click()
     registrar = pagina.locator(f'[data-ejercicio="{tarjeta_id}"]').get_by_role(
         "button", name=f"Registrar serie de {nombre}", exact=True
     )

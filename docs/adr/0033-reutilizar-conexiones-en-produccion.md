@@ -1,6 +1,6 @@
 # 0033. Reutilizar las conexiones a la base en producción con el pool del conector
 
-- Estado: provisional
+- Estado: aceptado
 - Fecha: 2026-11-02
 - Decide: Opus
 - Etiquetas: modulo:comun, modulo:demo
@@ -27,10 +27,21 @@ Sin base la instancia escala: no faltan hilos. Con una sola consulta ya aparece 
 - Cada solicitud agrega unos pocos comandos para reiniciar la sesión y comprobar la conexión. Es mucho menos que abrirla.
 - La primera solicitud que toca la base tras arrancar abre las cuatro conexiones de una vez: tarda unos segundos más, sobre el arranque en frío que ya tarda cerca de un minuto (ADR 0009).
 - Hay un máximo de cuatro conexiones por instancia con la base.
-- Sube a `aceptado` cuando se mida el resultado en la demo, después de fusionar: desde este entorno no se puede desplegar antes.
 
 ## Alternativas descartadas
 - Más hilos o procesos en gunicorn: no ayuda, el tope no son los hilos, y varios procesos gastarían más memoria y CPU en el plan gratuito.
 - Una clase propia de conexiones reutilizables: ahorra algunos comandos por solicitud, a cambio de unas 50 líneas que limpian a mano lo que el pool ya limpia.
 - Bajar el costo del TLS o quitar la verificación del certificado: el certificado protege las credenciales de la base.
 - Cambiar de plan: la demo es gratuita por decisión (ADR 0009).
+
+## Resultado medido
+En la demo desplegada, el 03/11/2026, desde el mismo entorno de la medición inicial:
+
+| Ruta | Una a la vez | Ocho a la vez | Rendimiento |
+|---|---|---|---|
+| `/api/estado` sin cookie | 204 ms | 0,54 s | 14,9 por segundo |
+| `/api/estado` con cookie | 295 ms | 0,39 s | 20,3 por segundo |
+| `/api/visitas/socios` | 317 ms | 0,56 s | 14,3 por segundo |
+| `/api/ocupacion` | 594 ms | 2,36 s | 3,4 por segundo |
+
+El recorrido guiado llega a su último paso en 1:41, en escritorio y en celular; antes tardaba 2:32. Abrir la conexión dejó de ser el límite. `/api/ocupacion` sigue más lenta porque hace trece consultas con `FOR UPDATE`.

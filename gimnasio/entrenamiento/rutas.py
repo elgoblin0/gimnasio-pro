@@ -27,6 +27,12 @@ def propuesta_propia():
     return jsonify(servicio.consultar_propuesta(usuario["id"], usuario))
 
 
+@bp.get("/hoy")
+@requiere("entrenamiento.ver_propio")
+def hoy_propio():
+    return jsonify(servicio.consultar_hoy(usuario_actual()))
+
+
 @bp.get("/socios/<socio_id>/propuesta")
 @requiere("entrenamiento.ver_asignados")
 def propuesta_asignada(socio_id):

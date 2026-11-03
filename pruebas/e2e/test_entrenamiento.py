@@ -35,7 +35,7 @@ def test_propuesta_explicacion_recarga_y_cierre(pagina_demo, demo_aislada, progr
         "Se respeta el plan del entrenador sin ajustes de carga, repeticiones, series ni volumen."
     )
     expect(pagina.get_by_text("27/10/2026", exact=True)).to_be_visible()
-    expect(pagina.locator("[data-contenido]")).to_have_attribute("data-version-reglas", "3.5.0")
+    expect(pagina.locator("[data-contenido]")).to_have_attribute("data-version-reglas", "3.5.1")
     assert pagina.evaluate("document.documentElement.scrollWidth <= innerWidth")
     pagina.get_by_role("button", name="Actualizar propuesta", exact=True).focus()
     pagina.keyboard.press("Enter")
@@ -63,8 +63,8 @@ def test_estados_vacios_con_respuesta_controlada(pagina_demo, demo_aislada, regl
     datos = {
         "sesion_planificada": None,
         "ejercicios": [],
-        "explicacion": [{"regla": regla, "version": "3.5.0", "datos": {"explicacion": mensaje}}],
-        "version_reglas": "3.5.0",
+        "explicacion": [{"regla": regla, "version": "3.5.1", "datos": {"explicacion": mensaje}}],
+        "version_reglas": "3.5.1",
         "fecha_local": "2026-10-27",
         "semana_local": "2026-10-26",
     }
@@ -135,6 +135,8 @@ def test_secuencia_terminada_con_historial_real(pagina_demo, demo_aislada, progr
             distancia=1500.25,
         )
     ingresar(pagina_demo, demo_aislada)
+    expect(pagina_demo.get_by_role("heading", name="Listo por hoy", exact=True)).to_be_visible()
+    pagina_demo.get_by_role("button", name="Entrenar otra sesión", exact=True).click()
     expect(
         pagina_demo.get_by_text("Terminaste tu programa; tu entrenador prepara el siguiente", exact=True)
     ).to_be_visible()

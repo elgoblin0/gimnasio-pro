@@ -50,6 +50,7 @@ def test_recorrido_lucia_etapa_2(pagina_demo, demo_aislada, ancho, alto, sin_web
     expect(sentadilla).to_contain_text("Carga anterior: 20,50 kg · 12 repeticiones")
 
     # El cardio deja disponibles ambas sentadillas para mostrar luego el freno y el récord.
+    pagina.get_by_role("button", name="Hacer ahora Caminata ficticia", exact=True).click()
     pagina.get_by_label("RIR opcional de Caminata ficticia (0 a 10)", exact=True).fill("2")
     pagina.get_by_role("button", name="Máquina ocupada de Caminata ficticia", exact=True).click()
     pagina.get_by_role("button", name=re.compile("Propuesta: Caminata sin cinta ficticia")).click()
@@ -62,6 +63,7 @@ def test_recorrido_lucia_etapa_2(pagina_demo, demo_aislada, ancho, alto, sin_web
     pagina.get_by_role("button", name="Saltear descanso", exact=True).click()
 
     # Bate la marca histórica antes de reportar dolor en las rodillas.
+    pagina.get_by_role("button", name="Hacer ahora Sentadilla con mancuernas ficticia", exact=True).click()
     pagina.get_by_label("Carga en kg de Sentadilla con mancuernas ficticia", exact=True).fill("23")
     pagina.get_by_label("RIR opcional de Sentadilla con mancuernas ficticia (0 a 10)", exact=True).fill("2")
     pagina.get_by_role("button", name="Registrar serie de Sentadilla con mancuernas ficticia", exact=True).click()
