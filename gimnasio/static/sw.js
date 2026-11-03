@@ -52,7 +52,6 @@ const RECURSOS_ESTATICOS = [
   "/js/entrenamiento.js",
   "/js/resumen-sesion.js",
   "/js/progreso.js",
-  "/progreso.html",
   "/js/comun/progreso.js",
   "/js/comun/zonas.js",
   "/js/comun/sustituciones.js",
